@@ -1,0 +1,59 @@
+{
+  "id": "tsl-social-conflict",
+  "title": "TSL: Social Conflict",
+  "description": "Social Fencing: a Foundry module blending A5E-style social tactics with Thirsty Sword Lesbians narrative conflict.",
+  "version": "1.0.0",
+  "compatibility": {
+    "minimum": "13",
+    "verified": "13",
+    "maximum": ""
+  },
+  "authors": [
+    {
+      "name": "WesleySniperss",
+      "url": "https://github.com/WesleySniperss"
+    }
+  ],
+  "license": "LICENSE",
+  "readme": "README.md",
+  "url": "https://github.com/WesleySniperss/tsl-social-conflict",
+  "manifest": "https://github.com/WesleySniperss/tsl-social-conflict/releases/latest/download/module.json",
+  "download": "https://github.com/WesleySniperss/tsl-social-conflict/releases/latest/download/module.zip",
+  "bugs": "https://github.com/WesleySniperss/tsl-social-conflict/issues",
+  "scripts": [
+    "scripts/socket.js",
+    "scripts/stat-resolver.js",
+    "scripts/condition-effects.js",
+    "scripts/string-store.js",
+    "scripts/bond-store.js",
+    "scripts/social-archetypes.js",
+    "scripts/tsl-playbooks.js",
+    "scripts/social-encounter.js",
+    "scripts/social-maneuvers.js",
+    "scripts/social-notes-app.js",
+    "scripts/social-hud.js",
+    "scripts/conflict-store.js",
+    "scripts/conflict-app.js",
+    "scripts/hud-button.js",
+    "scripts/main.js"
+  ],
+  "styles": [
+    "styles/conflict.css"
+  ],
+  "languages": [
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
+  ],
+  "relationships": {
+    "requires": [
+      {
+        "id": "vtools",
+        "type": "module"
+      }
+    ]
+  },
+  "flags": {}
+}

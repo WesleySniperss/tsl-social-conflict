@@ -1,0 +1,21 @@
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+
+# Editor / tooling configs (machine-specific)
+.vscode/
+.idea/
+.claude/
+
+# Node (in case tooling is added later)
+node_modules/
+npm-debug.log*
+package-lock.json
+
+# Logs / temp
+*.log
+tmp/
+temp/

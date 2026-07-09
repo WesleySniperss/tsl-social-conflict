@@ -1,0 +1,11 @@
+{
+  "TSL.conflict.title": "Social Conflict",
+  "TSL.conflict.turnIndicator": "{name}'s Turn",
+  "TSL.conflict.overwhelmed": "Overwhelmed — must yield or flee",
+  "TSL.conflict.resolved.kiss": "💋 Finally kissed — +1 ongoing for the scene",
+  "TSL.conflict.resolved.yield": "🏳 Conflict resolved",
+  "TSL.conflict.moves.label": "Moves",
+  "TSL.conflict.yield": "Yield",
+  "TSL.conflict.close": "End Conflict",
+  "TSL.hud.button": "Social Conflict"
+}

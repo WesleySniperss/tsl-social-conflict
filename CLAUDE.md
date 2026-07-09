@@ -1,0 +1,204 @@
+# TSL: Social Conflict
+
+Foundry VTT module — social conflict minigame inspired by **Thirsty Sword Lesbians** mechanics (Feelings Moves, Conditions, emotional tracks).
+
+## License
+- TSL open license: **Powered by Lesbians** (poweredbylesbians.com)
+- Code: **CC BY-SA 4.0**
+- Must include TSL attribution in README and module description
+- Thirsty Sword Lesbians™ is a trademark of April Kit Walsh, published by Evil Hat Productions
+
+## Target Platform
+- **Foundry VTT v13** (minimum), future v14 support
+- Primary systems: `dnd5e` (classic 5e), `dnd5e` v4+ (2024 / 5.5e), `a5e-for-dnd5e` (Level Up: Advanced 5th Edition)
+- System-agnostic fallback for PbtA and any other system
+- No React — vanilla JS + Foundry API only
+
+## Architecture
+
+### File Structure
+```
+tsl-social-conflict/
+├── module.json              ← manifest, requires vtools
+├── CLAUDE.md                ← this file
+├── README.md
+├── scripts/
+│   ├── main.js              ← entry point, hooks
+│   ├── socket.js            ← sync GM ↔ players + TSLGMActions relay (player actions run on GM client)
+│   ├── stat-resolver.js     ← auto-detect stats from actor.system
+│   ├── condition-effects.js ← TSL conditions as Active Effects, rest/spell clearing
+│   ├── string-store.js      ← Strings (emotional leverage) on actor flags
+│   ├── bond-store.js        ← Chronicle bonds (relationships) on actor flags
+│   ├── social-archetypes.js ← SOCIAL_TRIADS, 9 archetypes, PROFILE_POINTS, BOND_TYPES, fencing conditions
+│   ├── tsl-playbooks.js     ← 9 TSL playbooks (classes) + their signature 2d6 moves
+│   ├── social-encounter.js  ← Patience & Resolve tracks + swayed/walked outcomes
+│   ├── social-maneuvers.js  ← 12 maneuvers, roller (no side effects) + applyOutcome (GM only)
+│   ├── social-notes-app.js  ← Chronicle app: Profile / Bonds / Fencing tabs, canvas token picking
+│   ├── social-hud.js        ← Token HUD button + actor context menu → Chronicle
+│   ├── conflict-store.js    ← central conflict state, CONDITIONS, MOVES
+│   ├── conflict-app.js      ← conflict UI (Application V1, raw HTML)
+│   └── hud-button.js        ← VTools toolbar integration
+├── styles/
+│   └── conflict.css         ← all styling, CSS variables
+└── lang/
+    └── en.json              ← i18n strings (UI is currently hardcoded English)
+```
+
+### How It Works
+1. **Chronicle** (any time): right-click token → HUD address-book button → `SocialFencingApp`
+   - Profile tab: archetype, Extended Triad leanings (0–3 ×3), profiling points — all with `data-tooltip` hints
+   - Bonds tab: relationship entries; add via candidate select or canvas pick mode (click a visible, non-hidden token; Esc cancels)
+   - Fencing tab (GM only): start encounter → Patience & Resolve tracks, social conditions
+   - Access: GM everything; players only actors they own
+2. **Conflict**: GM clicks "Social Conflict" in VTools toolbar → token selection → `ConflictStore.init()` → `CONFLICT_OPEN` broadcast → `TSLConflictApp` opens for everyone
+3. Turn owner (GM or owner of the active participant) picks a TSL move (2d6 + stat) or a maneuver (d20 + skill vs passive Insight ± attitude from the target's bond)
+4. Maneuver/roll consequences apply **only on the GM client** (`SocialManeuverRoller.applyOutcome`, `ConflictStore.recordRoll`) — players reach them via the `GM_ACTION` socket relay
+5. Conflict ends via **Finally Kiss**, **Yield**, or a fencing outcome (Resolve 0 = swayed, Patience 0 = walks away)
+
+### State Flow
+- **GM owns all shared state** — conflict state in `ConflictStore`, persistent data on actor flags
+- Player actions → `TSLGMActions.request(action, args)` → direct call for GM, `GM_ACTION` socket message for players; GM executes and broadcasts
+- `ConflictStore._broadcast()` → emits `CONFLICT_UPDATE` + notifies local listeners
+- Chronicle/encounter data syncs natively via actor flags (`updateActor` hooks re-render open apps)
+
+### Data on Actor Flags (scope `tsl-social-conflict`)
+- `socialFencing` — { archetypeId, motivation, personality, psychotype, notes, triad:{power,attention,order 0–3}, points:{desire,fear,weakness,mask,line} }
+- `bonds` — [{ id, targetActorId, type, attitude −3..+3, perceivedArchetypeId, profileKnown, notes }]
+- `stringList` — [{ id, label, targetActorId }]
+- `encounter` — { active, patience, maxPatience, resolve, maxResolve, round, outcome: null|"swayed"|"walked", leverage:{desire,fear,weakness → used?} }
+
+### Social Fencing Design (the loop)
+- **Profile → Exploit → Win**: archetype intel is hidden until read (Cold Reading / Logic Exploit success → `TSLBondStore.reveal`); vuln/immune badges in the conflict UI appear only for users who know the profile
+- **Push-your-luck**: success −1 Resolve (−2 on vulnerability), failure −1 Patience, immunity → auto-fail + target **Defiant** (maneuver-immune 1h) + −1 Patience
+- **9 archetypes × 12 maneuvers**: each archetype has ≥1 vulnerable and ≥1 immune maneuver; traps sit *inside* the same triad (e.g. Cold Shoulder wrecks the Martyr but bounces off the Caretaker) so knowing the triad isn't enough — you profile the person
+- **Strings economy**: earned by reads and baits (Feigned Weakness / Sweeten the Deal grant 2), spent for +1 on TSL moves / +2 on maneuvers; also visible & editable in Chronicle bonds
+- **Attitude**: the target's bond toward the roller shifts the DC (devoted +3 → DC −3)
+- **`assess()` is the single source of truth** (`social-maneuvers.js`): archetype relation, status combos, DC breakdown, advantage/bonuses, consumed one-shots — used by BOTH the pre-roll Duel Panel and the actual roll, so the preview always matches the dice
+
+### Settings
+- `conflictMode` (world, default **both**) — `both` = TSL moves + Social Fencing; `tsl` = pure TSL (no maneuvers/tracks/statuses/Fencing tab, Kiss always on, playbook shown as participant subtitle); `fencing` = classic D&D only (no 2d6 moves)
+- `enableKiss` (world, default **false**) — shows/hides the TSL "Finally Kiss" special move; ORed with `conflictMode === "tsl"`
+
+### TSL Playbooks (tsl-playbooks.js)
+- 9 playbooks (Beast, Chosen, Devoted, Infamous, Nature Witch, Scoundrel, Seeker, Spooky Witch, Trickster), adapted under the Powered by Lesbians license
+- Each has 2 signature 2d6 moves that join the basic five in the conflict grid for the actor that has the playbook (flag `socialFencing.playbookId`, selected in Chronicle → Profile)
+- Move effects share the fx schema handled generically in `ConflictStore.recordRoll`: `onStrong`/`onWeak: { strings, stringsOnYou, reveal, resolve }` — basic moves (read/speak/provoke) use the same fields
+
+### Track defaults (suggestTracks)
+- Resolve = 2 + WIS mod, Patience = 3 + CHA mod, clamped 2–6 — pre-selected in Chronicle→Fencing and used by the conflict "Start tracks" button; GM can override
+- Status/condition icons use core `icons/svg/*` (guaranteed in every install; black strokes — UI applies `filter: invert()` for the dark theme)
+
+### Fencing Statuses (SOCIAL_CONDITIONS, all mechanical)
+| Status | Effect | From | Lifetime |
+|--------|--------|------|----------|
+| Rattled | DC to sway them −5 | Sow Doubt, Gaslight | scene (1h) |
+| Smitten | charmer's Persuasion maneuvers get Advantage; the smitten one CANNOT maneuver against the charmer (hard block in assess) | Flatter, Love Bombing | scene (1h) |
+| Provoked | next maneuver vs them +2 | Instigate, Throw the Gauntlet | one-shot |
+| Guilted | guilter's next maneuver gets Advantage | Guilt Trip | one-shot |
+| Desperate | next Flatter/Love Bombing gets Advantage | Cold Shoulder | one-shot |
+| Defiant | immune to maneuvers; **Cold Reading slips through** (`worksThroughDefiant`) so the wall turn stays playable | hitting an immunity | 1h |
+
+One-shot economy: a one-shot is consumed ONLY if it is the thing granting the advantage — free sources (vulnerability, Smitten) are used first, so resources are never wasted. Provoked (+2 flat) always applies and always burns. Combos create the fencing feel: Cold Shoulder → Desperate → Love Bombing with Advantage → Smitten → Persuasion chain.
+
+**Attacker-side triad leanings:** the attacker's Extended Triad dots ARE their attack style — +1 per dot on that triad's maneuvers, −1 on a triad with 0 dots while others have some ("foreign ground"); General tactics always neutral. Shown as ★ +N / ▼ −1 badges on maneuver group labels and as signed chips in the Duel Panel. Picking an archetype auto-fills its triad to 2● (QoL in the Chronicle archetype handler). PCs set this in their own Chronicle → Profile.
+
+**Triad counter cycle (`TRIAD_COUNTERS`):** Power breaks Emotion → Emotion cracks Order → Order binds Power. A maneuver whose school counters the DEFENDER's ruling triad gets +2 (reason kind:"counter"). Pre-read the Duel Panel veils it as "Something in them yields to this school…" (+2 ?) so the bonus applies without leaking the triad; the » badge on chips appears only after a read.
+
+**Social DC (`getSocialDC`):** max(passive Insight, 10 + WIS mod + proficiency) — proficiency from `attributes.prof`, falling back to level/CR math. Scales defense with level so high-tier attack stacking doesn't trivialize targets.
+
+### UI Structure Notes
+- **Conflict center**: Emotional Moves (2d6 grid) → Maneuvers (2-col chips, triad-colored groups; tooltip lists which archetypes each cuts/bounces off) → **Duel Panel** (portraits, skill+bonus chips vs DC+mods chips, relation/combo lines, success/fail preview, roll button)
+- TSL Conditions on cards = compact pip row (GM toggles, tooltip names); fencing statuses = icon chips; known archetype badge tooltip = full dossier (essence/hint/craves/dreads/tells)
+- Roll feedback: `_pendingRoll.kind === "maneuver"` renders a d20 overlay (total vs DC, outcome); 2d6 moves keep the dice-breakdown overlay; CSS animations in the "JUICE" section (active portrait scale+pulse, overlay pop, log fade)
+- **Chronicle Bonds are collapsible**: one-line head (portrait, name, type tag, read-as icon, attitude badge, strings, chevron) → click unfolds editors; `this._expandedBonds` Set, new bonds auto-expand
+- **Canvas pick uses a DOM capture listener** on `canvas.app.view` (NOT `canvas.stage.on` — unreliable in v13) + `canvas.canvasCoordinatesFromClient` with manual worldTransform fallback
+
+Anti-farm: `reveals` maneuvers (Cold Reading, Logic Exploit) grant their Strings only on the FIRST read of a profile — re-reading a known profile earns nothing (`applyOutcome` checks `profileKnown`). Blocked rolls (Defiant wall / Smitten attacker) are prevented in the UI before a String can be spent.
+
+### VTM-inspired Layer (leverage, escalation, exits)
+- **Dossier leverage** (Social Maneuvering "doors"-style, once per encounter each, requires active encounter + read profile + a filled profiling point on the target):
+  - **Desire** — soft leverage: Advantage; on success +1 extra Resolve damage
+  - **Fear** — hard leverage: +3 to the roll; on a FAILURE the target loses 1 extra Patience (threats cut both ways)
+  - **Weakness** — a neutral maneuver counts as a vulnerability strike (does NOT beat archetype immunity)
+  - UI: leverage row in the Duel Panel (`.tsl-lev-btn`); used state lives on `encounter.leverage`; consumed by `applyOutcome` whatever the outcome
+- **Bond escalation** (blood-bond style, permanent chronicle writes): swayed → target's attitude toward winner +1; walked → −1; Finally Kiss → +1 mutual (`TSLBondStore.shiftAttitude`, clamped −3..+3)
+- **Triad-flavored exits** (frenzy-style): the "walks away" chat card varies by ruling triad — Power answers with force, Emotion spreads their version loudly, Order closes the ledger permanently
+- Deferred candidates: Willpower-style String reroll after a failed roll (needs post-roll chat UI), Boons as formal currency (creditor/indebted bond types already cover it narratively)
+
+### UI Structure Notes
+- **Conflict center**: Emotional Moves (2d6 grid) → Maneuvers (2-col chips, triad-colored groups; tooltip lists which archetypes each cuts/bounces off) → **Duel Panel** (portraits, skill+bonus chips vs DC+mods chips, relation/combo lines, success/fail preview, roll button)
+- **Chronicle tabs**: Profile (archetype card: essence/hint/tells/craves/dreads + maneuver matrix chips) / Bonds / Fencing (GM: tracks + 6 status toggles) / Codex (rules reference: how-it-works, all triads & archetypes, statuses)
+- Participant cards show: known archetype (or "Nature unread"), encounter tracks, active status chips, TSL conditions, strings
+
+### Stat Resolution (stat-resolver.js)
+**2d6 normalization (dnd5e/a5e):** skill totals (+0..+11, d20 curve) are halved and clamped to −1..+4 before feeding the 2d6 TSL moves — raw totals made Strong Hits automatic (+8 → 97%) and killed the Weak Hit economy. +11 master → +4 (~72% strong hit), +4 dabbler → +2. Maneuvers (d20 vs passive Insight) still use FULL skill totals — that's native d20 math.
+
+**TSL ↔ Fencing bridge (recordRoll, GM side):** Read the Room 10+ → String + profile reveal (sincere recon); Speak from the Heart / Provoke 10+ vs a target with active tracks → −1 Resolve (sincerity route to victory alongside manipulation).
+
+TSL stats mapped to D&D abilities:
+| TSL Stat | dnd5e / a5e         | PbtA                    |
+|----------|---------------------|-------------------------|
+| Passion  | CHA modifier        | hot/passion/heart/charm |
+| Grace    | DEX modifier        | cool/grace/style        |
+| Wit      | INT modifier        | sharp/wit/clever        |
+| Nerve    | WIS modifier        | hard/nerve/daring/bold  |
+| Spirit   | CON modifier        | weird/spirit/strange    |
+
+- dnd5e v4+ (2024): prefers `abilities.cha.check.mod` over `abilities.cha.mod`
+- a5e: uses `abilities.cha.mod` (same path, separate handler for future-proofing)
+- Generic fallback: walks `actor.system` 2 levels deep, collects modifier-like numbers (abs ≤ 10)
+
+### VTools Integration (hud-button.js)
+```js
+Hooks.once("vtools.ready", () => {
+  VTools.register({
+    name:    "tsl-social-conflict",
+    title:   "Social Conflict",
+    icon:    "fas fa-heart-crack",
+    onClick: () => { /* GM check + 2-token check + start */ }
+  });
+});
+```
+`vtools` is listed as a required dependency in `module.json`.
+
+## UI / Styling Conventions
+- **CSS variables** prefixed `--tsl-` (e.g. `--tsl-bg`, `--tsl-p0`, `--tsl-p1`)
+- **Fonts**: Cinzel (titles, labels), EB Garamond (body, descriptions)
+- **Colors**: dark theme (#0e0a08 base), participant 0 = #e8557a (pink), participant 1 = #9b6ee8 (purple)
+- **No emojis in UI** except specific moves (💋 Finally Kiss, 🏳 Yield)
+- **Foundry native styling** preferred — match Foundry's own look where possible
+- **Compact controls**, icon-only where appropriate
+- ApplicationV2 class, no Handlebars templates — raw HTML string from `_renderHTML()`
+
+## Game Mechanics (from TSL)
+- **5 Conditions**: Smitten, Angry, Scared, Guilty, Hopeless
+- **Overwhelmed** at 4+ active Conditions → must yield or flee
+- **5 Moves** (each tied to a stat): Speak from the Heart, Emotional Support, Read the Room, Provoke, Inspire
+- **1 Special Move**: Finally Kiss (no roll, both agree, +1 ongoing, ends conflict)
+- **Roll**: 2d6 + stat modifier → Strong Hit (10+), Weak Hit (7-9), Miss (6-)
+- Turn alternates between participants after each roll
+
+## Extended Triad & Archetypes (Social Fencing layer)
+| Triad | Archetypes | Levers that work | What bounces |
+|-------|-----------|------------------|--------------|
+| Power (Влада) | Tyrant, Machiavellian, Duelist | flattery, bait, open challenge | raw threats, guilt |
+| Emotion (Емоції) | Martyr, Exalted, Caretaker | attention: feed it or starve it | cold logic |
+| Order (Порядок) | Dogmatic, Hermit, Broker | contradictions, information, deals | naked emotion |
+
+Fencing statuses: see the SOCIAL_CONDITIONS table below — six statuses, all with real mechanical effects and combo chains.
+
+## Known Issues / TODO
+- [ ] Test socket sync with multiple players (GM_ACTION relay is new)
+- [ ] Migrate Application V1 → ApplicationV2 before Foundry v14
+- [ ] Manual stat override UI (when auto-detect fails)
+- [ ] Animated transitions between states
+- [ ] Sound effects on rolls and resolution
+- [ ] Foundry settings for customising Conditions, Moves, archetypes
+- [ ] i18n: move hardcoded UI strings into lang/en.json + add uk.json
+- [ ] Packaging for itch.io / Foundry Hub
+
+## Developer Notes
+- Author uses Foundry v13, develops in Ukrainian locale
+- Other modules by same author: `a5e-mancer`, `enhancedcombathud-a5e`, `epic-rolls-ua`, `lockpick-minigame`, `vtools`
+- A5E-specific data structures: activation types nested in actions, movement as objects, specific roll method names
+- UI pattern: icon-only header buttons inserted before `.window-controls`, colors via CSS variables

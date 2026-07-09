@@ -1,0 +1,836 @@
+/**
+ * tsl-social-conflict | social-notes-app.js
+ *
+ * The Social Chronicle — per-character dossier and relationship ledger.
+ *
+ *   Profile — psychotype: archetype, Extended Triad leanings, profiling
+ *             points (Desire / Fear / Weakness / Mask / The Line), free notes.
+ *             Every profiling element carries a play-facing tooltip hint.
+ *   Bonds   — relationships with other PCs/NPCs: bond type, attitude (-3..+3,
+ *             shifts the Social Fencing DC), perceived archetype (may be wrong
+ *             until verified by Cold Reading), strings, notes.
+ *             New bonds can be added from a candidate list or by clicking a
+ *             visible, non-hidden token on the canvas.
+ *   Fencing — (GM) encounter tracks: Patience vs Resolve, social conditions.
+ *
+ * Access: GM sees and edits everything; players open only actors they own.
+ * What a player knows about others lives in their OWN chronicle's bonds.
+ */
+
+console.log("TSL | Loading social-notes-app.js...");
+
+// ─── Static manager ───────────────────────────────────────────────────────────
+
+class SocialFencingDialog {
+  static _instances = new Map();
+
+  static open(actor) {
+    if (!actor) return;
+    if (!game.user.isGM && !actor.isOwner) {
+      ui.notifications.warn("You can only open the Chronicle of characters you own. What you know about others is written in your own character's Bonds.");
+      return;
+    }
+    if (SocialFencingDialog._instances.has(actor.id)) {
+      SocialFencingDialog._instances.get(actor.id).bringToTop?.();
+      return;
+    }
+    const app = new SocialFencingApp(actor);
+    SocialFencingDialog._instances.set(actor.id, app);
+    app.render(true);
+  }
+}
+
+const SocialNotesDialog = SocialFencingDialog;
+
+// ─── Application ──────────────────────────────────────────────────────────────
+
+class SocialFencingApp extends Application {
+  constructor(actor, options = {}) {
+    super(options);
+    this._actor   = actor;
+    this._tab     = "profile";
+    this._picking = false;
+    this._onPickCanvas = null;
+    this._onPickCancel = null;
+    this._expandedBonds = new Set(); // collapsed by default — lists get long
+
+    this._flagHook = Hooks.on("updateActor", (a) => {
+      if (a.id === actor.id) this.render(true);
+    });
+    this._createEffHook = Hooks.on("createActiveEffect", (e) => {
+      if (e.parent?.id === actor.id) this.render(true);
+    });
+    this._deleteEffHook = Hooks.on("deleteActiveEffect", (e) => {
+      if (e.parent?.id === actor.id) this.render(true);
+    });
+  }
+
+  static get defaultOptions() {
+    return foundry.utils.mergeObject(super.defaultOptions, {
+      id:          "tsl-social-fencing",
+      title:       "Social Chronicle",
+      template:    null,
+      width:       460,
+      height:      "auto",
+      resizable:   true,
+      minimizable: true,
+      classes:     ["tsl-fencing"],
+    });
+  }
+
+  get id()    { return `tsl-social-fencing-${this._actor.id}`; }
+  get title() { return `${this._actor.name} — Chronicle`; }
+
+  async _renderInner(data) { return $(this._buildHTML(data)); }
+
+  // ── Data ────────────────────────────────────────────────────────────────────
+
+  async getData() {
+    const isGM    = game.user.isGM;
+    const canEdit = isGM || this._actor.isOwner;
+    const notes   = SocialArchetypeManager.getCharacterNotes(this._actor);
+    const archetype = SocialArchetypeManager.getArchetype(this._actor);
+    const encounter = SocialEncounterManager.getEncounter(this._actor);
+
+    const activeConditions = Object.fromEntries(
+      SOCIAL_CONDITION_ORDER.map(id => [id, !!SocialArchetypeManager.getActiveCondition(this._actor, id)])
+    );
+
+    return {
+      isGM, canEdit, notes, archetype, encounter, activeConditions,
+      bonds: this._buildBondData(),
+      candidates: this._buildCandidates(),
+    };
+  }
+
+  _buildBondData() {
+    const actorId = this._actor.id;
+    return TSLBondStore.getList(actorId).map(b => {
+      const target = game.actors.get(b.targetActorId);
+      const stringCount = TSLStringStore.getList(actorId)
+        .filter(e => e.targetActorId === b.targetActorId).length;
+      return {
+        ...b,
+        targetName: target?.name ?? "(missing actor)",
+        targetImg:  target?.img ?? "icons/svg/mystery-man.svg",
+        stringCount,
+      };
+    });
+  }
+
+  /**
+   * Actors a new bond can point to:
+   *   - visible, non-hidden tokens on the current scene
+   *   - player characters
+   *   - anyone already recorded in some chronicle (GM convenience)
+   */
+  _buildCandidates() {
+    const bonded = new Set(TSLBondStore.getList(this._actor.id).map(b => b.targetActorId));
+    bonded.add(this._actor.id);
+
+    const map = new Map();
+    for (const t of (canvas.tokens?.placeables ?? [])) {
+      if (!t.actor || t.document.hidden || !t.visible) continue;
+      if (!bonded.has(t.actor.id)) map.set(t.actor.id, t.actor);
+    }
+    for (const a of game.actors.contents) {
+      if (bonded.has(a.id) || map.has(a.id)) continue;
+      const hasChronicle = !!a.flags?.["tsl-social-conflict"];
+      if (a.hasPlayerOwner || (game.user.isGM && hasChronicle)) map.set(a.id, a);
+    }
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  // ── HTML ────────────────────────────────────────────────────────────────────
+
+  _buildHTML(ctx) {
+    const tabs = [
+      { id: "profile", label: "Profile", icon: "fa-fingerprint" },
+      { id: "bonds",   label: "Bonds",   icon: "fa-link" },
+    ];
+    const fencingOn = game.settings.get("tsl-social-conflict", "conflictMode") !== "tsl";
+    if (ctx.isGM && fencingOn) tabs.push({ id: "fencing", label: "Fencing", icon: "fa-khanda" });
+    tabs.push({ id: "codex", label: "Codex", icon: "fa-book-open" });
+    if (!tabs.some(t => t.id === this._tab)) this._tab = "profile";
+
+    const tabBtns = tabs.map(t => `
+      <button class="tsl-chr-tab ${this._tab === t.id ? "active" : ""}" data-tab="${t.id}">
+        <i class="fas ${t.icon}"></i> ${t.label}
+      </button>`).join("");
+
+    const body =
+      this._tab === "bonds"   ? this._buildBondsTab(ctx)   :
+      this._tab === "fencing" ? this._buildFencingTab(ctx) :
+      this._tab === "codex"   ? this._buildCodexTab(ctx)   :
+                                this._buildProfileTab(ctx);
+
+    return `
+      <div class="tsl-notes-root tsl-chr-root">
+        <nav class="tsl-chr-tabs">${tabBtns}</nav>
+        ${body}
+        ${ctx.canEdit ? "" : `<div class="tsl-notes-footer tsl-notes-footer--readonly">Read only</div>`}
+      </div>`;
+  }
+
+  // ── Profile tab ─────────────────────────────────────────────────────────────
+
+  _buildProfileTab({ notes, archetype, canEdit, isGM }) {
+    const esc      = foundry.utils.escapeHTML;
+    const disabled = canEdit ? "" : "disabled";
+
+    const archetypeOpts = Object.values(SOCIAL_TRIADS).map(triad => {
+      const opts = SOCIAL_ARCHETYPES.filter(a => a.triad === triad.id).map(a =>
+        `<option value="${a.id}" ${notes.archetypeId === a.id ? "selected" : ""}>${a.label}</option>`
+      ).join("");
+      return `<optgroup label="${triad.label}">${opts}</optgroup>`;
+    }).join("");
+
+    const archDesc = archetype ? this._buildArchetypeCard(archetype) : "";
+
+    // Extended Triad — three 0–3 leanings
+    const triadRows = Object.values(SOCIAL_TRIADS).map(triad => {
+      const val  = notes.triad[triad.id] ?? 0;
+      const pips = Array.from({ length: 3 }, (_, i) => `
+        <button class="tsl-chr-triad-pip ${i < val ? "filled" : ""}"
+                data-triad="${triad.id}" data-value="${i + 1}"
+                style="--triad-color:${triad.color}" ${disabled}></button>`).join("");
+      return `
+        <div class="tsl-chr-triad-row">
+          <span class="tsl-chr-triad-label" style="--triad-color:${triad.color}"
+                data-tooltip="${esc(triad.hint)}">
+            <i class="fas ${triad.icon}"></i> ${triad.label}
+          </span>
+          <div class="tsl-chr-triad-pips">${pips}</div>
+        </div>`;
+    }).join("");
+
+    // Profiling points, each with its hint
+    const pointRows = PROFILE_POINTS.map(p => `
+      <div class="tsl-chr-point">
+        <span class="tsl-chr-point-label" data-tooltip="${esc(p.hint)}">
+          <i class="fas ${p.icon}"></i> ${p.label}
+        </span>
+        <input type="text" data-point="${p.id}" value="${esc(notes.points[p.id] ?? "")}"
+               placeholder="${esc(p.placeholder)}" ${disabled} />
+      </div>`).join("");
+
+    return `
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title" data-tooltip="The dominant expression of the character's ruling triad. Defines which maneuvers cut deep and which bounce off.">Archetype</div>
+        <select name="archetypeId" ${disabled}>
+          <option value="">— Unknown / None —</option>
+          ${archetypeOpts}
+        </select>
+        ${archDesc}
+      </section>
+
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title" data-tooltip="The Extended Triad: how strongly each of the three ruling drives pulls at this character. 0 — indifferent, 3 — it rules them.&#10;&#10;IN CONFLICTS these dots are your attack style: +1 per dot to that triad's maneuvers; a triad with 0 dots (while others have some) rolls at −1 — foreign ground. Picking an archetype fills its triad to 2● automatically.">Extended Triad</div>
+        ${triadRows}
+      </section>
+
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title" data-tooltip="The main profiling points. Hover each label for how to use it at the table.">Profiling</div>
+        ${pointRows}
+      </section>
+
+      ${(() => {
+        // TSL playbook (class): its signature moves join the basic five in conflicts
+        const pbId = SocialArchetypeManager.getActorData(this._actor)?.playbookId ?? "";
+        const pb   = TSLPlaybooks.getById(pbId);
+        const esc2 = foundry.utils.escapeHTML;
+        const opts = TSLPlaybooks.getOptions().map(o =>
+          `<option value="${o.id}" ${pbId === o.id ? "selected" : ""}>${o.label}</option>`).join("");
+        const card = pb ? `
+          <div class="tsl-chr-arch-hint"><i class="fas ${pb.icon}"></i> ${esc2(pb.essence)}</div>
+          <div class="tsl-notes-arch-meta">
+            ${pb.moves.map(m => `<span class="tsl-arch-mv-chip tsl-arch-mv-chip--playbook"
+                data-tooltip="${esc2(m.desc)}"><i class="fas ${m.icon}"></i> ${esc2(m.name)} · ${m.stat}</span>`).join("")}
+          </div>` : "";
+        return `
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title" data-tooltip="Thirsty Sword Lesbians playbook (class). Its two signature emotional moves appear in conflicts next to the basic five.">Playbook (TSL)</div>
+        <select name="playbookId" ${disabled}>
+          <option value="">— None —</option>
+          ${opts}
+        </select>
+        ${card}
+      </section>`;
+      })()}
+
+      <section class="tsl-notes-section tsl-notes-section--row">
+        <div>
+          <div class="tsl-notes-section-title" data-tooltip="Any shorthand you like — MBTI, zodiac, one biting word.">Psychotype</div>
+          <input type="text" name="psychotype" value="${foundry.utils.escapeHTML(notes.psychotype)}" placeholder="ENFP, 'wounded fox'…" ${disabled} />
+        </div>
+      </section>
+
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title" data-tooltip="Why do they want what they want? Feeds Cold Reading reveals.">Motivation</div>
+        <textarea name="motivation" rows="2" placeholder="Why do they want this?" ${disabled}>${foundry.utils.escapeHTML(notes.motivation)}</textarea>
+      </section>
+
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title">Personality</div>
+        <textarea name="personality" rows="2" placeholder="How do they behave?" ${disabled}>${foundry.utils.escapeHTML(notes.personality)}</textarea>
+      </section>
+
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title">Notes</div>
+        <textarea name="notes" rows="3" placeholder="Additional context…" ${disabled}>${foundry.utils.escapeHTML(notes.notes)}</textarea>
+      </section>`;
+  }
+
+  /**
+   * Rich archetype card: essence, play hint, tells, craves/dreads and the
+   * maneuver matrix spelled out by NAME — which maneuvers cut deep and
+   * which bounce off. Answers "how do maneuvers combine with archetypes"
+   * right where the archetype is chosen.
+   */
+  _buildArchetypeCard(archetype, compact = false) {
+    const esc   = foundry.utils.escapeHTML;
+    const triad = SOCIAL_TRIADS[archetype.triad];
+    const rel   = SocialArchetypeManager.getManeuverRelationsFor(archetype);
+
+    const chip = (m, cls, sym, effect) => `
+      <span class="tsl-arch-mv-chip tsl-arch-mv-chip--${cls}"
+            data-tooltip="${esc(m.description)}<br><i>${esc(effect)}</i>">
+        ${sym} <i class="fas ${m.icon}"></i> ${esc(m.name)}
+      </span>`;
+    const vulnChips = rel.vulnerable.map(m => chip(m, "vulnerable", "✦", "Against this archetype: Advantage on the roll, 2 Resolve damage.")).join("");
+    const immChips  = rel.immune.map(m => chip(m, "immune", "⚡", "Against this archetype: auto-fails, they turn Defiant for 1 hour.")).join("");
+
+    const tells = !compact && archetype.tells?.length
+      ? `<ul class="tsl-arch-tells">${archetype.tells.map(t => `<li>${esc(t)}</li>`).join("")}</ul>`
+      : "";
+
+    return `
+      <div class="tsl-arch-card" style="--triad-color:${triad?.color ?? "#806858"}">
+        ${compact ? `<div class="tsl-arch-card-name">${esc(archetype.label)}</div>` : `
+        <span class="tsl-arch-card-triad" data-tooltip="${esc(triad?.hint ?? "")}">
+          <i class="fas ${triad?.icon ?? "fa-user"}"></i> ${esc(triad?.label ?? "")}
+        </span>`}
+        <div class="tsl-notes-arch-desc">${esc(archetype.description)}</div>
+        ${compact ? "" : `<div class="tsl-chr-arch-hint"><i class="fas fa-lightbulb"></i> ${esc(archetype.hint ?? "")}</div>`}
+        ${tells}
+        <div class="tsl-arch-cd">
+          <span data-tooltip="What feeds them — offer it to gain ground."><i class="fas fa-gem"></i> ${esc(archetype.craves ?? "")}</span>
+          <span data-tooltip="What breaks them — press it to shake them."><i class="fas fa-ghost"></i> ${esc(archetype.dreads ?? "")}</span>
+        </div>
+        <div class="tsl-arch-matrix">
+          ${vulnChips ? `<div class="tsl-arch-matrix-row">${vulnChips}</div>` : ""}
+          ${immChips  ? `<div class="tsl-arch-matrix-row">${immChips}</div>`  : ""}
+        </div>
+      </div>`;
+  }
+
+  // ── Codex tab — the rulebook page: triads, archetypes, statuses ─────────────
+
+  _buildCodexTab() {
+    const esc = foundry.utils.escapeHTML;
+
+    const how = `
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title">How Fencing Works</div>
+        <ol class="tsl-codex-how">
+          <li><b>Read them.</b> Cold Reading / Logic Exploit reveal the target's archetype — until then their weak spots are hidden.</li>
+          <li><b>Pick the lever.</b> A maneuver is d20 + skill vs their <b>social DC</b> — 10 + WIS + proficiency, or passive Insight if higher (± their attitude to you, −5 if Rattled). Hitting a <span class="tsl-codex-vuln">✦ vulnerability</span> gives Advantage and 2 Resolve damage; hitting an <span class="tsl-codex-imm">⚡ immunity</span> auto-fails and makes them Defiant.</li>
+          <li><b>Lean into your nature.</b> Your own Extended Triad dots (Profile tab) power your attacks: <b>+1 per dot</b> on that triad's maneuvers, <b>−1</b> on a triad where you have none — foreign ground. Watch for the ★/▼ badges on the maneuver groups. General Tactics are always neutral.</li>
+          <li><b>Know the counter cycle.</b> Every archetype is soft against the school that counters its triad (<b>+2</b> to the attacker, » badge): <b>Power breaks Emotion → Emotion cracks Order → Order binds Power</b>. Read them first — before a read, the panel only whispers that "something in them yields".</li>
+          <li><b>Play your leverage.</b> A read dossier unlocks their <b>Desire</b> (Advantage, +1 Resolve damage), <b>Fear</b> (+3, but a failed threat burns their Patience) and <b>Weakness</b> (neutral counts as vulnerable) — each once per encounter.</li>
+          <li><b>Win the exchange.</b> Successes break <b>Resolve</b> (0 = swayed, attitude +1); failures burn <b>Patience</b> (0 = they walk away, attitude −1 — and HOW they leave depends on their triad). Statuses chain into combos; Strings buy +2.</li>
+          <li><b>Or win sincerely.</b> Emotional moves (2d6) are the honest route: a Strong Hit on Speak from the Heart or Provoke also chips 1 Resolve, and Read the Room (10+) reveals their nature without manipulation.</li>
+        </ol>
+      </section>`;
+
+    const triadBlocks = Object.values(SOCIAL_TRIADS).map(triad => {
+      const cards = SOCIAL_ARCHETYPES
+        .filter(a => a.triad === triad.id)
+        .map(a => this._buildArchetypeCard(a, true))
+        .join("");
+      return `
+        <section class="tsl-notes-section tsl-codex-triad" style="--triad-color:${triad.color}">
+          <div class="tsl-codex-triad-head">
+            <i class="fas ${triad.icon}"></i> ${esc(triad.label)}
+          </div>
+          <div class="tsl-codex-triad-hint">${esc(triad.hint)}</div>
+          ${cards}
+        </section>`;
+    }).join("");
+
+    const statusRows = SOCIAL_CONDITION_ORDER.map(id => {
+      const meta = SOCIAL_CONDITIONS[id];
+      return `
+        <div class="tsl-codex-status">
+          <img src="${meta.icon}" alt="">
+          <div>
+            <div class="tsl-codex-status-name">${esc(meta.label)}${meta.oneShot ? ` <span class="tsl-codex-oneshot" data-tooltip="Consumed by the first roll it affects.">one-shot</span>` : ""}</div>
+            <div class="tsl-codex-status-desc">${esc(meta.description)}</div>
+          </div>
+        </div>`;
+    }).join("");
+
+    return `
+      ${how}
+      ${triadBlocks}
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title">Statuses</div>
+        <div class="tsl-codex-statuses">${statusRows}</div>
+      </section>`;
+  }
+
+  // ── Bonds tab ───────────────────────────────────────────────────────────────
+
+  _buildBondsTab({ bonds, candidates, canEdit, isGM }) {
+    const esc      = foundry.utils.escapeHTML;
+    const disabled = canEdit ? "" : "disabled";
+
+    const typeOpts = (selected) => BOND_TYPES.map(t =>
+      `<option value="${t.id}" ${selected === t.id ? "selected" : ""}>${t.label}</option>`
+    ).join("");
+
+    const archOpts = (selected) => [
+      `<option value="">? Unknown</option>`,
+      ...SOCIAL_ARCHETYPES.map(a =>
+        `<option value="${a.id}" ${selected === a.id ? "selected" : ""}>${a.label}</option>`),
+    ].join("");
+
+    const attitudeDots = (bond) => Array.from({ length: 7 }, (_, i) => {
+      const v = i - 3;
+      return `<button class="tsl-chr-att-dot ${bond.attitude === v ? "active" : ""} ${v < 0 ? "neg" : v > 0 ? "pos" : "zero"}"
+                      data-bond-id="${bond.id}" data-attitude="${v}" ${disabled}
+                      data-tooltip="${v > 0 ? "+" : ""}${v}">${v === 0 ? "·" : ""}</button>`;
+    }).join("");
+
+    // Collapsed one-line summaries; click a row to unfold its editors.
+    const rows = bonds.length ? bonds.map(b => {
+      const type = SocialArchetypeManager.getBondType(b.type);
+      const open = this._expandedBonds.has(b.id);
+      const perceived = SOCIAL_ARCHETYPES.find(a => a.id === b.perceivedArchetypeId);
+      const attCls  = b.attitude > 0 ? "pos" : b.attitude < 0 ? "neg" : "zero";
+      const attText = b.attitude > 0 ? `+${b.attitude}` : `${b.attitude}`;
+      const knownDot = b.profileKnown
+        ? `<i class="fas fa-check tsl-chr-known-dot tsl-chr-known-dot--yes" data-tooltip="Verified read"></i>`
+        : (perceived ? `<i class="fas fa-pencil tsl-chr-known-dot tsl-chr-known-dot--no" data-tooltip="A guess — may be wrong"></i>` : "");
+      const knownBadge = b.profileKnown
+        ? `<span class="tsl-chr-known tsl-chr-known--yes" data-bond-id="${b.id}" data-tooltip="Verified read (Cold Reading / Logic Exploit). ${isGM ? "Click to mark as a guess." : ""}"><i class="fas fa-check"></i></span>`
+        : `<span class="tsl-chr-known tsl-chr-known--no" data-bond-id="${b.id}" data-tooltip="A guess — this belief may be wrong. ${isGM ? "Click to mark as verified." : ""}"><i class="fas fa-pencil"></i></span>`;
+
+      const details = !open ? "" : `
+        <div class="tsl-chr-bond-details">
+          <div class="tsl-chr-bond-line">
+            <span class="tsl-chr-bond-label" data-tooltip="${esc(type.hint)}">Bond</span>
+            <select class="tsl-chr-bond-type" data-bond-id="${b.id}" ${disabled}>${typeOpts(b.type)}</select>
+            ${canEdit ? `<button class="tsl-chr-bond-remove" data-bond-id="${b.id}" data-tooltip="Remove bond">✕</button>` : ""}
+          </div>
+          <div class="tsl-chr-bond-line">
+            <span class="tsl-chr-bond-label" data-tooltip="How ${esc(this._actor.name)} feels about them, −3 hostile … +3 devoted. When THEY try to sway ${esc(this._actor.name)}, this shifts the DC.">Attitude</span>
+            <div class="tsl-chr-att-track">${attitudeDots(b)}</div>
+          </div>
+          <div class="tsl-chr-bond-line">
+            <span class="tsl-chr-bond-label" data-tooltip="What ${esc(this._actor.name)} believes their archetype is. Cold Reading fills this in automatically — and beliefs can be wrong.">Read as</span>
+            <select class="tsl-chr-bond-arch" data-bond-id="${b.id}" ${disabled}>${archOpts(b.perceivedArchetypeId)}</select>
+            ${knownBadge}
+            ${canEdit ? `
+              <button class="tsl-chr-str-adj" data-bond-id="${b.id}" data-target="${b.targetActorId}" data-delta="1"  data-tooltip="Gain a string on them">+</button>
+              <button class="tsl-chr-str-adj" data-bond-id="${b.id}" data-target="${b.targetActorId}" data-delta="-1" data-tooltip="Spend / remove a string" ${b.stringCount ? "" : "disabled"}>−</button>` : ""}
+          </div>
+          <input type="text" class="tsl-chr-bond-notes" data-bond-id="${b.id}" value="${esc(b.notes)}"
+                 placeholder="History, debts, secrets between you…" ${disabled} />
+        </div>`;
+
+      return `
+      <div class="tsl-chr-bond ${open ? "open" : ""}" data-bond-id="${b.id}">
+        <div class="tsl-chr-bond-head" data-bond-toggle="${b.id}">
+          <img class="tsl-chr-bond-img" src="${b.targetImg}" alt="">
+          <span class="tsl-chr-bond-name">${esc(b.targetName)}</span>
+          <span class="tsl-chr-bond-tag" data-tooltip="${esc(type.hint)}"><i class="fas ${type.icon}"></i> ${type.label}</span>
+          ${perceived ? `<span class="tsl-chr-bond-tag" data-tooltip="Read as ${esc(perceived.label)}"><i class="fas ${SOCIAL_TRIADS[perceived.triad]?.icon ?? "fa-user"}"></i></span>` : ""}
+          ${knownDot}
+          <span class="tsl-chr-att-badge tsl-chr-att-badge--${attCls}" data-tooltip="Attitude">${attText}</span>
+          ${b.stringCount ? `<span class="tsl-chr-bond-strings" data-tooltip="Strings held on them"><i class="fas fa-masks-theater"></i>${b.stringCount}</span>` : ""}
+          <i class="fas fa-chevron-${open ? "up" : "down"} tsl-chr-bond-chevron"></i>
+        </div>
+        ${details}
+      </div>`;
+    }).join("") : `<div class="tsl-notes-string-empty">No bonds recorded yet.</div>`;
+
+    const addControls = canEdit ? `
+      <div class="tsl-chr-add">
+        <select class="tsl-chr-add-select">
+          <option value="">— Add a bond… —</option>
+          ${candidates.map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join("")}
+        </select>
+        <button class="tsl-chr-pick-btn ${this._picking ? "picking" : ""}"
+                data-tooltip="Pick from canvas: click a visible token on the map to bond with it. Esc cancels.">
+          <i class="fas fa-crosshairs"></i> ${this._picking ? "Click a token… (Esc)" : "Pick token"}
+        </button>
+      </div>` : "";
+
+    return `
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title" data-tooltip="The chronicle of ${foundry.utils.escapeHTML(this._actor.name)}'s relationships. Attitude shifts fencing DCs; 'Read as' is what they believe about others.">Bonds</div>
+        ${addControls}
+        <div class="tsl-chr-bond-list">${rows}</div>
+      </section>`;
+  }
+
+  // ── Fencing tab (GM) ────────────────────────────────────────────────────────
+
+  _buildFencingTab({ encounter, activeConditions }) {
+    const act = encounter.active;
+
+    const track = (label, val, max, cls, tip) => `
+      <div class="tsl-notes-patience-track" data-tooltip="${tip}">
+        <span class="tsl-notes-patience-label">${label}</span>
+        <div class="tsl-notes-pips">
+          ${Array.from({ length: max }, (_, i) =>
+            `<span class="tsl-notes-pip tsl-notes-pip--${cls} ${i < val ? "filled" : ""}"></span>`).join("")}
+        </div>
+        <span class="tsl-notes-patience-count">${val}/${max}</span>
+        <button class="tsl-notes-patience-adj" data-track="${cls}" data-delta="-1">−</button>
+        <button class="tsl-notes-patience-adj" data-track="${cls}" data-delta="1">+</button>
+      </div>`;
+
+    const outcomeBanner = encounter.outcome
+      ? `<div class="tsl-chr-outcome tsl-chr-outcome--${encounter.outcome}">
+           ${encounter.outcome === "swayed" ? "💔 Swayed — resolve broken, they concede." : "🚪 Walked away — patience exhausted."}
+         </div>`
+      : "";
+
+    const tracksOrStart = act
+      ? `${track("Resolve", encounter.resolve, encounter.maxResolve, "resolve",
+            "The target's will. Successful maneuvers reduce it — 2 when hitting a vulnerability. At 0 they are swayed.")}
+         ${track("Patience", encounter.patience, encounter.maxPatience, "patience",
+            "The target's tolerance. Failures and triggered immunities reduce it. At 0 they walk away.")}
+         <button class="tsl-notes-enc-btn tsl-notes-enc-btn--end" data-enc-action="end">End Encounter</button>`
+      : (() => {
+          const suggested = SocialEncounterManager.suggestTracks(this._actor);
+          return `${outcomeBanner}
+         <div class="tsl-notes-enc-start" data-tooltip="Defaults come from the sheet: ${suggested.hint}. Raise Resolve for core beliefs, lower Patience for short tempers.">
+           <span>Patience
+             <select class="tsl-notes-patience-select" name="startPatience">
+               ${[2,3,4,5,6].map(n => `<option value="${n}" ${n === suggested.patience ? "selected" : ""}>${n}</option>`).join("")}
+             </select>
+           </span>
+           <span>Resolve
+             <select class="tsl-notes-patience-select" name="startResolve">
+               ${[2,3,4,5,6].map(n => `<option value="${n}" ${n === suggested.resolve ? "selected" : ""}>${n}</option>`).join("")}
+             </select>
+           </span>
+           <button class="tsl-notes-enc-btn" data-enc-action="start">Start</button>
+         </div>`;
+        })();
+
+    const condBtns = SOCIAL_CONDITION_ORDER.map(id => {
+      const on   = activeConditions[id];
+      const meta = SOCIAL_CONDITIONS[id];
+      return `<button class="tsl-cond-toggle ${on ? "active" : ""}" data-condition="${id}"
+                      data-tooltip="<b>${meta.label}</b><br>${foundry.utils.escapeHTML(meta.description)}">
+                <img src="${meta.icon}" alt=""><span>${meta.label}</span>
+              </button>`;
+    }).join("");
+
+    const anyActive = Object.values(activeConditions).some(Boolean);
+    return `
+      <section class="tsl-notes-section tsl-notes-section--encounter">
+        <div class="tsl-notes-section-title" data-tooltip="A Social Fencing exchange against this character. Break their Resolve before their Patience breaks you.">Encounter</div>
+        ${tracksOrStart}
+      </section>
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title" data-tooltip="Fencing statuses on this character. Toggle manually or let maneuvers apply them.">Statuses</div>
+        <div class="tsl-cond-grid">${condBtns}</div>
+        ${anyActive ? `<button class="tsl-cond-clear" data-tooltip="Remove all fencing statuses — e.g. when the scene ends.">Clear all statuses</button>` : ""}
+      </section>`;
+  }
+
+  // ── Listeners ────────────────────────────────────────────────────────────────
+
+  activateListeners(html) {
+    super.activateListeners(html);
+    const el = html instanceof HTMLElement ? html : html[0];
+    this._bindListeners(el);
+  }
+
+  _bindListeners(el) {
+    const canEdit = game.user.isGM || this._actor.isOwner;
+
+    // Tabs
+    el.querySelectorAll(".tsl-chr-tab").forEach(btn => {
+      btn.addEventListener("click", () => {
+        this._tab = btn.dataset.tab;
+        this.render(true);
+      });
+    });
+
+    // Bond rows fold/unfold (readers can browse too)
+    el.querySelectorAll("[data-bond-toggle]").forEach(head => {
+      head.addEventListener("click", () => {
+        const id = head.dataset.bondToggle;
+        if (this._expandedBonds.has(id)) this._expandedBonds.delete(id);
+        else this._expandedBonds.add(id);
+        this.render(true);
+      });
+    });
+
+    if (!canEdit) return;
+
+    // ── Profile: instant-save fields ─────────────────────────────────────────
+    el.querySelector("select[name='archetypeId']")?.addEventListener("change", (e) => {
+      const archetypeId = e.target.value || null;
+      const payload = { archetypeId };
+      // QoL: a ruling archetype implies a strong leaning — fill its triad to 2●
+      const arch = SocialArchetypeManager.getArchetypeById(archetypeId);
+      if (arch) {
+        const triad = SocialArchetypeManager.getCharacterNotes(this._actor).triad ?? {};
+        if ((triad[arch.triad] ?? 0) < 2) payload.triad = { [arch.triad]: 2 };
+      }
+      SocialArchetypeManager.setActorData(this._actor, payload);
+    });
+
+    el.querySelector("select[name='playbookId']")?.addEventListener("change", (e) => {
+      TSLPlaybooks.setForActor(this._actor, e.target.value || null);
+    });
+
+    for (const name of ["psychotype"]) {
+      el.querySelector(`input[name='${name}']`)?.addEventListener("change", (e) => {
+        SocialArchetypeManager.setActorData(this._actor, { [name]: e.target.value.trim() });
+      });
+    }
+    for (const name of ["motivation", "personality", "notes"]) {
+      el.querySelector(`textarea[name='${name}']`)?.addEventListener("change", (e) => {
+        SocialArchetypeManager.setActorData(this._actor, { [name]: e.target.value.trim() });
+      });
+    }
+
+    el.querySelectorAll("input[data-point]").forEach(input => {
+      input.addEventListener("change", (e) => {
+        SocialArchetypeManager.setActorData(this._actor, {
+          points: { [e.target.dataset.point]: e.target.value.trim() },
+        });
+      });
+    });
+
+    el.querySelectorAll(".tsl-chr-triad-pip").forEach(pip => {
+      pip.addEventListener("click", () => {
+        const triadId = pip.dataset.triad;
+        const clicked = parseInt(pip.dataset.value);
+        const current = SocialArchetypeManager.getCharacterNotes(this._actor).triad[triadId] ?? 0;
+        const value   = current === clicked ? clicked - 1 : clicked;
+        SocialArchetypeManager.setActorData(this._actor, { triad: { [triadId]: value } });
+      });
+    });
+
+    // ── Bonds ────────────────────────────────────────────────────────────────
+    el.querySelector(".tsl-chr-add-select")?.addEventListener("change", async (e) => {
+      const targetId = e.target.value;
+      if (!targetId) return;
+      const entry = await TSLBondStore.add(this._actor.id, targetId);
+      if (entry) this._expandedBonds.add(entry.id); // open the fresh bond for editing
+    });
+
+    el.querySelector(".tsl-chr-pick-btn")?.addEventListener("click", () => {
+      if (this._picking) this._endPick("Pick cancelled.");
+      else this._startPick();
+    });
+
+    el.querySelectorAll(".tsl-chr-bond-type").forEach(sel => {
+      sel.addEventListener("change", (e) => {
+        TSLBondStore.update(this._actor.id, e.target.dataset.bondId, { type: e.target.value });
+      });
+    });
+
+    el.querySelectorAll(".tsl-chr-bond-arch").forEach(sel => {
+      sel.addEventListener("change", (e) => {
+        TSLBondStore.update(this._actor.id, e.target.dataset.bondId, {
+          perceivedArchetypeId: e.target.value || null,
+          profileKnown: false, // hand-edited → back to a guess
+        });
+      });
+    });
+
+    el.querySelectorAll(".tsl-chr-att-dot").forEach(dot => {
+      dot.addEventListener("click", () => {
+        TSLBondStore.update(this._actor.id, dot.dataset.bondId, {
+          attitude: parseInt(dot.dataset.attitude),
+        });
+      });
+    });
+
+    el.querySelectorAll(".tsl-chr-bond-notes").forEach(input => {
+      input.addEventListener("change", (e) => {
+        TSLBondStore.update(this._actor.id, e.target.dataset.bondId, { notes: e.target.value.trim() });
+      });
+    });
+
+    el.querySelectorAll(".tsl-chr-bond-remove").forEach(btn => {
+      btn.addEventListener("click", () => {
+        TSLBondStore.remove(this._actor.id, btn.dataset.bondId);
+      });
+    });
+
+    el.querySelectorAll(".tsl-chr-str-adj").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const targetId = btn.dataset.target;
+        const delta    = parseInt(btn.dataset.delta);
+        if (delta > 0) await TSLStringStore.add(this._actor.id, targetId, 1);
+        else           await TSLStringStore.spend(this._actor.id, targetId);
+        this.render(true);
+      });
+    });
+
+    // GM: toggle verified/guess on a bond's read
+    if (game.user.isGM) {
+      el.querySelectorAll(".tsl-chr-known").forEach(badge => {
+        badge.addEventListener("click", () => {
+          const bond = TSLBondStore.getList(this._actor.id).find(b => b.id === badge.dataset.bondId);
+          if (bond) TSLBondStore.update(this._actor.id, bond.id, { profileKnown: !bond.profileKnown });
+        });
+      });
+    }
+
+    // ── Fencing (GM) ─────────────────────────────────────────────────────────
+    el.querySelectorAll(".tsl-notes-patience-adj").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const delta = parseInt(btn.dataset.delta);
+        if (btn.dataset.track === "resolve") SocialEncounterManager.adjustResolve(this._actor, delta);
+        else                                 SocialEncounterManager.adjustPatience(this._actor, delta);
+      });
+    });
+
+    el.querySelector("[data-enc-action='start']")?.addEventListener("click", () => {
+      const p = parseInt(el.querySelector("select[name='startPatience']")?.value ?? "4");
+      const r = parseInt(el.querySelector("select[name='startResolve']")?.value ?? "3");
+      SocialEncounterManager.startEncounter(this._actor, p, r);
+    });
+
+    el.querySelector("[data-enc-action='end']")?.addEventListener("click", () =>
+      SocialEncounterManager.endEncounter(this._actor)
+    );
+
+    el.querySelectorAll(".tsl-cond-toggle[data-condition]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const condId = btn.dataset.condition;
+        if (btn.classList.contains("active")) {
+          await SocialArchetypeManager.removeCondition(this._actor, condId);
+        } else {
+          await SocialArchetypeManager.applyCondition(this._actor, condId);
+        }
+        this.render(true);
+      });
+    });
+
+    el.querySelector(".tsl-cond-clear")?.addEventListener("click", async () => {
+      for (const id of SOCIAL_CONDITION_ORDER) {
+        await SocialArchetypeManager.removeCondition(this._actor, id);
+      }
+      this.render(true);
+    });
+  }
+
+  // ── Canvas picking ───────────────────────────────────────────────────────────
+
+  async _startPick() {
+    if (this._picking || !canvas?.stage) return;
+    this._picking = true;
+
+    // Flip the button to its "aiming" state BEFORE minimizing —
+    // rendering a minimized window desyncs its content
+    this.render(true);
+    await this.minimize();
+
+    // Crosshair over the whole map is the mode indicator you can't miss
+    if (canvas.app?.view) canvas.app.view.style.cursor = "crosshair";
+    ui.notifications.info(`Bond for ${this._actor.name}: click a token on the map. Esc cancels.`);
+
+    // DOM capture listener on the canvas element — PIXI stage listeners are
+    // not reliable across Foundry versions, a plain DOM event always fires.
+    this._onPickCanvas = (event) => {
+      if (event.button !== 0) return; // left click only
+
+      // Screen → world coordinates (core helper, manual transform as fallback)
+      let pos;
+      if (typeof canvas.canvasCoordinatesFromClient === "function") {
+        pos = canvas.canvasCoordinatesFromClient({ x: event.clientX, y: event.clientY });
+      } else {
+        const rect = canvas.app.view.getBoundingClientRect();
+        const t    = canvas.stage.worldTransform;
+        pos = {
+          x: (event.clientX - rect.left - t.tx) / canvas.stage.scale.x,
+          y: (event.clientY - rect.top  - t.ty) / canvas.stage.scale.y,
+        };
+      }
+
+      const hit = canvas.tokens.placeables.find(t =>
+        t.actor && t.visible && t.bounds.contains(pos.x, pos.y)
+      );
+      if (!hit) return; // empty ground — keep aiming, let Foundry pan/deselect
+
+      // We handle this click — don't let Foundry also select the token
+      event.preventDefault();
+      event.stopPropagation();
+
+      // Explain every rejected click instead of silently ignoring it
+      if (hit.document.hidden) {
+        ui.notifications.warn("That token is hidden — reveal it first, or add the actor from the dropdown.");
+        return;
+      }
+      if (hit.actor.id === this._actor.id) {
+        ui.notifications.warn(`That is ${this._actor.name} themselves — pick someone else.`);
+        return;
+      }
+
+      const targetActor = hit.actor;
+      const existing = TSLBondStore.find(this._actor.id, targetActor.id);
+      this._endPick(existing
+        ? `${this._actor.name} already has a bond with ${targetActor.name}.`
+        : null);
+      if (existing) {
+        this._expandedBonds.add(existing.id);
+        this.render(true);
+      } else {
+        TSLBondStore.add(this._actor.id, targetActor.id).then((entry) => {
+          if (entry) this._expandedBonds.add(entry.id); // open it for editing
+          ui.notifications.info(`Bond added: ${this._actor.name} → ${targetActor.name}`);
+        });
+      }
+    };
+
+    this._onPickCancel = (event) => {
+      if (event.key !== "Escape") return;
+      this._endPick("Pick cancelled.");
+    };
+
+    canvas.app.view.addEventListener("pointerdown", this._onPickCanvas, true);
+    document.addEventListener("keydown", this._onPickCancel);
+  }
+
+  /** Leave pick mode, restore the window and refresh the button state. */
+  async _endPick(message = null) {
+    this._stopPick();
+    if (message) ui.notifications.info(message);
+    await this.maximize();
+    this.render(true);
+  }
+
+  _stopPick() {
+    if (!this._picking) return;
+    this._picking = false;
+    if (canvas.app?.view) {
+      canvas.app.view.style.cursor = "";
+      if (this._onPickCanvas) canvas.app.view.removeEventListener("pointerdown", this._onPickCanvas, true);
+    }
+    if (this._onPickCancel) document.removeEventListener("keydown", this._onPickCancel);
+    this._onPickCanvas = null;
+    this._onPickCancel = null;
+  }
+
+  async close(options = {}) {
+    this._stopPick();
+    Hooks.off("updateActor",        this._flagHook);
+    Hooks.off("createActiveEffect", this._createEffHook);
+    Hooks.off("deleteActiveEffect", this._deleteEffHook);
+    SocialFencingDialog._instances.delete(this._actor.id);
+    return super.close(options);
+  }
+}
