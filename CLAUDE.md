@@ -106,9 +106,12 @@ One-shot economy: a one-shot is consumed ONLY if it is the thing granting the ad
 
 **Social DC (`getSocialDC`):** max(passive Insight, 10 + WIS mod + proficiency) — proficiency from `attributes.prof`, falling back to level/CR math. Scales defense with level so high-tier attack stacking doesn't trivialize targets.
 
-### UI Structure Notes
-- **Conflict center**: Emotional Moves (2d6 grid) → Maneuvers (2-col chips, triad-colored groups; tooltip lists which archetypes each cuts/bounces off) → **Duel Panel** (portraits, skill+bonus chips vs DC+mods chips, relation/combo lines, success/fail preview, roll button)
-- TSL Conditions on cards = compact pip row (GM toggles, tooltip names); fencing statuses = icon chips; known archetype badge tooltip = full dossier (essence/hint/craves/dreads/tells)
+### UI Structure Notes (minimalist redesign)
+- **One focus at a time.** Center = unified `.tsl-actions` (a single `.tsl-chip` grid: Feelings·2d6 group + triad maneuver groups, thin colored left-border per group) → `centerBottom()` action **bar**. No two stacked labeled sections, no always-open duel panel.
+- **The action bar** (`.tsl-bar`) replaces the old ~10-line duel panel with **3 tight lines max**: (1) matchup — portrait · move · `Skill ±N` `+extra`(tooltip breakdown) `ADV`(tooltip reasons) · `vs DC X`(tooltip base+mods) · Roll; (2) toggles — String spend + leverage chips (`_stringToggle` / `_leverageToggles`); (3) ONE priority-picked hint sentence. Everything else lives in tooltips.
+- **Chips** are uniform: icon + ellipsis name + optional corner mark (✦ vuln / ⚡ imm / » counter, only when the target's profile is read). All situational math (leaning ±, counter, DC mods) surfaces in the bar after you pick, NOT as badges cluttering the grid.
+- **Cards** are slim: portrait + name(+Turn/Target inline badge) + archetype line (tooltip = full dossier) + tracks (RES/PAT) + status dots (icon only) + one footer row (condition pips + string counter). Overwhelmed = red inset ring, not a text row.
+- **Overflow discipline:** every text flex child has `min-width:0` + ellipsis; chip grids use `minmax(0,1fr)`. Nothing wraps or spills.
 - Roll feedback: `_pendingRoll.kind === "maneuver"` renders a d20 overlay (total vs DC, outcome); 2d6 moves keep the dice-breakdown overlay; CSS animations in the "JUICE" section (active portrait scale+pulse, overlay pop, log fade)
 - **Chronicle Bonds are collapsible**: one-line head (portrait, name, type tag, read-as icon, attitude badge, strings, chevron) → click unfolds editors; `this._expandedBonds` Set, new bonds auto-expand
 - **Canvas pick uses a DOM capture listener** on `canvas.app.view` (NOT `canvas.stage.on` — unreliable in v13) + `canvas.canvasCoordinatesFromClient` with manual worldTransform fallback

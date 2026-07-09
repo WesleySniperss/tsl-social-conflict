@@ -167,57 +167,31 @@ class TSLConflictApp extends Application {
     const showKiss    = game.settings.get("tsl-social-conflict", "enableKiss") || mode === "tsl";
 
     // ── Participant cards ──────────────────────────────────────────────────────
-    // TSL Conditions as one compact pip row (hover for the name, GM clicks to toggle)
-    const renderConditions = (p, idx) => `
-      <div class="tsl-cond-row-compact" data-tooltip="TSL Conditions — at 4+ they are Overwhelmed">${CONDITIONS.map(c => `
-        <button class="tsl-condition tsl-condition--compact ${p.conditions[c.id] ? "active" : ""}"
+    // TSL Conditions + Strings share one quiet footer row; names live in tooltips.
+    const renderFooter = (p, idx) => {
+      const pips = CONDITIONS.map(c => `
+        <button class="tsl-cond-pip ${p.conditions[c.id] ? "active" : ""}"
           data-participant="${idx}" data-condition="${c.id}"
           style="--cond-color:${c.color}" ${!isGM ? "disabled" : ""}
-          data-tooltip="<b>${c.label}</b>${p.conditions[c.id] ? " — active" : ""}">
-          <span class="tsl-condition-pip"></span>
-          <span class="tsl-condition-tag">${c.label.slice(0, 2)}</span>
-        </button>`).join("")}
-      </div>`;
+          data-tooltip="${c.label}${p.conditions[c.id] ? " — active" : ""}"></button>`).join("");
 
-    const renderStrings = (p, idx) => {
       const data = strings[p.actorId];
-      if (!data) return "";
-      const isActiveTurn = state.turn === idx && !state.resolved;
-      const pendingSpend = this._pendingStringSpend;
+      let strChip = "";
+      if (data) {
+        const held = data.held.length;
+        const inc  = data.incoming.reduce((s, x) => s + x.count, 0);
+        if (held || inc) {
+          const parts = [
+            held ? `holds ${held}` : null,
+            inc ? `${inc} on them` : null,
+          ].filter(Boolean).join(" · ");
+          strChip = `<span class="tsl-str-chip" data-tooltip="Strings — ${parts}. Spend one in the action bar for +2.">
+            <i class="fas fa-masks-theater"></i>${held || inc}</span>`;
+        }
+      }
 
-      if (!data.held.length && !data.incoming.length) return "";
-
-      const heldRows = data.held.map(s => {
-        const isPending = pendingSpend?.stringId === s.id;
-        const canSpend  = isActiveTurn && s.targetIdx !== -1;
-        const spendBtn  = canSpend
-          ? `<button class="tsl-spend-string ${isPending ? "pending" : ""}"
-               data-source-actor="${p.actorId}"
-               data-string-id="${s.id}"
-               data-target-idx="${s.targetIdx}"
-               title="${isPending ? "Cancel" : "Spend (+1 roll)"}">→</button>`
-          : "";
-        const removeBtn = isGM
-          ? `<button class="tsl-string-remove" data-actor="${p.actorId}" data-string-id="${s.id}" title="Remove">✕</button>`
-          : "";
-        const label = s.label || (s.targetName ? s.targetName : "—");
-        return `<div class="tsl-string-row">
-          <span class="tsl-string-dot"></span>
-          <span class="tsl-string-name">${foundry.utils.escapeHTML(label)}</span>
-          ${spendBtn}${removeBtn}
-        </div>`;
-      }).join("");
-
-      const incomingRows = data.incoming.map(s =>
-        `<div class="tsl-string-row tsl-string-row--incoming">
-          <span class="tsl-string-count">${s.count}×</span>
-          <span class="tsl-string-name">${foundry.utils.escapeHTML(s.name)}</span>
-        </div>`
-      ).join("");
-
-      return `<div class="tsl-strings">
-        ${heldRows ? `<div class="tsl-strings-label">Holds</div>${heldRows}` : ""}
-        ${incomingRows ? `<div class="tsl-strings-label tsl-strings-label--incoming">Held by</div>${incomingRows}` : ""}
+      return `<div class="tsl-card-footer" data-tooltip="Conditions — 4+ = Overwhelmed">
+        <div class="tsl-cond-pips">${pips}</div>${strChip}
       </div>`;
     };
 
@@ -236,25 +210,23 @@ class TSLConflictApp extends Application {
       const pips = (val, max, cls) => Array.from({ length: max }, (_, i) =>
         `<span class="tsl-enc-pip tsl-enc-pip--${cls} ${i < val ? "filled" : ""}"></span>`).join("");
       return `<div class="tsl-enc-tracks">
-        <div class="tsl-enc-track" data-tooltip="Resolve — break it to sway them. Successful maneuvers reduce it (2 on a vulnerability).">
-          <span class="tsl-enc-track-label">Resolve</span>${pips(enc.resolve, enc.maxResolve, "resolve")}
+        <div class="tsl-enc-track" data-tooltip="Resolve — break it to sway them (0 = swayed). Successful maneuvers reduce it, 2 on a vulnerability.">
+          <span class="tsl-enc-track-label">RES</span>${pips(enc.resolve, enc.maxResolve, "resolve")}
         </div>
         <div class="tsl-enc-track" data-tooltip="Patience — failures and triggered immunities burn it. At 0 they walk away.">
-          <span class="tsl-enc-track-label">Patience</span>${pips(enc.patience, enc.maxPatience, "patience")}
+          <span class="tsl-enc-track-label">PAT</span>${pips(enc.patience, enc.maxPatience, "patience")}
         </div>
       </div>`;
     };
 
-    // Active fencing statuses (Rattled, Smitten, Provoked…) as icon chips
+    // Active fencing statuses (Rattled, Smitten, Provoked…) — icon dots, names in tooltip
     const renderStatuses = (p) => {
       if (!showFencing) return "";
-      const actor = game.actors.get(p.actorId);
-      const conds = SocialArchetypeManager.getActiveConditions(actor);
+      const conds = SocialArchetypeManager.getActiveConditions(game.actors.get(p.actorId));
       if (!conds.length) return "";
       return `<div class="tsl-status-row">${conds.map(c => `
-        <span class="tsl-status-chip" data-tooltip="<b>${c.meta.label}</b><br>${foundry.utils.escapeHTML(c.meta.description)}">
-          <img src="${c.meta.icon}" alt="${c.meta.label}"><span>${c.meta.label}</span>
-        </span>`).join("")}</div>`;
+        <span class="tsl-status-dot" data-tooltip="<b>${c.meta.label}</b><br>${foundry.utils.escapeHTML(c.meta.description)}">
+          <img src="${c.meta.icon}" alt="${c.meta.label}"></span>`).join("")}</div>`;
     };
 
     const renderParticipant = (p, idx) => {
@@ -279,268 +251,166 @@ class TSLConflictApp extends Application {
             ? `<div class="tsl-participant-arch" style="--triad-color:#e8557a" data-tooltip="${foundry.utils.escapeHTML(playbook.essence)}"><i class="fas ${playbook.icon}"></i> ${playbook.label}</div>`
             : `<div class="tsl-participant-system">—</div>`)
         : arch
-          ? `<div class="tsl-participant-arch" style="--triad-color:${triad?.color ?? "#806858"}"
-                 data-tooltip="${dossierTip}">
-               <i class="fas ${triad?.icon ?? "fa-user"}"></i> ${arch.label} <i class="fas fa-circle-info tsl-intel-i"></i></div>`
-          : `<div class="tsl-participant-system" data-tooltip="Their archetype is hidden. A successful Cold Reading or Logic Exploit reveals it.">Nature unread</div>`;
+          ? `<div class="tsl-participant-arch" style="--triad-color:${triad?.color ?? "#806858"}" data-tooltip="${dossierTip}">
+               <i class="fas ${triad?.icon ?? "fa-user"}"></i> ${arch.label}</div>`
+          : `<div class="tsl-participant-system" data-tooltip="Their nature is hidden — a successful Cold Reading or Logic Exploit reveals it.">Nature unread</div>`;
+      const badge = isActive ? `<span class="tsl-turn-badge" style="--active-color:${p.color}">Turn</span>`
+                  : isTarget ? `<span class="tsl-turn-badge" style="--active-color:#e8a855">Target</span>` : "";
       return `
-        <div class="tsl-participant ${isActive ? "active" : ""} ${isTarget ? "target-selected" : ""} ${selectable ? "selectable" : ""}"
+        <div class="tsl-participant ${isActive ? "active" : ""} ${isTarget ? "target-selected" : ""} ${selectable ? "selectable" : ""} ${condCount >= 4 ? "overwhelmed" : ""}"
              data-idx="${idx}" style="--p-color:${p.color}" ${selectable ? `data-select-target="${idx}"` : ""}>
           <div class="tsl-participant-header">
             <img class="tsl-portrait" src="${p.img}" alt="${p.name}">
             <div class="tsl-participant-info">
-              <div class="tsl-participant-name">${p.name}</div>
+              <div class="tsl-participant-name">${p.name}${badge}</div>
               ${subtitle}
             </div>
-            ${isActive ? `<div class="tsl-turn-badge" style="--active-color:${p.color}">Turn</div>` : ""}
-            ${isTarget ? `<div class="tsl-turn-badge" style="--active-color:#e8a855">Target</div>` : ""}
           </div>
           ${renderEncounter(p)}
           ${renderStatuses(p)}
-          <div class="tsl-conditions">${renderConditions(p, idx)}</div>
-          ${condCount >= 4 ? `<div class="tsl-overwhelmed">⚠ Overwhelmed</div>` : ""}
-          ${renderStrings(p, idx)}
-          ${canYield ? `<button class="tsl-yield-btn" data-participant="${idx}">🏳 Yield</button>` : ""}
+          ${renderFooter(p, idx)}
+          ${canYield ? `<button class="tsl-yield-btn" data-participant="${idx}">Yield</button>` : ""}
         </div>`;
     };
 
-    // ── Center: moves + target + roll ──────────────────────────────────────────
-    const renderStats = () => activeP.stats.map(s => `
-      <div class="tsl-stat">
-        <span class="tsl-stat-name">${s.name}</span>
-        <span class="tsl-stat-value">${s.value >= 0 ? "+" : ""}${s.value}</span>
-      </div>`).join("");
-
+    // ── Center: actions + target + roll ─────────────────────────────────────────
     const renderTargetList = () => state.participants.map((p, i) =>
       i === state.turn ? "" :
-      `<button class="tsl-target-btn ${this._selectedTarget === i ? "selected" : ""}" data-select-target="${i}">${p.name}</button>`
+      `<button class="tsl-target-btn ${this._selectedTarget === i ? "selected" : ""}" data-select-target="${i}">${foundry.utils.escapeHTML(p.name)}</button>`
     ).join("");
 
-    // ── Social Maneuvers — compact chips, archetype matrix in the tooltip ──────
+    // ── Social Maneuvers — one tidy chip grid, thin triad dividers ─────────────
+    // All the situational math (leaning, counter, vulnerability) is surfaced in
+    // the action bar AFTER you pick; chips stay uniform. A tiny corner mark only
+    // flags a known vulnerability/immunity/counter so you can scan for it.
     const renderManeuvers = () => {
       const esc      = foundry.utils.escapeHTML;
       const srcActor = game.actors.get(activeP.actorId);
       const tgtActor = hasTarget ? game.actors.get(state.participants[this._selectedTarget].actorId) : null;
       const seeRel   = tgtActor && !!knownArchetypes?.[tgtActor.id];
 
-      const srcTriad  = srcActor ? (SocialArchetypeManager.getCharacterNotes(srcActor).triad ?? {}) : {};
-      const totalDots = Object.values(srcTriad).reduce((s, v) => s + (v || 0), 0);
-
       return MANEUVER_GROUPS.map(g => {
         const mvs   = SOCIAL_MANEUVERS.filter(m => m.group === g.id);
         const color = SOCIAL_TRIADS[g.id]?.color ?? "#806858";
-        // Attack style from the Extended Triad: +1 per dot, −1 on foreign ground
-        const short = (SOCIAL_TRIADS[g.id]?.label ?? "").replace("Triad of ", "");
-        const dots  = srcTriad[g.id] ?? 0;
-        let elementBadge = "";
-        if (g.id !== "general") {
-          if (dots > 0)
-            elementBadge = `<span class="tsl-mv-group-star" data-tooltip="${activeP.name}'s ${short} leaning ${"●".repeat(dots)} — +${dots} to these maneuvers (+1 per Extended Triad dot, set in the Chronicle Profile)">★ +${dots}</span>`;
-          else if (totalDots > 0)
-            elementBadge = `<span class="tsl-mv-group-star tsl-mv-group-star--malus" data-tooltip="Foreign ground — ${activeP.name} has no ${short} leaning: −1 to these maneuvers">▼ −1</span>`;
-        }
+        const short = (SOCIAL_TRIADS[g.id]?.label ?? g.label).replace("Triad of ", "");
         const chips = mvs.map(m => {
           const isSel   = move?.id === m.id;
           const rel     = tgtActor ? SocialManeuverRoller.getRelation(tgtActor, m) : "neutral";
           const tgtArch = tgtActor ? knownArchetypes?.[tgtActor.id] : null;
           const counter = seeRel && tgtArch && TRIAD_COUNTERS[m.group] === tgtArch.triad;
-          const relCls  = seeRel && rel !== "neutral" ? `tsl-mv-chip--${rel}`
-                        : counter ? "tsl-mv-chip--counter" : "";
-          const relDot  = seeRel && rel !== "neutral"
-            ? `<span class="tsl-mv-chip-rel">${rel === "immune" ? "⚡" : "✦"}</span>`
-            : counter ? `<span class="tsl-mv-chip-rel tsl-mv-chip-rel--counter">»</span>` : "";
+          const mark    = seeRel && rel === "immune" ? `<span class="tsl-chip-mark tsl-chip-mark--imm">⚡</span>`
+                        : seeRel && rel === "vulnerable" ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">✦</span>`
+                        : counter ? `<span class="tsl-chip-mark tsl-chip-mark--counter">»</span>` : "";
           const mod  = srcActor ? SocialManeuverRoller.getSkillMod(srcActor, m) : 0;
-          const sign = mod >= 0 ? "+" : "";
-          // Which archetypes this cuts / bounces off — rules knowledge, shown to all
           const ar = SocialArchetypeManager.getArchetypeRelationsFor(m);
           const counterShort = TRIAD_COUNTERS[m.group]
             ? (SOCIAL_TRIADS[TRIAD_COUNTERS[m.group]]?.label ?? "").replace("Triad of ", "") : null;
           const tip = [
-            `<b>${esc(m.name)}</b> · ${esc(m.skill)} ${sign}${mod}`,
+            `<b>${esc(m.name)}</b> · ${esc(m.skill)} ${mod >= 0 ? "+" : ""}${mod}`,
             esc(m.description),
             ar.vulnerable.length ? `✦ Cuts deep: ${esc(ar.vulnerable.map(x => x.label).join(", "))}` : null,
             ar.immune.length     ? `⚡ Bounces off: ${esc(ar.immune.map(x => x.label).join(", "))}` : null,
-            counterShort         ? `» School counter: +2 vs ${esc(counterShort)} archetypes` : null,
+            counterShort         ? `» School counters ${esc(counterShort)} archetypes (+2)` : null,
           ].filter(Boolean).join("<br>").replaceAll('"', "&quot;");
           return `
-            <button class="tsl-mv-chip ${isSel ? "selected" : ""} ${relCls}"
-                    data-maneuver="${m.id}" data-tooltip="${tip}">
-              <i class="fas ${m.icon}"></i>
-              <span class="tsl-mv-chip-name">${esc(m.name)}</span>
-              <span class="tsl-mv-chip-mod">${sign}${mod}</span>
-              ${relDot}
+            <button class="tsl-chip ${isSel ? "selected" : ""}" data-maneuver="${m.id}" data-tooltip="${tip}">
+              <i class="fas ${m.icon}"></i><span class="tsl-chip-name">${esc(m.name)}</span>${mark}
             </button>`;
         }).join("");
-        return `<div class="tsl-mv-group" style="--triad-color:${color}">
-          <div class="tsl-mv-group-label">${g.label}${elementBadge ? " " + elementBadge : ""}</div>
-          <div class="tsl-mv-chip-grid">${chips}</div>
+        return `<div class="tsl-chip-group" style="--triad-color:${color}">
+          <div class="tsl-chip-group-label">${esc(short)}</div>
+          <div class="tsl-chip-grid">${chips}</div>
         </div>`;
       }).join("");
     };
 
     const centerBottom = () => {
+      const esc = foundry.utils.escapeHTML;
+
+      // Nothing picked yet: one quiet hint, no wall of instructions.
       if (!move) {
         if (state.resolved) return "";
-        // First-glance orientation: what to do and what winning means (per mode)
-        const pickLabel = showTSL && showFencing ? "pick a move or maneuver"
-                        : showTSL ? "pick a move" : "pick a maneuver";
-        const rollLabel = showFencing
-          ? `roll — a maneuver is a plain D&D check: <b>d20 + skill vs their social DC</b> (10 + WIS + proficiency)`
-          : `roll <b>2d6 + stat</b> — 10+ strong hit, 7–9 weak hit, 6− miss`;
-        const goal = showFencing
-          ? `<b>Goal:</b> successes break their <span class="tsl-objective-res">Resolve</span> (0 = swayed);
-             failures burn their <span class="tsl-objective-pat">Patience</span> (0 = they walk away).
-             Or end it with 🏳 Yield${showKiss ? " / 💋 Finally Kiss" : ""}.`
-          : `<b>Goal:</b> pile Conditions on them — at 4+ they are <b>Overwhelmed</b> and must yield or flee.
-             Strings are your leverage (+1 on a roll). End it with 🏳 Yield${showKiss ? " / 💋 Finally Kiss" : ""}.`;
-        return `<div class="tsl-objective">
-          <div class="tsl-objective-steps">
-            <span class="tsl-objective-step"><b>1</b> ${pickLabel}</span>
-            <span class="tsl-objective-step"><b>2</b> pick a target</span>
-            <span class="tsl-objective-step"><b>3</b> ${rollLabel}</span>
+        const what = showTSL && showFencing ? "a move or maneuver" : showTSL ? "a move" : "a maneuver";
+        return `<div class="tsl-hint">Pick ${what}, then a target, to see the roll.</div>`;
+      }
+
+      // Finally Kiss / any move that still needs a target → compact target chips.
+      if (move.special && !hasTarget)
+        return `<div class="tsl-bar tsl-bar--pick"><span class="tsl-bar-label">Partner</span>${renderTargetList()}</div>`;
+      if (move.special)
+        return `<div class="tsl-bar"><button class="tsl-kiss-btn">💋 Finally Kiss ${esc(state.participants[this._selectedTarget].name)}</button></div>`;
+      if (needsTarget && !hasTarget)
+        return `<div class="tsl-bar tsl-bar--pick"><span class="tsl-bar-label">Target</span>${renderTargetList()}</div>`;
+
+      const srcActor = game.actors.get(activeP.actorId);
+      const tgtP     = hasTarget ? state.participants[this._selectedTarget] : null;
+
+      // ── 2d6 emotional move: attacker · stat +N · Roll ────────────────────────
+      if (!isManeuver) {
+        const stat  = activeP.stats.find(s => s.name === move.stat) ?? { name: move.stat, value: 0 };
+        const bonus = this._pendingStringSpend ? 1 : 0;
+        const total = stat.value + bonus;
+        return `<div class="tsl-bar">
+          <img class="tsl-bar-portrait" src="${activeP.img}" alt="">
+          <div class="tsl-bar-core">
+            <span class="tsl-bar-move">${esc(move.name)}</span>
+            <span class="tsl-bar-roll">2d6 ${total >= 0 ? "+" : "−"} ${Math.abs(total)} <span class="tsl-bar-dim">${esc(stat.name)}${bonus ? " +String" : ""}</span></span>
           </div>
-          <div class="tsl-objective-goal" data-tooltip="${showFencing
-            ? "The GM arms the tracks with 'Start tracks' on a participant card. Without tracks, rolls still work — conditions and Strings flow — but there is no score to break."
-            : "Conditions are toggled by the GM on the participant cards; moves say when someone gains or clears one."}">
-            ${goal}
-          </div>
+          ${this._stringToggle(activeP, tgtP)}
+          <button class="tsl-roll-btn" style="--active-color:${activeColor}">Roll</button>
         </div>`;
       }
-      if (move.special) {
-        if (!hasTarget) return `<div class="tsl-target-prompt">Choose partner</div><div class="tsl-target-list">${renderTargetList()}</div>`;
-        return `<button class="tsl-kiss-btn">💋 Finally Kiss</button>`;
-      }
-      if (needsTarget && !hasTarget) {
-        return `<div class="tsl-target-prompt">Choose target</div><div class="tsl-target-list">${renderTargetList()}</div>`;
-      }
-      if (isManeuver) {
-        // ── Duel panel: everything the dice will do, spelled out pre-roll ─────
-        const esc      = foundry.utils.escapeHTML;
-        const srcActor = game.actors.get(activeP.actorId);
-        const tgtP     = state.participants[this._selectedTarget];
-        const tgtActor = game.actors.get(tgtP.actorId);
-        if (!srcActor || !tgtActor) return "";
-        const a      = SocialManeuverRoller.assess(srcActor, tgtActor, move, { leverage: this._pendingLeverage });
-        const seeRel = !!knownArchetypes?.[tgtActor.id];
-        const sign   = a.skillMod >= 0 ? "+" : "";
 
-        // ── Dossier leverage cards (VTM-style), once per encounter each ───────
-        const enc        = encounters?.[tgtP.actorId];
-        const profKnown  = isGM || (TSLBondStore.find(activeP.actorId, tgtP.actorId)?.profileKnown ?? false);
-        const tgtPoints  = SocialArchetypeManager.getCharacterNotes(tgtActor).points;
-        const LEVERAGE_META = [
-          { id: "desire",   label: "Desire",   icon: "fa-gem",         effect: "Advantage; on success +1 extra Resolve damage." },
-          { id: "fear",     label: "Fear",     icon: "fa-ghost",       effect: "+3 to the roll; if you fail, they lose 1 extra Patience." },
-          { id: "weakness", label: "Weakness", icon: "fa-heart-crack", effect: "A neutral maneuver counts as a vulnerability strike." },
-        ];
-        let leverageRow = "";
-        if (enc?.active && profKnown) {
-          const btns = LEVERAGE_META.filter(l => (tgtPoints[l.id] ?? "").trim()).map(l => {
-            const used     = enc.leverage?.[l.id];
-            const selected = this._pendingLeverage === l.id;
-            const tip = used
-              ? `<b>${l.label}</b> — already played this encounter; they've heard the pitch.`
-              : `<b>${l.label}:</b> ${esc(tgtPoints[l.id])}<br><i>${l.effect} Once per encounter.</i>`;
-            return `<button class="tsl-lev-btn ${selected ? "selected" : ""}" data-leverage="${l.id}"
-                            ${used ? "disabled" : ""} data-tooltip="${tip.replaceAll('"', "&quot;")}">
-                      <i class="fas ${l.icon}"></i> ${l.label}</button>`;
-          }).join("");
-          if (btns) leverageRow = `
-            <div class="tsl-duel-lev">
-              <span class="tsl-duel-lev-label" data-tooltip="Leverage from the dossier — play what you know about them. Each card once per encounter.">Leverage</span>
-              ${btns}
-            </div>`;
-        } else if (profKnown && !enc?.active
-                   && LEVERAGE_META.some(l => (tgtPoints[l.id] ?? "").trim())) {
-          // Dossier is armed but the encounter isn't — nudge without nagging
-          leverageRow = `<div class="tsl-duel-rel tsl-duel-rel--unknown">
-            <i class="fas fa-gem"></i> Leverage cards ready — they unlock once the GM starts Patience &amp; Resolve tracks</div>`;
-        }
+      // ── Maneuver: everything the dice will do, on three tight lines ───────────
+      const tgtActor = game.actors.get(tgtP.actorId);
+      if (!srcActor || !tgtActor) return "";
+      const a       = SocialManeuverRoller.assess(srcActor, tgtActor, move, { leverage: this._pendingLeverage });
+      const seeRel  = !!knownArchetypes?.[tgtActor.id];
+      const strAdd  = this._pendingStringSpend ? STRING_SPEND_BONUS : 0;
+      const extra   = a.bonus + strAdd;
 
-        const bonusHtml = [
-          ...(this._pendingStringSpend
-            ? [`<span class="tsl-duel-chip tsl-duel-chip--bonus">+${STRING_SPEND_BONUS} String</span>`]
-            : []),
-          ...a.bonusReasons.map(b => {
-            // The counter-school bonus applies regardless, but before a read
-            // it must not leak the target's triad — tease, don't tell
-            const veiled = b.kind === "counter" && !seeRel;
-            const label  = veiled ? "Something in them yields to this school…" : b.label;
-            const short  = veiled ? "?" : esc(b.label.split(" — ")[0]);
-            return `
-            <span class="tsl-duel-chip ${b.value >= 0 ? "tsl-duel-chip--bonus" : "tsl-duel-chip--malus"}"
-                  data-tooltip="${esc(label)}">${b.value >= 0 ? "+" : "−"}${Math.abs(b.value)} ${short}</span>`;
-          }),
-        ].join("");
+      // Bonus/DC breakdowns fold into single signed numbers with tooltip detail.
+      const bonusList = [
+        ...(strAdd ? [`+${strAdd} String`] : []),
+        ...a.bonusReasons.map(b => {
+          const veiled = b.kind === "counter" && !seeRel;
+          return `${b.value >= 0 ? "+" : "−"}${Math.abs(b.value)} ${veiled ? "?" : esc(b.label.split(" — ")[0])}`;
+        }),
+      ];
+      const extraChip = extra
+        ? `<span class="tsl-bar-extra ${extra >= 0 ? "pos" : "neg"}" data-tooltip="${esc(bonusList.join(", "))}">${extra >= 0 ? "+" : "−"}${Math.abs(extra)}</span>`
+        : "";
+      const dcTip = a.dcMods.length ? ` (${a.dcBase}${a.dcMods.map(m => `${m.value > 0 ? "+" : "−"}${Math.abs(m.value)}`).join("")})` : "";
 
-        const dcChips = a.dcMods.map(m =>
-          `<span class="tsl-duel-chip" data-tooltip="${esc(m.label)}">${m.value > 0 ? "+" : "−"}${Math.abs(m.value)}</span>`
-        ).join("");
+      const advMark = a.advantage
+        ? `<span class="tsl-bar-adv" data-tooltip="${esc(a.advantageReasons.join("; "))}">ADV</span>` : "";
+      const relMark = a.relation === "vulnerable" && seeRel ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">✦</span>`
+                    : (a.relation === "immune" || a.relation === "blocked") ? `<span class="tsl-chip-mark tsl-chip-mark--imm">⚡</span>` : "";
 
-        // Archetype intel only when read; status combos are public knowledge
-        let relLine = "";
-        if (a.relation === "blocked")
-          relLine = `<div class="tsl-duel-rel tsl-duel-rel--immune">⚡ ${esc(a.relationReason)}</div>`;
-        else if (seeRel && a.relation === "immune")
-          relLine = `<div class="tsl-duel-rel tsl-duel-rel--immune">⚡ ${esc(a.relationReason)} — it will fail and they will turn Defiant</div>`;
-        else if (seeRel && a.relation === "vulnerable")
-          relLine = `<div class="tsl-duel-rel tsl-duel-rel--vulnerable">✦ ${esc(a.relationReason)} — Advantage & double Resolve damage</div>`;
-        else if (isGM && !a.arch)
-          relLine = `<div class="tsl-duel-rel tsl-duel-rel--unknown"><i class="fas fa-user-slash"></i> No archetype set — open their Chronicle to arm the vulnerability matrix</div>`;
-        else if (!seeRel)
-          relLine = `<div class="tsl-duel-rel tsl-duel-rel--unknown"><i class="fas fa-eye-slash"></i> Their nature is unread — Cold Reading reveals weak spots</div>`;
+      // The single most useful sentence, chosen by priority — never a stack.
+      let hint = "", hintCls = "dim";
+      if (a.relation === "blocked")        { hint = a.relationReason; hintCls = "imm"; }
+      else if (seeRel && a.relation === "immune")     { hint = `${a.relationReason} — it fails, they turn Defiant.`; hintCls = "imm"; }
+      else if (seeRel && a.relation === "vulnerable") { hint = "Weak spot — Advantage & double Resolve damage."; hintCls = "vuln"; }
+      else if (a.advantage)                { hint = a.advantageReasons[a.advantageReasons.length - 1]; hintCls = "vuln"; }
+      else if (isGM && !a.arch)            { hint = "No archetype set — open their Chronicle to arm weak spots."; }
+      else if (!seeRel)                    { hint = "Nature unread — Cold Reading reveals their weak spots."; }
 
-        const comboLines = a.advantageReasons
-          .filter(r => r !== a.relationReason)
-          .map(r => `<div class="tsl-duel-rel tsl-duel-rel--vulnerable">✦ ${esc(r)}</div>`)
-          .join("");
-
-        // Insight strip: what a read target craves and dreads, right where you aim
-        const intelLine = seeRel && a.arch
-          ? `<div class="tsl-duel-intel" data-tooltip="From the dossier — play to these">💎 ${esc(a.arch.craves ?? "")} · 👻 ${esc(a.arch.dreads ?? "")}</div>`
-          : "";
-
-        // A read that already paid out earns no second String
-        const alreadyRead = move.reveals && (TSLBondStore.find(activeP.actorId, tgtP.actorId)?.profileKnown ?? false);
-        const readNote = alreadyRead
-          ? `<div class="tsl-duel-rel tsl-duel-rel--unknown"><i class="fas fa-book-open"></i> Already read — success re-confirms the profile but grants no new String</div>`
-          : "";
-
-        const blocked = a.relation === "blocked";
-        const walled  = blocked || (seeRel && a.relation === "immune");
-        const preview = walled ? "" : `
-          <div class="tsl-duel-outcomes">
-            <div class="tsl-duel-outcome tsl-duel-outcome--hit"><span class="tsl-duel-oc-label">≥ ${a.dc}</span>${esc(move.successText)}</div>
-            <div class="tsl-duel-outcome tsl-duel-outcome--miss"><span class="tsl-duel-oc-label">&lt; ${a.dc}</span>${esc(move.failText)}</div>
-          </div>`;
-
-        return `<div class="tsl-duel">
-          <div class="tsl-duel-row">
-            <div class="tsl-duel-side">
-              <img src="${activeP.img}" alt="">
-              <div class="tsl-duel-side-info">
-                <div class="tsl-duel-side-name">${esc(activeP.name)}</div>
-                <div class="tsl-duel-side-stat">${esc(move.skill)} <b>${sign}${a.skillMod}</b>${bonusHtml}</div>
-              </div>
-            </div>
-            <div class="tsl-duel-vs">${a.advantage ? `<span class="tsl-duel-adv" data-tooltip="Roll 2d20, keep the highest">ADV</span>` : "vs"}</div>
-            <div class="tsl-duel-side tsl-duel-side--target">
-              <div class="tsl-duel-side-info">
-                <div class="tsl-duel-side-name">${esc(tgtP.name)}</div>
-                <div class="tsl-duel-side-stat">DC <b>${a.dc}</b>${dcChips}</div>
-              </div>
-              <img src="${tgtP.img}" alt="">
-            </div>
+      const blocked = a.relation === "blocked";
+      return `<div class="tsl-bar tsl-bar--duel">
+        <div class="tsl-bar-line">
+          <img class="tsl-bar-portrait" src="${activeP.img}" alt="">
+          <div class="tsl-bar-core">
+            <span class="tsl-bar-move">${esc(move.name)} ${relMark}${advMark}</span>
+            <span class="tsl-bar-roll">${esc(move.skill)} ${a.skillMod >= 0 ? "+" : "−"} ${Math.abs(a.skillMod)} ${extraChip}
+              <span class="tsl-bar-dim">vs DC <b data-tooltip="${dcTip ? "Base " + dcTip : "10 + WIS + proficiency"}">${a.dc}</b></span></span>
           </div>
-          ${intelLine}
-          ${leverageRow}
-          ${relLine}${comboLines}${readNote}
-          ${preview}
-          ${blocked ? "" : `<button class="tsl-roll-btn" style="--active-color:${activeColor}">🎲 Roll ${esc(move.name)}</button>`}
-        </div>`;
-      }
-      return `<div class="tsl-stats-row">${renderStats()}</div>
-              <button class="tsl-roll-btn" style="--active-color:${activeColor}">🎲 Roll ${move.name}</button>`;
+          ${this._stringToggle(activeP, tgtP)}
+          ${blocked ? "" : `<button class="tsl-roll-btn" style="--active-color:${activeColor}">Roll</button>`}
+        </div>
+        ${this._leverageToggles(activeP, tgtP, tgtActor)}
+        ${hint ? `<div class="tsl-bar-hint tsl-bar-hint--${hintCls}">${esc(hint)}</div>` : ""}
+      </div>`;
     };
 
     // ── Dice overlay (2d6 moves and d20 maneuvers share the stage) ─────────────
@@ -580,39 +450,29 @@ class TSLConflictApp extends Application {
           ${state.participants.map((p, i) => renderParticipant(p, i)).join("")}
         </div>
         <div class="tsl-center ${!state.resolved && !this._canAct() ? "tsl-center--locked" : ""}">
-          ${!showTSL ? "" : `
-          <div class="tsl-section-label" data-tooltip="TSL emotional moves: 2d6 + stat. 10+ strong hit, 7–9 weak hit, 6− miss. They drive Conditions, not Resolve.">Emotional Moves · 2d6</div>
-          <div class="tsl-moves-grid">
-            ${MOVES.filter(m => !m.special).map(m => `
-              <button class="tsl-move ${move?.id === m.id ? "selected" : ""}" data-move="${m.id}" data-tooltip="${foundry.utils.escapeHTML(m.desc)}">
-                <i class="fas ${m.icon}"></i>
-                <span class="tsl-move-name">${m.name}</span>
-                <span class="tsl-move-stat">${m.stat}</span>
-              </button>`).join("")}
-            ${(() => {
-              // The active participant's TSL playbook adds its signature moves
-              const pb = TSLPlaybooks.getForActor(game.actors.get(activeP.actorId));
-              if (!pb) return "";
-              return pb.moves.map(m => `
-              <button class="tsl-move tsl-move--playbook ${move?.id === m.id ? "selected" : ""}" data-move="${m.id}"
-                      data-tooltip="<b>${pb.label}</b><br>${foundry.utils.escapeHTML(m.desc)}">
-                <i class="fas ${m.icon}"></i>
-                <span class="tsl-move-name">${m.name}</span>
-                <span class="tsl-move-stat">${m.stat}</span>
-              </button>`).join("");
+          <div class="tsl-actions">
+            ${!showTSL ? "" : (() => {
+              const esc = foundry.utils.escapeHTML;
+              const pb  = TSLPlaybooks.getForActor(game.actors.get(activeP.actorId));
+              const moveChip = (m, extra = "") =>
+                `<button class="tsl-chip ${extra} ${move?.id === m.id ? "selected" : ""}" data-move="${m.id}"
+                         data-tooltip="<b>${esc(m.name)}</b> · 2d6 + ${esc(m.stat)}<br>${esc(m.desc)}">
+                   <i class="fas ${m.icon}"></i><span class="tsl-chip-name">${esc(m.name)}</span>
+                 </button>`;
+              const kiss = showKiss ? (() => { const km = MOVES.find(m => m.special);
+                return `<button class="tsl-chip tsl-chip--kiss ${move?.id === km.id ? "selected" : ""}" data-move="${km.id}"
+                          data-tooltip="<b>${esc(km.name)}</b><br>${esc(km.desc)}"><i class="fas ${km.icon}"></i><span class="tsl-chip-name">Kiss</span></button>`; })() : "";
+              return `<div class="tsl-chip-group tsl-chip-group--tsl">
+                <div class="tsl-chip-group-label">Feelings · 2d6</div>
+                <div class="tsl-chip-grid">
+                  ${MOVES.filter(m => !m.special).map(m => moveChip(m)).join("")}
+                  ${pb ? pb.moves.map(m => moveChip(m, "tsl-chip--playbook")).join("") : ""}
+                  ${kiss}
+                </div>
+              </div>`;
             })()}
+            ${!showFencing ? "" : renderManeuvers()}
           </div>
-          ${(() => {
-            if (!showKiss) return "";
-            const km = MOVES.find(m => m.special);
-            return `
-          <button class="tsl-move tsl-move--special ${move?.id === km.id ? "selected" : ""}" data-move="${km.id}" data-tooltip="${foundry.utils.escapeHTML(km.desc)}">
-            <i class="fas ${km.icon}"></i> ${km.name}
-          </button>`; })()}
-          ${move && !move.special && !move.skillKeys ? `<div class="tsl-move-desc">${move.desc}</div>` : ""}`}
-          ${!showFencing ? "" : `
-          <div class="tsl-section-label" style="margin-top:8px" data-tooltip="Social Fencing maneuvers: d20 + skill vs their social DC (10 + WIS + proficiency, or passive Insight if higher; ± attitude, −5 Rattled). Success chips Resolve, failure burns Patience. Hover a maneuver: which archetypes it cuts, bounces off, and which triad its school counters.">Maneuvers · d20</div>
-          <div class="tsl-mv-conflict-groups">${renderManeuvers()}</div>`}
           ${centerBottom()}
         </div>
         <div class="tsl-log">
@@ -632,8 +492,49 @@ class TSLConflictApp extends Application {
     return game.actors.get(activeP?.actorId)?.isOwner ?? false;
   }
 
+  /** Compact String-spend toggle for the action bar. */
+  _stringToggle(activeP, tgtP) {
+    if (!tgtP || !this._canAct()) return "";
+    const list = TSLStringStore.getList(activeP.actorId).filter(e => e.targetActorId === tgtP.actorId);
+    if (!list.length) return "";
+    const s       = list[0];
+    const pending = this._pendingStringSpend?.stringId === s.id;
+    const idx     = ConflictStore.state.participants.findIndex(p => p.actorId === tgtP.actorId);
+    return `<button class="tsl-spend-string ${pending ? "pending" : ""}"
+              data-source-actor="${activeP.actorId}" data-string-id="${s.id}" data-target-idx="${idx}"
+              data-tooltip="${pending ? "Cancel — String not spent" : `Spend a String for +${STRING_SPEND_BONUS} (${list.length} held)`}">
+              <i class="fas fa-masks-theater"></i> +${STRING_SPEND_BONUS}</button>`;
+  }
+
+  /** Dossier leverage toggles (Desire / Fear / Weakness) for the action bar. */
+  _leverageToggles(activeP, tgtP, tgtActor) {
+    if (!tgtP || !this._canAct()) return "";
+    const esc = foundry.utils.escapeHTML;
+    const profKnown = game.user.isGM || (TSLBondStore.find(activeP.actorId, tgtP.actorId)?.profileKnown ?? false);
+    if (!profKnown) return "";
+    const points = SocialArchetypeManager.getCharacterNotes(tgtActor).points;
+    const META = [
+      { id: "desire",   label: "Desire",   icon: "fa-gem",         fx: "Advantage; +1 Resolve on success." },
+      { id: "fear",     label: "Fear",     icon: "fa-ghost",       fx: "+3; a failed threat burns 1 Patience." },
+      { id: "weakness", label: "Weakness", icon: "fa-heart-crack", fx: "A neutral maneuver counts as a vulnerability." },
+    ];
+    const avail = META.filter(l => (points[l.id] ?? "").trim());
+    if (!avail.length) return "";
+    const enc = SocialEncounterManager.getEncounter(tgtActor);
+    if (!enc.active) return `<div class="tsl-bar-lev"><span class="tsl-bar-lev-hint">Leverage ready — unlocks with the tracks</span></div>`;
+    const btns = avail.map(l => {
+      const used = enc.leverage?.[l.id];
+      const sel  = this._pendingLeverage === l.id;
+      const tip  = used ? `${l.label} — already played this encounter`
+                        : `${l.label}: ${esc(points[l.id])} — ${l.fx} Once per encounter.`;
+      return `<button class="tsl-lev-btn ${sel ? "selected" : ""}" data-leverage="${l.id}" ${used ? "disabled" : ""}
+                data-tooltip="${tip.replaceAll('"', "&quot;")}"><i class="fas ${l.icon}"></i> ${l.label}</button>`;
+    }).join("");
+    return `<div class="tsl-bar-lev">${btns}</div>`;
+  }
+
   _onClick(event) {
-    const el = event.target.closest("[data-select-target], [data-select-token], .tsl-start-conflict-btn, .tsl-condition, .tsl-move, .tsl-mv-chip, .tsl-roll-btn, .tsl-kiss-btn, .tsl-yield-btn, .tsl-dice-close, .tsl-close-btn, .tsl-spend-string, .tsl-string-remove, .tsl-enc-begin, .tsl-lev-btn");
+    const el = event.target.closest("[data-select-target], [data-select-token], .tsl-start-conflict-btn, .tsl-cond-pip, .tsl-chip, .tsl-roll-btn, .tsl-kiss-btn, .tsl-yield-btn, .tsl-dice-close, .tsl-close-btn, .tsl-spend-string, .tsl-string-remove, .tsl-enc-begin, .tsl-lev-btn, .tsl-target-btn");
     if (!el) return;
 
     // GM: arm Patience & Resolve tracks for a participant (sheet-derived defaults)
@@ -691,12 +592,13 @@ class TSLConflictApp extends Application {
       return;
     }
 
-    if (el.matches(".tsl-condition") && game.user.isGM) {
+    if (el.matches(".tsl-cond-pip") && game.user.isGM) {
       ConflictStore.toggleCondition(parseInt(el.dataset.participant), el.dataset.condition);
       return;
     }
 
-    if (el.matches(".tsl-mv-chip") && el.dataset.maneuver) {
+    // Unified action chips: data-maneuver (d20) or data-move (2d6)
+    if (el.matches(".tsl-chip") && el.dataset.maneuver) {
       if (!this._canAct()) return;
       const maneuver = SOCIAL_MANEUVERS.find(m => m.id === el.dataset.maneuver);
       if (maneuver) {
@@ -709,7 +611,7 @@ class TSLConflictApp extends Application {
       return;
     }
 
-    if (el.matches(".tsl-move")) {
+    if (el.matches(".tsl-chip") && el.dataset.move) {
       if (!this._canAct()) return;
       const move = MOVES.find(m => m.id === el.dataset.move) ?? TSLPlaybooks.getMove(el.dataset.move);
       this._selectedMove       = this._selectedMove?.id === el.dataset.move ? null : move;
