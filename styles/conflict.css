@@ -2773,3 +2773,39 @@
 .tsl-center--locked .tsl-spend-string {
   opacity: 0.5; cursor: not-allowed;
 }
+
+/* ── Header: GM "acting as" selector / spectate note (no turn order) ── */
+.tsl-acting-as {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 0;
+}
+.tsl-acting-label {
+  font-family: var(--tsl-font-title);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tsl-muted);
+  flex-shrink: 0;
+}
+.tsl-acting-select {
+  background: color-mix(in srgb, var(--active-color) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--active-color) 40%, transparent);
+  color: var(--active-color);
+  font-family: var(--tsl-font-title);
+  font-size: 12px;
+  border-radius: 14px;
+  padding: 3px 10px;
+  cursor: pointer;
+  max-width: 55%;
+  text-overflow: ellipsis;
+}
+.tsl-turn-indicator--spectate {
+  color: var(--tsl-dim);
+  font-style: italic;
+  background: transparent;
+  border-color: transparent;
+}

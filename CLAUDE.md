@@ -51,7 +51,7 @@ tsl-social-conflict/
    - Fencing tab (GM only): start encounter → Patience & Resolve tracks, social conditions
    - Access: GM everything; players only actors they own
 2. **Conflict**: GM clicks "Social Conflict" in VTools toolbar → token selection → `ConflictStore.init()` → `CONFLICT_OPEN` broadcast → `TSLConflictApp` opens for everyone
-3. Turn owner (GM or owner of the active participant) picks a TSL move (2d6 + stat) or a maneuver (d20 + skill vs passive Insight ± attitude from the target's bond)
+3. **No built-in turn order** — the GM runs turns on Foundry's own initiative. The window is a live board: each user acts from their own copy whenever they like. The action's SOURCE is `_actingIndex()` — for a player, the participant they own; for the GM, a header "Acting as" selector (`_gmActingIdx`). One single target per action (never self). Picking a TSL move (2d6 + stat) or a maneuver (d20 + skill vs social DC ± attitude/Rattled)
 4. Maneuver/roll consequences apply **only on the GM client** (`SocialManeuverRoller.applyOutcome`, `ConflictStore.recordRoll`) — players reach them via the `GM_ACTION` socket relay
 5. Conflict ends via **Finally Kiss**, **Yield**, or a fencing outcome (Resolve 0 = swayed, Patience 0 = walks away)
 
@@ -179,7 +179,7 @@ Hooks.once("vtools.ready", () => {
 - **5 Moves** (each tied to a stat): Speak from the Heart, Emotional Support, Read the Room, Provoke, Inspire
 - **1 Special Move**: Finally Kiss (no roll, both agree, +1 ongoing, ends conflict)
 - **Roll**: 2d6 + stat modifier → Strong Hit (10+), Weak Hit (7-9), Miss (6-)
-- Turn alternates between participants after each roll
+- No module turn tracker — turn order is the GM's job via Foundry initiative; anyone acts from their own menu anytime, one target at a time
 
 ## Extended Triad & Archetypes (Social Fencing layer)
 | Triad | Archetypes | Levers that work | What bounces |

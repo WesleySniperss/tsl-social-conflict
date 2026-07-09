@@ -582,7 +582,7 @@ class SocialManeuverRoller {
     else if (!encBefore.outcome && encAfter.outcome === "walked")
       ConflictStore.addLog(`🚪 ${tgtP.name} runs out of patience and walks away.`, "warn");
 
-    state.turn = (srcIdx + 1) % state.participants.length;
+    // No turn advance — anyone acts from their own menu, whenever they like.
     ConflictStore._broadcast();
   }
 

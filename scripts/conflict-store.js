@@ -211,9 +211,7 @@ class ConflictStore {
       total >= 10 ? "hit" : total >= 7 ? "weak" : "miss"
     );
 
-    if (!ConflictStore.state.resolved) {
-      ConflictStore.state.turn = (participantIndex + 1) % ConflictStore.state.participants.length;
-    }
+    // No turn order — the GM runs initiative; anyone acts from their own menu.
 
     // ── Mechanical effects of emotional moves (GM authoritative) ──────────────
     // Basic and playbook moves share the same fx schema:

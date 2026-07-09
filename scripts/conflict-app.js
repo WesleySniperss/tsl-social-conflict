@@ -44,8 +44,22 @@ class TSLConflictApp extends Application {
   _selectedTarget     = null;  // participant index
   _pendingStringSpend = null;  // { sourceActorId, stringId } — confirmed when roll fires
   _pendingLeverage    = null;  // "desire" | "fear" | "weakness" — dossier card for this roll
+  _gmActingIdx        = 0;     // GM only: which participant the GM is acting as
 
   static get instance() { return TSLConflictApp._instance; }
+
+  /**
+   * There is no turn order — the GM runs initiative however they like.
+   * The "actor" of an action is: for a player, the participant they own;
+   * for the GM, the participant they've chosen to act as. Returns the
+   * participant index, or -1 if this user has no one to act with.
+   */
+  _actingIndex() {
+    const ps = ConflictStore.state?.participants ?? [];
+    if (!ps.length) return -1;
+    if (game.user.isGM) return Math.min(this._gmActingIdx ?? 0, ps.length - 1);
+    return ps.findIndex(p => game.actors.get(p.actorId)?.isOwner);
+  }
 
   static openConflict(state) {
     if (TSLConflictApp._instance) { TSLConflictApp._instance.render(true); return; }
@@ -111,16 +125,30 @@ class TSLConflictApp extends Application {
   _activateListeners(html) {
     const el = html instanceof HTMLElement ? html : html[0];
     el.addEventListener("click", this._onClick.bind(this));
+
+    // GM "acting as" selector — pick which participant the GM acts with
+    el.querySelector(".tsl-acting-select")?.addEventListener("change", (e) => {
+      this._gmActingIdx        = parseInt(e.target.value);
+      this._selectedMove       = null;
+      this._selectedTarget     = null;
+      this._pendingStringSpend = null;
+      this._pendingLeverage    = null;
+      this.render();
+    });
   }
 
   _renderHTML(context) {
     if (context.empty) return "<p>No active conflict.</p>";
     const { state, isGM, strings, encounters, knownArchetypes, selectionMode, availableTokens, selectedTokenIds } = context;
 
-    // If a participant was removed (yield/kiss) while a target was selected, clear stale refs
-    if (this._selectedTarget !== null && this._selectedTarget >= (state.participants?.length ?? 0)) {
+    // If a participant was removed (yield/kiss) while a target was selected, clear stale refs;
+    // also never let the target collapse onto the acting participant (self-target).
+    if (this._selectedTarget !== null &&
+        (this._selectedTarget >= (state.participants?.length ?? 0)
+         || this._selectedTarget === this._actingIndex())) {
       this._selectedTarget = null;
       this._pendingStringSpend = null;
+      this._pendingLeverage = null;
     }
 
     if (selectionMode) {
@@ -153,7 +181,10 @@ class TSLConflictApp extends Application {
           </div>
         </div>`;
     }
-    const activeP       = state.participants[state.turn];
+    // The source of actions = the participant this user acts as (no turn order)
+    const actingIdx     = this._actingIndex();
+    const activeP       = state.participants[actingIdx] ?? state.participants[0];
+    const canAct        = actingIdx !== -1 && !state.resolved;
     const move          = this._selectedMove;
     const hasTarget     = this._selectedTarget !== null;
     const activeColor   = activeP?.color ?? "#e8557a";
@@ -230,9 +261,10 @@ class TSLConflictApp extends Application {
     };
 
     const renderParticipant = (p, idx) => {
-      const isActive   = state.turn === idx && !state.resolved;
+      const isActing   = actingIdx === idx && !state.resolved;
       const isTarget   = this._selectedTarget === idx;
-      const selectable = needsTarget && !isActive && !state.resolved;
+      // Any participant other than yourself can be the single target
+      const selectable = needsTarget && idx !== actingIdx && !state.resolved && canAct;
       const condCount  = Object.values(p.conditions).filter(Boolean).length;
       const arch       = knownArchetypes?.[p.actorId];
       const canYield   = !state.resolved && (isGM || game.actors.get(p.actorId)?.isOwner);
@@ -254,10 +286,10 @@ class TSLConflictApp extends Application {
           ? `<div class="tsl-participant-arch" style="--triad-color:${triad?.color ?? "#806858"}" data-tooltip="${dossierTip}">
                <i class="fas ${triad?.icon ?? "fa-user"}"></i> ${arch.label}</div>`
           : `<div class="tsl-participant-system" data-tooltip="Their nature is hidden — a successful Cold Reading or Logic Exploit reveals it.">Nature unread</div>`;
-      const badge = isActive ? `<span class="tsl-turn-badge" style="--active-color:${p.color}">Turn</span>`
+      const badge = isActing ? `<span class="tsl-turn-badge" style="--active-color:${p.color}">${game.user.isGM ? "Acting" : "You"}</span>`
                   : isTarget ? `<span class="tsl-turn-badge" style="--active-color:#e8a855">Target</span>` : "";
       return `
-        <div class="tsl-participant ${isActive ? "active" : ""} ${isTarget ? "target-selected" : ""} ${selectable ? "selectable" : ""} ${condCount >= 4 ? "overwhelmed" : ""}"
+        <div class="tsl-participant ${isActing ? "active" : ""} ${isTarget ? "target-selected" : ""} ${selectable ? "selectable" : ""} ${condCount >= 4 ? "overwhelmed" : ""}"
              data-idx="${idx}" style="--p-color:${p.color}" ${selectable ? `data-select-target="${idx}"` : ""}>
           <div class="tsl-participant-header">
             <img class="tsl-portrait" src="${p.img}" alt="${p.name}">
@@ -275,7 +307,7 @@ class TSLConflictApp extends Application {
 
     // ── Center: actions + target + roll ─────────────────────────────────────────
     const renderTargetList = () => state.participants.map((p, i) =>
-      i === state.turn ? "" :
+      i === actingIdx ? "" :
       `<button class="tsl-target-btn ${this._selectedTarget === i ? "selected" : ""}" data-select-target="${i}">${foundry.utils.escapeHTML(p.name)}</button>`
     ).join("");
 
@@ -443,13 +475,22 @@ class TSLConflictApp extends Application {
           <div class="tsl-header-label">Social Conflict</div>
           ${state.resolved
             ? `<div class="tsl-resolved-banner">${state.resolution === "kiss" ? "💋 Finally kissed — +1 ongoing" : "🏳 Conflict resolved"}</div>`
-            : `<div class="tsl-turn-indicator">⚔ ${activeP.name}'s Turn</div>`}
+            : isGM
+              ? `<div class="tsl-acting-as" data-tooltip="Whom you act as. Use Foundry's own initiative to decide turn order.">
+                   <span class="tsl-acting-label">Acting as</span>
+                   <select class="tsl-acting-select">
+                     ${state.participants.map((p, i) => `<option value="${i}" ${i === actingIdx ? "selected" : ""}>${foundry.utils.escapeHTML(p.name)}</option>`).join("")}
+                   </select>
+                 </div>`
+              : canAct
+                ? `<div class="tsl-turn-indicator">You act as ${foundry.utils.escapeHTML(activeP.name)}</div>`
+                : `<div class="tsl-turn-indicator tsl-turn-indicator--spectate">Spectating</div>`}
           ${isGM ? `<button class="tsl-close-btn" title="End Conflict">✕</button>` : ""}
         </div>
         <div class="tsl-participants">
           ${state.participants.map((p, i) => renderParticipant(p, i)).join("")}
         </div>
-        <div class="tsl-center ${!state.resolved && !this._canAct() ? "tsl-center--locked" : ""}">
+        <div class="tsl-center ${!canAct ? "tsl-center--locked" : ""}">
           <div class="tsl-actions">
             ${!showTSL ? "" : (() => {
               const esc = foundry.utils.escapeHTML;
@@ -483,13 +524,11 @@ class TSLConflictApp extends Application {
 
   // ── Events ───────────────────────────────────────────────────────────────────
 
-  /** Only the GM or the owner of the active participant may act on this turn. */
+  /** A user can act if the conflict is live and they have a participant to act as. */
   _canAct() {
     const state = ConflictStore.state;
     if (!state?.active || state.resolved) return false;
-    if (game.user.isGM) return true;
-    const activeP = state.participants[state.turn];
-    return game.actors.get(activeP?.actorId)?.isOwner ?? false;
+    return this._actingIndex() !== -1;
   }
 
   /** Compact String-spend toggle for the action bar. */
@@ -632,8 +671,8 @@ class TSLConflictApp extends Application {
       const kissOn = game.settings.get("tsl-social-conflict", "enableKiss")
         || game.settings.get("tsl-social-conflict", "conflictMode") === "tsl";
       if (!kissOn) return;
-      if (!this._canAct()) return;
-      TSLGMActions.request("kiss", { pIdx: ConflictStore.state.turn, targetIdx: this._selectedTarget });
+      if (!this._canAct() || this._selectedTarget === null) return;
+      TSLGMActions.request("kiss", { pIdx: this._actingIndex(), targetIdx: this._selectedTarget });
       this._selectedMove       = null;
       this._selectedTarget     = null;
       this._pendingStringSpend = null;
@@ -680,8 +719,9 @@ class TSLConflictApp extends Application {
   async _doRoll(move, targetIndex) {
     if (move.skillKeys) return this._doManeuverRoll(move, targetIndex);
     const state       = ConflictStore.state;
-    const pIdx        = state.turn;
+    const pIdx        = this._actingIndex();
     const participant = state.participants[pIdx];
+    if (!participant) return;
     const stat        = participant.stats.find(s => s.name === move.stat) ?? { name: move.stat, value: 0 };
 
     // Spend string if pending — adds +1 to roll (the roller owns the source actor)
@@ -723,9 +763,9 @@ class TSLConflictApp extends Application {
 
   async _doManeuverRoll(maneuver, targetIndex) {
     const state      = ConflictStore.state;
-    const srcP       = state.participants[state.turn];
+    const srcP       = state.participants[this._actingIndex()];
     const tgtP       = state.participants[targetIndex];
-    const srcActor   = game.actors.get(srcP.actorId);
+    const srcActor   = srcP ? game.actors.get(srcP.actorId) : null;
     const tgtActor   = tgtP ? game.actors.get(tgtP.actorId) : null;
     if (!srcActor || !tgtActor) return;
 
