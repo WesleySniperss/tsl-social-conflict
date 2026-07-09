@@ -269,6 +269,7 @@ const SOCIAL_CONDITIONS = {
     id: "rattled",
     label: "Rattled",
     icon: "icons/svg/daze.svg",
+    color: "#9b6ee8",
     seconds: 3600,
     oneShot: false,
     description: "Composure cracked: the DC to sway them is reduced by 5. No reactions or expertise dice.",
@@ -277,6 +278,7 @@ const SOCIAL_CONDITIONS = {
     id: "smitten",
     label: "Smitten",
     icon: "icons/svg/regen.svg",
+    color: "#e8557a",
     seconds: 3600,
     oneShot: false,
     description: "Charmed: cannot act against the charmer, and the charmer's Persuasion maneuvers roll with Advantage.",
@@ -285,6 +287,7 @@ const SOCIAL_CONDITIONS = {
     id: "provoked",
     label: "Provoked",
     icon: "icons/svg/fire.svg",
+    color: "#e8a855",
     seconds: 600,
     oneShot: true,
     description: "Off balance with anger: the next maneuver against them gains +2, then this fades.",
@@ -293,6 +296,7 @@ const SOCIAL_CONDITIONS = {
     id: "guilted",
     label: "Guilted",
     icon: "icons/svg/net.svg",
+    color: "#c07ce8",
     seconds: 600,
     oneShot: true,
     description: "Weighed down by obligation: the guilter's next maneuver rolls with Advantage, then this fades.",
@@ -301,6 +305,7 @@ const SOCIAL_CONDITIONS = {
     id: "desperate",
     label: "Desperate",
     icon: "icons/svg/falling.svg",
+    color: "#5588e8",
     seconds: 600,
     oneShot: true,
     description: "Starved of attention: the next Flatter or Love Bombing against them rolls with Advantage, then this fades.",
@@ -309,11 +314,15 @@ const SOCIAL_CONDITIONS = {
     id: "defiant",
     label: "Defiant",
     icon: "icons/svg/holy-shield.svg",
+    color: "#e8c855",
     seconds: 3600,
     oneShot: false,
     description: "Walls up: immune to social maneuvers for 1 hour (only Cold Reading slips through). Triggered by striking an archetype's immunity.",
   },
 };
+
+/** Total Extended Triad points a character may distribute across the three triads. */
+const TRIAD_POINT_POOL = 4;
 
 /** Status ids in display order. */
 const SOCIAL_CONDITION_ORDER = ["rattled", "smitten", "provoked", "guilted", "desperate", "defiant"];

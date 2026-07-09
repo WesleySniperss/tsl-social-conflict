@@ -155,6 +155,17 @@ TSL stats mapped to D&D abilities:
 - a5e: uses `abilities.cha.mod` (same path, separate handler for future-proofing)
 - Generic fallback: walks `actor.system` 2 levels deep, collects modifier-like numbers (abs ≤ 10)
 
+### Maneuver console in the Chronicle (self-serve fencing)
+- The Chronicle **Fencing tab is now everyone's action menu** (owner OR GM, gated by `conflictMode !== "tsl"`): `_buildManeuverConsole` lets THIS actor pick a scene-token target, see the target's Resolve/Patience + known archetype, pick a maneuver, and roll with a dice overlay (`_buildFenceOverlay`, `_doFenceRoll`) — no GM-launched conflict window needed. Outcome applies via the same `TSLGMActions.request("maneuverOutcome")` relay; tracks auto-start.
+- Console state: `_fenceTargetId / _fenceManeuverId / _fenceLeverage / _fenceStringSpend / _fenceRoll`. GM additionally gets `_buildGMFencing` (track nudge/reset + status toggles + `_buildStatusBoard`).
+- `.tsl-fencing` root now also defines the base `--tsl-*` vars so shared `.tsl-chip`/`.tsl-bar` components render correctly inside the Chronicle.
+
+### Extended Triad = a 4-point pool (`TRIAD_POINT_POOL`)
+- The attacker distributes **4 points total** across the three triads (was 0–3 each, up to 9). Enforced in the pip click handler; a "N / 4 left" budget shows in the Profile. No more auto-fill from the archetype (the player allocates deliberately).
+
+### Statuses render as named colored tags
+- `SOCIAL_CONDITIONS[*].color`; conflict cards and the scene board show `.tsl-status-tag`/`.tsl-board-tag` (name + color) instead of icon-only dots (the old `icons/svg` dots read as blank squares).
+
 ### VTools Integration (hud-button.js)
 ```js
 Hooks.once("vtools.ready", () => {

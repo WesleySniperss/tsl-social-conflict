@@ -53,6 +53,12 @@ class SocialFencingApp extends Application {
     this._onPickCanvas = null;
     this._onPickCancel = null;
     this._expandedBonds = new Set(); // collapsed by default — lists get long
+    // Fencing-tab maneuver console (this actor fences a chosen target)
+    this._fenceTargetId   = null;
+    this._fenceManeuverId = null;
+    this._fenceLeverage   = null;
+    this._fenceStringSpend = false;
+    this._fenceRoll       = null;  // { name, icon, total, dc, outcome } for the overlay
 
     this._flagHook = Hooks.on("updateActor", (a) => {
       if (a.id === actor.id) this.render(true);
@@ -149,7 +155,8 @@ class SocialFencingApp extends Application {
       { id: "bonds",   label: "Bonds",   icon: "fa-link" },
     ];
     const fencingOn = game.settings.get("tsl-social-conflict", "conflictMode") !== "tsl";
-    if (ctx.isGM && fencingOn) tabs.push({ id: "fencing", label: "Fencing", icon: "fa-khanda" });
+    // Fencing is now everyone's action menu: owner OR GM can maneuver from here
+    if (fencingOn && (ctx.isGM || this._actor.isOwner)) tabs.push({ id: "fencing", label: "Fencing", icon: "fa-khanda" });
     tabs.push({ id: "codex", label: "Codex", icon: "fa-book-open" });
     if (!tabs.some(t => t.id === this._tab)) this._tab = "profile";
 
@@ -166,10 +173,26 @@ class SocialFencingApp extends Application {
 
     return `
       <div class="tsl-notes-root tsl-chr-root">
+        ${this._buildFenceOverlay()}
         <nav class="tsl-chr-tabs">${tabBtns}</nav>
         ${body}
         ${ctx.canEdit ? "" : `<div class="tsl-notes-footer tsl-notes-footer--readonly">Read only</div>`}
       </div>`;
+  }
+
+  /** Dice result overlay for a maneuver rolled from this Chronicle. */
+  _buildFenceOverlay() {
+    const r = this._fenceRoll;
+    if (!r) return "";
+    const oc = r.outcome === "success" ? "Strong Hit" : "Miss";
+    const label = r.outcome === "success" ? "Success" : r.outcome === "immune" ? "⚡ Walled off" : "Failure";
+    return `<div class="tsl-dice-overlay"><div class="tsl-dice-panel tsl-dice-panel--maneuver">
+      <div class="tsl-dice-move"><i class="fas ${r.icon}"></i> ${foundry.utils.escapeHTML(r.name)}</div>
+      <div class="tsl-dice-total" data-outcome="${oc}">${r.total}</div>
+      <div class="tsl-dice-breakdown">vs DC ${r.dc}</div>
+      <div class="tsl-dice-outcome" data-outcome="${oc}">${label}</div>
+      <button class="tsl-fence-close">Continue</button>
+    </div></div>`;
   }
 
   // ── Profile tab ─────────────────────────────────────────────────────────────
@@ -187,7 +210,9 @@ class SocialFencingApp extends Application {
 
     const archDesc = archetype ? this._buildArchetypeCard(archetype) : "";
 
-    // Extended Triad — three 0–3 leanings
+    // Extended Triad — distribute a shared pool of TRIAD_POINT_POOL points
+    const triadTotal = Object.values(notes.triad).reduce((s, v) => s + (v || 0), 0);
+    const remaining  = TRIAD_POINT_POOL - triadTotal;
     const triadRows = Object.values(SOCIAL_TRIADS).map(triad => {
       const val  = notes.triad[triad.id] ?? 0;
       const pips = Array.from({ length: 3 }, (_, i) => `
@@ -225,7 +250,10 @@ class SocialFencingApp extends Application {
       </section>
 
       <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title" data-tooltip="ATTACK — how THIS character fights when they maneuver others: +1 per dot to that school, −1 on a triad with 0 dots (foreign ground). Set this for PCs. Picking an archetype seeds its triad to 2● as a starting point; adjust freely.">Extended Triad · your attack</div>
+        <div class="tsl-notes-section-title" data-tooltip="ATTACK — how THIS character fights when they maneuver others: +1 per dot to that school, −1 on a triad with 0 dots (foreign ground). Spend a shared pool of ${TRIAD_POINT_POOL} points however you like across the three triads.">
+          Extended Triad · your attack
+          <span class="tsl-chr-triad-budget ${remaining === 0 ? "spent" : ""}">${remaining} / ${TRIAD_POINT_POOL} left</span>
+        </div>
         ${triadRows}
       </section>
 
@@ -234,7 +262,7 @@ class SocialFencingApp extends Application {
         ${pointRows}
       </section>
 
-      ${(() => {
+      ${(game.settings.get("tsl-social-conflict", "conflictMode") === "fencing") ? "" : (() => {
         // TSL playbook (class): its signature moves join the basic five in conflicts
         const pbId = SocialArchetypeManager.getActorData(this._actor)?.playbookId ?? "";
         const pb   = TSLPlaybooks.getById(pbId);
@@ -475,9 +503,167 @@ class SocialFencingApp extends Application {
       </section>`;
   }
 
-  // ── Fencing tab (GM): a scene status board, no encounter ceremony ───────────
+  // ── Fencing tab: personal maneuver console + (GM) status board ──────────────
 
-  _buildFencingTab({ encounter, activeConditions }) {
+  _buildFencingTab(ctx) {
+    const consoleHtml = this._buildManeuverConsole(ctx);
+    // Players get just the console; the GM also gets track control + the board.
+    if (!ctx.isGM) return consoleHtml;
+    return consoleHtml + this._buildGMFencing(ctx);
+  }
+
+  /**
+   * The maneuver console — THIS character fences a chosen target: pick a
+   * target, see their Resolve/Patience, pick a maneuver, roll (overlay on top).
+   * Works from any owner's token menu, no GM-launched conflict required.
+   */
+  _buildManeuverConsole(ctx) {
+    const esc = foundry.utils.escapeHTML;
+    const src = this._actor;
+
+    // Target candidates: scene tokens with an actor, excluding self
+    const seen = new Set([src.id]);
+    const targets = [];
+    for (const t of (canvas.tokens?.placeables ?? [])) {
+      if (!t.actor || seen.has(t.actor.id)) continue;
+      if (t.document.hidden && !ctx.isGM) continue;
+      seen.add(t.actor.id);
+      targets.push({ id: t.actor.id, name: t.actor.name });
+    }
+    const targetOpts = targets.map(t =>
+      `<option value="${t.id}" ${this._fenceTargetId === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("");
+
+    const tgt = this._fenceTargetId ? game.actors.get(this._fenceTargetId) : null;
+    let body;
+    if (!tgt) {
+      body = `<div class="tsl-fc-note">Choose a target above to fence them.</div>`;
+    } else {
+      const enc   = SocialEncounterManager.getEncounter(tgt);
+      const known = ctx.isGM || (TSLBondStore.find(src.id, tgt.id)?.profileKnown ?? false);
+      const arch  = known ? SocialArchetypeManager.getArchetype(tgt) : null;
+      const triad = arch ? SOCIAL_TRIADS[arch.triad] : null;
+
+      const pips = (val, max, cls) => Array.from({ length: max }, (_, i) =>
+        `<span class="tsl-notes-pip tsl-notes-pip--${cls} ${i < val ? "filled" : ""}"></span>`).join("");
+      const tracks = enc.active
+        ? `<div class="tsl-fc-tracks">
+             <span class="tsl-fc-tk" data-tooltip="Resolve — break it (0) to sway them"><b>RES</b>${pips(enc.resolve, enc.maxResolve, "resolve")}</span>
+             <span class="tsl-fc-tk" data-tooltip="Patience — at 0 they walk away"><b>PAT</b>${pips(enc.patience, enc.maxPatience, "patience")}</span>
+           </div>`
+        : enc.outcome
+          ? `<div class="tsl-chr-outcome tsl-chr-outcome--${enc.outcome}">${enc.outcome === "swayed" ? "💔 Swayed" : "🚪 Walked away"}</div>`
+          : `<div class="tsl-fc-note">Their tracks start on your first maneuver.</div>`;
+
+      const archLine = arch
+        ? `<span class="tsl-fc-arch" style="--triad-color:${triad?.color ?? "#806858"}" data-tooltip="${esc(arch.hint ?? arch.description)}"><i class="fas ${triad?.icon ?? "fa-user"}"></i> ${esc(arch.label)}</span>`
+        : `<span class="tsl-fc-arch tsl-fc-arch--unread" data-tooltip="Cold Reading reveals their weak spots.">Nature unread</span>`;
+
+      // Maneuver chips grouped by triad
+      const chips = MANEUVER_GROUPS.map(g => {
+        const mvs = SOCIAL_MANEUVERS.filter(m => m.group === g.id);
+        const color = SOCIAL_TRIADS[g.id]?.color ?? "#806858";
+        const short = (SOCIAL_TRIADS[g.id]?.label ?? g.label).replace("Triad of ", "");
+        const cs = mvs.map(m => {
+          const isSel = this._fenceManeuverId === m.id;
+          const rel   = known ? SocialManeuverRoller.getRelation(tgt, m) : "neutral";
+          const mark  = known && rel === "immune" ? `<span class="tsl-chip-mark tsl-chip-mark--imm">⚡</span>`
+                      : known && rel === "vulnerable" ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">✦</span>` : "";
+          return `<button class="tsl-chip ${isSel ? "selected" : ""}" data-fence-maneuver="${m.id}"
+                    data-tooltip="<b>${esc(m.name)}</b> · ${esc(m.skill)}<br>${esc(m.description)}">
+                    <i class="fas ${m.icon}"></i><span class="tsl-chip-name">${esc(m.name)}</span>${mark}</button>`;
+        }).join("");
+        return `<div class="tsl-chip-group" style="--triad-color:${color}">
+          <div class="tsl-chip-group-label">${esc(short)}</div><div class="tsl-chip-grid">${cs}</div></div>`;
+      }).join("");
+
+      body = `
+        <div class="tsl-fc-head">
+          <div class="tsl-fc-head-name">${esc(tgt.name)}</div>
+          ${archLine}
+        </div>
+        ${tracks}
+        <div class="tsl-fc-maneuvers">${chips}</div>
+        ${this._buildFenceBar(ctx, src, tgt, known)}`;
+    }
+
+    return `
+      <section class="tsl-notes-section tsl-fc">
+        <div class="tsl-notes-section-title" data-tooltip="Fence a target from your own menu: pick who, pick a maneuver, roll. No GM setup needed.">Maneuver — ${esc(src.name)} acts</div>
+        <div class="tsl-fc-target-row">
+          <span class="tsl-fc-target-label">Target</span>
+          <select class="tsl-fc-target">
+            <option value="">${targets.length ? "— choose —" : "no other tokens on scene"}</option>
+            ${targetOpts}
+          </select>
+        </div>
+        ${body}
+      </section>`;
+  }
+
+  /** The pre-roll action bar for the selected maneuver in the console. */
+  _buildFenceBar(ctx, src, tgt, known) {
+    const m = this._fenceManeuverId ? SocialManeuverRoller.getManeuver(this._fenceManeuverId) : null;
+    if (!m) return `<div class="tsl-fc-note tsl-fc-note--pick">Pick a maneuver to see the roll.</div>`;
+    const esc = foundry.utils.escapeHTML;
+    const a   = SocialManeuverRoller.assess(src, tgt, m, { leverage: this._fenceLeverage });
+    const strAdd = this._fenceStringSpend ? STRING_SPEND_BONUS : 0;
+    const extra  = a.bonus + strAdd;
+
+    const bonusList = [
+      ...(strAdd ? [`+${strAdd} String`] : []),
+      ...a.bonusReasons.map(b => `${b.value >= 0 ? "+" : "−"}${Math.abs(b.value)} ${b.kind === "counter" && !known ? "?" : esc(b.label.split(" — ")[0])}`),
+    ];
+    const extraChip = extra ? `<span class="tsl-bar-extra ${extra >= 0 ? "pos" : "neg"}" data-tooltip="${esc(bonusList.join(", "))}">${extra >= 0 ? "+" : "−"}${Math.abs(extra)}</span>` : "";
+    const advMark = a.advantage ? `<span class="tsl-bar-adv" data-tooltip="${esc(a.advantageReasons.join("; "))}">ADV</span>` : "";
+
+    // String spend toggle (src holds a String on tgt)
+    const held = TSLStringStore.getList(src.id).filter(e => e.targetActorId === tgt.id);
+    const strBtn = held.length
+      ? `<button class="tsl-fc-string ${this._fenceStringSpend ? "pending" : ""}" data-tooltip="${this._fenceStringSpend ? "Cancel" : `Spend a String for +${STRING_SPEND_BONUS} (${held.length} held)`}"><i class="fas fa-masks-theater"></i> +${STRING_SPEND_BONUS}</button>`
+      : "";
+
+    // Leverage toggles
+    const enc = SocialEncounterManager.getEncounter(tgt);
+    const points = SocialArchetypeManager.getCharacterNotes(tgt).points;
+    const LEV = [
+      { id: "desire",   label: "Desire",   icon: "fa-gem" },
+      { id: "fear",     label: "Fear",     icon: "fa-ghost" },
+      { id: "weakness", label: "Weakness", icon: "fa-heart-crack" },
+    ];
+    const levBtns = (known && enc.active)
+      ? LEV.filter(l => (points[l.id] ?? "").trim()).map(l => {
+          const used = enc.leverage?.[l.id];
+          const sel  = this._fenceLeverage === l.id;
+          return `<button class="tsl-lev-btn ${sel ? "selected" : ""}" data-fence-leverage="${l.id}" ${used ? "disabled" : ""}
+                    data-tooltip="${esc(l.label)}: ${esc(points[l.id] ?? "")}"><i class="fas ${l.icon}"></i> ${l.label}</button>`;
+        }).join("")
+      : "";
+
+    let hint = "", hintCls = "dim";
+    if (a.relation === "blocked")        { hint = a.relationReason; hintCls = "imm"; }
+    else if (known && a.relation === "immune")     { hint = `${a.relationReason} — it fails, they turn Defiant.`; hintCls = "imm"; }
+    else if (known && a.relation === "vulnerable") { hint = "Weak spot — Advantage & double Resolve damage."; hintCls = "vuln"; }
+    else if (!known)                     { hint = "Nature unread — Cold Reading reveals their weak spots."; }
+
+    const blocked = a.relation === "blocked";
+    return `<div class="tsl-bar tsl-bar--fence">
+      <div class="tsl-bar-line">
+        <div class="tsl-bar-core">
+          <span class="tsl-bar-move">${esc(m.name)} ${advMark}</span>
+          <span class="tsl-bar-roll">${esc(m.skill)} ${a.skillMod >= 0 ? "+" : "−"} ${Math.abs(a.skillMod)} ${extraChip}
+            <span class="tsl-bar-dim">vs DC <b>${a.dc}</b></span></span>
+        </div>
+        ${strBtn}
+        ${blocked ? "" : `<button class="tsl-fc-roll tsl-roll-btn" style="--active-color:#9b6ee8">Roll</button>`}
+      </div>
+      ${levBtns ? `<div class="tsl-bar-lev">${levBtns}</div>` : ""}
+      ${hint ? `<div class="tsl-bar-hint tsl-bar-hint--${hintCls}">${esc(hint)}</div>` : ""}
+    </div>`;
+  }
+
+  // ── GM-only fencing controls (tracks + statuses + scene board) ──────────────
+
+  _buildGMFencing({ encounter, activeConditions }) {
     const esc = foundry.utils.escapeHTML;
     const act = encounter.active;
 
@@ -549,7 +735,7 @@ class SocialFencingApp extends Application {
       if (!noteworthy) continue;
 
       const dots = conds.map(c =>
-        `<span class="tsl-board-dot" data-tooltip="<b>${c.meta.label}</b><br>${esc(c.meta.description)}"><img src="${c.meta.icon}" alt=""></span>`
+        `<span class="tsl-board-tag" style="--st-color:${c.meta.color ?? "#806858"}" data-tooltip="<b>${c.meta.label}</b><br>${esc(c.meta.description)}">${esc(c.meta.label)}</span>`
       ).join("");
       const tracks = enc.active
         ? `<span class="tsl-board-track" data-tooltip="Resolve / Patience">R${enc.resolve} · P${enc.patience}</span>`
@@ -608,15 +794,7 @@ class SocialFencingApp extends Application {
 
     // ── Profile: instant-save fields ─────────────────────────────────────────
     el.querySelector("select[name='archetypeId']")?.addEventListener("change", (e) => {
-      const archetypeId = e.target.value || null;
-      const payload = { archetypeId };
-      // QoL: a ruling archetype implies a strong leaning — fill its triad to 2●
-      const arch = SocialArchetypeManager.getArchetypeById(archetypeId);
-      if (arch) {
-        const triad = SocialArchetypeManager.getCharacterNotes(this._actor).triad ?? {};
-        if ((triad[arch.triad] ?? 0) < 2) payload.triad = { [arch.triad]: 2 };
-      }
-      SocialArchetypeManager.setActorData(this._actor, payload);
+      SocialArchetypeManager.setActorData(this._actor, { archetypeId: e.target.value || null });
     });
 
     el.querySelector("select[name='playbookId']")?.addEventListener("change", (e) => {
@@ -646,8 +824,15 @@ class SocialFencingApp extends Application {
       pip.addEventListener("click", () => {
         const triadId = pip.dataset.triad;
         const clicked = parseInt(pip.dataset.value);
-        const current = SocialArchetypeManager.getCharacterNotes(this._actor).triad[triadId] ?? 0;
+        const triad   = SocialArchetypeManager.getCharacterNotes(this._actor).triad;
+        const current = triad[triadId] ?? 0;
         const value   = current === clicked ? clicked - 1 : clicked;
+        // Enforce the shared pool — total across all three triads ≤ TRIAD_POINT_POOL
+        const otherTotal = Object.entries(triad).reduce((s, [k, v]) => s + (k === triadId ? 0 : (v || 0)), 0);
+        if (otherTotal + value > TRIAD_POINT_POOL) {
+          ui.notifications.warn(`Only ${TRIAD_POINT_POOL} triad points to spend — free some up first.`);
+          return;
+        }
         SocialArchetypeManager.setActorData(this._actor, { triad: { [triadId]: value } });
       });
     });
@@ -751,6 +936,81 @@ class SocialFencingApp extends Application {
       }
       this.render(true);
     });
+
+    // ── Maneuver console (owner or GM) ───────────────────────────────────────
+    el.querySelector(".tsl-fc-target")?.addEventListener("change", (e) => {
+      this._fenceTargetId    = e.target.value || null;
+      this._fenceManeuverId  = null;
+      this._fenceLeverage    = null;
+      this._fenceStringSpend = false;
+      this.render(true);
+    });
+
+    el.querySelectorAll("[data-fence-maneuver]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = btn.dataset.fenceManeuver;
+        this._fenceManeuverId  = this._fenceManeuverId === id ? null : id;
+        this._fenceLeverage    = null;
+        this._fenceStringSpend = false;
+        this.render(true);
+      });
+    });
+
+    el.querySelector(".tsl-fc-string")?.addEventListener("click", () => {
+      this._fenceStringSpend = !this._fenceStringSpend;
+      this.render(true);
+    });
+
+    el.querySelectorAll("[data-fence-leverage]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        if (btn.disabled) return;
+        const id = btn.dataset.fenceLeverage;
+        this._fenceLeverage = this._fenceLeverage === id ? null : id;
+        this.render(true);
+      });
+    });
+
+    el.querySelector(".tsl-fc-roll")?.addEventListener("click", () => this._doFenceRoll());
+    el.querySelector(".tsl-fence-close")?.addEventListener("click", () => {
+      this._fenceRoll = null;
+      this.render(true);
+    });
+  }
+
+  /** Roll the selected maneuver against the selected target, from this menu. */
+  async _doFenceRoll() {
+    const src = this._actor;
+    const tgt = this._fenceTargetId ? game.actors.get(this._fenceTargetId) : null;
+    const maneuver = this._fenceManeuverId ? SocialManeuverRoller.getManeuver(this._fenceManeuverId) : null;
+    if (!src || !tgt || !maneuver) return;
+
+    const leverage = this._fenceLeverage;
+    const assessment = SocialManeuverRoller.assess(src, tgt, maneuver, { leverage });
+    if (assessment.relation === "blocked") {
+      ui.notifications.warn(assessment.relationReason);
+      return;
+    }
+
+    let stringBonus = 0;
+    if (this._fenceStringSpend) {
+      const held = TSLStringStore.getList(src.id).filter(e => e.targetActorId === tgt.id);
+      if (held.length) {
+        await TSLStringStore.removeEntry(src.id, held[0].id);
+        stringBonus = STRING_SPEND_BONUS;
+      }
+    }
+
+    const payload = await SocialManeuverRoller.rollManeuver(src, tgt, maneuver, { stringBonus, leverage });
+    TSLGMActions.request("maneuverOutcome", payload);
+
+    this._fenceRoll = {
+      name: maneuver.name, icon: maneuver.icon,
+      total: payload.total, dc: payload.dc, outcome: payload.outcomeType,
+    };
+    this._fenceManeuverId  = null;
+    this._fenceLeverage    = null;
+    this._fenceStringSpend = false;
+    this.render(true);
   }
 
   // ── Canvas picking ───────────────────────────────────────────────────────────

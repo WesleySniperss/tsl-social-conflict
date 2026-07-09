@@ -266,8 +266,7 @@ class TSLConflictApp extends Application {
       const conds = SocialArchetypeManager.getActiveConditions(game.actors.get(p.actorId));
       if (!conds.length) return "";
       return `<div class="tsl-status-row">${conds.map(c => `
-        <span class="tsl-status-dot" data-tooltip="<b>${c.meta.label}</b><br>${foundry.utils.escapeHTML(c.meta.description)}">
-          <img src="${c.meta.icon}" alt="${c.meta.label}"></span>`).join("")}</div>`;
+        <span class="tsl-status-tag" style="--st-color:${c.meta.color ?? "#806858"}" data-tooltip="<b>${c.meta.label}</b><br>${foundry.utils.escapeHTML(c.meta.description)}">${foundry.utils.escapeHTML(c.meta.label)}</span>`).join("")}</div>`;
     };
 
     const renderParticipant = (p, idx) => {
