@@ -3018,3 +3018,52 @@
 }
 .tsl-fc-string.pending { background: rgba(232,168,85,0.15); border-color: #e8a855; color: #e8a855; }
 .tsl-fc-string i { font-size: 10px; }
+
+/* ═══ Triad budget: over-allocated warning ═════════════════════════ */
+.tsl-chr-triad-budget.over { color: #e85555; }
+
+/* ═══ Visible bonus breakdown in the fence bar ═════════════════════ */
+.tsl-fc-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.tsl-fc-mod {
+  font-size: 10px;
+  border-radius: 7px;
+  padding: 1px 7px;
+  border: 1px solid var(--tsl-notes-border);
+  color: var(--tsl-notes-muted);
+  white-space: nowrap;
+}
+.tsl-fc-mod--base { color: var(--tsl-notes-text); }
+.tsl-fc-mod.pos { color: #7fd89a; border-color: rgba(85,232,133,0.35); background: rgba(85,232,133,0.08); }
+.tsl-fc-mod.neg { color: #e88a8a; border-color: rgba(232,85,85,0.35);  background: rgba(232,85,85,0.08); }
+.tsl-fc-mod.adv { color: #e8c855; border-color: rgba(232,200,85,0.4);  background: rgba(232,200,85,0.08); }
+
+/* ═══ Target profiling inside a bond ═══════════════════════════════ */
+.tsl-bond-dossier {
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 1px dashed rgba(255,255,255,0.1);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(255,255,255,0.015);
+}
+.tsl-bond-dossier-title {
+  font-family: 'Cinzel', serif;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tsl-notes-accent);
+  cursor: help;
+}
+.tsl-bond-dossier .tsl-chr-point-label { flex: 0 0 84px; font-size: 12px; }
+.tsl-bond-dossier .tsl-bond-point { flex: 1; }
+
+/* Map-pick button sits inline in the console target row */
+.tsl-fc-target-row .tsl-chr-pick-btn { flex-shrink: 0; }

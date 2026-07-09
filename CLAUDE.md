@@ -161,7 +161,13 @@ TSL stats mapped to D&D abilities:
 - `.tsl-fencing` root now also defines the base `--tsl-*` vars so shared `.tsl-chip`/`.tsl-bar` components render correctly inside the Chronicle.
 
 ### Extended Triad = a 4-point pool (`TRIAD_POINT_POOL`)
-- The attacker distributes **4 points total** across the three triads (was 0–3 each, up to 9). Enforced in the pip click handler; a "N / 4 left" budget shows in the Profile. No more auto-fill from the archetype (the player allocates deliberately).
+- The attacker distributes **4 points total** across the three triads (was 0–3 each, up to 9). The pip handler blocks only INCREASES past the pool (so an over-budget character from before the cap can still reduce); the Profile shows "N / 4 left" or "N over — lower a triad". No auto-fill from the archetype.
+
+### Canvas target picking + bond profiling (v1.5)
+- The maneuver console's target row has a **Map** button → `_startPick(onPick, "target")`; `_startPick` is now generalized to take an `onPick(actor)` callback (default adds a Bond via `_defaultBondPick`).
+- Each expanded Bond has a **Their dossier** subsection (`_buildBondDossier`) editing the TARGET actor's profiling points (Desire/Fear/Weakness/Mask/Line) with the PROFILE_POINTS hints — writes to the target's flags, gated by GM/owner. Hidden in `conflictMode === "tsl"`.
+- The console bar shows a **visible bonus breakdown** (`.tsl-fc-breakdown`): base skill, String, each bonusReason, ADV reasons, DC mods — plain language, not just tooltips.
+- Track tooltips state the scaling: Resolve = 3 + WIS, Patience = 4 + CHA (3–8).
 
 ### Statuses render as named colored tags
 - `SOCIAL_CONDITIONS[*].color`; conflict cards and the scene board show `.tsl-status-tag`/`.tsl-board-tag` (name + color) instead of icon-only dots (the old `icons/svg` dots read as blank squares).

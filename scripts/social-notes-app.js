@@ -252,7 +252,9 @@ class SocialFencingApp extends Application {
       <section class="tsl-notes-section">
         <div class="tsl-notes-section-title" data-tooltip="ATTACK — how THIS character fights when they maneuver others: +1 per dot to that school, −1 on a triad with 0 dots (foreign ground). Spend a shared pool of ${TRIAD_POINT_POOL} points however you like across the three triads.">
           Extended Triad · your attack
-          <span class="tsl-chr-triad-budget ${remaining === 0 ? "spent" : ""}">${remaining} / ${TRIAD_POINT_POOL} left</span>
+          <span class="tsl-chr-triad-budget ${remaining < 0 ? "over" : remaining === 0 ? "spent" : ""}">${
+            remaining < 0 ? `${-remaining} over — lower a triad` : `${remaining} / ${TRIAD_POINT_POOL} left`
+          }</span>
         </div>
         ${triadRows}
       </section>
@@ -465,6 +467,7 @@ class SocialFencingApp extends Application {
           </div>
           <input type="text" class="tsl-chr-bond-notes" data-bond-id="${b.id}" value="${esc(b.notes)}"
                  placeholder="History, debts, secrets between you…" ${disabled} />
+          ${this._buildBondDossier(b)}
         </div>`;
 
       return `
@@ -501,6 +504,40 @@ class SocialFencingApp extends Application {
         ${addControls}
         <div class="tsl-chr-bond-list">${rows}</div>
       </section>`;
+  }
+
+  /**
+   * Profile the bonded target from inside the bond — the same Desire / Fear /
+   * Weakness / Mask / Line dossier as their own Profile tab, with the same
+   * hints. Writes to the TARGET's flags, so it's editable only by their
+   * GM/owner; otherwise it shows read-only what has been learned.
+   */
+  _buildBondDossier(b) {
+    if (game.settings.get("tsl-social-conflict", "conflictMode") === "tsl") return "";
+    const esc = foundry.utils.escapeHTML;
+    const target = game.actors.get(b.targetActorId);
+    if (!target) return "";
+    const canEditTarget = game.user.isGM || target.isOwner;
+    const notes = SocialArchetypeManager.getCharacterNotes(target);
+    const dis = canEditTarget ? "" : "disabled";
+
+    const rows = PROFILE_POINTS.map(p => `
+      <div class="tsl-chr-point">
+        <span class="tsl-chr-point-label" data-tooltip="${esc(p.hint)}"><i class="fas ${p.icon}"></i> ${p.label}</span>
+        <input type="text" class="tsl-bond-point" data-target="${b.targetActorId}" data-point="${p.id}"
+               value="${esc(notes.points[p.id] ?? "")}" placeholder="${esc(p.placeholder)}" ${dis} />
+      </div>`).join("");
+
+    const note = canEditTarget
+      ? `<div class="tsl-fc-note">Fill Desire / Fear / Weakness to unlock leverage cards against them.</div>`
+      : `<div class="tsl-fc-note">Only ${esc(target.name)}'s GM can edit this — it shows what you've learned.</div>`;
+
+    return `
+      <div class="tsl-bond-dossier">
+        <div class="tsl-bond-dossier-title" data-tooltip="Profile ${esc(target.name)} — their profiling points. Hover each for what it means and how to use it.">Their dossier</div>
+        ${rows}
+        ${note}
+      </div>`;
   }
 
   // ── Fencing tab: personal maneuver console + (GM) status board ──────────────
@@ -547,8 +584,8 @@ class SocialFencingApp extends Application {
         `<span class="tsl-notes-pip tsl-notes-pip--${cls} ${i < val ? "filled" : ""}"></span>`).join("");
       const tracks = enc.active
         ? `<div class="tsl-fc-tracks">
-             <span class="tsl-fc-tk" data-tooltip="Resolve — break it (0) to sway them"><b>RES</b>${pips(enc.resolve, enc.maxResolve, "resolve")}</span>
-             <span class="tsl-fc-tk" data-tooltip="Patience — at 0 they walk away"><b>PAT</b>${pips(enc.patience, enc.maxPatience, "patience")}</span>
+             <span class="tsl-fc-tk" data-tooltip="Resolve = 3 + their WIS mod (3–8). Successful maneuvers chip it; break it (0) to sway them."><b>RES</b>${pips(enc.resolve, enc.maxResolve, "resolve")}</span>
+             <span class="tsl-fc-tk" data-tooltip="Patience = 4 + their CHA mod (3–8). Failures burn it; at 0 they walk away."><b>PAT</b>${pips(enc.patience, enc.maxPatience, "patience")}</span>
            </div>`
         : enc.outcome
           ? `<div class="tsl-chr-outcome tsl-chr-outcome--${enc.outcome}">${enc.outcome === "swayed" ? "💔 Swayed" : "🚪 Walked away"}</div>`
@@ -595,6 +632,10 @@ class SocialFencingApp extends Application {
             <option value="">${targets.length ? "— choose —" : "no other tokens on scene"}</option>
             ${targetOpts}
           </select>
+          <button class="tsl-chr-pick-btn ${this._picking && this._pickMode === "target" ? "picking" : ""}"
+                  data-fence-pick data-tooltip="Pick the target by clicking its token on the map. Esc cancels.">
+            <i class="fas fa-crosshairs"></i> ${this._picking && this._pickMode === "target" ? "Click a token…" : "Map"}
+          </button>
         </div>
         ${body}
       </section>`;
@@ -645,6 +686,18 @@ class SocialFencingApp extends Application {
     else if (known && a.relation === "vulnerable") { hint = "Weak spot — Advantage & double Resolve damage."; hintCls = "vuln"; }
     else if (!known)                     { hint = "Nature unread — Cold Reading reveals their weak spots."; }
 
+    // A visible, plain-language breakdown of every modifier in play — so it's
+    // obvious WHERE the bonuses come from, not hidden in a tooltip.
+    const breakdown = [];
+    breakdown.push(`<span class="tsl-fc-mod tsl-fc-mod--base">${esc(m.skill)} ${a.skillMod >= 0 ? "+" : "−"}${Math.abs(a.skillMod)}</span>`);
+    if (strAdd) breakdown.push(`<span class="tsl-fc-mod pos">+${strAdd} String spent</span>`);
+    for (const b of a.bonusReasons) {
+      const veil = b.kind === "counter" && !known;
+      breakdown.push(`<span class="tsl-fc-mod ${b.value >= 0 ? "pos" : "neg"}">${b.value >= 0 ? "+" : "−"}${Math.abs(b.value)} ${veil ? "a hidden edge" : esc(b.label)}</span>`);
+    }
+    for (const r of a.advantageReasons) breakdown.push(`<span class="tsl-fc-mod adv">ADV — ${esc(r)}</span>`);
+    for (const dm of a.dcMods) breakdown.push(`<span class="tsl-fc-mod ${dm.value < 0 ? "pos" : "neg"}">DC ${dm.value > 0 ? "+" : "−"}${Math.abs(dm.value)} · ${esc(dm.label)}</span>`);
+
     const blocked = a.relation === "blocked";
     return `<div class="tsl-bar tsl-bar--fence">
       <div class="tsl-bar-line">
@@ -657,6 +710,7 @@ class SocialFencingApp extends Application {
         ${blocked ? "" : `<button class="tsl-fc-roll tsl-roll-btn" style="--active-color:#9b6ee8">Roll</button>`}
       </div>
       ${levBtns ? `<div class="tsl-bar-lev">${levBtns}</div>` : ""}
+      <div class="tsl-fc-breakdown">${breakdown.join("")}</div>
       ${hint ? `<div class="tsl-bar-hint tsl-bar-hint--${hintCls}">${esc(hint)}</div>` : ""}
     </div>`;
   }
@@ -827,10 +881,12 @@ class SocialFencingApp extends Application {
         const triad   = SocialArchetypeManager.getCharacterNotes(this._actor).triad;
         const current = triad[triadId] ?? 0;
         const value   = current === clicked ? clicked - 1 : clicked;
-        // Enforce the shared pool — total across all three triads ≤ TRIAD_POINT_POOL
+        // Enforce the shared pool — but only ever block an INCREASE, so a
+        // character who is over budget (e.g. from before the cap) can still
+        // reduce their dots to get back under it.
         const otherTotal = Object.entries(triad).reduce((s, [k, v]) => s + (k === triadId ? 0 : (v || 0)), 0);
-        if (otherTotal + value > TRIAD_POINT_POOL) {
-          ui.notifications.warn(`Only ${TRIAD_POINT_POOL} triad points to spend — free some up first.`);
+        if (value > current && otherTotal + value > TRIAD_POINT_POOL) {
+          ui.notifications.warn(`Only ${TRIAD_POINT_POOL} triad points to spend — lower another triad first.`);
           return;
         }
         SocialArchetypeManager.setActorData(this._actor, { triad: { [triadId]: value } });
@@ -876,6 +932,15 @@ class SocialFencingApp extends Application {
     el.querySelectorAll(".tsl-chr-bond-notes").forEach(input => {
       input.addEventListener("change", (e) => {
         TSLBondStore.update(this._actor.id, e.target.dataset.bondId, { notes: e.target.value.trim() });
+      });
+    });
+
+    // Profiling points written onto the bonded target's own dossier
+    el.querySelectorAll(".tsl-bond-point").forEach(input => {
+      input.addEventListener("change", (e) => {
+        const target = game.actors.get(e.target.dataset.target);
+        if (!target || !(game.user.isGM || target.isOwner)) return;
+        SocialArchetypeManager.setActorData(target, { points: { [e.target.dataset.point]: e.target.value.trim() } });
       });
     });
 
@@ -944,6 +1009,20 @@ class SocialFencingApp extends Application {
       this._fenceLeverage    = null;
       this._fenceStringSpend = false;
       this.render(true);
+    });
+
+    // Pick the maneuver target by clicking a token on the map
+    el.querySelector("[data-fence-pick]")?.addEventListener("click", () => {
+      if (this._picking) { this._endPick("Pick cancelled."); return; }
+      this._startPick((actor) => {
+        this._fenceTargetId    = actor.id;
+        this._fenceManeuverId  = null;
+        this._fenceLeverage    = null;
+        this._fenceStringSpend = false;
+        this._tab = "fencing";
+        ui.notifications.info(`Target: ${actor.name}`);
+        this.render(true);
+      }, "target");
     });
 
     el.querySelectorAll("[data-fence-maneuver]").forEach(btn => {
@@ -1015,9 +1094,16 @@ class SocialFencingApp extends Application {
 
   // ── Canvas picking ───────────────────────────────────────────────────────────
 
-  async _startPick() {
+  /**
+   * Enter "click a token on the map" mode. `onPick(actor)` runs with the
+   * chosen actor; if omitted, the default adds a Bond. `mode` labels which
+   * picker button is showing its active state ("bond" | "target").
+   */
+  async _startPick(onPick = null, mode = "bond") {
     if (this._picking || !canvas?.stage) return;
-    this._picking = true;
+    this._picking     = true;
+    this._pickMode    = mode;
+    this._pickHandler = onPick;
 
     // Flip the button to its "aiming" state BEFORE minimizing —
     // rendering a minimized window desyncs its content
@@ -1026,7 +1112,7 @@ class SocialFencingApp extends Application {
 
     // Crosshair over the whole map is the mode indicator you can't miss
     if (canvas.app?.view) canvas.app.view.style.cursor = "crosshair";
-    ui.notifications.info(`Bond for ${this._actor.name}: click a token on the map. Esc cancels.`);
+    ui.notifications.info(`${mode === "target" ? "Target" : "Bond"} for ${this._actor.name}: click a token on the map. Esc cancels.`);
 
     // DOM capture listener on the canvas element — PIXI stage listeners are
     // not reliable across Foundry versions, a plain DOM event always fires.
@@ -1055,9 +1141,8 @@ class SocialFencingApp extends Application {
       event.preventDefault();
       event.stopPropagation();
 
-      // Explain every rejected click instead of silently ignoring it
-      if (hit.document.hidden) {
-        ui.notifications.warn("That token is hidden — reveal it first, or add the actor from the dropdown.");
+      if (hit.document.hidden && !game.user.isGM) {
+        ui.notifications.warn("That token is hidden — reveal it first, or use the dropdown.");
         return;
       }
       if (hit.actor.id === this._actor.id) {
@@ -1065,20 +1150,10 @@ class SocialFencingApp extends Application {
         return;
       }
 
-      const targetActor = hit.actor;
-      const existing = TSLBondStore.find(this._actor.id, targetActor.id);
-      this._endPick(existing
-        ? `${this._actor.name} already has a bond with ${targetActor.name}.`
-        : null);
-      if (existing) {
-        this._expandedBonds.add(existing.id);
-        this.render(true);
-      } else {
-        TSLBondStore.add(this._actor.id, targetActor.id).then((entry) => {
-          if (entry) this._expandedBonds.add(entry.id); // open it for editing
-          ui.notifications.info(`Bond added: ${this._actor.name} → ${targetActor.name}`);
-        });
-      }
+      const handler = this._pickHandler;
+      this._endPick();
+      if (handler) handler(hit.actor);
+      else this._defaultBondPick(hit.actor);
     };
 
     this._onPickCancel = (event) => {
@@ -1088,6 +1163,21 @@ class SocialFencingApp extends Application {
 
     canvas.app.view.addEventListener("pointerdown", this._onPickCanvas, true);
     document.addEventListener("keydown", this._onPickCancel);
+  }
+
+  /** Default pick action: create/open a Bond toward the chosen actor. */
+  _defaultBondPick(targetActor) {
+    const existing = TSLBondStore.find(this._actor.id, targetActor.id);
+    if (existing) {
+      this._expandedBonds.add(existing.id);
+      ui.notifications.info(`${this._actor.name} already has a bond with ${targetActor.name}.`);
+      this.render(true);
+    } else {
+      TSLBondStore.add(this._actor.id, targetActor.id).then((entry) => {
+        if (entry) this._expandedBonds.add(entry.id);
+        ui.notifications.info(`Bond added: ${this._actor.name} → ${targetActor.name}`);
+      });
+    }
   }
 
   /** Leave pick mode, restore the window and refresh the button state. */
@@ -1101,6 +1191,8 @@ class SocialFencingApp extends Application {
   _stopPick() {
     if (!this._picking) return;
     this._picking = false;
+    this._pickMode = null;
+    this._pickHandler = null;
     if (canvas.app?.view) {
       canvas.app.view.style.cursor = "";
       if (this._onPickCanvas) canvas.app.view.removeEventListener("pointerdown", this._onPickCanvas, true);
