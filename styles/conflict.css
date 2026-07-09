@@ -3067,3 +3067,24 @@
 
 /* Map-pick button sits inline in the console target row */
 .tsl-fc-target-row .tsl-chr-pick-btn { flex-shrink: 0; }
+
+/* ═══ Readable native dropdown options ═════════════════════════════ */
+/* Styling a <select> without its <option>/<optgroup> leaves the open
+   list as light-on-light (invisible). Force a dark list explicitly. */
+.tsl-fencing select option,
+#tsl-social-conflict select option {
+  background-color: #1c1113;
+  color: #f0dfc8;
+}
+.tsl-fencing select optgroup,
+#tsl-social-conflict select optgroup {
+  background-color: #140b0d;
+  color: #e8557a;
+  font-style: italic;
+  font-weight: 600;
+}
+.tsl-fencing select option:checked,
+#tsl-social-conflict select option:checked {
+  background-color: #9b6ee8;
+  color: #14090c;
+}
