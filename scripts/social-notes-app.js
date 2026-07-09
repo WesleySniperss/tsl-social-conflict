@@ -216,7 +216,7 @@ class SocialFencingApp extends Application {
 
     return `
       <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title" data-tooltip="The dominant expression of the character's ruling triad. Defines which maneuvers cut deep and which bounce off.">Archetype</div>
+        <div class="tsl-notes-section-title" data-tooltip="DEFENCE — who they are when TARGETED. Sets which maneuvers cut deep (✦) and which bounce off (⚡). This is the side that matters for NPCs.">Archetype · their defence</div>
         <select name="archetypeId" ${disabled}>
           <option value="">— Unknown / None —</option>
           ${archetypeOpts}
@@ -225,7 +225,7 @@ class SocialFencingApp extends Application {
       </section>
 
       <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title" data-tooltip="The Extended Triad: how strongly each of the three ruling drives pulls at this character. 0 — indifferent, 3 — it rules them.&#10;&#10;IN CONFLICTS these dots are your attack style: +1 per dot to that triad's maneuvers; a triad with 0 dots (while others have some) rolls at −1 — foreign ground. Picking an archetype fills its triad to 2● automatically.">Extended Triad</div>
+        <div class="tsl-notes-section-title" data-tooltip="ATTACK — how THIS character fights when they maneuver others: +1 per dot to that school, −1 on a triad with 0 dots (foreign ground). Set this for PCs. Picking an archetype seeds its triad to 2● as a starting point; adjust freely.">Extended Triad · your attack</div>
         ${triadRows}
       </section>
 
@@ -475,9 +475,10 @@ class SocialFencingApp extends Application {
       </section>`;
   }
 
-  // ── Fencing tab (GM) ────────────────────────────────────────────────────────
+  // ── Fencing tab (GM): a scene status board, no encounter ceremony ───────────
 
   _buildFencingTab({ encounter, activeConditions }) {
+    const esc = foundry.utils.escapeHTML;
     const act = encounter.active;
 
     const track = (label, val, max, cls, tip) => `
@@ -492,55 +493,85 @@ class SocialFencingApp extends Application {
         <button class="tsl-notes-patience-adj" data-track="${cls}" data-delta="1">+</button>
       </div>`;
 
-    const outcomeBanner = encounter.outcome
-      ? `<div class="tsl-chr-outcome tsl-chr-outcome--${encounter.outcome}">
-           ${encounter.outcome === "swayed" ? "💔 Swayed — resolve broken, they concede." : "🚪 Walked away — patience exhausted."}
-         </div>`
-      : "";
-
-    const tracksOrStart = act
+    // THIS character's tracks appear on their own once a maneuver lands; here
+    // the GM can only nudge or reset them (no "Start" — that's automatic now).
+    const selfTracks = act
       ? `${track("Resolve", encounter.resolve, encounter.maxResolve, "resolve",
-            "The target's will. Successful maneuvers reduce it — 2 when hitting a vulnerability. At 0 they are swayed.")}
+            "Their will. Maneuver successes reduce it — 2 on a vulnerability. At 0 they are swayed.")}
          ${track("Patience", encounter.patience, encounter.maxPatience, "patience",
-            "The target's tolerance. Failures and triggered immunities reduce it. At 0 they walk away.")}
-         <button class="tsl-notes-enc-btn tsl-notes-enc-btn--end" data-enc-action="end">End Encounter</button>`
-      : (() => {
-          const suggested = SocialEncounterManager.suggestTracks(this._actor);
-          return `${outcomeBanner}
-         <div class="tsl-notes-enc-start" data-tooltip="Defaults come from the sheet: ${suggested.hint}. Raise Resolve for core beliefs, lower Patience for short tempers.">
-           <span>Patience
-             <select class="tsl-notes-patience-select" name="startPatience">
-               ${[2,3,4,5,6].map(n => `<option value="${n}" ${n === suggested.patience ? "selected" : ""}>${n}</option>`).join("")}
-             </select>
-           </span>
-           <span>Resolve
-             <select class="tsl-notes-patience-select" name="startResolve">
-               ${[2,3,4,5,6].map(n => `<option value="${n}" ${n === suggested.resolve ? "selected" : ""}>${n}</option>`).join("")}
-             </select>
-           </span>
-           <button class="tsl-notes-enc-btn" data-enc-action="start">Start</button>
-         </div>`;
-        })();
+            "Their tolerance. Failures and triggered immunities reduce it. At 0 they walk away.")}
+         <button class="tsl-notes-enc-btn tsl-notes-enc-btn--end" data-enc-action="end" data-tooltip="Clear the tracks. The next maneuver will start fresh ones.">Reset tracks</button>`
+      : encounter.outcome
+        ? `<div class="tsl-chr-outcome tsl-chr-outcome--${encounter.outcome}">
+             ${encounter.outcome === "swayed" ? "💔 Swayed — resolve broken." : "🚪 Walked away — patience exhausted."}
+           </div>
+           <button class="tsl-notes-enc-btn" data-enc-action="end" data-tooltip="Clear the result so a new exchange can begin.">Reset</button>`
+        : `<div class="tsl-notes-patience-inactive">No exchange yet — tracks start automatically on the first maneuver against ${esc(this._actor.name)}.</div>`;
 
     const condBtns = SOCIAL_CONDITION_ORDER.map(id => {
       const on   = activeConditions[id];
       const meta = SOCIAL_CONDITIONS[id];
       return `<button class="tsl-cond-toggle ${on ? "active" : ""}" data-condition="${id}"
-                      data-tooltip="<b>${meta.label}</b><br>${foundry.utils.escapeHTML(meta.description)}">
+                      data-tooltip="<b>${meta.label}</b><br>${esc(meta.description)}">
                 <img src="${meta.icon}" alt=""><span>${meta.label}</span>
               </button>`;
     }).join("");
-
     const anyActive = Object.values(activeConditions).some(Boolean);
+
     return `
       <section class="tsl-notes-section tsl-notes-section--encounter">
-        <div class="tsl-notes-section-title" data-tooltip="A Social Fencing exchange against this character. Break their Resolve before their Patience breaks you.">Encounter</div>
-        ${tracksOrStart}
+        <div class="tsl-notes-section-title" data-tooltip="Break their Resolve before their Patience runs out. Tracks arm themselves — no setup needed.">${esc(this._actor.name)}'s tracks</div>
+        ${selfTracks}
       </section>
       <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title" data-tooltip="Fencing statuses on this character. Toggle manually or let maneuvers apply them.">Statuses</div>
+        <div class="tsl-notes-section-title" data-tooltip="Fencing statuses on this character. Maneuvers apply them; toggle here to override.">Statuses</div>
         <div class="tsl-cond-grid">${condBtns}</div>
-        ${anyActive ? `<button class="tsl-cond-clear" data-tooltip="Remove all fencing statuses — e.g. when the scene ends.">Clear all statuses</button>` : ""}
+        ${anyActive ? `<button class="tsl-cond-clear" data-tooltip="Remove all fencing statuses.">Clear all statuses</button>` : ""}
+      </section>
+      ${this._buildStatusBoard()}`;
+  }
+
+  /**
+   * A scene-wide "who has what" board: every token whose actor carries a
+   * fencing status, live tracks, or a resolved outcome. Read-only overview.
+   */
+  _buildStatusBoard() {
+    const esc  = foundry.utils.escapeHTML;
+    const seen = new Set();
+    const rows = [];
+    for (const t of (canvas.tokens?.placeables ?? [])) {
+      const actor = t.actor;
+      if (!actor || seen.has(actor.id) || actor.id === this._actor.id) continue;
+      seen.add(actor.id);
+      const conds = SocialArchetypeManager.getActiveConditions(actor);
+      const enc   = SocialEncounterManager.getEncounter(actor);
+      const noteworthy = conds.length || enc.active || enc.outcome;
+      if (!noteworthy) continue;
+
+      const dots = conds.map(c =>
+        `<span class="tsl-board-dot" data-tooltip="<b>${c.meta.label}</b><br>${esc(c.meta.description)}"><img src="${c.meta.icon}" alt=""></span>`
+      ).join("");
+      const tracks = enc.active
+        ? `<span class="tsl-board-track" data-tooltip="Resolve / Patience">R${enc.resolve} · P${enc.patience}</span>`
+        : enc.outcome
+          ? `<span class="tsl-board-out tsl-board-out--${enc.outcome}">${enc.outcome === "swayed" ? "swayed" : "walked"}</span>`
+          : "";
+      rows.push(`
+        <div class="tsl-board-row">
+          <img class="tsl-board-img" src="${t.document.texture?.src || actor.img}" alt="">
+          <span class="tsl-board-name">${esc(actor.name)}</span>
+          <span class="tsl-board-dots">${dots}</span>
+          ${tracks}
+        </div>`);
+    }
+
+    const body = rows.length
+      ? rows.join("")
+      : `<div class="tsl-notes-string-empty">No one in the scene carries a status yet.</div>`;
+    return `
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title" data-tooltip="Everyone on the scene who currently carries a fencing status, live tracks, or a resolved outcome.">Scene status board</div>
+        <div class="tsl-board">${body}</div>
       </section>`;
   }
 
@@ -696,12 +727,6 @@ class SocialFencingApp extends Application {
         if (btn.dataset.track === "resolve") SocialEncounterManager.adjustResolve(this._actor, delta);
         else                                 SocialEncounterManager.adjustPatience(this._actor, delta);
       });
-    });
-
-    el.querySelector("[data-enc-action='start']")?.addEventListener("click", () => {
-      const p = parseInt(el.querySelector("select[name='startPatience']")?.value ?? "4");
-      const r = parseInt(el.querySelector("select[name='startResolve']")?.value ?? "3");
-      SocialEncounterManager.startEncounter(this._actor, p, r);
     });
 
     el.querySelector("[data-enc-action='end']")?.addEventListener("click", () =>

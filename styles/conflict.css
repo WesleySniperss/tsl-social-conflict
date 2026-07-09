@@ -2809,3 +2809,76 @@
   background: transparent;
   border-color: transparent;
 }
+
+/* ── Conflict card: resolved-outcome plate (no tracks) ─────────────── */
+.tsl-enc-done {
+  font-size: 10px;
+  font-style: italic;
+  border-radius: 5px;
+  padding: 1px 7px;
+  align-self: flex-start;
+}
+.tsl-enc-done--swayed { color: #7fd89a; background: rgba(85,232,133,0.1); }
+.tsl-enc-done--walked { color: #e8a855; background: rgba(232,168,85,0.1); }
+
+/* ── Chronicle Fencing tab: scene status board ─────────────────────── */
+.tsl-board {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tsl-board-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 6px;
+  border: 1px solid var(--tsl-notes-border);
+  border-radius: 6px;
+  background: var(--tsl-notes-surface);
+  min-width: 0;
+}
+.tsl-board-img {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--tsl-notes-border);
+  flex-shrink: 0;
+}
+.tsl-board-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--tsl-notes-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tsl-board-dots { display: flex; gap: 3px; flex-shrink: 0; }
+.tsl-board-dot {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  border: 1px solid var(--tsl-notes-border);
+  background: rgba(255,255,255,0.04);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: help;
+  overflow: hidden;
+}
+.tsl-board-dot img { width: 11px; height: 11px; filter: invert(0.85); }
+.tsl-board-track {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  color: var(--tsl-notes-muted);
+  flex-shrink: 0;
+  cursor: help;
+}
+.tsl-board-out {
+  font-size: 10px;
+  font-style: italic;
+  flex-shrink: 0;
+  border-radius: 6px;
+  padding: 0 6px;
+}
+.tsl-board-out--swayed { color: #7fd89a; background: rgba(85,232,133,0.1); }
+.tsl-board-out--walked { color: #e8a855; background: rgba(232,168,85,0.1); }

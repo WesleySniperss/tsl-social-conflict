@@ -519,6 +519,9 @@ class SocialManeuverRoller {
     const maneuver    = SocialManeuverRoller.getManeuver(maneuverId);
     if (!sourceActor || !targetActor || !maneuver) return;
 
+    // No "Start Encounter" ceremony — the first maneuver against a target
+    // brings its Resolve/Patience tracks to life from sheet defaults.
+    await SocialEncounterManager.ensureActive(targetActor);
     const encBefore = SocialEncounterManager.getEncounter(targetActor);
 
     // One-shot statuses that influenced this roll burn away

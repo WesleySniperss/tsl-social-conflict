@@ -48,6 +48,16 @@ class TSLConflictApp extends Application {
 
   static get instance() { return TSLConflictApp._instance; }
 
+  /** Resolve a participant's Actor, working for linked AND unlinked tokens. */
+  _participantActor(p) {
+    return game.actors.get(p?.actorId) ?? canvas.tokens?.get(p?.tokenId)?.actor ?? null;
+  }
+
+  /** Does the current user own this participant? (token fallback for unlinked) */
+  _ownsParticipant(p) {
+    return this._participantActor(p)?.isOwner ?? false;
+  }
+
   /**
    * There is no turn order — the GM runs initiative however they like.
    * The "actor" of an action is: for a player, the participant they own;
@@ -58,7 +68,7 @@ class TSLConflictApp extends Application {
     const ps = ConflictStore.state?.participants ?? [];
     if (!ps.length) return -1;
     if (game.user.isGM) return Math.min(this._gmActingIdx ?? 0, ps.length - 1);
-    return ps.findIndex(p => game.actors.get(p.actorId)?.isOwner);
+    return ps.findIndex(p => this._ownsParticipant(p));
   }
 
   static openConflict(state) {
@@ -226,17 +236,17 @@ class TSLConflictApp extends Application {
       </div>`;
     };
 
-    // Patience/Resolve tracks when a fencing encounter is running for this actor
+    // Patience/Resolve tracks — they appear on their own once a maneuver lands
+    // (no "Start Encounter" step). Show a resolved outcome if one happened.
     const renderEncounter = (p) => {
       if (!showFencing) return "";
       const enc = encounters?.[p.actorId];
       if (!enc?.active) {
-        // GM can arm the tracks right here; fine-tuning lives in the Chronicle
-        if (!isGM || state.resolved) return "";
-        const suggested = SocialEncounterManager.suggestTracks(game.actors.get(p.actorId));
-        return `<button class="tsl-enc-begin" data-actor-id="${p.actorId}"
-                     data-tooltip="Start Patience ${suggested.patience} & Resolve ${suggested.resolve} for this participant (${foundry.utils.escapeHTML(suggested.hint)}). Adjust in their Chronicle → Fencing.">
-               <i class="fas fa-khanda"></i> Start tracks</button>`;
+        if (enc?.outcome) {
+          return `<div class="tsl-enc-done tsl-enc-done--${enc.outcome}">${
+            enc.outcome === "swayed" ? "💔 Swayed" : "🚪 Walked away"}</div>`;
+        }
+        return "";
       }
       const pips = (val, max, cls) => Array.from({ length: max }, (_, i) =>
         `<span class="tsl-enc-pip tsl-enc-pip--${cls} ${i < val ? "filled" : ""}"></span>`).join("");
@@ -267,7 +277,7 @@ class TSLConflictApp extends Application {
       const selectable = needsTarget && idx !== actingIdx && !state.resolved && canAct;
       const condCount  = Object.values(p.conditions).filter(Boolean).length;
       const arch       = knownArchetypes?.[p.actorId];
-      const canYield   = !state.resolved && (isGM || game.actors.get(p.actorId)?.isOwner);
+      const canYield   = !state.resolved && (isGM || this._ownsParticipant(p));
       const triad      = arch ? SOCIAL_TRIADS[arch.triad] : null;
       const playbook   = TSLPlaybooks.getForActor(game.actors.get(p.actorId));
       // Known archetype badge doubles as an intel dossier (hover = the whole read)
@@ -573,18 +583,8 @@ class TSLConflictApp extends Application {
   }
 
   _onClick(event) {
-    const el = event.target.closest("[data-select-target], [data-select-token], .tsl-start-conflict-btn, .tsl-cond-pip, .tsl-chip, .tsl-roll-btn, .tsl-kiss-btn, .tsl-yield-btn, .tsl-dice-close, .tsl-close-btn, .tsl-spend-string, .tsl-string-remove, .tsl-enc-begin, .tsl-lev-btn, .tsl-target-btn");
+    const el = event.target.closest("[data-select-target], [data-select-token], .tsl-start-conflict-btn, .tsl-cond-pip, .tsl-chip, .tsl-roll-btn, .tsl-kiss-btn, .tsl-yield-btn, .tsl-dice-close, .tsl-close-btn, .tsl-spend-string, .tsl-string-remove, .tsl-lev-btn, .tsl-target-btn");
     if (!el) return;
-
-    // GM: arm Patience & Resolve tracks for a participant (sheet-derived defaults)
-    if (el.matches(".tsl-enc-begin") && game.user.isGM) {
-      const actor = game.actors.get(el.dataset.actorId);
-      if (actor) {
-        const s = SocialEncounterManager.suggestTracks(actor);
-        SocialEncounterManager.startEncounter(actor, s.patience, s.resolve);
-      }
-      return;
-    }
 
     // Toggle a dossier leverage card for the pending maneuver
     if (el.matches(".tsl-lev-btn")) {
@@ -684,7 +684,7 @@ class TSLConflictApp extends Application {
       const idx = parseInt(el.dataset.participant);
       const p   = ConflictStore.state?.participants?.[idx];
       if (!p) return;
-      if (!game.user.isGM && !game.actors.get(p.actorId)?.isOwner) return;
+      if (!game.user.isGM && !this._ownsParticipant(p)) return;
       TSLGMActions.request("yield", { pIdx: idx });
       return;
     }

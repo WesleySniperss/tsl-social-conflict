@@ -37,9 +37,10 @@ class SocialEncounterManager {
 
   /**
    * Suggested track values derived from the actor's sheet (dnd5e/a5e):
-   *   Resolve  = 2 + WIS mod — in 5e resisting persuasion IS a Wisdom thing
-   *   Patience = 3 + CHA mod — force of personality keeps composure in talk
-   * Both clamped 2..6; the GM can always override in the Chronicle.
+   *   Resolve  = 3 + WIS mod — in 5e resisting persuasion IS a Wisdom thing
+   *   Patience = 4 + CHA mod — force of personality keeps composure in talk
+   * Both clamped 3..8. Used for the automatic start on the first maneuver
+   * against a target; the GM can still nudge them in the Chronicle.
    */
   static suggestTracks(actor) {
     const abilities = actor?.system?.abilities ?? {};
@@ -47,12 +48,25 @@ class SocialEncounterManager {
       const v = abilities[k]?.mod;
       return typeof v === "number" ? v : 0;
     };
-    const clamp = (v) => Math.max(2, Math.min(6, v));
+    const clamp = (v) => Math.max(3, Math.min(8, v));
     return {
-      resolve:  clamp(2 + mod("wis")),
-      patience: clamp(3 + mod("cha")),
-      hint: `Resolve 2 + WIS (${mod("wis") >= 0 ? "+" : ""}${mod("wis")}), Patience 3 + CHA (${mod("cha") >= 0 ? "+" : ""}${mod("cha")}), clamped 2–6`,
+      resolve:  clamp(3 + mod("wis")),
+      patience: clamp(4 + mod("cha")),
+      hint: `Resolve 3 + WIS (${mod("wis") >= 0 ? "+" : ""}${mod("wis")}), Patience 4 + CHA (${mod("cha") >= 0 ? "+" : ""}${mod("cha")}), clamped 3–8`,
     };
+  }
+
+  /**
+   * Ensure a target has live tracks before a maneuver lands — no "Start
+   * Encounter" ceremony. Auto-starts from sheet defaults on the first
+   * maneuver, unless a prior exchange already resolved (has an outcome).
+   */
+  static async ensureActive(actor) {
+    if (!actor) return null;
+    const enc = SocialEncounterManager.getEncounter(actor);
+    if (enc.active || enc.outcome) return enc;
+    const s = SocialEncounterManager.suggestTracks(actor);
+    return SocialEncounterManager.startEncounter(actor, s.patience, s.resolve);
   }
 
   static async startEncounter(actor, patience = 4, resolve = 3) {

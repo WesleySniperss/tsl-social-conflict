@@ -84,8 +84,12 @@ tsl-social-conflict/
 - Each has 2 signature 2d6 moves that join the basic five in the conflict grid for the actor that has the playbook (flag `socialFencing.playbookId`, selected in Chronicle → Profile)
 - Move effects share the fx schema handled generically in `ConflictStore.recordRoll`: `onStrong`/`onWeak: { strings, stringsOnYou, reveal, resolve }` — basic moves (read/speak/provoke) use the same fields
 
-### Track defaults (suggestTracks)
-- Resolve = 2 + WIS mod, Patience = 3 + CHA mod, clamped 2–6 — pre-selected in Chronicle→Fencing and used by the conflict "Start tracks" button; GM can override
+### Track defaults + auto-start (no ceremony)
+- Resolve = 3 + WIS mod, Patience = 4 + CHA mod, clamped 3–8 (`suggestTracks`)
+- **No "Start Encounter" step** — `SocialEncounterManager.ensureActive()` lazily starts tracks from these defaults on the FIRST maneuver against a target (called at the top of `applyOutcome`), unless a prior exchange already resolved. The GM only nudges/resets tracks in Chronicle→Fencing.
+- **Fencing tab = a GM status board**: this actor's tracks (adjust/Reset only) + status toggles + a scene-wide "who has what" overview (`_buildStatusBoard` walks canvas tokens; portrait · name · status dots · R/P or outcome).
+- Player ownership resolves via token fallback (`_participantActor`/`_ownsParticipant`) so unlinked-token participants can still act & target (fixes players unable to pick targets).
+- Fallback per user: if auto-tracks still feel heavy, the pre-approved next step is to remove tracks entirely (statuses/Strings only). See memory `tracks-fallback`.
 - Status/condition icons use core `icons/svg/*` (guaranteed in every install; black strokes — UI applies `filter: invert()` for the dark theme)
 
 ### Fencing Statuses (SOCIAL_CONDITIONS, all mechanical)
