@@ -3088,3 +3088,20 @@
   background-color: #9b6ee8;
   color: #14090c;
 }
+
+/* ═══ Resolution chat card: consequence list ══════════════════════ */
+.tsl-mv-consequences {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  list-style: disc;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.tsl-mv-consequences li {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #d8c8b8;
+}
+.tsl-mv--success .tsl-mv-consequences li::marker { color: #55e885; }
+.tsl-mv--immune  .tsl-mv-consequences li::marker { color: #e8a855; }

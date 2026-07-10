@@ -110,7 +110,7 @@ class SocialEncounterManager {
     });
   }
 
-  static async adjustPatience(actor, delta) {
+  static async adjustPatience(actor, delta, sourceId = null) {
     if (!actor) return null;
     const encounter = SocialEncounterManager.getEncounter(actor);
     if (!encounter.active) return encounter;
@@ -120,13 +120,15 @@ class SocialEncounterManager {
     if (encounter.patience === 0) {
       encounter.active = false;
       encounter.outcome = "walked";
-      SocialEncounterManager._announce(actor, "walked");
+      await SocialEncounterManager.setEncounter(actor, encounter);
+      await SocialEncounterManager._resolveConsequences(actor, sourceId, "walked");
+      return encounter;
     }
     await SocialEncounterManager.setEncounter(actor, encounter);
     return encounter;
   }
 
-  static async adjustResolve(actor, delta) {
+  static async adjustResolve(actor, delta, sourceId = null) {
     if (!actor) return null;
     const encounter = SocialEncounterManager.getEncounter(actor);
     if (!encounter.active) return encounter;
@@ -136,10 +138,39 @@ class SocialEncounterManager {
     if (encounter.resolve === 0) {
       encounter.active = false;
       encounter.outcome = "swayed";
-      SocialEncounterManager._announce(actor, "swayed");
+      await SocialEncounterManager.setEncounter(actor, encounter);
+      await SocialEncounterManager._resolveConsequences(actor, sourceId, "swayed");
+      return encounter;
     }
     await SocialEncounterManager.setEncounter(actor, encounter);
     return encounter;
+  }
+
+  /**
+   * Everything that happens the moment a track empties. GM side.
+   *   swayed  → the loser's regard for the winner warms (+1); the winner
+   *             gains a String — the concession is a hold to invoke later;
+   *             the scene's fencing statuses clear.
+   *   walked  → regard cools (−1); statuses clear; a triad-flavored exit.
+   */
+  static async _resolveConsequences(actor, sourceId, outcome) {
+    let gainedString = false;
+    const winner = sourceId ? game.actors.get(sourceId) : null;
+
+    if (outcome === "swayed" && winner) {
+      await TSLBondStore.shiftAttitude(actor.id, sourceId, +1);
+      await TSLStringStore.add(sourceId, actor.id, 1);
+      gainedString = true;
+    } else if (outcome === "walked" && winner) {
+      await TSLBondStore.shiftAttitude(actor.id, sourceId, -1);
+    }
+
+    // The exchange is over — clear the scene's fencing statuses on the loser
+    for (const id of SOCIAL_CONDITION_ORDER) {
+      await SocialArchetypeManager.removeCondition(actor, id);
+    }
+
+    await SocialEncounterManager._announce(actor, outcome, { winner, gainedString });
   }
 
   static async advanceRound(actor) {
@@ -152,8 +183,9 @@ class SocialEncounterManager {
     return encounter;
   }
 
-  static async _announce(actor, outcome) {
+  static async _announce(actor, outcome, opts = {}) {
     const esc  = foundry.utils.escapeHTML;
+    const who  = opts.winner ? esc(opts.winner.name) : "the winner";
     // Frenzy-flavored exits: HOW they break depends on their ruling triad
     const arch = SocialArchetypeManager.getArchetype(actor);
     const walkFlavor = {
@@ -162,13 +194,27 @@ class SocialEncounterManager {
       order:     "They close the ledger on this conversation — it will not reopen on the same terms.",
     }[arch?.triad] ?? "";
 
-    const text = outcome === "swayed"
-      ? `<strong>${esc(actor.name)}</strong> is <em>swayed</em> — their resolve is broken. They concede the exchange, and their regard for the winner warms (attitude +1).`
-      : `<strong>${esc(actor.name)}</strong> runs out of patience and <em>walks away</em> (attitude −1). ${esc(walkFlavor)}`;
+    const bullets = outcome === "swayed"
+      ? [
+          `They <strong>concede the exchange</strong> — they do the thing, or grant the point (the GM frames exactly what).`,
+          `Their regard for ${who} warms — <strong>attitude +1</strong>.`,
+          opts.gainedString ? `${who} gains a <strong>String</strong> on them — the concession is a hold to invoke later.` : null,
+          `The scene's fencing statuses on them clear.`,
+        ].filter(Boolean)
+      : [
+          `They <strong>disengage</strong> — this conversation is over on their terms.`,
+          `Their regard for ${who} cools — <strong>attitude −1</strong>.`,
+          walkFlavor ? esc(walkFlavor) : null,
+          `The scene's fencing statuses on them clear.`,
+        ].filter(Boolean);
+
+    const cls = outcome === "swayed" ? "success" : "immune";
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor }),
-      content: `<div class="tsl-maneuver-card tsl-mv--${outcome === "swayed" ? "success" : "immune"}">
-        <div class="tsl-mv-outcome tsl-mv-outcome--${outcome === "swayed" ? "success" : "immune"}">${text}</div>
+      content: `<div class="tsl-maneuver-card tsl-mv--${cls}">
+        <div class="tsl-mv-header"><i class="fas ${outcome === "swayed" ? "fa-heart-crack" : "fa-door-open"}"></i>
+          <span class="tsl-mv-name">${esc(actor.name)} — ${outcome === "swayed" ? "Swayed" : "Walks away"}</span></div>
+        <ul class="tsl-mv-consequences">${bullets.map(b => `<li>${b}</li>`).join("")}</ul>
       </div>`,
     });
   }

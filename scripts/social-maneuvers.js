@@ -536,7 +536,7 @@ class SocialManeuverRoller {
       // Archetype immunity raises the wall; an existing Defiant wall just wastes the attempt
       if (relation === "immune")
         await SocialArchetypeManager.applyCondition(targetActor, "defiant", sourceActor);
-      await SocialEncounterManager.adjustPatience(targetActor, -1);
+      await SocialEncounterManager.adjustPatience(targetActor, -1, sourceActorId);
     } else if (outcomeType === "success") {
       if (maneuver.applyOnSuccess)
         await SocialArchetypeManager.applyCondition(targetActor, maneuver.applyOnSuccess, sourceActor);
@@ -551,18 +551,11 @@ class SocialManeuverRoller {
       let damage = relation === "vulnerable" ? 2 : (maneuver.resolveDamage ?? 1);
       if (leverage === "desire") damage += 1;  // the offer does half the work
       if (damage > 0)
-        await SocialEncounterManager.adjustResolve(targetActor, -damage);
+        await SocialEncounterManager.adjustResolve(targetActor, -damage, sourceActorId);
     } else {
       // Hard leverage cuts both ways: a failed threat burns extra Patience
-      await SocialEncounterManager.adjustPatience(targetActor, leverage === "fear" ? -2 : -1);
+      await SocialEncounterManager.adjustPatience(targetActor, leverage === "fear" ? -2 : -1, sourceActorId);
     }
-
-    // Fencing writes history: the outcome shifts how the target regards the winner
-    const encAfterFx = SocialEncounterManager.getEncounter(targetActor);
-    if (!encBefore.outcome && encAfterFx.outcome === "swayed")
-      await TSLBondStore.shiftAttitude(targetActorId, sourceActorId, +1);
-    else if (!encBefore.outcome && encAfterFx.outcome === "walked")
-      await TSLBondStore.shiftAttitude(targetActorId, sourceActorId, -1);
 
     // ── Shared conflict integration: log + advance turn ──────────────────────
     const state = ConflictStore.state;

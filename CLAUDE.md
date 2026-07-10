@@ -129,6 +129,7 @@ Anti-farm: `reveals` maneuvers (Cold Reading, Logic Exploit) grant their Strings
   - **Weakness** — a neutral maneuver counts as a vulnerability strike (does NOT beat archetype immunity)
   - UI: leverage row in the Duel Panel (`.tsl-lev-btn`); used state lives on `encounter.leverage`; consumed by `applyOutcome` whatever the outcome
 - **Bond escalation** (blood-bond style, permanent chronicle writes): swayed → target's attitude toward winner +1; walked → −1; Finally Kiss → +1 mutual (`TSLBondStore.shiftAttitude`, clamped −3..+3)
+- **Track-zero consequences** (`SocialEncounterManager._resolveConsequences`, GM side, one place): `adjustResolve/adjustPatience` now take a `sourceId`; when a track empties they fire once — swayed → attitude +1 AND the winner gains a **String** (the concession is a hold) AND the loser's fencing statuses clear; walked → attitude −1 AND statuses clear AND a triad-flavored exit. A bulleted resolution card (`.tsl-mv-consequences`) spells out exactly what happened; the GM frames the actual concession fiction.
 - **Triad-flavored exits** (frenzy-style): the "walks away" chat card varies by ruling triad — Power answers with force, Emotion spreads their version loudly, Order closes the ledger permanently
 - Deferred candidates: Willpower-style String reroll after a failed roll (needs post-roll chat UI), Boons as formal currency (creditor/indebted bond types already cover it narratively)
 

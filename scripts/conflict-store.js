@@ -236,7 +236,7 @@ class ConflictStore {
         if (fx.resolve) {
           const tgtActor = game.actors.get(tgt);
           if (SocialEncounterManager.getEncounter(tgtActor).active) {
-            SocialEncounterManager.adjustResolve(tgtActor, -fx.resolve);
+            SocialEncounterManager.adjustResolve(tgtActor, -fx.resolve, src);
             ConflictStore.addLog(`💗 The words land true — ${target.name} loses ${fx.resolve} Resolve`, "hit");
           }
         }
