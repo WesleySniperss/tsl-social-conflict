@@ -115,16 +115,29 @@ class TSLConflictApp extends Application {
     const strings = {};
     const encounters = {};
     const knownArchetypes = {};
+    const archIsGuess = {};
+    // The archetype a player "sees" is THEIR OWN GUESS from their acting
+    // character's Bond ("Read as") — possibly wrong. Only the GM (and the
+    // actor's owner) sees the truth. All marks/predictions follow the guess.
+    const actingIdx   = this._actingIndex();
+    const guessBaseId = !game.user.isGM && actingIdx !== -1
+      ? state.participants[actingIdx]?.actorId ?? null
+      : null;
     for (const p of state.participants) {
       strings[p.actorId] = TSLStringStore.forParticipant(p, state.participants);
       const actor = game.actors.get(p.actorId);
       encounters[p.actorId] = actor ? SocialEncounterManager.getEncounter(actor) : null;
-      // Archetype is visible to the GM, the actor's owner, and anyone with a verified read
-      const known = game.user.isGM || actor?.isOwner || TSLBondStore.profileKnownByUser(p.actorId);
-      knownArchetypes[p.actorId] = known && actor ? SocialArchetypeManager.getArchetype(actor) : null;
+      if (game.user.isGM || actor?.isOwner) {
+        knownArchetypes[p.actorId] = actor ? SocialArchetypeManager.getArchetype(actor) : null;
+        archIsGuess[p.actorId] = false;
+      } else {
+        const guessId = guessBaseId ? TSLBondStore.find(guessBaseId, p.actorId)?.perceivedArchetypeId : null;
+        knownArchetypes[p.actorId] = guessId ? SocialArchetypeManager.getArchetypeById(guessId) : null;
+        archIsGuess[p.actorId] = true;
+      }
     }
 
-    return { state, isGM: game.user.isGM, strings, encounters, knownArchetypes, selectionMode, availableTokens, selectedTokenIds };
+    return { state, isGM: game.user.isGM, strings, encounters, knownArchetypes, archIsGuess, selectionMode, availableTokens, selectedTokenIds };
   }
 
   activateListeners(html) {
@@ -149,7 +162,7 @@ class TSLConflictApp extends Application {
 
   _renderHTML(context) {
     if (context.empty) return "<p>No active conflict.</p>";
-    const { state, isGM, strings, encounters, knownArchetypes, selectionMode, availableTokens, selectedTokenIds } = context;
+    const { state, isGM, strings, encounters, knownArchetypes, archIsGuess, selectionMode, availableTokens, selectedTokenIds } = context;
 
     // If a participant was removed (yield/kiss) while a target was selected, clear stale refs;
     // also never let the target collapse onto the acting participant (self-target).
@@ -276,12 +289,15 @@ class TSLConflictApp extends Application {
       const selectable = needsTarget && idx !== actingIdx && !state.resolved && canAct;
       const condCount  = Object.values(p.conditions).filter(Boolean).length;
       const arch       = knownArchetypes?.[p.actorId];
+      const isGuess    = archIsGuess?.[p.actorId] ?? false;
       const canYield   = !state.resolved && (isGM || this._ownsParticipant(p));
       const triad      = arch ? SOCIAL_TRIADS[arch.triad] : null;
       const playbook   = TSLPlaybooks.getForActor(game.actors.get(p.actorId));
-      // Known archetype badge doubles as an intel dossier (hover = the whole read)
+      // The archetype badge doubles as an intel dossier (hover = the whole read).
+      // For players it shows THEIR GUESS — clearly marked, possibly wrong.
       const esc0       = foundry.utils.escapeHTML;
       const dossierTip = arch ? [
+        isGuess ? `<b>Your read (may be wrong):</b>` : null,
         `<b>${esc0(arch.label)}</b> — ${esc0(arch.description)}`,
         `<i>${esc0(arch.hint ?? "")}</i>`,
         `💎 Craves: ${esc0(arch.craves ?? "?")}<br>👻 Dreads: ${esc0(arch.dreads ?? "?")}`,
@@ -293,8 +309,8 @@ class TSLConflictApp extends Application {
             : `<div class="tsl-participant-system">—</div>`)
         : arch
           ? `<div class="tsl-participant-arch" style="--triad-color:${triad?.color ?? "#806858"}" data-tooltip="${dossierTip}">
-               <i class="fas ${triad?.icon ?? "fa-user"}"></i> ${arch.label}</div>`
-          : `<div class="tsl-participant-system" data-tooltip="Their nature is hidden — a successful Cold Reading or Logic Exploit reveals it.">Nature unread</div>`;
+               ${isGuess ? `<i class="fas fa-pencil tsl-guess-i"></i>` : `<i class="fas ${triad?.icon ?? "fa-user"}"></i>`} ${arch.label}${isGuess ? "?" : ""}</div>`
+          : `<div class="tsl-participant-system" data-tooltip="Their nature is a riddle — watch their tells (Cold Reading whispers one) and write your guess into your Bond ('Read as'). The ✦/⚡ marks will follow your guess.">Nature unread</div>`;
       const badge = isActing ? `<span class="tsl-turn-badge" style="--active-color:${p.color}">${game.user.isGM ? "Acting" : "You"}</span>`
                   : isTarget ? `<span class="tsl-turn-badge" style="--active-color:#e8a855">Target</span>` : "";
       return `
@@ -328,7 +344,10 @@ class TSLConflictApp extends Application {
       const esc      = foundry.utils.escapeHTML;
       const srcActor = game.actors.get(activeP.actorId);
       const tgtActor = hasTarget ? game.actors.get(state.participants[this._selectedTarget].actorId) : null;
-      const seeRel   = tgtActor && !!knownArchetypes?.[tgtActor.id];
+      // Marks follow what THIS VIEWER believes: the GM's truth, or the
+      // player's own guess from their Bond — which may be wrong.
+      const tgtArch  = tgtActor ? knownArchetypes?.[tgtActor.id] : null;
+      const seeRel   = !!tgtArch;
 
       return MANEUVER_GROUPS.map(g => {
         const mvs   = SOCIAL_MANEUVERS.filter(m => m.group === g.id);
@@ -336,9 +355,8 @@ class TSLConflictApp extends Application {
         const short = (SOCIAL_TRIADS[g.id]?.label ?? g.label).replace("Triad of ", "");
         const chips = mvs.map(m => {
           const isSel   = move?.id === m.id;
-          const rel     = tgtActor ? SocialManeuverRoller.getRelation(tgtActor, m) : "neutral";
-          const tgtArch = tgtActor ? knownArchetypes?.[tgtActor.id] : null;
-          const counter = seeRel && tgtArch && TRIAD_COUNTERS[m.group] === tgtArch.triad;
+          const rel     = tgtActor ? SocialManeuverRoller.getRelation(tgtActor, m, isGM ? undefined : (tgtArch ?? null)) : "neutral";
+          const counter = seeRel && TRIAD_COUNTERS[m.group] === tgtArch.triad;
           const mark    = seeRel && rel === "immune" ? `<span class="tsl-chip-mark tsl-chip-mark--imm">⚡</span>`
                         : seeRel && rel === "vulnerable" ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">✦</span>`
                         : counter ? `<span class="tsl-chip-mark tsl-chip-mark--counter">»</span>` : "";
@@ -402,40 +420,43 @@ class TSLConflictApp extends Application {
         </div>`;
       }
 
-      // ── Maneuver: everything the dice will do, on three tight lines ───────────
+      // ── Maneuver: predictions follow YOUR read; the dice follow the truth ────
       const tgtActor = game.actors.get(tgtP.actorId);
       if (!srcActor || !tgtActor) return "";
-      const a       = SocialManeuverRoller.assess(srcActor, tgtActor, move, { leverage: this._pendingLeverage });
-      const seeRel  = !!knownArchetypes?.[tgtActor.id];
+      const dispArch = knownArchetypes?.[tgtActor.id] ?? null;   // GM: truth · player: guess
+      const isGuess  = archIsGuess?.[tgtActor.id] ?? false;
+      const a = SocialManeuverRoller.assess(srcActor, tgtActor, move, {
+        leverage: this._pendingLeverage,
+        archetypeOverride: isGM ? undefined : dispArch,
+      });
+      const seeRel  = !!dispArch;
       const strAdd  = this._pendingStringSpend ? STRING_SPEND_BONUS : 0;
       const extra   = a.bonus + strAdd;
 
       // Bonus/DC breakdowns fold into single signed numbers with tooltip detail.
       const bonusList = [
         ...(strAdd ? [`+${strAdd} String`] : []),
-        ...a.bonusReasons.map(b => {
-          const veiled = b.kind === "counter" && !seeRel;
-          return `${b.value >= 0 ? "+" : "−"}${Math.abs(b.value)} ${veiled ? "?" : esc(b.label.split(" — ")[0])}`;
-        }),
+        ...a.bonusReasons.map(b => `${b.value >= 0 ? "+" : "−"}${Math.abs(b.value)} ${esc(b.label.split(" — ")[0])}`),
       ];
       const extraChip = extra
-        ? `<span class="tsl-bar-extra ${extra >= 0 ? "pos" : "neg"}" data-tooltip="${esc(bonusList.join(", "))}">${extra >= 0 ? "+" : "−"}${Math.abs(extra)}</span>`
+        ? `<span class="tsl-bar-extra ${extra >= 0 ? "pos" : "neg"}" data-tooltip="${esc(bonusList.join(", "))}${isGuess && seeRel ? " — predictions follow your read" : ""}">${extra >= 0 ? "+" : "−"}${Math.abs(extra)}</span>`
         : "";
       const dcTip = a.dcMods.length ? ` (${a.dcBase}${a.dcMods.map(m => `${m.value > 0 ? "+" : "−"}${Math.abs(m.value)}`).join("")})` : "";
 
       const advMark = a.advantage
-        ? `<span class="tsl-bar-adv" data-tooltip="${esc(a.advantageReasons.join("; "))}">ADV</span>` : "";
+        ? `<span class="tsl-bar-adv" data-tooltip="${esc(a.advantageReasons.join("; "))}${isGuess ? " — if your read is right" : ""}">ADV${isGuess && a.relation === "vulnerable" ? "?" : ""}</span>` : "";
       const relMark = a.relation === "vulnerable" && seeRel ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">✦</span>`
                     : (a.relation === "immune" || a.relation === "blocked") ? `<span class="tsl-chip-mark tsl-chip-mark--imm">⚡</span>` : "";
 
       // The single most useful sentence, chosen by priority — never a stack.
+      const readPrefix = isGuess ? "Your read: " : "";
       let hint = "", hintCls = "dim";
       if (a.relation === "blocked")        { hint = a.relationReason; hintCls = "imm"; }
-      else if (seeRel && a.relation === "immune")     { hint = `${a.relationReason} — it fails, they turn Defiant.`; hintCls = "imm"; }
-      else if (seeRel && a.relation === "vulnerable") { hint = "Weak spot — Advantage & double Resolve damage."; hintCls = "vuln"; }
+      else if (seeRel && a.relation === "immune")     { hint = `${readPrefix}${a.relationReason} — ${isGuess ? "if you're right, it fails and they turn Defiant." : "it fails, they turn Defiant."}`; hintCls = "imm"; }
+      else if (seeRel && a.relation === "vulnerable") { hint = `${readPrefix}this should cut deep — Advantage & double Resolve damage${isGuess ? " (if your read is right)" : ""}.`; hintCls = "vuln"; }
       else if (a.advantage)                { hint = a.advantageReasons[a.advantageReasons.length - 1]; hintCls = "vuln"; }
       else if (isGM && !a.arch)            { hint = "No archetype set — open their Chronicle to arm weak spots."; }
-      else if (!seeRel)                    { hint = "Nature unread — Cold Reading reveals their weak spots."; }
+      else if (!seeRel)                    { hint = "Their nature is a riddle — read tells, then note your guess in your Bond ('Read as')."; }
 
       const blocked = a.relation === "blocked";
       return `<div class="tsl-bar tsl-bar--duel">
@@ -776,6 +797,11 @@ class TSLConflictApp extends Application {
       return;
     }
 
+    // The system-style roll dialog: situational modifier + advantage/disadvantage.
+    // Cancelling costs nothing — no String or leverage is spent yet.
+    const mods = await SocialManeuverRoller.promptRollMods(`${maneuver.name} → ${tgtP.name}`, assessment.advantage);
+    if (!mods) return;
+
     // Spend string if pending — +2 to the maneuver roll
     let stringBonus = 0;
     if (this._pendingStringSpend) {
@@ -786,7 +812,9 @@ class TSLConflictApp extends Application {
     }
     this._pendingLeverage = null;
 
-    const payload = await SocialManeuverRoller.rollManeuver(srcActor, tgtActor, maneuver, { stringBonus, leverage });
+    const payload = await SocialManeuverRoller.rollManeuver(srcActor, tgtActor, maneuver, {
+      stringBonus, leverage, situational: mods.situational, mode: mods.mode,
+    });
 
     // Effects + log + turn advance happen on the GM client
     TSLGMActions.request("maneuverOutcome", payload);

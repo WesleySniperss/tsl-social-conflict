@@ -68,7 +68,7 @@ tsl-social-conflict/
 - `encounter` — { active, patience, maxPatience, resolve, maxResolve, round, outcome: null|"swayed"|"walked", leverage:{desire,fear,weakness → used?} }
 
 ### Social Fencing Design (the loop)
-- **Profile → Exploit → Win**: archetype intel is hidden until read (Cold Reading / Logic Exploit success → `TSLBondStore.reveal`); vuln/immune badges in the conflict UI appear only for users who know the profile
+- **Guess → Test → Refine (deduction loop, v1.7)**: archetypes are NEVER revealed to players. A successful read (Cold Reading / Logic Exploit, or Read the Room 10+) → `SocialManeuverRoller.whisperTell` — one random tell/crave/dread whispered to the reader. The player writes their guess into their Bond ("Read as"); **all ✦/⚡/» marks and bar predictions follow the GUESS** (`assess`/`getRelation` take `archetypeOverride`; GM passes `undefined` = truth), while **rolls always use the truth**. Wrong guesses self-correct via evidence (surprise Advantage dice, unexpected Defiant bounces). Chat cards veil archetype-naming reasons and never bake in `archHtml` — even GM rolls stay riddle-safe. PCs pick NO archetype (selector is GM-only, "their defence (GM)"); players build only triad dots
 - **Push-your-luck**: success −1 Resolve (−2 on vulnerability), failure −1 Patience, immunity → auto-fail + target **Defiant** (maneuver-immune 1h) + −1 Patience
 - **9 archetypes × 12 maneuvers**: each archetype has ≥1 vulnerable and ≥1 immune maneuver; traps sit *inside* the same triad (e.g. Cold Shoulder wrecks the Martyr but bounces off the Caretaker) so knowing the triad isn't enough — you profile the person
 - **Strings economy**: earned by reads and baits (Feigned Weakness / Sweeten the Deal grant 2), spent for +1 on TSL moves / +2 on maneuvers; also visible & editable in Chronicle bonds
@@ -120,7 +120,9 @@ One-shot economy: a one-shot is consumed ONLY if it is the thing granting the ad
 - **Chronicle Bonds are collapsible**: one-line head (portrait, name, type tag, read-as icon, attitude badge, strings, chevron) → click unfolds editors; `this._expandedBonds` Set, new bonds auto-expand
 - **Canvas pick uses a DOM capture listener** on `canvas.app.view` (NOT `canvas.stage.on` — unreliable in v13) + `canvas.canvasCoordinatesFromClient` with manual worldTransform fallback
 
-Anti-farm: `reveals` maneuvers (Cold Reading, Logic Exploit) grant their Strings only on the FIRST read of a profile — re-reading a known profile earns nothing (`applyOutcome` checks `profileKnown`). Blocked rolls (Defiant wall / Smitten attacker) are prevented in the UI before a String can be spent.
+`reveals` maneuvers whisper a tell each success and grant their Strings each time (the old profileKnown anti-farm is gone — repeats cost turns/Patience risk and tells repeat). Blocked rolls (Defiant wall / Smitten attacker) are prevented in the UI before a String can be spent. Leverage gating no longer needs a "verified read" — a filled dossier point + active tracks is enough.
+
+**Roll-mods dialog:** every maneuver roll opens `SocialManeuverRoller.promptRollMods` (situational modifier + Advantage/Disadvantage, 5e cancel rules) — the module's analogue of the system's roll-config window; cancel aborts before Strings/leverage are spent.
 
 ### VTM-inspired Layer (leverage, escalation, exits)
 - **Dossier leverage** (Social Maneuvering "doors"-style, once per encounter each, requires active encounter + read profile + a filled profiling point on the target):

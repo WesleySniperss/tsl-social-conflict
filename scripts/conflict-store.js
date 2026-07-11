@@ -44,7 +44,7 @@ const MOVES = [
     icon: "fa-eye",
     stat: "Wit",
     target: true,
-    desc: "Study someone. On 10+: ask the GM two questions, gain a String on them and read their nature (profile revealed). On 7-9: ask one question.",
+    desc: "Study someone. On 10+: ask the GM two questions, gain a String on them, and a tell of their nature is whispered to you. On 7-9: ask one question.",
     onStrong: { strings: 1, reveal: true },
   },
   {
@@ -230,8 +230,9 @@ class ConflictStore {
           ConflictStore.addLog(`🎭 ${target.name} gains a string on ${p.name}`, "info");
         }
         if (fx.reveal) {
-          TSLBondStore.reveal(src, tgt);
-          ConflictStore.addLog(`👁 ${p.name} reads ${target.name}'s nature`, "info");
+          // A tell is whispered to the reader — they deduce the nature themselves
+          SocialManeuverRoller.whisperTell(game.actors.get(src), game.actors.get(tgt));
+          ConflictStore.addLog(`👁 ${p.name} studies ${target.name} — a tell is whispered`, "info");
         }
         if (fx.resolve) {
           const tgtActor = game.actors.get(tgt);

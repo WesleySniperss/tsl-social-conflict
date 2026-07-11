@@ -3105,3 +3105,35 @@
 }
 .tsl-mv--success .tsl-mv-consequences li::marker { color: #55e885; }
 .tsl-mv--immune  .tsl-mv-consequences li::marker { color: #e8a855; }
+
+/* ═══ Deduction era: guess markers + roll-mods dialog ══════════════ */
+
+/* Pencil = "this is your read, not the truth" */
+.tsl-guess-i {
+  font-size: 9px;
+  opacity: 0.8;
+  color: #e8a855;
+  flex-shrink: 0;
+}
+
+/* The pre-roll modifier dialog (situational + adv/dis) */
+.tsl-rollmods {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0;
+}
+.tsl-rollmods .form-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tsl-rollmods .form-group label { flex: 0 0 140px; }
+.tsl-rollmods .form-group input,
+.tsl-rollmods .form-group select { flex: 1; }
+.tsl-rollmods .notes {
+  font-size: 12px;
+  font-style: italic;
+  opacity: 0.8;
+  margin: 0;
+}

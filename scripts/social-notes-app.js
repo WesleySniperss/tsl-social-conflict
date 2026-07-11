@@ -240,14 +240,15 @@ class SocialFencingApp extends Application {
       </div>`).join("");
 
     return `
+      ${!isGM ? "" : `
       <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title" data-tooltip="DEFENCE — who they are when TARGETED. Sets which maneuvers cut deep (✦) and which bounce off (⚡). This is the side that matters for NPCs.">Archetype · their defence</div>
+        <div class="tsl-notes-section-title" data-tooltip="GM ONLY — the character's TRUE nature when targeted: which maneuvers cut deep (✦) and which bounce off (⚡). Players never see this; they deduce it from tells and note their guess in their Bonds.">Archetype · their defence (GM)</div>
         <select name="archetypeId" ${disabled}>
           <option value="">— Unknown / None —</option>
           ${archetypeOpts}
         </select>
         ${archDesc}
-      </section>
+      </section>`}
 
       <section class="tsl-notes-section">
         <div class="tsl-notes-section-title" data-tooltip="ATTACK — how THIS character fights when they maneuver others: +1 per dot to that school, −1 on a triad with 0 dots (foreign ground). Spend a shared pool of ${TRIAD_POINT_POOL} points however you like across the three triads.">
@@ -363,7 +364,7 @@ class SocialFencingApp extends Application {
       <section class="tsl-notes-section">
         <div class="tsl-notes-section-title">How Fencing Works</div>
         <ol class="tsl-codex-how">
-          <li><b>Read them.</b> Cold Reading / Logic Exploit reveal the target's archetype — until then their weak spots are hidden.</li>
+          <li><b>Read them — and guess.</b> No one hands you the archetype. Watch behavior; a successful Cold Reading / Logic Exploit whispers a <b>tell</b>. Write your guess into your Bond ("Read as") — the ✦/⚡ marks follow YOUR read, right or wrong, while the dice always follow the truth. Wrong guesses teach: an unexpected bounce or a surprising crit is evidence.</li>
           <li><b>Pick the lever.</b> A maneuver is d20 + skill vs their <b>social DC</b> — 10 + WIS + proficiency, or passive Insight if higher (± their attitude to you, −5 if Rattled). Hitting a <span class="tsl-codex-vuln">✦ vulnerability</span> gives Advantage and 2 Resolve damage; hitting an <span class="tsl-codex-imm">⚡ immunity</span> auto-fails and makes them Defiant.</li>
           <li><b>Lean into your nature.</b> Your own Extended Triad dots (Profile tab) power your attacks: <b>+1 per dot</b> on that triad's maneuvers, <b>−1</b> on a triad where you have none — foreign ground. Watch for the ★/▼ badges on the maneuver groups. General Tactics are always neutral.</li>
           <li><b>Know the counter cycle.</b> Every archetype is soft against the school that counters its triad (<b>+2</b> to the attacker, » badge): <b>Power breaks Emotion → Emotion cracks Order → Order binds Power</b>. Read them first — before a read, the panel only whispers that "something in them yields".</li>
@@ -439,12 +440,10 @@ class SocialFencingApp extends Application {
       const perceived = SOCIAL_ARCHETYPES.find(a => a.id === b.perceivedArchetypeId);
       const attCls  = b.attitude > 0 ? "pos" : b.attitude < 0 ? "neg" : "zero";
       const attText = b.attitude > 0 ? `+${b.attitude}` : `${b.attitude}`;
-      const knownDot = b.profileKnown
-        ? `<i class="fas fa-check tsl-chr-known-dot tsl-chr-known-dot--yes" data-tooltip="Verified read"></i>`
-        : (perceived ? `<i class="fas fa-pencil tsl-chr-known-dot tsl-chr-known-dot--no" data-tooltip="A guess — may be wrong"></i>` : "");
-      const knownBadge = b.profileKnown
-        ? `<span class="tsl-chr-known tsl-chr-known--yes" data-bond-id="${b.id}" data-tooltip="Verified read (Cold Reading / Logic Exploit). ${isGM ? "Click to mark as a guess." : ""}"><i class="fas fa-check"></i></span>`
-        : `<span class="tsl-chr-known tsl-chr-known--no" data-bond-id="${b.id}" data-tooltip="A guess — this belief may be wrong. ${isGM ? "Click to mark as verified." : ""}"><i class="fas fa-pencil"></i></span>`;
+      // Every read is a guess now — the pencil is a reminder, not a verdict
+      const knownDot = perceived
+        ? `<i class="fas fa-pencil tsl-chr-known-dot tsl-chr-known-dot--no" data-tooltip="Your read — may be wrong"></i>`
+        : "";
 
       const details = !open ? "" : `
         <div class="tsl-chr-bond-details">
@@ -458,9 +457,8 @@ class SocialFencingApp extends Application {
             <div class="tsl-chr-att-track">${attitudeDots(b)}</div>
           </div>
           <div class="tsl-chr-bond-line">
-            <span class="tsl-chr-bond-label" data-tooltip="What ${esc(this._actor.name)} believes their archetype is. Cold Reading fills this in automatically — and beliefs can be wrong.">Read as</span>
+            <span class="tsl-chr-bond-label" data-tooltip="Your working guess at their archetype — deduce it from tells (Cold Reading whispers one). The ✦/⚡ marks in fencing follow THIS guess, right or wrong; refine it as you learn.">Read as</span>
             <select class="tsl-chr-bond-arch" data-bond-id="${b.id}" ${disabled}>${archOpts(b.perceivedArchetypeId)}</select>
-            ${knownBadge}
             ${canEdit ? `
               <button class="tsl-chr-str-adj" data-bond-id="${b.id}" data-target="${b.targetActorId}" data-delta="1"  data-tooltip="Gain a string on them">+</button>
               <button class="tsl-chr-str-adj" data-bond-id="${b.id}" data-target="${b.targetActorId}" data-delta="-1" data-tooltip="Spend / remove a string" ${b.stringCount ? "" : "disabled"}>−</button>` : ""}
@@ -576,8 +574,13 @@ class SocialFencingApp extends Application {
       body = `<div class="tsl-fc-note">Choose a target above to fence them.</div>`;
     } else {
       const enc   = SocialEncounterManager.getEncounter(tgt);
-      const known = ctx.isGM || (TSLBondStore.find(src.id, tgt.id)?.profileKnown ?? false);
-      const arch  = known ? SocialArchetypeManager.getArchetype(tgt) : null;
+      // GM sees the truth; a player sees THEIR OWN GUESS from the Bond ("Read as")
+      const guessId = TSLBondStore.find(src.id, tgt.id)?.perceivedArchetypeId ?? null;
+      const arch  = ctx.isGM
+        ? SocialArchetypeManager.getArchetype(tgt)
+        : (guessId ? SocialArchetypeManager.getArchetypeById(guessId) : null);
+      const isGuess = !ctx.isGM;
+      const known = !!arch;
       const triad = arch ? SOCIAL_TRIADS[arch.triad] : null;
 
       const pips = (val, max, cls) => Array.from({ length: max }, (_, i) =>
@@ -592,17 +595,17 @@ class SocialFencingApp extends Application {
           : `<div class="tsl-fc-note">Their tracks start on your first maneuver.</div>`;
 
       const archLine = arch
-        ? `<span class="tsl-fc-arch" style="--triad-color:${triad?.color ?? "#806858"}" data-tooltip="${esc(arch.hint ?? arch.description)}"><i class="fas ${triad?.icon ?? "fa-user"}"></i> ${esc(arch.label)}</span>`
-        : `<span class="tsl-fc-arch tsl-fc-arch--unread" data-tooltip="Cold Reading reveals their weak spots.">Nature unread</span>`;
+        ? `<span class="tsl-fc-arch" style="--triad-color:${triad?.color ?? "#806858"}" data-tooltip="${isGuess ? "<b>Your read (may be wrong)</b><br>" : ""}${esc(arch.hint ?? arch.description)}">${isGuess ? `<i class="fas fa-pencil tsl-guess-i"></i>` : `<i class="fas ${triad?.icon ?? "fa-user"}"></i>`} ${esc(arch.label)}${isGuess ? "?" : ""}</span>`
+        : `<span class="tsl-fc-arch tsl-fc-arch--unread" data-tooltip="Their nature is a riddle — Cold Reading whispers a tell; write your guess into your Bond ('Read as') and the ✦/⚡ marks will follow it.">Nature unread</span>`;
 
-      // Maneuver chips grouped by triad
+      // Maneuver chips grouped by triad — marks follow the viewer's read
       const chips = MANEUVER_GROUPS.map(g => {
         const mvs = SOCIAL_MANEUVERS.filter(m => m.group === g.id);
         const color = SOCIAL_TRIADS[g.id]?.color ?? "#806858";
         const short = (SOCIAL_TRIADS[g.id]?.label ?? g.label).replace("Triad of ", "");
         const cs = mvs.map(m => {
           const isSel = this._fenceManeuverId === m.id;
-          const rel   = known ? SocialManeuverRoller.getRelation(tgt, m) : "neutral";
+          const rel   = SocialManeuverRoller.getRelation(tgt, m, ctx.isGM ? undefined : (arch ?? null));
           const mark  = known && rel === "immune" ? `<span class="tsl-chip-mark tsl-chip-mark--imm">⚡</span>`
                       : known && rel === "vulnerable" ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">✦</span>` : "";
           return `<button class="tsl-chip ${isSel ? "selected" : ""}" data-fence-maneuver="${m.id}"
@@ -620,7 +623,7 @@ class SocialFencingApp extends Application {
         </div>
         ${tracks}
         <div class="tsl-fc-maneuvers">${chips}</div>
-        ${this._buildFenceBar(ctx, src, tgt, known)}`;
+        ${this._buildFenceBar(ctx, src, tgt, arch, isGuess)}`;
     }
 
     return `
@@ -641,21 +644,27 @@ class SocialFencingApp extends Application {
       </section>`;
   }
 
-  /** The pre-roll action bar for the selected maneuver in the console. */
-  _buildFenceBar(ctx, src, tgt, known) {
+  /** The pre-roll action bar for the selected maneuver in the console.
+   *  `dispArch` is what the viewer believes (GM: truth, player: guess) —
+   *  predictions follow it; the real roll follows the truth. */
+  _buildFenceBar(ctx, src, tgt, dispArch, isGuess) {
     const m = this._fenceManeuverId ? SocialManeuverRoller.getManeuver(this._fenceManeuverId) : null;
     if (!m) return `<div class="tsl-fc-note tsl-fc-note--pick">Pick a maneuver to see the roll.</div>`;
-    const esc = foundry.utils.escapeHTML;
-    const a   = SocialManeuverRoller.assess(src, tgt, m, { leverage: this._fenceLeverage });
+    const esc   = foundry.utils.escapeHTML;
+    const known = !!dispArch;
+    const a = SocialManeuverRoller.assess(src, tgt, m, {
+      leverage: this._fenceLeverage,
+      archetypeOverride: ctx.isGM ? undefined : (dispArch ?? null),
+    });
     const strAdd = this._fenceStringSpend ? STRING_SPEND_BONUS : 0;
     const extra  = a.bonus + strAdd;
 
     const bonusList = [
       ...(strAdd ? [`+${strAdd} String`] : []),
-      ...a.bonusReasons.map(b => `${b.value >= 0 ? "+" : "−"}${Math.abs(b.value)} ${b.kind === "counter" && !known ? "?" : esc(b.label.split(" — ")[0])}`),
+      ...a.bonusReasons.map(b => `${b.value >= 0 ? "+" : "−"}${Math.abs(b.value)} ${esc(b.label.split(" — ")[0])}`),
     ];
-    const extraChip = extra ? `<span class="tsl-bar-extra ${extra >= 0 ? "pos" : "neg"}" data-tooltip="${esc(bonusList.join(", "))}">${extra >= 0 ? "+" : "−"}${Math.abs(extra)}</span>` : "";
-    const advMark = a.advantage ? `<span class="tsl-bar-adv" data-tooltip="${esc(a.advantageReasons.join("; "))}">ADV</span>` : "";
+    const extraChip = extra ? `<span class="tsl-bar-extra ${extra >= 0 ? "pos" : "neg"}" data-tooltip="${esc(bonusList.join(", "))}${isGuess && known ? " — predictions follow your read" : ""}">${extra >= 0 ? "+" : "−"}${Math.abs(extra)}</span>` : "";
+    const advMark = a.advantage ? `<span class="tsl-bar-adv" data-tooltip="${esc(a.advantageReasons.join("; "))}${isGuess ? " — if your read is right" : ""}">ADV${isGuess && a.relation === "vulnerable" ? "?" : ""}</span>` : "";
 
     // String spend toggle (src holds a String on tgt)
     const held = TSLStringStore.getList(src.id).filter(e => e.targetActorId === tgt.id);
@@ -671,7 +680,7 @@ class SocialFencingApp extends Application {
       { id: "fear",     label: "Fear",     icon: "fa-ghost" },
       { id: "weakness", label: "Weakness", icon: "fa-heart-crack" },
     ];
-    const levBtns = (known && enc.active)
+    const levBtns = enc.active
       ? LEV.filter(l => (points[l.id] ?? "").trim()).map(l => {
           const used = enc.leverage?.[l.id];
           const sel  = this._fenceLeverage === l.id;
@@ -680,11 +689,12 @@ class SocialFencingApp extends Application {
         }).join("")
       : "";
 
+    const readPrefix = isGuess ? "Your read: " : "";
     let hint = "", hintCls = "dim";
     if (a.relation === "blocked")        { hint = a.relationReason; hintCls = "imm"; }
-    else if (known && a.relation === "immune")     { hint = `${a.relationReason} — it fails, they turn Defiant.`; hintCls = "imm"; }
-    else if (known && a.relation === "vulnerable") { hint = "Weak spot — Advantage & double Resolve damage."; hintCls = "vuln"; }
-    else if (!known)                     { hint = "Nature unread — Cold Reading reveals their weak spots."; }
+    else if (known && a.relation === "immune")     { hint = `${readPrefix}${a.relationReason} — ${isGuess ? "if you're right, it fails and they turn Defiant." : "it fails, they turn Defiant."}`; hintCls = "imm"; }
+    else if (known && a.relation === "vulnerable") { hint = `${readPrefix}this should cut deep — Advantage & double Resolve damage${isGuess ? " (if your read is right)" : ""}.`; hintCls = "vuln"; }
+    else if (!known)                     { hint = "Their nature is a riddle — read tells, then note your guess in your Bond ('Read as')."; }
 
     // A visible, plain-language breakdown of every modifier in play — so it's
     // obvious WHERE the bonuses come from, not hidden in a tooltip.
@@ -692,11 +702,11 @@ class SocialFencingApp extends Application {
     breakdown.push(`<span class="tsl-fc-mod tsl-fc-mod--base">${esc(m.skill)} ${a.skillMod >= 0 ? "+" : "−"}${Math.abs(a.skillMod)}</span>`);
     if (strAdd) breakdown.push(`<span class="tsl-fc-mod pos">+${strAdd} String spent</span>`);
     for (const b of a.bonusReasons) {
-      const veil = b.kind === "counter" && !known;
-      breakdown.push(`<span class="tsl-fc-mod ${b.value >= 0 ? "pos" : "neg"}">${b.value >= 0 ? "+" : "−"}${Math.abs(b.value)} ${veil ? "a hidden edge" : esc(b.label)}</span>`);
+      breakdown.push(`<span class="tsl-fc-mod ${b.value >= 0 ? "pos" : "neg"}">${b.value >= 0 ? "+" : "−"}${Math.abs(b.value)} ${esc(b.label)}</span>`);
     }
     for (const r of a.advantageReasons) breakdown.push(`<span class="tsl-fc-mod adv">ADV — ${esc(r)}</span>`);
     for (const dm of a.dcMods) breakdown.push(`<span class="tsl-fc-mod ${dm.value < 0 ? "pos" : "neg"}">DC ${dm.value > 0 ? "+" : "−"}${Math.abs(dm.value)} · ${esc(dm.label)}</span>`);
+    if (isGuess && known) breakdown.push(`<span class="tsl-fc-mod">predictions follow your read — may be wrong</span>`);
 
     const blocked = a.relation === "blocked";
     return `<div class="tsl-bar tsl-bar--fence">
@@ -916,7 +926,6 @@ class SocialFencingApp extends Application {
       sel.addEventListener("change", (e) => {
         TSLBondStore.update(this._actor.id, e.target.dataset.bondId, {
           perceivedArchetypeId: e.target.value || null,
-          profileKnown: false, // hand-edited → back to a guess
         });
       });
     });
@@ -959,16 +968,6 @@ class SocialFencingApp extends Application {
         this.render(true);
       });
     });
-
-    // GM: toggle verified/guess on a bond's read
-    if (game.user.isGM) {
-      el.querySelectorAll(".tsl-chr-known").forEach(badge => {
-        badge.addEventListener("click", () => {
-          const bond = TSLBondStore.getList(this._actor.id).find(b => b.id === badge.dataset.bondId);
-          if (bond) TSLBondStore.update(this._actor.id, bond.id, { profileKnown: !bond.profileKnown });
-        });
-      });
-    }
 
     // ── Fencing (GM) ─────────────────────────────────────────────────────────
     el.querySelectorAll(".tsl-notes-patience-adj").forEach(btn => {
@@ -1070,6 +1069,10 @@ class SocialFencingApp extends Application {
       return;
     }
 
+    // System-style roll dialog: situational modifier + adv/dis. Cancel = free.
+    const mods = await SocialManeuverRoller.promptRollMods(`${maneuver.name} → ${tgt.name}`, assessment.advantage);
+    if (!mods) return;
+
     let stringBonus = 0;
     if (this._fenceStringSpend) {
       const held = TSLStringStore.getList(src.id).filter(e => e.targetActorId === tgt.id);
@@ -1079,7 +1082,9 @@ class SocialFencingApp extends Application {
       }
     }
 
-    const payload = await SocialManeuverRoller.rollManeuver(src, tgt, maneuver, { stringBonus, leverage });
+    const payload = await SocialManeuverRoller.rollManeuver(src, tgt, maneuver, {
+      stringBonus, leverage, situational: mods.situational, mode: mods.mode,
+    });
     TSLGMActions.request("maneuverOutcome", payload);
 
     this._fenceRoll = {

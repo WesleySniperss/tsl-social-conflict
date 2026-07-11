@@ -41,7 +41,7 @@ const SOCIAL_MANEUVERS = [
     vulnerabilityTags: [],
     immunityTags:      [],
     description:  "Read the NPC's emotional tells and body language.",
-    successText:  "Archetype & Motivation revealed in your Chronicle. You gain 1 String on this NPC.",
+    successText:  "A tell of their nature is whispered to you — deduce the archetype and note your guess in your Bond. You gain 1 String.",
     failText:     "You can't get a clear read. Patience reduced by 1.",
     immuneText:   null,
     applyOnSuccess: null,
@@ -229,7 +229,7 @@ const SOCIAL_MANEUVERS = [
     vulnerabilityTags: ["information deficit", "logic puzzles"],  // Hermit → Advantage
     immunityTags:      ["bribes", "emotions", "pure logic"],      // Dogmatic, Machiavellian
     description:  "Expose a gap in their reasoning or knowledge.",
-    successText:  "The gap in their understanding is laid bare. Profile revealed, you gain 1 String.",
+    successText:  "The gap in their reasoning betrays them — a tell of their nature is whispered to you. You gain 1 String.",
     failText:     "Your argument doesn't land. Patience reduced by 1.",
     immuneText:   "They dismiss the reasoning outright. Target becomes Defiant.",
     applyOnSuccess: null,
@@ -321,9 +321,13 @@ class SocialManeuverRoller {
     return Math.max(SocialManeuverRoller.getPassiveInsight(actor), 10 + wis + prof);
   }
 
-  /** Returns "immune" | "vulnerable" | "neutral" (archetype only, no statuses). */
-  static getRelation(targetActor, maneuver) {
-    const arch = SocialArchetypeManager.getArchetype(targetActor);
+  /**
+   * Returns "immune" | "vulnerable" | "neutral" (archetype only, no statuses).
+   * `archOverride`: undefined → use the target's REAL archetype (GM/roll);
+   * an Archetype or null → use that instead (a player's GUESS for display).
+   */
+  static getRelation(targetActor, maneuver, archOverride = undefined) {
+    const arch = archOverride !== undefined ? archOverride : SocialArchetypeManager.getArchetype(targetActor);
     if (!arch) return "neutral";
     if (maneuver.immunityTags.some(t => arch.immunities.includes(t)))           return "immune";
     if (maneuver.vulnerabilityTags.some(t => arch.vulnerabilities.includes(t))) return "vulnerable";
@@ -351,7 +355,11 @@ class SocialManeuverRoller {
   static assess(sourceActor, targetActor, maneuver, options = {}) {
     const leverage = options.leverage ?? null;
     const scope    = SocialArchetypeManager.getFlagScope();
-    const arch     = SocialArchetypeManager.getArchetype(targetActor);
+    // options.archetypeOverride: a player's GUESS (or null = no guess) used for
+    // the pre-roll display; leave undefined to use the REAL archetype (rolls, GM).
+    const arch     = options.archetypeOverride !== undefined
+      ? options.archetypeOverride
+      : SocialArchetypeManager.getArchetype(targetActor);
     const skillMod = SocialManeuverRoller.getSkillMod(sourceActor, maneuver);
     const cond     = (id) => SocialArchetypeManager.getActiveCondition(targetActor, id);
     const condBy   = (id) => {
@@ -463,17 +471,70 @@ class SocialManeuverRoller {
   }
 
   /**
+   * The pre-roll modifier prompt — same idea as the system's roll dialog:
+   * a situational modifier plus advantage/disadvantage the GM calls out.
+   * Resolves to { situational, mode } or null when cancelled.
+   */
+  static async promptRollMods(title, baseAdvantage = false) {
+    const content = `
+      <div class="tsl-rollmods">
+        <div class="form-group">
+          <label>Situational modifier</label>
+          <input type="number" name="situational" value="0" step="1" autofocus>
+        </div>
+        <div class="form-group">
+          <label>Roll mode</label>
+          <select name="mode">
+            <option value="normal" selected>Normal</option>
+            <option value="adv">Advantage</option>
+            <option value="dis">Disadvantage</option>
+          </select>
+        </div>
+        ${baseAdvantage ? `<p class="notes">You already roll with Advantage from the situation; Disadvantage here would cancel it.</p>` : ""}
+      </div>`;
+    return new Promise(resolve => {
+      new Dialog({
+        title,
+        content,
+        buttons: {
+          roll: {
+            icon: '<i class="fas fa-dice-d20"></i>',
+            label: "Roll",
+            callback: (html) => {
+              const root = html instanceof HTMLElement ? html : html[0];
+              resolve({
+                situational: parseInt(root.querySelector("[name='situational']")?.value) || 0,
+                mode: root.querySelector("[name='mode']")?.value ?? "normal",
+              });
+            },
+          },
+          cancel: { label: "Cancel", callback: () => resolve(null) },
+        },
+        default: "roll",
+        close: () => resolve(null),
+      }).render(true);
+    });
+  }
+
+  /**
    * Roll the maneuver and post the chat card. NO side effects here —
    * pass the returned payload to applyOutcome (GM) or the GM_ACTION relay.
-   * options.stringBonus — +2 if the roller spent a String on this target.
+   * options.stringBonus  — +2 if the roller spent a String on this target
+   * options.situational  — flat modifier from the pre-roll dialog
+   * options.mode         — "normal" | "adv" | "dis" from the pre-roll dialog
    */
   static async rollManeuver(sourceActor, targetActor, maneuver, options = {}) {
     const stringBonus = options.stringBonus ?? 0;
+    const situational = options.situational ?? 0;
     const a = SocialManeuverRoller.assess(sourceActor, targetActor, maneuver, { leverage: options.leverage ?? null });
 
-    const mod     = a.skillMod + stringBonus + a.bonus;
-    const formula = a.advantage ? `2d20kh1 + ${mod}` : `1d20 + ${mod}`;
-    const roll    = new Roll(formula);
+    // Advantage from the situation + the dialog; dis + adv cancel out (5e rules)
+    const wantAdv = a.advantage || options.mode === "adv";
+    const wantDis = options.mode === "dis";
+    const die = wantAdv && wantDis ? "1d20" : wantAdv ? "2d20kh1" : wantDis ? "2d20kl1" : "1d20";
+
+    const mod     = a.skillMod + stringBonus + a.bonus + situational;
+    const roll    = new Roll(`${die} + ${mod}`);
     await roll.evaluate();
 
     const rawDice  = roll.dice[0].results.map(r => r.result);
@@ -489,7 +550,8 @@ class SocialManeuverRoller {
 
     await SocialManeuverRoller._postCard({
       sourceActor, targetActor, maneuver, roll, rawDice,
-      stringBonus, total, outcomeType, outcomeText, assessment: a,
+      stringBonus, situational, total, outcomeType, outcomeText, assessment: a,
+      advantage: wantAdv && !wantDis, disadvantage: wantDis && !wantAdv,
     });
 
     return {
@@ -504,6 +566,31 @@ class SocialManeuverRoller {
       dc: a.dc,
       spentString: stringBonus > 0,
     };
+  }
+
+  /**
+   * A successful read whispers one TELL of the target's real archetype to the
+   * reader's owners (+GM) — evidence, not the answer. GM CLIENT ONLY.
+   */
+  static async whisperTell(sourceActor, targetActor) {
+    if (!sourceActor || !targetActor) return;
+    const esc  = foundry.utils.escapeHTML;
+    const arch = SocialArchetypeManager.getArchetype(targetActor);
+    const whisper = [
+      ...game.users.filter(u => sourceActor.testUserPermission(u, "OWNER")).map(u => u.id),
+      ...game.users.filter(u => u.isGM).map(u => u.id),
+    ];
+    const pool = arch
+      ? [...(arch.tells ?? []), `They seem to crave: ${arch.craves ?? "?"}`, `They seem to dread: ${arch.dreads ?? "?"}`]
+      : null;
+    const text = pool?.length
+      ? `🔍 Reading ${esc(targetActor.name)}: <i>“${esc(pool[Math.floor(Math.random() * pool.length)])}”</i><br><span class="tsl-mv-target">Deduce their nature and note your guess in your Bond (“Read as”).</span>`
+      : `🔍 Reading ${esc(targetActor.name)}: <i>the GM should describe a tell of their nature</i> (no archetype is set).`;
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: sourceActor }),
+      content: `<div class="tsl-maneuver-card tsl-mv--success"><div class="tsl-mv-outcome tsl-mv-outcome--success">${text}</div></div>`,
+      whisper: [...new Set(whisper)],
+    });
   }
 
   /**
@@ -540,14 +627,12 @@ class SocialManeuverRoller {
     } else if (outcomeType === "success") {
       if (maneuver.applyOnSuccess)
         await SocialArchetypeManager.applyCondition(targetActor, maneuver.applyOnSuccess, sourceActor);
-      // A read pays its String only once — re-reading a known profile earns nothing
-      const alreadyKnown = maneuver.reveals
-        ? (TSLBondStore.find(sourceActorId, targetActorId)?.profileKnown ?? false)
-        : false;
-      if (maneuver.grantStrings > 0 && !alreadyKnown)
+      if (maneuver.grantStrings > 0)
         await TSLStringStore.add(sourceActorId, targetActorId, maneuver.grantStrings);
+      // A read never hands over the archetype — it whispers a TELL. The player
+      // deduces the nature themselves and writes their guess into the Bond.
       if (maneuver.reveals)
-        await TSLBondStore.reveal(sourceActorId, targetActorId);
+        await SocialManeuverRoller.whisperTell(sourceActor, targetActor);
       let damage = relation === "vulnerable" ? 2 : (maneuver.resolveDamage ?? 1);
       if (leverage === "desire") damage += 1;  // the offer does half the work
       if (damage > 0)
@@ -589,20 +674,36 @@ class SocialManeuverRoller {
     const sign = a.skillMod >= 0 ? "+" : "";
 
     const bonusText = (d.stringBonus ? ` +${d.stringBonus} String` : "")
-                    + a.bonusReasons.map(b => ` ${b.value >= 0 ? "+" : "−"}${Math.abs(b.value)} ${b.label.split(" — ")[0]}`).join("");
-    const diceText = a.advantage
-      ? `[${d.rawDice[0]}] [${d.rawDice[1]}] → ${Math.max(...d.rawDice)} ${sign}${a.skillMod}${bonusText}`
+                    + (d.situational ? ` ${d.situational >= 0 ? "+" : "−"}${Math.abs(d.situational)} situational` : "")
+                    + a.bonusReasons.map(b => {
+                        // Don't solve the riddle in public: veil archetype-derived labels
+                        const label = b.kind === "counter" ? "a hidden yielding" : b.label.split(" — ")[0];
+                        return ` ${b.value >= 0 ? "+" : "−"}${Math.abs(b.value)} ${label}`;
+                      }).join("");
+    const kept = d.advantage ? Math.max(...d.rawDice)
+               : d.disadvantage ? Math.min(...d.rawDice)
+               : d.rawDice[0];
+    const diceText = d.rawDice.length > 1
+      ? `[${d.rawDice.join("] [")}] → ${kept} ${sign}${a.skillMod}${bonusText}${d.disadvantage ? " (dis)" : ""}`
       : `[${d.rawDice[0]}] ${sign}${a.skillMod}${bonusText}`;
 
     const dcModsText = a.dcMods.length
       ? ` <span class="tsl-mv-att" data-tooltip="${esc(a.dcMods.map(m => `${m.value > 0 ? "+" : ""}${m.value} ${m.label}`).join(", "))}">(${a.dcBase}${a.dcMods.map(m => `${m.value > 0 ? "+" : "−"}${Math.abs(m.value)}`).join("")})</span>`
       : "";
 
-    const reasons = a.advantageReasons.map(r => `<div class="tsl-mv-reason">✦ ${esc(r)}</div>`).join("");
+    // Evidence without answers: the two dice already show the Advantage; the
+    // reason lines must not name the archetype for everyone to read.
+    const reasons = a.advantageReasons.map(r => {
+      const veiled = a.relation === "vulnerable" && r === a.relationReason
+        ? "You struck something raw — this approach truly works on them"
+        : r;
+      return `<div class="tsl-mv-reason">✦ ${esc(veiled)}</div>`;
+    }).join("");
 
-    const archHtml = arch
-      ? `<div class="tsl-mv-archetype">${esc(arch.label)} — ${esc(arch.hint ?? "")}</div>`
-      : "";
+    // Never bake the archetype name into the shared card — even when the GM
+    // rolls, players would read it. The GM has the participant badge for that.
+    const archHtml = "";
+    void arch;
 
     const badgeHtml = a.relation !== "neutral"
       ? `<span class="tsl-mv-badge tsl-mv-badge--${a.relation === "vulnerable" ? "vulnerable" : "immune"}">${a.relation === "vulnerable" ? "✦ Vulnerable" : "⚡ Walled"}</span>`
