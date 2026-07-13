@@ -95,12 +95,27 @@ tsl-social-conflict/
 ### Fencing Statuses (SOCIAL_CONDITIONS, all mechanical)
 | Status | Effect | From | Lifetime |
 |--------|--------|------|----------|
-| Rattled | DC to sway them −5 | Sow Doubt, Gaslight | scene (1h) |
-| Smitten | charmer's Persuasion maneuvers get Advantage; the smitten one CANNOT maneuver against the charmer (hard block in assess) | Flatter, Love Bombing | scene (1h) |
-| Provoked | next maneuver vs them +2 | Instigate, Throw the Gauntlet | one-shot |
-| Guilted | guilter's next maneuver gets Advantage | Guilt Trip | one-shot |
-| Desperate | next Flatter/Love Bombing gets Advantage | Cold Shoulder | one-shot |
-| Defiant | immune to maneuvers; **Cold Reading slips through** (`worksThroughDefiant`) so the wall turn stays playable | hitting an immunity | 1h |
+| Rattled | DC to sway them −5; **combat:** dis on WIS saves (midi flag on dnd5e) | Unweave the Creed | scene (1h) |
+| Smitten | charmer's Persuasion maneuvers get Advantage; the smitten one CANNOT maneuver against the charmer (hard block in assess); **combat:** dis on attacks vs charmer | Gilded Mirror, Honeyed Siege | scene (1h) |
+| Provoked | next maneuver vs them +2; **combat:** must attack the provoker, dis vs others | Prod the Beast | one-shot |
+| Guilted | guilter's next maneuver gets Advantage; **combat:** dis on attacks vs the guilter | Debt of Tears | one-shot |
+| Desperate | next Gilded Mirror/Honeyed Siege gets Advantage; **combat:** dis on Insight checks (midi flag) | Starve the Flame | one-shot |
+| Defiant | immune to maneuvers; **Study the Mask slips through** (`worksThroughDefiant`); **combat:** adv on saves vs charm/fear | hitting an immunity | 1h |
+
+**Combat riders** live in each condition's `combat` field → appended to the AE description (`buildConditionEffect`), plus `midiChanges` (midi-qol automation) applied only on dnd5e.
+
+### Maneuver redesign (v1.8) — school identities
+- **General** (safe basics, no vuln/imm): Study the Mask (scout: tell+String, 0 dmg, through Defiant) · Barbed Jest (the jab: 1 dmg flat) · Prod the Beast (setup: Provoked, 0 dmg)
+- **Power** (domination — hits harder, risks harder): Gilded Mirror (Smitten + 1 dmg) · Bared Throat (deep bait: 3 Strings, 0 dmg) · Cast the Gauntlet (2 dmg, but `failPatience: 2`)
+- **Emotion** (hearts → combos): Honeyed Siege (Smitten + 1 String, 0 dmg) · Starve the Flame (Desperate + 1 dmg) · Debt of Tears (Guilted + 1 dmg)
+- **Order** (ledgers: economy/info/control): Unweave the Creed (Rattled, 0 dmg) · Crack the Cipher (tell + String + 1 dmg) · Golden Chains (2 Strings + 1 dmg)
+- Damage rule: **vulnerability adds +1 to the maneuver's own `resolveDamage`** (not a flat 2); failure burns `failPatience ?? 1` Patience (+1 more on a failed Fear leverage). Ids are unchanged — only names/effects.
+
+### Attacker style: PCs dots, NPCs archetype
+- Extended Triad dots are **PC-only** (UI gated by `hasPlayerOwner`). An NPC with **no dots** but an archetype attacks from its archetype's school: implicit +2 on that school, no foreign-ground malus, veiled label "In their element".
+- Dots also sharpen STANDARD checks via a module-managed AE (`syncTriadBonusEffect`, rebuilt on every pip click): Power → Intimidation, Emotion → Insight, Order → Deception, +1/dot (`system.skills.*.bonuses.check`). Aligned school+skill double-count is intentional ("signature move").
+- Psychotype field removed from the Profile UI (data field remains on flags).
+- Canvas pick uses `#board` (PIXI 8 removed `canvas.app.view`); player target lists filter `hidden` AND `!visible` tokens.
 
 One-shot economy: a one-shot is consumed ONLY if it is the thing granting the advantage — free sources (vulnerability, Smitten) are used first, so resources are never wasted. Provoked (+2 flat) always applies and always burns. Combos create the fencing feel: Cold Shoulder → Desperate → Love Bombing with Advantage → Smitten → Persuasion chain.
 

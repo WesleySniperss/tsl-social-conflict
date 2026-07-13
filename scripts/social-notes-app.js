@@ -8,7 +8,7 @@
  *             Every profiling element carries a play-facing tooltip hint.
  *   Bonds   — relationships with other PCs/NPCs: bond type, attitude (-3..+3,
  *             shifts the Social Fencing DC), perceived archetype (may be wrong
- *             until verified by Cold Reading), strings, notes.
+ *             from their tells), strings, notes.
  *             New bonds can be added from a candidate list or by clicking a
  *             visible, non-hidden token on the canvas.
  *   Fencing — (GM) encounter tracks: Patience vs Resolve, social conditions.
@@ -250,15 +250,16 @@ class SocialFencingApp extends Application {
         ${archDesc}
       </section>`}
 
+      ${!this._actor.hasPlayerOwner ? "" : `
       <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title" data-tooltip="ATTACK — how THIS character fights when they maneuver others: +1 per dot to that school, −1 on a triad with 0 dots (foreign ground). Spend a shared pool of ${TRIAD_POINT_POOL} points however you like across the three triads.">
+        <div class="tsl-notes-section-title" data-tooltip="ATTACK — how THIS character fights when they maneuver others: +1 per dot to that school, −1 on a triad with 0 dots (foreign ground). Dots also sharpen everyday checks: Power → Intimidation, Emotion → Insight, Order → Deception (+1 per dot). Spend a shared pool of ${TRIAD_POINT_POOL} points. Player characters only — NPCs fight from their archetype's school automatically.">
           Extended Triad · your attack
           <span class="tsl-chr-triad-budget ${remaining < 0 ? "over" : remaining === 0 ? "spent" : ""}">${
             remaining < 0 ? `${-remaining} over — lower a triad` : `${remaining} / ${TRIAD_POINT_POOL} left`
           }</span>
         </div>
         ${triadRows}
-      </section>
+      </section>`}
 
       <section class="tsl-notes-section">
         <div class="tsl-notes-section-title" data-tooltip="The main profiling points. Hover each label for how to use it at the table.">Profiling</div>
@@ -289,15 +290,8 @@ class SocialFencingApp extends Application {
       </section>`;
       })()}
 
-      <section class="tsl-notes-section tsl-notes-section--row">
-        <div>
-          <div class="tsl-notes-section-title" data-tooltip="Any shorthand you like — MBTI, zodiac, one biting word.">Psychotype</div>
-          <input type="text" name="psychotype" value="${foundry.utils.escapeHTML(notes.psychotype)}" placeholder="ENFP, 'wounded fox'…" ${disabled} />
-        </div>
-      </section>
-
       <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title" data-tooltip="Why do they want what they want? Feeds Cold Reading reveals.">Motivation</div>
+        <div class="tsl-notes-section-title" data-tooltip="Why do they want what they want? Feeds the tells whispered on a read.">Motivation</div>
         <textarea name="motivation" rows="2" placeholder="Why do they want this?" ${disabled}>${foundry.utils.escapeHTML(notes.motivation)}</textarea>
       </section>
 
@@ -328,7 +322,7 @@ class SocialFencingApp extends Application {
             data-tooltip="${esc(m.description)}<br><i>${esc(effect)}</i>">
         ${sym} <i class="fas ${m.icon}"></i> ${esc(m.name)}
       </span>`;
-    const vulnChips = rel.vulnerable.map(m => chip(m, "vulnerable", "✦", "Against this archetype: Advantage on the roll, 2 Resolve damage.")).join("");
+    const vulnChips = rel.vulnerable.map(m => chip(m, "vulnerable", "✦", "Against this archetype: Advantage on the roll, +1 Resolve damage.")).join("");
     const immChips  = rel.immune.map(m => chip(m, "immune", "⚡", "Against this archetype: auto-fails, they turn Defiant for 1 hour.")).join("");
 
     const tells = !compact && archetype.tells?.length
@@ -364,8 +358,8 @@ class SocialFencingApp extends Application {
       <section class="tsl-notes-section">
         <div class="tsl-notes-section-title">How Fencing Works</div>
         <ol class="tsl-codex-how">
-          <li><b>Read them — and guess.</b> No one hands you the archetype. Watch behavior; a successful Cold Reading / Logic Exploit whispers a <b>tell</b>. Write your guess into your Bond ("Read as") — the ✦/⚡ marks follow YOUR read, right or wrong, while the dice always follow the truth. Wrong guesses teach: an unexpected bounce or a surprising crit is evidence.</li>
-          <li><b>Pick the lever.</b> A maneuver is d20 + skill vs their <b>social DC</b> — 10 + WIS + proficiency, or passive Insight if higher (± their attitude to you, −5 if Rattled). Hitting a <span class="tsl-codex-vuln">✦ vulnerability</span> gives Advantage and 2 Resolve damage; hitting an <span class="tsl-codex-imm">⚡ immunity</span> auto-fails and makes them Defiant.</li>
+          <li><b>Read them — and guess.</b> No one hands you the archetype. Watch behavior; a successful Study the Mask / Crack the Cipher whispers a <b>tell</b>. Write your guess into your Bond ("Read as") — the ✦/⚡ marks follow YOUR read, right or wrong, while the dice always follow the truth. Wrong guesses teach: an unexpected bounce or a surprising crit is evidence.</li>
+          <li><b>Pick the lever.</b> A maneuver is d20 + skill vs their <b>social DC</b> — 10 + WIS + proficiency, or passive Insight if higher (± their attitude to you, −5 if Rattled). Hitting a <span class="tsl-codex-vuln">✦ vulnerability</span> gives Advantage and +1 Resolve damage; hitting an <span class="tsl-codex-imm">⚡ immunity</span> auto-fails and makes them Defiant.</li>
           <li><b>Lean into your nature.</b> Your own Extended Triad dots (Profile tab) power your attacks: <b>+1 per dot</b> on that triad's maneuvers, <b>−1</b> on a triad where you have none — foreign ground. Watch for the ★/▼ badges on the maneuver groups. General Tactics are always neutral.</li>
           <li><b>Know the counter cycle.</b> Every archetype is soft against the school that counters its triad (<b>+2</b> to the attacker, » badge): <b>Power breaks Emotion → Emotion cracks Order → Order binds Power</b>. Read them first — before a read, the panel only whispers that "something in them yields".</li>
           <li><b>Play your leverage.</b> A read dossier unlocks their <b>Desire</b> (Advantage, +1 Resolve damage), <b>Fear</b> (+3, but a failed threat burns their Patience) and <b>Weakness</b> (neutral counts as vulnerable) — each once per encounter.</li>
@@ -457,7 +451,7 @@ class SocialFencingApp extends Application {
             <div class="tsl-chr-att-track">${attitudeDots(b)}</div>
           </div>
           <div class="tsl-chr-bond-line">
-            <span class="tsl-chr-bond-label" data-tooltip="Your working guess at their archetype — deduce it from tells (Cold Reading whispers one). The ✦/⚡ marks in fencing follow THIS guess, right or wrong; refine it as you learn.">Read as</span>
+            <span class="tsl-chr-bond-label" data-tooltip="Your working guess at their archetype — deduce it from tells (Study the Mask whispers one). The ✦/⚡ marks in fencing follow THIS guess, right or wrong; refine it as you learn.">Read as</span>
             <select class="tsl-chr-bond-arch" data-bond-id="${b.id}" ${disabled}>${archOpts(b.perceivedArchetypeId)}</select>
             ${canEdit ? `
               <button class="tsl-chr-str-adj" data-bond-id="${b.id}" data-target="${b.targetActorId}" data-delta="1"  data-tooltip="Gain a string on them">+</button>
@@ -556,12 +550,14 @@ class SocialFencingApp extends Application {
     const esc = foundry.utils.escapeHTML;
     const src = this._actor;
 
-    // Target candidates: scene tokens with an actor, excluding self
+    // Target candidates: scene tokens with an actor, excluding self.
+    // Players only ever see tokens they can actually SEE — no hidden tokens,
+    // nothing outside their vision (no metagaming a stranger off a list).
     const seen = new Set([src.id]);
     const targets = [];
     for (const t of (canvas.tokens?.placeables ?? [])) {
       if (!t.actor || seen.has(t.actor.id)) continue;
-      if (t.document.hidden && !ctx.isGM) continue;
+      if (!ctx.isGM && (t.document.hidden || !t.visible)) continue;
       seen.add(t.actor.id);
       targets.push({ id: t.actor.id, name: t.actor.name });
     }
@@ -596,7 +592,7 @@ class SocialFencingApp extends Application {
 
       const archLine = arch
         ? `<span class="tsl-fc-arch" style="--triad-color:${triad?.color ?? "#806858"}" data-tooltip="${isGuess ? "<b>Your read (may be wrong)</b><br>" : ""}${esc(arch.hint ?? arch.description)}">${isGuess ? `<i class="fas fa-pencil tsl-guess-i"></i>` : `<i class="fas ${triad?.icon ?? "fa-user"}"></i>`} ${esc(arch.label)}${isGuess ? "?" : ""}</span>`
-        : `<span class="tsl-fc-arch tsl-fc-arch--unread" data-tooltip="Their nature is a riddle — Cold Reading whispers a tell; write your guess into your Bond ('Read as') and the ✦/⚡ marks will follow it.">Nature unread</span>`;
+        : `<span class="tsl-fc-arch tsl-fc-arch--unread" data-tooltip="Their nature is a riddle — Study the Mask whispers a tell; write your guess into your Bond ('Read as') and the ✦/⚡ marks will follow it.">Nature unread</span>`;
 
       // Maneuver chips grouped by triad — marks follow the viewer's read
       const chips = MANEUVER_GROUPS.map(g => {
@@ -693,7 +689,7 @@ class SocialFencingApp extends Application {
     let hint = "", hintCls = "dim";
     if (a.relation === "blocked")        { hint = a.relationReason; hintCls = "imm"; }
     else if (known && a.relation === "immune")     { hint = `${readPrefix}${a.relationReason} — ${isGuess ? "if you're right, it fails and they turn Defiant." : "it fails, they turn Defiant."}`; hintCls = "imm"; }
-    else if (known && a.relation === "vulnerable") { hint = `${readPrefix}this should cut deep — Advantage & double Resolve damage${isGuess ? " (if your read is right)" : ""}.`; hintCls = "vuln"; }
+    else if (known && a.relation === "vulnerable") { hint = `${readPrefix}this should cut deep — Advantage & +1 Resolve damage${isGuess ? " (if your read is right)" : ""}.`; hintCls = "vuln"; }
     else if (!known)                     { hint = "Their nature is a riddle — read tells, then note your guess in your Bond ('Read as')."; }
 
     // A visible, plain-language breakdown of every modifier in play — so it's
@@ -865,11 +861,6 @@ class SocialFencingApp extends Application {
       TSLPlaybooks.setForActor(this._actor, e.target.value || null);
     });
 
-    for (const name of ["psychotype"]) {
-      el.querySelector(`input[name='${name}']`)?.addEventListener("change", (e) => {
-        SocialArchetypeManager.setActorData(this._actor, { [name]: e.target.value.trim() });
-      });
-    }
     for (const name of ["motivation", "personality", "notes"]) {
       el.querySelector(`textarea[name='${name}']`)?.addEventListener("change", (e) => {
         SocialArchetypeManager.setActorData(this._actor, { [name]: e.target.value.trim() });
@@ -885,7 +876,7 @@ class SocialFencingApp extends Application {
     });
 
     el.querySelectorAll(".tsl-chr-triad-pip").forEach(pip => {
-      pip.addEventListener("click", () => {
+      pip.addEventListener("click", async () => {
         const triadId = pip.dataset.triad;
         const clicked = parseInt(pip.dataset.value);
         const triad   = SocialArchetypeManager.getCharacterNotes(this._actor).triad;
@@ -899,7 +890,9 @@ class SocialFencingApp extends Application {
           ui.notifications.warn(`Only ${TRIAD_POINT_POOL} triad points to spend — lower another triad first.`);
           return;
         }
-        SocialArchetypeManager.setActorData(this._actor, { triad: { [triadId]: value } });
+        await SocialArchetypeManager.setActorData(this._actor, { triad: { [triadId]: value } });
+        // Dots feed everyday skill checks too — rebuild the bonus effect
+        await SocialArchetypeManager.syncTriadBonusEffect(this._actor);
       });
     });
 
@@ -1100,12 +1093,25 @@ class SocialFencingApp extends Application {
   // ── Canvas picking ───────────────────────────────────────────────────────────
 
   /**
+   * The DOM <canvas> element of the board. Foundry v13 (PIXI 8) removed
+   * `canvas.app.view` — the reliable handle is the #board element itself.
+   */
+  _boardEl() {
+    return document.getElementById("board") ?? canvas.app?.canvas ?? canvas.app?.view ?? null;
+  }
+
+  /**
    * Enter "click a token on the map" mode. `onPick(actor)` runs with the
    * chosen actor; if omitted, the default adds a Bond. `mode` labels which
    * picker button is showing its active state ("bond" | "target").
    */
   async _startPick(onPick = null, mode = "bond") {
     if (this._picking || !canvas?.stage) return;
+    const board = this._boardEl();
+    if (!board) {
+      ui.notifications.warn("Can't reach the game canvas — use the dropdown instead.");
+      return;
+    }
     this._picking     = true;
     this._pickMode    = mode;
     this._pickHandler = onPick;
@@ -1116,10 +1122,10 @@ class SocialFencingApp extends Application {
     await this.minimize();
 
     // Crosshair over the whole map is the mode indicator you can't miss
-    if (canvas.app?.view) canvas.app.view.style.cursor = "crosshair";
+    board.style.cursor = "crosshair";
     ui.notifications.info(`${mode === "target" ? "Target" : "Bond"} for ${this._actor.name}: click a token on the map. Esc cancels.`);
 
-    // DOM capture listener on the canvas element — PIXI stage listeners are
+    // DOM capture listener on the #board element — PIXI stage listeners are
     // not reliable across Foundry versions, a plain DOM event always fires.
     this._onPickCanvas = (event) => {
       if (event.button !== 0) return; // left click only
@@ -1129,7 +1135,7 @@ class SocialFencingApp extends Application {
       if (typeof canvas.canvasCoordinatesFromClient === "function") {
         pos = canvas.canvasCoordinatesFromClient({ x: event.clientX, y: event.clientY });
       } else {
-        const rect = canvas.app.view.getBoundingClientRect();
+        const rect = board.getBoundingClientRect();
         const t    = canvas.stage.worldTransform;
         pos = {
           x: (event.clientX - rect.left - t.tx) / canvas.stage.scale.x,
@@ -1166,7 +1172,7 @@ class SocialFencingApp extends Application {
       this._endPick("Pick cancelled.");
     };
 
-    canvas.app.view.addEventListener("pointerdown", this._onPickCanvas, true);
+    board.addEventListener("pointerdown", this._onPickCanvas, true);
     document.addEventListener("keydown", this._onPickCancel);
   }
 
@@ -1198,9 +1204,10 @@ class SocialFencingApp extends Application {
     this._picking = false;
     this._pickMode = null;
     this._pickHandler = null;
-    if (canvas.app?.view) {
-      canvas.app.view.style.cursor = "";
-      if (this._onPickCanvas) canvas.app.view.removeEventListener("pointerdown", this._onPickCanvas, true);
+    const board = this._boardEl();
+    if (board) {
+      board.style.cursor = "";
+      if (this._onPickCanvas) board.removeEventListener("pointerdown", this._onPickCanvas, true);
     }
     if (this._onPickCancel) document.removeEventListener("keydown", this._onPickCancel);
     this._onPickCanvas = null;

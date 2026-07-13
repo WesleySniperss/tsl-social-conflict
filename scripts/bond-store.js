@@ -11,7 +11,7 @@
  *   attitude             — how THIS actor feels about the target, -3..+3.
  *                          Used as a DC shift when the target tries to sway this actor.
  *   perceivedArchetypeId — what this actor BELIEVES the target's archetype is (may be wrong)
- *   profileKnown         — true once verified (Cold Reading / Logic Exploit success)
+ *   profileKnown         — true once verified (Study the Mask / Crack the Cipher success)
  */
 
 console.log("TSL | Loading bond-store.js...");
@@ -116,7 +116,7 @@ class TSLBondStore {
   }
 
   /**
-   * A successful read (Cold Reading / Logic Exploit) — GM side.
+   * A successful read (Study the Mask / Crack the Cipher) — GM side.
    * Creates/updates the source's bond: perceived archetype becomes the real one.
    */
   static async reveal(sourceActorId, targetActorId) {

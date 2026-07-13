@@ -256,7 +256,7 @@ const BOND_TYPES = [
  *   smitten   — the charmer's Persuasion maneuvers roll with Advantage. Lasts the scene.
  *   provoked  — one-shot: the NEXT maneuver against them gains +2, then fades.
  *   guilted   — one-shot: the guilter's next maneuver rolls with Advantage, then fades.
- *   desperate — one-shot: the next attention maneuver (Flatter, Love Bombing)
+ *   desperate — one-shot: the next attention maneuver (Gilded Mirror, Honeyed Siege)
  *               by anyone rolls with Advantage, then fades.
  *   defiant   — walls off ALL maneuvers for an hour. The price of hitting an immunity.
  *
@@ -264,7 +264,11 @@ const BOND_TYPES = [
  * they influenced.
  */
 const SOCIAL_CONDITIONS = {
-  // Icons are core Foundry status icons (icons/svg/*) — present in every install
+  // Icons are core Foundry status icons (icons/svg/*) — present in every install.
+  // `combat` — the rider that matters if talk turns to steel: it goes into the
+  // Active Effect's description so the debuff follows them into the fight.
+  // `midiChanges` — automation for dnd5e tables running midi-qol (harmless
+  // no-ops elsewhere).
   rattled: {
     id: "rattled",
     label: "Rattled",
@@ -273,6 +277,8 @@ const SOCIAL_CONDITIONS = {
     seconds: 3600,
     oneShot: false,
     description: "Composure cracked: the DC to sway them is reduced by 5. No reactions or expertise dice.",
+    combat: "Disadvantage on Wisdom saving throws.",
+    midiChanges: [{ key: "flags.midi-qol.disadvantage.ability.save.wis", mode: 0, value: "1" }],
   },
   smitten: {
     id: "smitten",
@@ -282,6 +288,7 @@ const SOCIAL_CONDITIONS = {
     seconds: 3600,
     oneShot: false,
     description: "Charmed: cannot act against the charmer, and the charmer's Persuasion maneuvers roll with Advantage.",
+    combat: "Disadvantage on attack rolls against the charmer; counts as charmed by them.",
   },
   provoked: {
     id: "provoked",
@@ -291,6 +298,7 @@ const SOCIAL_CONDITIONS = {
     seconds: 600,
     oneShot: true,
     description: "Off balance with anger: the next maneuver against them gains +2, then this fades.",
+    combat: "Must attack the provoker if able; attacks against anyone else are at disadvantage.",
   },
   guilted: {
     id: "guilted",
@@ -300,6 +308,7 @@ const SOCIAL_CONDITIONS = {
     seconds: 600,
     oneShot: true,
     description: "Weighed down by obligation: the guilter's next maneuver rolls with Advantage, then this fades.",
+    combat: "Disadvantage on attack rolls against the one they owe.",
   },
   desperate: {
     id: "desperate",
@@ -308,7 +317,9 @@ const SOCIAL_CONDITIONS = {
     color: "#5588e8",
     seconds: 600,
     oneShot: true,
-    description: "Starved of attention: the next Flatter or Love Bombing against them rolls with Advantage, then this fades.",
+    description: "Starved of attention: the next Gilded Mirror or Honeyed Siege against them rolls with Advantage, then this fades.",
+    combat: "Disadvantage on Wisdom (Insight) checks.",
+    midiChanges: [{ key: "flags.midi-qol.disadvantage.skill.ins", mode: 0, value: "1" }],
   },
   defiant: {
     id: "defiant",
@@ -317,7 +328,8 @@ const SOCIAL_CONDITIONS = {
     color: "#e8c855",
     seconds: 3600,
     oneShot: false,
-    description: "Walls up: immune to social maneuvers for 1 hour (only Cold Reading slips through). Triggered by striking an archetype's immunity.",
+    description: "Walls up: immune to social maneuvers for 1 hour (only Study the Mask slips through). Triggered by striking an archetype's immunity.",
+    combat: "Advantage on saving throws against being charmed or frightened.",
   },
 };
 
@@ -412,6 +424,15 @@ class SocialArchetypeManager {
     if (!meta) return null;
     const sourceName = sourceActor?.name || "Social Fencing";
 
+    // The combat rider travels with the effect — if talk turns to steel, the
+    // debuff is already on the token. midi-qol changes automate it on dnd5e.
+    const description = meta.combat
+      ? `${meta.description}<br><b>Combat:</b> ${meta.combat}`
+      : meta.description;
+    const changes = (game.system.id === "dnd5e" && meta.midiChanges)
+      ? foundry.utils.deepClone(meta.midiChanges)
+      : [];
+
     return {
       name:  `${meta.label} (${sourceName})`,
       img:   meta.icon,
@@ -426,8 +447,8 @@ class SocialArchetypeManager {
           sourceActorId: sourceActor?.id ?? null,
         },
       },
-      changes: [],
-      description: meta.description,
+      changes,
+      description,
     };
   }
 
@@ -500,5 +521,50 @@ class SocialArchetypeManager {
       vulnerable: SOCIAL_ARCHETYPES.filter(a => maneuver.vulnerabilityTags.some(t => a.vulnerabilities.includes(t))),
       immune:     SOCIAL_ARCHETYPES.filter(a => maneuver.immunityTags.some(t => a.immunities.includes(t))),
     };
+  }
+
+  /**
+   * Extended Triad dots also sharpen the matching STANDARD skill checks:
+   *   Power ● → Intimidation · Emotion ● → Insight · Order ● → Deception
+   * Implemented as one module-managed Active Effect (+1 per dot on the
+   * skill's check bonus), rebuilt whenever the dots change. PCs only —
+   * NPCs have no dots. The aligned maneuver of your own school counting
+   * the dot twice (skill bonus + school leaning) is intentional: that is
+   * your signature move.
+   */
+  static async syncTriadBonusEffect(actor) {
+    if (!actor) return;
+    const scope = SocialArchetypeManager.getFlagScope();
+    const stale = actor.effects.filter(e => e.flags?.[scope]?.triadBonus);
+    if (stale.length) await actor.deleteEmbeddedDocuments("ActiveEffect", stale.map(e => e.id));
+    if (!actor.hasPlayerOwner) return;
+
+    const TRIAD_SKILLS = {
+      power:     { dnd5e: "itm", a5e: "intimidation", label: "Intimidation" },
+      attention: { dnd5e: "ins", a5e: "insight",      label: "Insight" },
+      order:     { dnd5e: "dec", a5e: "deception",    label: "Deception" },
+    };
+    const triad   = SocialArchetypeManager.getCharacterNotes(actor).triad ?? {};
+    const isDnd5e = game.system.id === "dnd5e";
+    const changes = [];
+    const lines   = [];
+    for (const [t, m] of Object.entries(TRIAD_SKILLS)) {
+      const dots = triad[t] ?? 0;
+      if (!dots) continue;
+      const key = isDnd5e ? `system.skills.${m.dnd5e}.bonuses.check` : `system.skills.${m.a5e}.bonuses.check`;
+      changes.push({ key, mode: CONST.ACTIVE_EFFECT_MODES.ADD, value: `+${dots}`, priority: 20 });
+      lines.push(`+${dots} ${m.label}`);
+    }
+    if (!changes.length) return;
+
+    await actor.createEmbeddedDocuments("ActiveEffect", [{
+      name: "Social Leanings",
+      img: "icons/svg/upgrade.svg",
+      origin: `module.${scope}`,
+      disabled: false,
+      changes,
+      description: `Extended Triad leanings sharpen everyday social checks: ${lines.join(", ")} (Power → Intimidation, Emotion → Insight, Order → Deception; +1 per dot).`,
+      flags: { [scope]: { triadBonus: true } },
+    }]);
   }
 }

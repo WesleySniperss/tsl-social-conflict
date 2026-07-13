@@ -310,7 +310,7 @@ class TSLConflictApp extends Application {
         : arch
           ? `<div class="tsl-participant-arch" style="--triad-color:${triad?.color ?? "#806858"}" data-tooltip="${dossierTip}">
                ${isGuess ? `<i class="fas fa-pencil tsl-guess-i"></i>` : `<i class="fas ${triad?.icon ?? "fa-user"}"></i>`} ${arch.label}${isGuess ? "?" : ""}</div>`
-          : `<div class="tsl-participant-system" data-tooltip="Their nature is a riddle — watch their tells (Cold Reading whispers one) and write your guess into your Bond ('Read as'). The ✦/⚡ marks will follow your guess.">Nature unread</div>`;
+          : `<div class="tsl-participant-system" data-tooltip="Their nature is a riddle — watch their tells (Study the Mask whispers one) and write your guess into your Bond ('Read as'). The ✦/⚡ marks will follow your guess.">Nature unread</div>`;
       const badge = isActing ? `<span class="tsl-turn-badge" style="--active-color:${p.color}">${game.user.isGM ? "Acting" : "You"}</span>`
                   : isTarget ? `<span class="tsl-turn-badge" style="--active-color:#e8a855">Target</span>` : "";
       return `
@@ -453,7 +453,7 @@ class TSLConflictApp extends Application {
       let hint = "", hintCls = "dim";
       if (a.relation === "blocked")        { hint = a.relationReason; hintCls = "imm"; }
       else if (seeRel && a.relation === "immune")     { hint = `${readPrefix}${a.relationReason} — ${isGuess ? "if you're right, it fails and they turn Defiant." : "it fails, they turn Defiant."}`; hintCls = "imm"; }
-      else if (seeRel && a.relation === "vulnerable") { hint = `${readPrefix}this should cut deep — Advantage & double Resolve damage${isGuess ? " (if your read is right)" : ""}.`; hintCls = "vuln"; }
+      else if (seeRel && a.relation === "vulnerable") { hint = `${readPrefix}this should cut deep — Advantage & +1 Resolve damage${isGuess ? " (if your read is right)" : ""}.`; hintCls = "vuln"; }
       else if (a.advantage)                { hint = a.advantageReasons[a.advantageReasons.length - 1]; hintCls = "vuln"; }
       else if (isGM && !a.arch)            { hint = "No archetype set — open their Chronicle to arm weak spots."; }
       else if (!seeRel)                    { hint = "Their nature is a riddle — read tells, then note your guess in your Bond ('Read as')."; }

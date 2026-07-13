@@ -23,9 +23,16 @@ const MANEUVER_GROUPS = [
 
 // ─── Maneuver data ────────────────────────────────────────────────────────────
 //
-// vulnerabilityTags ∩ archetype.vulnerabilities → roll with Advantage, resolve −2
+// Each SCHOOL has a mechanical identity, and every maneuver a distinct role:
+//   General — safe basics: the scout, the jab, the setup (no vuln/imm drama)
+//   Power   — domination: tempo and pressure; hits harder, risks harder
+//   Emotion — hearts: statuses that chain into combos
+//   Order   — ledgers: economy (Strings), information, field control
+//
+// vulnerabilityTags ∩ archetype.vulnerabilities → Advantage, +1 Resolve damage
 // immunityTags      ∩ archetype.immunities      → auto-fail, target Defiant
-// reveals: true → success verifies the target's profile in the roller's Chronicle
+// reveals: true       → success whispers a TELL of their nature to the roller
+// failPatience        → Patience burned on a failure (default 1)
 
 const SOCIAL_MANEUVERS = [
 
@@ -33,16 +40,16 @@ const SOCIAL_MANEUVERS = [
 
   {
     id:    "cold_reading",
-    name:  "Cold Reading",
+    name:  "Study the Mask",
     skill: "Insight",
     icon:  "fa-eye",
     group: "general",
     skillKeys:       { dnd5e: "ins", "a5e-for-dnd5e": "insight" },
     vulnerabilityTags: [],
     immunityTags:      [],
-    description:  "Read the NPC's emotional tells and body language.",
+    description:  "The scout. Watch the seams of their public face — no pressure, just attention.",
     successText:  "A tell of their nature is whispered to you — deduce the archetype and note your guess in your Bond. You gain 1 String.",
-    failText:     "You can't get a clear read. Patience reduced by 1.",
+    failText:     "The mask holds. Patience −1.",
     immuneText:   null,
     applyOnSuccess: null,
     grantStrings: 1,
@@ -53,54 +60,54 @@ const SOCIAL_MANEUVERS = [
 
   {
     id:    "sow_doubt",
-    name:  "Sow Doubt",
+    name:  "Barbed Jest",
     skill: "Deception",
     icon:  "fa-theater-masks",
     group: "general",
     skillKeys:       { dnd5e: "dec", "a5e-for-dnd5e": "deception" },
     vulnerabilityTags: [],
     immunityTags:      ["sow doubt", "criticism"],   // Exalted
-    description:  "Plant a seed of uncertainty to rattle their composure.",
-    successText:  "Target is Rattled: the DC to sway them drops by 5 for the scene.",
-    failText:     "They see through you. Patience reduced by 1.",
-    immuneText:   "Your words slide off them. Target becomes Defiant — immune to social maneuvers for 1 hour.",
-    applyOnSuccess: "rattled",
+    description:  "The jab. A joke with a razor in it — reliable, unremarkable, it simply cuts.",
+    successText:  "The barb lands where it hurts. Resolve −1.",
+    failText:     "The joke dies in the air. Patience −1.",
+    immuneText:   "They cannot imagine being the punchline. Target becomes Defiant.",
+    applyOnSuccess: null,
     grantStrings: 0,
     resolveDamage: 1,
   },
 
   {
     id:    "instigate",
-    name:  "Instigate",
+    name:  "Prod the Beast",
     skill: "Intimidation",
     icon:  "fa-fire",
     group: "general",
     skillKeys:       { dnd5e: "itm", "a5e-for-dnd5e": "intimidation" },
     vulnerabilityTags: [],
     immunityTags:      ["intimidate", "emotional intimidation"],  // Tyrant, Hermit
-    description:  "Needle them until their temper slips.",
+    description:  "The setup. Needle their temper until composure slips — then strike into the gap.",
     successText:  "They lose their cool — Provoked: the next maneuver against them gains +2.",
-    failText:     "They remain unmoved. Patience reduced by 1.",
-    immuneText:   "They respond with cold control. Target becomes Defiant.",
+    failText:     "They remain unmoved. Patience −1.",
+    immuneText:   "They answer with cold control. Target becomes Defiant.",
     applyOnSuccess: "provoked",
     grantStrings: 0,
-    resolveDamage: 1,
+    resolveDamage: 0,
   },
 
-  // ── Triad of Power ──────────────────────────────────────────────────────────
+  // ── Triad of Power — domination: hits harder, risks harder ─────────────────
 
   {
     id:    "flatter",
-    name:  "Flatter & Appease",
+    name:  "Gilded Mirror",
     skill: "Persuasion",
     icon:  "fa-crown",
     group: "power",
     skillKeys:       { dnd5e: "per", "a5e-for-dnd5e": "persuasion" },
     vulnerabilityTags: ["appease", "flattery"],       // Tyrant → Advantage
     immunityTags:      [],
-    description:  "Shower them with praise and submission.",
-    successText:  "Target is Smitten: cannot act against you; your Persuasion maneuvers roll with Advantage.",
-    failText:     "They see through your flattery. Patience reduced by 1.",
+    description:  "Hold up the reflection they wish were true. Power through worship — they kneel to their own image.",
+    successText:  "They fall for their own reflection — Smitten (cannot act against you; your Persuasion maneuvers gain Advantage). Resolve −1.",
+    failText:     "The mirror shows the flattery for what it is. Patience −1.",
     immuneText:   null,
     applyOnSuccess: "smitten",
     grantStrings: 0,
@@ -109,72 +116,73 @@ const SOCIAL_MANEUVERS = [
 
   {
     id:    "feigned_weakness",
-    name:  "Feigned Weakness",
+    name:  "Bared Throat",
     skill: "Deception",
     icon:  "fa-mask",
     group: "power",
     skillKeys:       { dnd5e: "dec", "a5e-for-dnd5e": "deception" },
     vulnerabilityTags: ["deceive", "feigned weakness"],  // Machiavellian → Advantage
     immunityTags:      ["scorn for weakness"],            // Duelist
-    description:  "Pretend to be vulnerable to bait a manipulator.",
-    successText:  "They take the bait. You gain 2 Strings on this NPC.",
-    failText:     "They don't believe the act. Patience reduced by 1.",
+    description:  "The deep bait. Show them your throat and count what they reveal reaching for it.",
+    successText:  "They lunge at the opening and show you everything. You gain 3 Strings on them.",
+    failText:     "They circle the bait, unconvinced. Patience −1.",
     immuneText:   "Weakness earns only their contempt. Target becomes Defiant.",
     applyOnSuccess: null,
-    grantStrings: 2,
-    resolveDamage: 1,
+    grantStrings: 3,
+    resolveDamage: 0,
   },
 
   {
     id:    "throw_gauntlet",
-    name:  "Throw the Gauntlet",
+    name:  "Cast the Gauntlet",
     skill: "Intimidation",
     icon:  "fa-khanda",
     group: "power",
     skillKeys:       { dnd5e: "itm", "a5e-for-dnd5e": "intimidation" },
     vulnerabilityTags: ["challenge", "glory"],            // Duelist → Advantage
     immunityTags:      ["emotional intimidation"],        // Hermit
-    description:  "Dare them openly, before witnesses.",
-    successText:  "Pride takes the bait — Provoked (+2 to the next maneuver against them). You gain 1 String.",
-    failText:     "The dare hangs in the air, ignored. Patience reduced by 1.",
+    description:  "The heavy blow. Dare them before witnesses — glorious if it lands, costly if it hangs in the air.",
+    successText:  "The dare shatters their footing. Resolve −2.",
+    failText:     "The gauntlet lies ignored, and the room saw you drop it. Patience −2.",
     immuneText:   "They walk away from the theatrics. Target becomes Defiant.",
-    applyOnSuccess: "provoked",
-    grantStrings: 1,
-    resolveDamage: 1,
+    applyOnSuccess: null,
+    grantStrings: 0,
+    resolveDamage: 2,
+    failPatience: 2,
   },
 
-  // ── Triad of Emotion ────────────────────────────────────────────────────────
+  // ── Triad of Emotion — hearts: statuses that chain into combos ─────────────
 
   {
     id:    "love_bombing",
-    name:  "Love Bombing",
+    name:  "Honeyed Siege",
     skill: "Performance",
     icon:  "fa-heart",
     group: "attention",
     skillKeys:       { dnd5e: "prf", "a5e-for-dnd5e": "performance" },
     vulnerabilityTags: ["love bombing"],              // Exalted → Advantage
     immunityTags:      ["persuade", "sympathy"],      // Martyr
-    description:  "Overwhelm with attention and adoration.",
-    successText:  "Target is Smitten: cannot act against you; your Persuasion maneuvers roll with Advantage.",
-    failText:     "They are unimpressed by the display.",
-    immuneText:   "Your sympathy deepens their contempt. Target becomes Defiant.",
+    description:  "Lay siege with sweetness. Adoration as a weapon — they open the gates themselves.",
+    successText:  "The gates open — Smitten (cannot act against you; your Persuasion maneuvers gain Advantage). They confide: you gain 1 String.",
+    failText:     "The display leaves them cold.",
+    immuneText:   "Your sweetness deepens their contempt. Target becomes Defiant.",
     applyOnSuccess: "smitten",
-    grantStrings: 0,
-    resolveDamage: 1,
+    grantStrings: 1,
+    resolveDamage: 0,
   },
 
   {
     id:    "cold_shoulder",
-    name:  "Cold Shoulder",
+    name:  "Starve the Flame",
     skill: "Insight",
     icon:  "fa-user-slash",
     group: "attention",
     skillKeys:       { dnd5e: "ins", "a5e-for-dnd5e": "insight" },
     vulnerabilityTags: ["stone-walling", "ignore"],   // Martyr → Advantage
     immunityTags:      ["selfless focus"],            // Caretaker
-    description:  "Deliberately ignore them, starving them of attention.",
-    successText:  "They grow Desperate: the next Flatter or Love Bombing against them rolls with Advantage.",
-    failText:     "Your silence doesn't unsettle them. Patience reduced by 1.",
+    description:  "Deny them the air they burn — attention. Watch the fire gutter and reach for you.",
+    successText:  "Starved, they reach for any warmth — Desperate (the next Gilded Mirror or Honeyed Siege against them gains Advantage). Resolve −1.",
+    failText:     "Your silence doesn't touch them. Patience −1.",
     immuneText:   "They give attention rather than crave it — your silence changes nothing. Target becomes Defiant.",
     applyOnSuccess: "desperate",
     grantStrings: 0,
@@ -183,54 +191,54 @@ const SOCIAL_MANEUVERS = [
 
   {
     id:    "guilt_trip",
-    name:  "Guilt Trip",
+    name:  "Debt of Tears",
     skill: "Persuasion",
     icon:  "fa-scale-unbalanced",
     group: "attention",
     skillKeys:       { dnd5e: "per", "a5e-for-dnd5e": "persuasion" },
     vulnerabilityTags: ["guilt", "obligation"],       // Caretaker → Advantage
     immunityTags:      ["shameless"],                 // Machiavellian
-    description:  "Invoke debts, promises, and what they owe.",
-    successText:  "The weight lands — Guilted: your next maneuver against them rolls with Advantage.",
-    failText:     "They shrug the weight off. Patience reduced by 1.",
+    description:  "Present the ledger of everything owed in hurt and kindness — and let it crush.",
+    successText:  "The weight settles on their shoulders — Guilted (your next maneuver against them gains Advantage). Resolve −1.",
+    failText:     "They shrug the weight off. Patience −1.",
     immuneText:   "Shame needs a conscience. Target becomes Defiant.",
     applyOnSuccess: "guilted",
     grantStrings: 0,
     resolveDamage: 1,
   },
 
-  // ── Triad of Order ──────────────────────────────────────────────────────────
+  // ── Triad of Order — ledgers: economy, information, field control ──────────
 
   {
     id:    "gaslight",
-    name:  "Gaslight",
+    name:  "Unweave the Creed",
     skill: "Deception",
     icon:  "fa-brain",
     group: "order",
     skillKeys:       { dnd5e: "dec", "a5e-for-dnd5e": "deception" },
     vulnerabilityTags: ["gaslighting", "exploiting dogma"],  // Dogmatic → Advantage
     immunityTags:      ["ledger mind"],                       // Broker
-    description:  "Make them question their own principles.",
-    successText:  "Their worldview cracks — Rattled: the DC to sway them drops by 5 for the scene.",
-    failText:     "Their conviction holds firm. Patience reduced by 1.",
+    description:  "Field control. Pull one thread of what they believe and let the whole cloth loosen.",
+    successText:  "Their certainty frays — Rattled: the DC to sway them drops by 5 for the scene.",
+    failText:     "The weave holds firm. Patience −1.",
     immuneText:   "Feelings aren't entries in their books. Target becomes Defiant.",
     applyOnSuccess: "rattled",
     grantStrings: 0,
-    resolveDamage: 1,
+    resolveDamage: 0,
   },
 
   {
     id:    "logic_exploit",
-    name:  "Logic Exploit",
+    name:  "Crack the Cipher",
     skill: "Investigation",
     icon:  "fa-puzzle-piece",
     group: "order",
     skillKeys:       { dnd5e: "inv", "a5e-for-dnd5e": "investigation" },
     vulnerabilityTags: ["information deficit", "logic puzzles"],  // Hermit → Advantage
     immunityTags:      ["bribes", "emotions", "pure logic"],      // Dogmatic, Machiavellian
-    description:  "Expose a gap in their reasoning or knowledge.",
-    successText:  "The gap in their reasoning betrays them — a tell of their nature is whispered to you. You gain 1 String.",
-    failText:     "Your argument doesn't land. Patience reduced by 1.",
+    description:  "The scholar's cut. Find the flaw in their reasoning and pry it open — it hurts AND it teaches.",
+    successText:  "The flaw betrays them — a tell of their nature is whispered to you, you gain 1 String, and their certainty bleeds. Resolve −1.",
+    failText:     "Your argument doesn't land. Patience −1.",
     immuneText:   "They dismiss the reasoning outright. Target becomes Defiant.",
     applyOnSuccess: null,
     grantStrings: 1,
@@ -240,16 +248,16 @@ const SOCIAL_MANEUVERS = [
 
   {
     id:    "sweeten_deal",
-    name:  "Sweeten the Deal",
+    name:  "Golden Chains",
     skill: "Persuasion",
     icon:  "fa-coins",
     group: "order",
     skillKeys:       { dnd5e: "per", "a5e-for-dnd5e": "persuasion" },
     vulnerabilityTags: ["deal", "greed"],             // Broker → Advantage
     immunityTags:      ["bribes"],                    // Dogmatic
-    description:  "Put a concrete offer on the table.",
-    successText:  "Terms accepted in principle. You gain 2 Strings on this NPC.",
-    failText:     "Your price is wrong. Patience reduced by 1.",
+    description:  "Every gift is a link. Put a concrete offer on the table and watch it close around their wrist.",
+    successText:  "They accept the terms — and the chain. You gain 2 Strings; the obligation weighs. Resolve −1.",
+    failText:     "Your price is wrong. Patience −1.",
     immuneText:   "They recoil from the offer as corruption itself. Target becomes Defiant.",
     applyOnSuccess: null,
     grantStrings: 2,
@@ -384,7 +392,7 @@ class SocialManeuverRoller {
     const smittenBy   = smittenSelf?.flags?.[scope]?.sourceActorId === targetActor.id;
     if (cond("defiant") && !maneuver.worksThroughDefiant) {
       relation = "blocked";
-      relationReason = "Defiant — walled off from maneuvers (Cold Reading still works)";
+      relationReason = "Defiant — walled off from maneuvers (Study the Mask still works)";
     } else if (smittenBy) {
       relation = "blocked";
       relationReason = "You are Smitten with them — you cannot bring yourself to move against them";
@@ -447,16 +455,26 @@ class SocialManeuverRoller {
       // The attacker's Extended Triad leanings shape their own attack style:
       // +1 per dot in the maneuver's triad; a triad with NO dots (while the
       // profile has some elsewhere) is foreign ground — −1. General tactics
-      // are always neutral.
+      // are always neutral. Dots are for PCs; an NPC with no dots fights from
+      // its ARCHETYPE's school instead (counts as 2●, no foreign-ground malus)
+      // — the GM sets one field and the NPC has a style.
       if (maneuver.group !== "general") {
         const myTriad   = SocialArchetypeManager.getCharacterNotes(sourceActor).triad ?? {};
         const dots      = myTriad[maneuver.group] ?? 0;
         const totalDots = Object.values(myTriad).reduce((s, v) => s + (v || 0), 0);
         const short     = (SOCIAL_TRIADS[maneuver.group]?.label ?? "").replace("Triad of ", "");
-        if (dots > 0) {
-          bonusReasons.push({ label: `${short} leaning ${"●".repeat(dots)}`, value: dots });
-        } else if (totalDots > 0) {
-          bonusReasons.push({ label: `Foreign ground — no ${short} leaning`, value: -1 });
+        if (totalDots > 0) {
+          if (dots > 0) {
+            bonusReasons.push({ label: `${short} leaning ${"●".repeat(dots)}`, value: dots });
+          } else {
+            bonusReasons.push({ label: `Foreign ground — no ${short} leaning`, value: -1 });
+          }
+        } else {
+          const myArch = SocialArchetypeManager.getArchetype(sourceActor);
+          if (myArch && myArch.triad === maneuver.group) {
+            // Veiled label — never name the attacker's archetype to the table
+            bonusReasons.push({ label: "In their element — this school comes naturally", value: 2 });
+          }
         }
       }
     }
@@ -633,13 +651,15 @@ class SocialManeuverRoller {
       // deduces the nature themselves and writes their guess into the Bond.
       if (maneuver.reveals)
         await SocialManeuverRoller.whisperTell(sourceActor, targetActor);
-      let damage = relation === "vulnerable" ? 2 : (maneuver.resolveDamage ?? 1);
+      // A vulnerability strike adds +1 to the maneuver's own damage profile
+      let damage = (maneuver.resolveDamage ?? 1) + (relation === "vulnerable" ? 1 : 0);
       if (leverage === "desire") damage += 1;  // the offer does half the work
       if (damage > 0)
         await SocialEncounterManager.adjustResolve(targetActor, -damage, sourceActorId);
     } else {
-      // Hard leverage cuts both ways: a failed threat burns extra Patience
-      await SocialEncounterManager.adjustPatience(targetActor, leverage === "fear" ? -2 : -1, sourceActorId);
+      // Heavy plays (failPatience) and failed threats (fear) burn extra Patience
+      const burn = (maneuver.failPatience ?? 1) + (leverage === "fear" ? 1 : 0);
+      await SocialEncounterManager.adjustPatience(targetActor, -burn, sourceActorId);
     }
 
     // ── Shared conflict integration: log + advance turn ──────────────────────
