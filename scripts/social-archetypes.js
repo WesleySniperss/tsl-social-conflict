@@ -287,10 +287,12 @@ const SOCIAL_CONDITIONS = {
     seconds: 3600,
     oneShot: false,
     description: "Composure cracked: the DC to sway them is reduced by 5. No reactions or expertise dice.",
-    combat: "Disadvantage on Wisdom saving throws; no reactions or expertise dice (A5E Rattled).",
+    combat: "Standard A5E Rattled: no expertise dice, no reactions. (dnd5e: disadvantage on Wisdom saves.)",
     links: ["rattled"],
     midiChanges: [{ key: "flags.midi-qol.disadvantage.ability.save.wis", mode: 0, value: "1" }],
-    a5eChanges: [{ key: "flags.a5e.effects.rollMode.abilitySave.wis", mode: 5, value: -1, priority: 50 }],
+    // Exactly the standard A5E Rattled automation — same change the system's
+    // own condition carries, so ours behaves identically in combat.
+    a5eChanges: [{ key: "flags.a5e.effects.expertiseDice", mode: 5, value: 0, priority: 200 }],
   },
   smitten: {
     id: "smitten",
@@ -311,9 +313,12 @@ const SOCIAL_CONDITIONS = {
     seconds: 600,
     oneShot: true,
     description: "Off balance with anger: the next maneuver against them gains +2, then this fades.",
-    combat: "Reckless: −2 AC (on A5E, attacks against them have advantage). Must attack the provoker if able.",
+    combat: "Reckless: −2 AC, and attacks against them have advantage (A5E). Must attack the provoker if able.",
     dnd5eChanges: [{ key: "system.attributes.ac.bonus", mode: 2, value: "-2" }],
-    a5eChanges: [{ key: "flags.a5e.effects.grants.rollMode.attack.all", mode: 5, value: 1, priority: 50 }],
+    a5eChanges: [
+      { key: "system.attributes.ac.changes.bonuses.value", mode: 2, value: "-2" },
+      { key: "flags.a5e.effects.grants.rollMode.attack.all", mode: 5, value: 1, priority: 50 },
+    ],
   },
   guilted: {
     id: "guilted",
@@ -323,7 +328,7 @@ const SOCIAL_CONDITIONS = {
     seconds: 600,
     oneShot: true,
     description: "Weighed down by obligation: the guilter's next maneuver rolls with Advantage, then this fades.",
-    combat: "The weight drags every swing: −2 on attack rolls (disadvantage on A5E).",
+    combat: "The weight drags every swing: disadvantage on attack rolls (−2 on dnd5e).",
     dnd5eChanges: [
       { key: "system.bonuses.mwak.attack", mode: 2, value: "-2" },
       { key: "system.bonuses.rwak.attack", mode: 2, value: "-2" },

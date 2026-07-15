@@ -47,6 +47,33 @@ Hooks.once("vtools.ready", () => {
   }
 });
 
+/**
+ * Refresh already-applied fencing statuses to the CURRENT combat automation.
+ * Effects created by older module versions (or bare HUD toggles) carry stale
+ * or empty `changes` — they never pick up new riders retroactively on their
+ * own. GM client only; cheap no-op when everything already matches.
+ */
+async function syncExistingConditionEffects(actors) {
+  if (!game.user?.isGM) return;
+  for (const actor of actors) {
+    if (!actor?.effects) continue;
+    for (const id of SOCIAL_CONDITION_ORDER) {
+      const eff = SocialArchetypeManager.getActiveCondition(actor, id);
+      if (!eff?.update) continue;
+      const fx = SocialArchetypeManager.buildConditionEffect(id);
+      const stale = JSON.stringify(eff.changes ?? []) !== JSON.stringify(fx.changes)
+        || (eff.description ?? "") !== fx.description;
+      if (!stale) continue;
+      try {
+        await eff.update({ changes: fx.changes, description: fx.description });
+        console.log(`TSL | Refreshed ${id} on ${actor.name} to current combat automation`);
+      } catch (err) {
+        console.warn(`TSL | Could not refresh ${id} on ${actor.name}:`, err);
+      }
+    }
+  }
+}
+
 Hooks.once("ready", () => {
   console.log("TSL | Social Conflict ready hook firing");
 
@@ -75,6 +102,15 @@ Hooks.once("ready", () => {
   } catch (err) {
     console.error("TSL | Error registering status effects:", err);
   }
+
+  // Bring statuses applied by OLDER versions up to the current automation —
+  // world actors now, scene token actors (incl. unlinked) once canvas is up.
+  syncExistingConditionEffects(game.actors?.contents ?? []);
+  Hooks.on("canvasReady", () => {
+    syncExistingConditionEffects(
+      (canvas.tokens?.placeables ?? []).map(t => t.actor).filter(Boolean)
+    );
+  });
 
   try {
     console.log("TSL | Registering TSLSocket...");

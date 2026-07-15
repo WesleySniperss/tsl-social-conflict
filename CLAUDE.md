@@ -210,6 +210,12 @@ TSL stats mapped to D&D abilities:
 - **Chronicle fence bar**: the Roll button is a full-width row at the bottom (`.tsl-bar--fence .tsl-fc-roll`), labeled "Roll <maneuver>"; a Defiant target shows an explicit `.tsl-fc-walled` notice instead of a silent gap; `.tsl-bar-line` wraps. If UI looks half-broken after an update mid-session, it's the stale-client trap — F5 reloads the new scripts.
 - Hidden DC applies to players only — the GM always sees the number by design.
 
+### v1.9.4 — statuses actually bite on a5e; retroactive refresh
+- **Rattled = the standard A5E Rattled exactly**: same change the system's own condition carries (`flags.a5e.effects.expertiseDice` OVERRIDE 0) + native `rattled` link; no extra module riders on a5e (dnd5e keeps the midi WIS-save dis).
+- **Provoked on a5e is now numeric AND granted**: −2 AC via `system.attributes.ac.changes.bonuses.value` (visible on the sheet) + attackers gain advantage (`grants.rollMode.attack.all`).
+- **`syncExistingConditionEffects` (main.js)**: on ready (world actors) and canvasReady (scene token actors, incl. unlinked), the GM client refreshes every applied tsl-status whose `changes`/`description` differ from the current build. THIS was "статуси все ще не показують бої": effects applied by older versions stayed bare forever — new automation never lands retroactively without a sweep.
+- Where riders are visible on a5e: AC/initiative — numbers on the sheet; roll modes (dis attacks, adv saves, dis Insight) — preselected in the system's roll dialog; expertise dice — stripped in dialogs. Smitten stays narrative (native Charmed).
+
 ### VTools Integration (hud-button.js)
 ```js
 Hooks.once("vtools.ready", () => {
