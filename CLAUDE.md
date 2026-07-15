@@ -205,6 +205,11 @@ TSL stats mapped to D&D abilities:
 - **a5e combat riders** (`a5eChanges`, applied when `game.system.id === "a5e"`, same `flags.a5e.effects.*` OVERRIDE encoding as a5e's built-in conditions; 1=adv, −1=dis): Rattled dis WIS saves; Provoked grants attackers advantage; Guilted dis attacks; Desperate dis Insight + −2 initiative; Defiant adv WIS saves (midi advantage flag added on dnd5e too). Smitten stays a native `charmed` link (A5E charmed already blocks attacking the charmer).
 - **Smoke-test harness** (Developer Notes): stub Foundry globals, concatenate manifest scripts into ONE `new Function` scope (classic script tags share the global lexical env; node eval does not), drive assess → rollManeuver → applyOutcome for all 12 maneuvers, then the Defiant wall-break. It found the wall bug that static reading missed.
 
+### v1.9.3 — HUD statuses carry their teeth; console Roll unmissable
+- **Root cause of "statuses still have no combat effects": statuses toggled from the TOKEN HUD were bare** — `CONFIG.statusEffects` entries had only id/name/img, so Foundry created effects with no changes. Registration now bakes the FULL effect data (per-system `changes`, combat `description`, `duration`, native-condition `statuses` links, module `flags`) via `buildConditionEffect` at ready. `removeCondition` also matches the `tsl-<id>` statuses set (HUD-applied one-shots are consumable).
+- **Chronicle fence bar**: the Roll button is a full-width row at the bottom (`.tsl-bar--fence .tsl-fc-roll`), labeled "Roll <maneuver>"; a Defiant target shows an explicit `.tsl-fc-walled` notice instead of a silent gap; `.tsl-bar-line` wraps. If UI looks half-broken after an update mid-session, it's the stale-client trap — F5 reloads the new scripts.
+- Hidden DC applies to players only — the GM always sees the number by design.
+
 ### VTools Integration (hud-button.js)
 ```js
 Hooks.once("vtools.ready", () => {

@@ -2710,7 +2710,7 @@
   color: var(--tsl-muted);
 }
 
-.tsl-bar-line { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.tsl-bar-line { display: flex; align-items: center; gap: 9px; min-width: 0; flex-wrap: wrap; }
 .tsl-bar-portrait {
   width: 34px; height: 34px; border-radius: 50%;
   object-fit: cover; border: 2px solid var(--active-color); flex-shrink: 0;
@@ -3018,6 +3018,24 @@
 }
 .tsl-fc-string.pending { background: rgba(232,168,85,0.15); border-color: #e8a855; color: #e8a855; }
 .tsl-fc-string i { font-size: 10px; }
+/* Keep the string toggle a compact pill even as a direct flex-column child */
+.tsl-bar--fence .tsl-fc-string { align-self: flex-start; flex: 0 0 auto; }
+
+/* The console's Roll CTA is a full-width row of its own — unmissable */
+.tsl-bar--fence .tsl-fc-roll { width: 100%; margin-top: 2px; padding: 9px; }
+
+/* Explicit wall notice replaces the Roll button on a Defiant target */
+.tsl-fc-walled {
+  width: 100%;
+  text-align: center;
+  font-family: var(--tsl-font-title, 'Cinzel', serif);
+  font-size: 11px;
+  color: #e8a855;
+  border: 1px dashed rgba(232,168,85,0.5);
+  border-radius: 8px;
+  padding: 8px;
+  margin-top: 2px;
+}
 
 /* ═══ Triad budget: over-allocated warning ═════════════════════════ */
 .tsl-chr-triad-budget.over { color: #e85555; }

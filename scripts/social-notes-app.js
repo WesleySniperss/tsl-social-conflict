@@ -714,6 +714,9 @@ class SocialFencingApp extends Application {
       ? `<span class="tsl-bar-dim">vs DC <b>${a.dc}</b></span>`
       : `<span class="tsl-bar-dim">vs <b data-tooltip="The difficulty is hidden — only the GM sees the number. Read them, watch outcomes, and you'll sense it.">?</b></span>`;
 
+    // The Roll button is its own full-width row — never squeezed into the
+    // matchup flex line where a layout hiccup can push it out of sight. A
+    // blocked target shows an explicit walled row instead of a silent gap.
     const blocked = a.relation === "blocked";
     return `<div class="tsl-bar tsl-bar--fence">
       <div class="tsl-bar-line">
@@ -723,11 +726,13 @@ class SocialFencingApp extends Application {
             ${dcHtml}</span>
         </div>
         ${strBtn}
-        ${blocked ? "" : `<button class="tsl-fc-roll tsl-roll-btn" style="--active-color:#9b6ee8">Roll</button>`}
       </div>
       ${levBtns ? `<div class="tsl-bar-lev">${levBtns}</div>` : ""}
       <div class="tsl-fc-breakdown">${breakdown.join("")}</div>
       ${hint ? `<div class="tsl-bar-hint tsl-bar-hint--${hintCls}">${esc(hint)}</div>` : ""}
+      ${blocked
+        ? `<div class="tsl-fc-walled">⚡ Walled off — a successful Read Them breaks the wall.</div>`
+        : `<button class="tsl-fc-roll tsl-roll-btn" style="--active-color:#9b6ee8">Roll ${esc(m.name)}</button>`}
     </div>`;
   }
 

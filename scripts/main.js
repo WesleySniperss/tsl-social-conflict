@@ -52,14 +52,23 @@ Hooks.once("ready", () => {
 
   // Fencing statuses join the token HUD's main status list — toggling them
   // there is equivalent to the module applying them (matched via `tsl-<id>`).
+  // Register the FULL effect data, not just the icon: a status toggled from
+  // the HUD must carry the same combat changes, description, duration and
+  // native-condition links as one the module applies itself.
   try {
     for (const id of SOCIAL_CONDITION_ORDER) {
       const meta = SOCIAL_CONDITIONS[id];
       if (!meta || CONFIG.statusEffects.some(s => s.id === `tsl-${id}`)) continue;
+      const fx = SocialArchetypeManager.buildConditionEffect(id);
       CONFIG.statusEffects.push({
         id: `tsl-${id}`,
         name: `${meta.label} (Social)`,
         img: meta.icon,
+        description: fx.description,
+        changes: fx.changes,
+        duration: fx.duration,
+        statuses: meta.links ?? [],
+        flags: fx.flags,
       });
     }
     console.log("TSL | Fencing statuses registered in CONFIG.statusEffects");

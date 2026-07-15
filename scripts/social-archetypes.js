@@ -507,8 +507,11 @@ class SocialArchetypeManager {
 
   static async removeCondition(actor, conditionId) {
     if (!actor) return;
+    // Match flag OR statuses set, like getActiveCondition — a status toggled
+    // from the token HUD must be consumable/removable exactly like ours.
     const toRemove = actor.effects.filter((effect) =>
       effect.flags?.[SocialArchetypeManager.getFlagScope()]?.condition === conditionId
+      || effect.statuses?.has?.(`tsl-${conditionId}`)
     );
     if (!toRemove.length) return;
     await actor.deleteEmbeddedDocuments("ActiveEffect", toRemove.map((e) => e.id));
