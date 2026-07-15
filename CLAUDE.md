@@ -95,21 +95,28 @@ tsl-social-conflict/
 ### Fencing Statuses (SOCIAL_CONDITIONS, all mechanical)
 | Status | Effect | From | Lifetime |
 |--------|--------|------|----------|
-| Rattled | DC to sway them −5; **combat:** dis on WIS saves (midi flag on dnd5e) | Unweave the Creed | scene (1h) |
-| Smitten | charmer's Persuasion maneuvers get Advantage; the smitten one CANNOT maneuver against the charmer (hard block in assess); **combat:** dis on attacks vs charmer | Gilded Mirror, Honeyed Siege | scene (1h) |
-| Provoked | next maneuver vs them +2; **combat:** must attack the provoker, dis vs others | Prod the Beast | one-shot |
-| Guilted | guilter's next maneuver gets Advantage; **combat:** dis on attacks vs the guilter | Debt of Tears | one-shot |
-| Desperate | next Gilded Mirror/Honeyed Siege gets Advantage; **combat:** dis on Insight checks (midi flag) | Starve the Flame | one-shot |
-| Defiant | immune to maneuvers; **Study the Mask slips through** (`worksThroughDefiant`); **combat:** adv on saves vs charm/fear | hitting an immunity | 1h |
+| Rattled | DC to sway them −5; **combat:** dis on WIS saves (midi flag on dnd5e) | Undermine | scene (1h) |
+| Smitten | charmer's Persuasion maneuvers get Advantage; the smitten one CANNOT maneuver against the charmer (hard block in assess); **combat:** dis on attacks vs charmer | Flatter, Charm | scene (1h) |
+| Provoked | next maneuver vs them +2; **combat:** must attack the provoker, dis vs others | Taunt | one-shot |
+| Guilted | guilter's next maneuver gets Advantage; **combat:** dis on attacks vs the guilter | Guilt Trip | one-shot |
+| Desperate | next Flatter/Charm gets Advantage; **combat:** dis on Insight checks (midi flag) | Ignore Them | one-shot |
+| Defiant | immune to maneuvers; **Read Them slips through** (`worksThroughDefiant`); **combat:** adv on saves vs charm/fear | hitting an immunity | 1h |
 
 **Combat riders** live in each condition's `combat` field → appended to the AE description (`buildConditionEffect`), plus `midiChanges` (midi-qol automation) applied only on dnd5e.
 
 ### Maneuver redesign (v1.8) — school identities
-- **General** (safe basics, no vuln/imm): Study the Mask (scout: tell+String, 0 dmg, through Defiant) · Barbed Jest (the jab: 1 dmg flat) · Prod the Beast (setup: Provoked, 0 dmg)
-- **Power** (domination — hits harder, risks harder): Gilded Mirror (Smitten + 1 dmg) · Bared Throat (deep bait: 3 Strings, 0 dmg) · Cast the Gauntlet (2 dmg, but `failPatience: 2`)
-- **Emotion** (hearts → combos): Honeyed Siege (Smitten + 1 String, 0 dmg) · Starve the Flame (Desperate + 1 dmg) · Debt of Tears (Guilted + 1 dmg)
-- **Order** (ledgers: economy/info/control): Unweave the Creed (Rattled, 0 dmg) · Crack the Cipher (tell + String + 1 dmg) · Golden Chains (2 Strings + 1 dmg)
+- **General** (safe basics, no vuln/imm): Read Them (scout: tell+String, 0 dmg, through Defiant) · Mock (the jab: 1 dmg flat) · Taunt (setup: Provoked, 0 dmg)
+- **Power** (domination — hits harder, risks harder): Flatter (Smitten + 1 dmg) · Play Weak (deep bait: 3 Strings, 0 dmg) · Humiliate (2 dmg, but `failPatience: 2`)
+- **Emotion** (hearts → combos): Charm (Smitten + 1 String, 0 dmg) · Ignore Them (Desperate + 1 dmg) · Guilt Trip (Guilted + 1 dmg)
+- **Order** (ledgers: economy/info/control): Undermine (Rattled, 0 dmg) · Cross-Examine (tell + String + 1 dmg) · Bargain (2 Strings + 1 dmg)
 - Damage rule: **vulnerability adds +1 to the maneuver's own `resolveDamage`** (not a flat 2); failure burns `failPatience ?? 1` Patience (+1 more on a failed Fear leverage). Ids are unchanged — only names/effects.
+
+### v1.9 — clarity & integration pass
+- **Functional maneuver names** (ids unchanged): Read Them, Mock, Taunt / Flatter, Play Weak, Humiliate / Charm, Ignore Them, Guilt Trip / Undermine, Cross-Examine, Bargain. The "Order" triad DISPLAYS as **"Triad of Reason"** (id stays `order`); school group labels carry identity tooltips (SOCIAL_TRIADS hint).
+- **Proficiency fix:** `getSkillMod` trusts `.total` (dnd5e) but on systems without it (a5e) folds proficiency in itself via `entry.proficient × getProfBonus()` — trained characters finally roll better.
+- **Pick collision fixed:** the Fencing "Map" button shares `.tsl-chr-pick-btn` with the Bonds picker; the bonds listener grabbed it by class and instantly cancelled the pick the fence handler had just started. Listeners are now scoped by `data-bond-pick` / `data-fence-pick`.
+- **Statuses in the main token list:** all six register into `CONFIG.statusEffects` as `tsl-<id>` (name "<Label> (Social)"); `getActiveCondition` matches flag OR statuses set, so HUD-toggled = module-applied. Effects also carry `links` (system status ids: rattled→A5E Rattled, smitten→charmed) and numeric dnd5e changes: Provoked −2 AC, Guilted −2 attacks (mwak/rwak), Desperate −2 initiative; Rattled/Desperate midi-qol dis flags.
+- **Bond passives (`BOND_TYPES[*].school`):** your bond's type gives +1 to that school's maneuvers vs that person — lover/crush/friend/family/mentor/protégé → Emotion, rival/enemy → Power, ally/creditor/indebted → Reason. Surfaced in assess as "Bond: X — this approach runs deep between you". Combat bond passives (e.g. +AC near an ally) are deliberately NOT automated (needs target-conditional automation / midi); revisit if asked.
 
 ### Attacker style: PCs dots, NPCs archetype
 - Extended Triad dots are **PC-only** (UI gated by `hasPlayerOwner`). An NPC with **no dots** but an archetype attacks from its archetype's school: implicit +2 on that school, no foreign-ground malus, veiled label "In their element".
@@ -121,7 +128,7 @@ One-shot economy: a one-shot is consumed ONLY if it is the thing granting the ad
 
 **Attacker-side triad leanings:** the attacker's Extended Triad dots ARE their attack style — +1 per dot on that triad's maneuvers, −1 on a triad with 0 dots while others have some ("foreign ground"); General tactics always neutral. Shown as ★ +N / ▼ −1 badges on maneuver group labels and as signed chips in the Duel Panel. Picking an archetype auto-fills its triad to 2● (QoL in the Chronicle archetype handler). PCs set this in their own Chronicle → Profile.
 
-**Triad counter cycle (`TRIAD_COUNTERS`):** Power breaks Emotion → Emotion cracks Order → Order binds Power. A maneuver whose school counters the DEFENDER's ruling triad gets +2 (reason kind:"counter"). Pre-read the Duel Panel veils it as "Something in them yields to this school…" (+2 ?) so the bonus applies without leaking the triad; the » badge on chips appears only after a read.
+**Triad counter cycle (`TRIAD_COUNTERS`):** Power breaks Emotion → Emotion cracks Reason → Reason binds Power. A maneuver whose school counters the DEFENDER's ruling triad gets +2 (reason kind:"counter"). Pre-read the Duel Panel veils it as "Something in them yields to this school…" (+2 ?) so the bonus applies without leaking the triad; the » badge on chips appears only after a read.
 
 **Social DC (`getSocialDC`):** max(passive Insight, 10 + WIS mod + proficiency) — proficiency from `attributes.prof`, falling back to level/CR math. Scales defense with level so high-tier attack stacking doesn't trivialize targets.
 

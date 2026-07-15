@@ -18,7 +18,7 @@ const MANEUVER_GROUPS = [
   { id: "general",   label: "General Tactics" },
   { id: "power",     label: "Triad of Power" },
   { id: "attention", label: "Triad of Emotion" },
-  { id: "order",     label: "Triad of Order" },
+  { id: "order",     label: "Triad of Reason" },
 ];
 
 // ─── Maneuver data ────────────────────────────────────────────────────────────
@@ -40,7 +40,7 @@ const SOCIAL_MANEUVERS = [
 
   {
     id:    "cold_reading",
-    name:  "Study the Mask",
+    name:  "Read Them",
     skill: "Insight",
     icon:  "fa-eye",
     group: "general",
@@ -60,7 +60,7 @@ const SOCIAL_MANEUVERS = [
 
   {
     id:    "sow_doubt",
-    name:  "Barbed Jest",
+    name:  "Mock",
     skill: "Deception",
     icon:  "fa-theater-masks",
     group: "general",
@@ -78,7 +78,7 @@ const SOCIAL_MANEUVERS = [
 
   {
     id:    "instigate",
-    name:  "Prod the Beast",
+    name:  "Taunt",
     skill: "Intimidation",
     icon:  "fa-fire",
     group: "general",
@@ -98,7 +98,7 @@ const SOCIAL_MANEUVERS = [
 
   {
     id:    "flatter",
-    name:  "Gilded Mirror",
+    name:  "Flatter",
     skill: "Persuasion",
     icon:  "fa-crown",
     group: "power",
@@ -116,7 +116,7 @@ const SOCIAL_MANEUVERS = [
 
   {
     id:    "feigned_weakness",
-    name:  "Bared Throat",
+    name:  "Play Weak",
     skill: "Deception",
     icon:  "fa-mask",
     group: "power",
@@ -134,7 +134,7 @@ const SOCIAL_MANEUVERS = [
 
   {
     id:    "throw_gauntlet",
-    name:  "Cast the Gauntlet",
+    name:  "Humiliate",
     skill: "Intimidation",
     icon:  "fa-khanda",
     group: "power",
@@ -155,7 +155,7 @@ const SOCIAL_MANEUVERS = [
 
   {
     id:    "love_bombing",
-    name:  "Honeyed Siege",
+    name:  "Charm",
     skill: "Performance",
     icon:  "fa-heart",
     group: "attention",
@@ -173,7 +173,7 @@ const SOCIAL_MANEUVERS = [
 
   {
     id:    "cold_shoulder",
-    name:  "Starve the Flame",
+    name:  "Ignore Them",
     skill: "Insight",
     icon:  "fa-user-slash",
     group: "attention",
@@ -181,7 +181,7 @@ const SOCIAL_MANEUVERS = [
     vulnerabilityTags: ["stone-walling", "ignore"],   // Martyr → Advantage
     immunityTags:      ["selfless focus"],            // Caretaker
     description:  "Deny them the air they burn — attention. Watch the fire gutter and reach for you.",
-    successText:  "Starved, they reach for any warmth — Desperate (the next Gilded Mirror or Honeyed Siege against them gains Advantage). Resolve −1.",
+    successText:  "Starved, they reach for any warmth — Desperate (the next Flatter or Charm against them gains Advantage). Resolve −1.",
     failText:     "Your silence doesn't touch them. Patience −1.",
     immuneText:   "They give attention rather than crave it — your silence changes nothing. Target becomes Defiant.",
     applyOnSuccess: "desperate",
@@ -191,7 +191,7 @@ const SOCIAL_MANEUVERS = [
 
   {
     id:    "guilt_trip",
-    name:  "Debt of Tears",
+    name:  "Guilt Trip",
     skill: "Persuasion",
     icon:  "fa-scale-unbalanced",
     group: "attention",
@@ -207,11 +207,11 @@ const SOCIAL_MANEUVERS = [
     resolveDamage: 1,
   },
 
-  // ── Triad of Order — ledgers: economy, information, field control ──────────
+  // ── Triad of Reason — ledgers: economy, information, field control ──────────
 
   {
     id:    "gaslight",
-    name:  "Unweave the Creed",
+    name:  "Undermine",
     skill: "Deception",
     icon:  "fa-brain",
     group: "order",
@@ -229,7 +229,7 @@ const SOCIAL_MANEUVERS = [
 
   {
     id:    "logic_exploit",
-    name:  "Crack the Cipher",
+    name:  "Cross-Examine",
     skill: "Investigation",
     icon:  "fa-puzzle-piece",
     group: "order",
@@ -248,7 +248,7 @@ const SOCIAL_MANEUVERS = [
 
   {
     id:    "sweeten_deal",
-    name:  "Golden Chains",
+    name:  "Bargain",
     skill: "Persuasion",
     icon:  "fa-coins",
     group: "order",
@@ -276,8 +276,8 @@ const ATTENTION_MANEUVERS = ["flatter", "love_bombing"];
  * The triad counter cycle — every archetype is soft-weak (+2 to the attacker)
  * against maneuvers of the school that counters its ruling triad:
  *   Power breaks Emotion  (dominance cows the needy)
- *   Emotion cracks Order  (feelings undermine systems)
- *   Order binds Power     (contracts and logic tie the mighty down)
+ *   Emotion cracks Reason  (feelings undermine systems)
+ *   Reason binds Power     (contracts and logic tie the mighty down)
  * Maps maneuver group → the defender triad it counters.
  */
 const TRIAD_COUNTERS = { power: "attention", attention: "order", order: "power" };
@@ -285,6 +285,18 @@ const TRIAD_COUNTERS = { power: "attention", attention: "order", order: "power" 
 class SocialManeuverRoller {
   static getManeuver(id) {
     return SOCIAL_MANEUVERS.find(m => m.id === id) ?? null;
+  }
+
+  /** The actor's proficiency bonus (number), with level/CR fallback. */
+  static getProfBonus(actor) {
+    const sys = actor.system ?? {};
+    let prof = sys.attributes?.prof;
+    if (typeof prof !== "number") prof = prof?.value;
+    if (typeof prof !== "number") {
+      const tier = sys.details?.level ?? sys.details?.cr ?? 1;
+      prof = 2 + Math.floor((Math.max(1, tier) - 1) / 4);
+    }
+    return prof;
   }
 
   static getSkillMod(actor, maneuver) {
@@ -297,8 +309,17 @@ class SocialManeuverRoller {
     ].filter(Boolean))];
     for (const key of keys) {
       const entry = actor.system?.skills?.[key];
-      const v = entry?.total ?? entry?.mod ?? entry?.value;
-      if (typeof v === "number") return v;
+      if (!entry) continue;
+      // dnd5e computes .total = ability + proficiency + bonuses — trust it
+      if (typeof entry.total === "number") return entry.total;
+      let v = entry.mod ?? entry.value;
+      if (typeof v !== "number") continue;
+      // Systems without .total (a5e) expose the raw ability mod plus a
+      // proficiency flag/multiplier — fold proficiency in ourselves so a
+      // trained character actually rolls better than an untrained one.
+      const mult = Number(entry.proficient ?? entry.prof ?? entry.proficiency ?? 0);
+      if (mult > 0) v += Math.floor(SocialManeuverRoller.getProfBonus(actor) * mult);
+      return v;
     }
     return 0;
   }
@@ -318,15 +339,11 @@ class SocialManeuverRoller {
    * math when the system doesn't expose it.
    */
   static getSocialDC(actor) {
-    const sys  = actor.system ?? {};
-    const wis  = sys.abilities?.wis?.mod ?? 0;
-    let prof = sys.attributes?.prof;
-    if (typeof prof !== "number") prof = prof?.value;
-    if (typeof prof !== "number") {
-      const tier = sys.details?.level ?? sys.details?.cr ?? 1;
-      prof = 2 + Math.floor((Math.max(1, tier) - 1) / 4);
-    }
-    return Math.max(SocialManeuverRoller.getPassiveInsight(actor), 10 + wis + prof);
+    const wis = actor.system?.abilities?.wis?.mod ?? 0;
+    return Math.max(
+      SocialManeuverRoller.getPassiveInsight(actor),
+      10 + wis + SocialManeuverRoller.getProfBonus(actor)
+    );
   }
 
   /**
@@ -392,7 +409,7 @@ class SocialManeuverRoller {
     const smittenBy   = smittenSelf?.flags?.[scope]?.sourceActorId === targetActor.id;
     if (cond("defiant") && !maneuver.worksThroughDefiant) {
       relation = "blocked";
-      relationReason = "Defiant — walled off from maneuvers (Study the Mask still works)";
+      relationReason = "Defiant — walled off from maneuvers (Read Them still works)";
     } else if (smittenBy) {
       relation = "blocked";
       relationReason = "You are Smitten with them — you cannot bring yourself to move against them";
@@ -451,6 +468,13 @@ class SocialManeuverRoller {
         const atkShort = (SOCIAL_TRIADS[maneuver.group]?.label ?? "").replace("Triad of ", "");
         const defShort = (SOCIAL_TRIADS[arch.triad]?.label ?? "").replace("Triad of ", "");
         bonusReasons.push({ label: `${atkShort} counters ${defShort} — their kind bends to this school`, value: 2, kind: "counter" });
+      }
+      // Bond passive: the relationship itself is a lever — its school gets +1
+      // (hearts respond to hearts, rivalries to power plays, debts to bargains)
+      const myBond = TSLBondStore.find(sourceActor.id, targetActor.id);
+      const bondMeta = myBond ? SocialArchetypeManager.getBondType(myBond.type) : null;
+      if (bondMeta?.school && bondMeta.school === maneuver.group) {
+        bonusReasons.push({ label: `Bond: ${bondMeta.label} — this approach runs deep between you`, value: 1 });
       }
       // The attacker's Extended Triad leanings shape their own attack style:
       // +1 per dot in the maneuver's triad; a triad with NO dots (while the

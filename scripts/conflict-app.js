@@ -310,7 +310,7 @@ class TSLConflictApp extends Application {
         : arch
           ? `<div class="tsl-participant-arch" style="--triad-color:${triad?.color ?? "#806858"}" data-tooltip="${dossierTip}">
                ${isGuess ? `<i class="fas fa-pencil tsl-guess-i"></i>` : `<i class="fas ${triad?.icon ?? "fa-user"}"></i>`} ${arch.label}${isGuess ? "?" : ""}</div>`
-          : `<div class="tsl-participant-system" data-tooltip="Their nature is a riddle — watch their tells (Study the Mask whispers one) and write your guess into your Bond ('Read as'). The ✦/⚡ marks will follow your guess.">Nature unread</div>`;
+          : `<div class="tsl-participant-system" data-tooltip="Their nature is a riddle — watch their tells (Read Them whispers one) and write your guess into your Bond ('Read as'). The ✦/⚡ marks will follow your guess.">Nature unread</div>`;
       const badge = isActing ? `<span class="tsl-turn-badge" style="--active-color:${p.color}">${game.user.isGM ? "Acting" : "You"}</span>`
                   : isTarget ? `<span class="tsl-turn-badge" style="--active-color:#e8a855">Target</span>` : "";
       return `
@@ -376,8 +376,10 @@ class TSLConflictApp extends Application {
               <i class="fas ${m.icon}"></i><span class="tsl-chip-name">${esc(m.name)}</span>${mark}
             </button>`;
         }).join("");
+        const schoolTip = SOCIAL_TRIADS[g.id]?.hint
+          ?? "Safe basics anyone can use — the read, the jab, the taunt. No archetype traps here.";
         return `<div class="tsl-chip-group" style="--triad-color:${color}">
-          <div class="tsl-chip-group-label">${esc(short)}</div>
+          <div class="tsl-chip-group-label" data-tooltip="${esc(schoolTip)}">${esc(short)}</div>
           <div class="tsl-chip-grid">${chips}</div>
         </div>`;
       }).join("");

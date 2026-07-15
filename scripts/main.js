@@ -50,6 +50,23 @@ Hooks.once("vtools.ready", () => {
 Hooks.once("ready", () => {
   console.log("TSL | Social Conflict ready hook firing");
 
+  // Fencing statuses join the token HUD's main status list — toggling them
+  // there is equivalent to the module applying them (matched via `tsl-<id>`).
+  try {
+    for (const id of SOCIAL_CONDITION_ORDER) {
+      const meta = SOCIAL_CONDITIONS[id];
+      if (!meta || CONFIG.statusEffects.some(s => s.id === `tsl-${id}`)) continue;
+      CONFIG.statusEffects.push({
+        id: `tsl-${id}`,
+        name: `${meta.label} (Social)`,
+        img: meta.icon,
+      });
+    }
+    console.log("TSL | Fencing statuses registered in CONFIG.statusEffects");
+  } catch (err) {
+    console.error("TSL | Error registering status effects:", err);
+  }
+
   try {
     console.log("TSL | Registering TSLSocket...");
     if (typeof TSLSocket !== "undefined") {

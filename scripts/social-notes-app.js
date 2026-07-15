@@ -358,10 +358,10 @@ class SocialFencingApp extends Application {
       <section class="tsl-notes-section">
         <div class="tsl-notes-section-title">How Fencing Works</div>
         <ol class="tsl-codex-how">
-          <li><b>Read them — and guess.</b> No one hands you the archetype. Watch behavior; a successful Study the Mask / Crack the Cipher whispers a <b>tell</b>. Write your guess into your Bond ("Read as") — the ✦/⚡ marks follow YOUR read, right or wrong, while the dice always follow the truth. Wrong guesses teach: an unexpected bounce or a surprising crit is evidence.</li>
+          <li><b>Read them — and guess.</b> No one hands you the archetype. Watch behavior; a successful Read Them / Cross-Examine whispers a <b>tell</b>. Write your guess into your Bond ("Read as") — the ✦/⚡ marks follow YOUR read, right or wrong, while the dice always follow the truth. Wrong guesses teach: an unexpected bounce or a surprising crit is evidence.</li>
           <li><b>Pick the lever.</b> A maneuver is d20 + skill vs their <b>social DC</b> — 10 + WIS + proficiency, or passive Insight if higher (± their attitude to you, −5 if Rattled). Hitting a <span class="tsl-codex-vuln">✦ vulnerability</span> gives Advantage and +1 Resolve damage; hitting an <span class="tsl-codex-imm">⚡ immunity</span> auto-fails and makes them Defiant.</li>
           <li><b>Lean into your nature.</b> Your own Extended Triad dots (Profile tab) power your attacks: <b>+1 per dot</b> on that triad's maneuvers, <b>−1</b> on a triad where you have none — foreign ground. Watch for the ★/▼ badges on the maneuver groups. General Tactics are always neutral.</li>
-          <li><b>Know the counter cycle.</b> Every archetype is soft against the school that counters its triad (<b>+2</b> to the attacker, » badge): <b>Power breaks Emotion → Emotion cracks Order → Order binds Power</b>. Read them first — before a read, the panel only whispers that "something in them yields".</li>
+          <li><b>Know the counter cycle.</b> Every archetype is soft against the school that counters its triad (<b>+2</b> to the attacker, » badge): <b>Power breaks Emotion → Emotion cracks Reason → Reason binds Power</b>. Read them first — before a read, the panel only whispers that "something in them yields".</li>
           <li><b>Play your leverage.</b> A read dossier unlocks their <b>Desire</b> (Advantage, +1 Resolve damage), <b>Fear</b> (+3, but a failed threat burns their Patience) and <b>Weakness</b> (neutral counts as vulnerable) — each once per encounter.</li>
           <li><b>Win the exchange.</b> Successes break <b>Resolve</b> (0 = swayed, attitude +1); failures burn <b>Patience</b> (0 = they walk away, attitude −1 — and HOW they leave depends on their triad). Statuses chain into combos; Strings buy +2.</li>
           <li><b>Or win sincerely.</b> Emotional moves (2d6) are the honest route: a Strong Hit on Speak from the Heart or Provoke also chips 1 Resolve, and Read the Room (10+) reveals their nature without manipulation.</li>
@@ -451,7 +451,7 @@ class SocialFencingApp extends Application {
             <div class="tsl-chr-att-track">${attitudeDots(b)}</div>
           </div>
           <div class="tsl-chr-bond-line">
-            <span class="tsl-chr-bond-label" data-tooltip="Your working guess at their archetype — deduce it from tells (Study the Mask whispers one). The ✦/⚡ marks in fencing follow THIS guess, right or wrong; refine it as you learn.">Read as</span>
+            <span class="tsl-chr-bond-label" data-tooltip="Your working guess at their archetype — deduce it from tells (Read Them whispers one). The ✦/⚡ marks in fencing follow THIS guess, right or wrong; refine it as you learn.">Read as</span>
             <select class="tsl-chr-bond-arch" data-bond-id="${b.id}" ${disabled}>${archOpts(b.perceivedArchetypeId)}</select>
             ${canEdit ? `
               <button class="tsl-chr-str-adj" data-bond-id="${b.id}" data-target="${b.targetActorId}" data-delta="1"  data-tooltip="Gain a string on them">+</button>
@@ -484,9 +484,9 @@ class SocialFencingApp extends Application {
           <option value="">— Add a bond… —</option>
           ${candidates.map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join("")}
         </select>
-        <button class="tsl-chr-pick-btn ${this._picking ? "picking" : ""}"
-                data-tooltip="Pick from canvas: click a visible token on the map to bond with it. Esc cancels.">
-          <i class="fas fa-crosshairs"></i> ${this._picking ? "Click a token… (Esc)" : "Pick token"}
+        <button class="tsl-chr-pick-btn ${this._picking && this._pickMode === "bond" ? "picking" : ""}"
+                data-bond-pick data-tooltip="Pick from canvas: click a visible token on the map to bond with it. Esc cancels.">
+          <i class="fas fa-crosshairs"></i> ${this._picking && this._pickMode === "bond" ? "Click a token… (Esc)" : "Pick token"}
         </button>
       </div>` : "";
 
@@ -592,7 +592,7 @@ class SocialFencingApp extends Application {
 
       const archLine = arch
         ? `<span class="tsl-fc-arch" style="--triad-color:${triad?.color ?? "#806858"}" data-tooltip="${isGuess ? "<b>Your read (may be wrong)</b><br>" : ""}${esc(arch.hint ?? arch.description)}">${isGuess ? `<i class="fas fa-pencil tsl-guess-i"></i>` : `<i class="fas ${triad?.icon ?? "fa-user"}"></i>`} ${esc(arch.label)}${isGuess ? "?" : ""}</span>`
-        : `<span class="tsl-fc-arch tsl-fc-arch--unread" data-tooltip="Their nature is a riddle — Study the Mask whispers a tell; write your guess into your Bond ('Read as') and the ✦/⚡ marks will follow it.">Nature unread</span>`;
+        : `<span class="tsl-fc-arch tsl-fc-arch--unread" data-tooltip="Their nature is a riddle — Read Them whispers a tell; write your guess into your Bond ('Read as') and the ✦/⚡ marks will follow it.">Nature unread</span>`;
 
       // Maneuver chips grouped by triad — marks follow the viewer's read
       const chips = MANEUVER_GROUPS.map(g => {
@@ -608,8 +608,10 @@ class SocialFencingApp extends Application {
                     data-tooltip="<b>${esc(m.name)}</b> · ${esc(m.skill)}<br>${esc(m.description)}">
                     <i class="fas ${m.icon}"></i><span class="tsl-chip-name">${esc(m.name)}</span>${mark}</button>`;
         }).join("");
+        const schoolTip = SOCIAL_TRIADS[g.id]?.hint
+          ?? "Safe basics anyone can use — the read, the jab, the taunt. No archetype traps here.";
         return `<div class="tsl-chip-group" style="--triad-color:${color}">
-          <div class="tsl-chip-group-label">${esc(short)}</div><div class="tsl-chip-grid">${cs}</div></div>`;
+          <div class="tsl-chip-group-label" data-tooltip="${esc(schoolTip)}">${esc(short)}</div><div class="tsl-chip-grid">${cs}</div></div>`;
       }).join("");
 
       body = `
@@ -904,7 +906,10 @@ class SocialFencingApp extends Application {
       if (entry) this._expandedBonds.add(entry.id); // open the fresh bond for editing
     });
 
-    el.querySelector(".tsl-chr-pick-btn")?.addEventListener("click", () => {
+    // NOTE: scoped by data attribute — the Fencing tab's "Map" button shares
+    // this class, and a class-wide listener would fire on BOTH buttons and
+    // instantly cancel the pick the other handler just started.
+    el.querySelector("[data-bond-pick]")?.addEventListener("click", () => {
       if (this._picking) this._endPick("Pick cancelled.");
       else this._startPick();
     });

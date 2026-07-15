@@ -20,21 +20,21 @@ const SOCIAL_TRIADS = {
     label: "Triad of Power",
     icon: "fa-chess-king",
     color: "#e8557a",
-    hint: "Control, dominance, ambition. Tyrant · Machiavellian · Duelist. They respect strength and despise servility — flattery, bait and open challenge work; raw threats usually bounce. Counter cycle: Power breaks Emotion, but Order binds Power.",
+    hint: "Control, dominance, ambition. Tyrant · Machiavellian · Duelist. They respect strength and despise servility — flattery, bait and open challenge work; raw threats usually bounce. Counter cycle: Power breaks Emotion, but Reason binds Power.",
   },
   attention: {
     id: "attention",
     label: "Triad of Emotion",
     icon: "fa-heart",
     color: "#9b6ee8",
-    hint: "Attention, affection, the need to be seen. Martyr · Exalted · Caretaker. Feed or starve their hunger for attention; cold logic slides right off them. Counter cycle: Emotion cracks Order, but Power cows Emotion.",
+    hint: "Attention, affection, the need to be seen. Martyr · Exalted · Caretaker. Feed or starve their hunger for attention; cold logic slides right off them. Counter cycle: Emotion cracks Reason, but Power cows Emotion.",
   },
   order: {
     id: "order",
-    label: "Triad of Order",
+    label: "Triad of Reason",
     icon: "fa-scale-balanced",
     color: "#55b8e8",
-    hint: "Rules, systems, certainty. Dogmatic · Hermit · Broker. Exploit contradictions, information and deals; naked emotion is noise to them. Counter cycle: Order binds Power, but Emotion cracks Order.",
+    hint: "Rules, systems, certainty. Dogmatic · Hermit · Broker. Exploit contradictions, information and deals; naked emotion is noise to them. Counter cycle: Reason binds Power, but Emotion cracks Reason.",
   },
 };
 
@@ -139,7 +139,7 @@ const SOCIAL_ARCHETYPES = [
     ],
   },
 
-  // ── Triad of Order ──────────────────────────────────────────────────────────
+  // ── Triad of Reason ──────────────────────────────────────────────────────────
   {
     id: "dogmatic",
     label: "Dogmatic",
@@ -233,19 +233,22 @@ const PROFILE_POINTS = [
 ];
 
 /** Bond types for the Chronicle of Bonds, each with a table-facing hint. */
+// `school` — the bond's passive: maneuvers of that school get +1 against this
+// person (the relationship itself is a lever: hearts respond to hearts,
+// rivalries to power plays, debts to bargains).
 const BOND_TYPES = [
-  { id: "stranger", label: "Stranger",  icon: "fa-circle-question", hint: "Barely acquainted — everything is still to be written." },
-  { id: "ally",     label: "Ally",      icon: "fa-handshake",       hint: "Shared cause. They'll take risks for you while your interests align." },
-  { id: "friend",   label: "Friend",    icon: "fa-mug-hot",         hint: "Genuine warmth. Easier to comfort, harder to deceive." },
-  { id: "family",   label: "Family",    icon: "fa-house-chimney",   hint: "Blood or chosen. Guilt and obligation cut deepest here." },
-  { id: "crush",    label: "Crush",     icon: "fa-heart-circle-exclamation", hint: "One-sided longing. Smitten comes easily; rejection stings twice." },
-  { id: "lover",    label: "Lover",     icon: "fa-heart",           hint: "Hearts entangled. Finally Kiss can end a conflict; betrayal wounds double." },
-  { id: "mentor",   label: "Mentor",    icon: "fa-graduation-cap",  hint: "They shaped you. Their approval still matters more than you admit." },
-  { id: "protege",  label: "Protégé",   icon: "fa-seedling",        hint: "You shaped them. Responsibility pulls at you when they are threatened." },
-  { id: "rival",    label: "Rival",     icon: "fa-khanda",          hint: "A respected opponent. Challenges and one-upmanship escalate fast." },
-  { id: "enemy",    label: "Enemy",     icon: "fa-skull",           hint: "Open hostility. Every word is a weapon already drawn." },
-  { id: "indebted", label: "Indebted",  icon: "fa-scale-unbalanced", hint: "You owe them. Leverage flows their way until the debt is paid." },
-  { id: "creditor", label: "Creditor",  icon: "fa-scale-unbalanced-flip", hint: "They owe you — a String made formal. Call it in at the right moment." },
+  { id: "stranger", label: "Stranger",  icon: "fa-circle-question", school: null,        hint: "Barely acquainted — everything is still to be written." },
+  { id: "ally",     label: "Ally",      icon: "fa-handshake",       school: "order",     hint: "Shared cause. They'll take risks for you while your interests align. Passive: +1 on Reason maneuvers against them." },
+  { id: "friend",   label: "Friend",    icon: "fa-mug-hot",         school: "attention", hint: "Genuine warmth. Easier to comfort, harder to deceive. Passive: +1 on Emotion maneuvers against them." },
+  { id: "family",   label: "Family",    icon: "fa-house-chimney",   school: "attention", hint: "Blood or chosen. Guilt and obligation cut deepest here. Passive: +1 on Emotion maneuvers against them." },
+  { id: "crush",    label: "Crush",     icon: "fa-heart-circle-exclamation", school: "attention", hint: "One-sided longing. Smitten comes easily; rejection stings twice. Passive: +1 on Emotion maneuvers against them." },
+  { id: "lover",    label: "Lover",     icon: "fa-heart",           school: "attention", hint: "Hearts entangled. Finally Kiss can end a conflict; betrayal wounds double. Passive: +1 on Emotion maneuvers against them." },
+  { id: "mentor",   label: "Mentor",    icon: "fa-graduation-cap",  school: "attention", hint: "They shaped you. Their approval still matters more than you admit. Passive: +1 on Emotion maneuvers against them." },
+  { id: "protege",  label: "Protégé",   icon: "fa-seedling",        school: "attention", hint: "You shaped them. Responsibility pulls at you when they are threatened. Passive: +1 on Emotion maneuvers against them." },
+  { id: "rival",    label: "Rival",     icon: "fa-khanda",          school: "power",     hint: "A respected opponent. Challenges and one-upmanship escalate fast. Passive: +1 on Power maneuvers against them." },
+  { id: "enemy",    label: "Enemy",     icon: "fa-skull",           school: "power",     hint: "Open hostility. Every word is a weapon already drawn. Passive: +1 on Power maneuvers against them." },
+  { id: "indebted", label: "Indebted",  icon: "fa-scale-unbalanced", school: "order",    hint: "You owe them. Leverage flows their way until the debt is paid. Passive: +1 on Reason maneuvers against them." },
+  { id: "creditor", label: "Creditor",  icon: "fa-scale-unbalanced-flip", school: "order", hint: "They owe you — a String made formal. Call it in at the right moment. Passive: +1 on Reason maneuvers against them." },
 ];
 
 /**
@@ -256,7 +259,7 @@ const BOND_TYPES = [
  *   smitten   — the charmer's Persuasion maneuvers roll with Advantage. Lasts the scene.
  *   provoked  — one-shot: the NEXT maneuver against them gains +2, then fades.
  *   guilted   — one-shot: the guilter's next maneuver rolls with Advantage, then fades.
- *   desperate — one-shot: the next attention maneuver (Gilded Mirror, Honeyed Siege)
+ *   desperate — one-shot: the next attention maneuver (Flatter, Charm)
  *               by anyone rolls with Advantage, then fades.
  *   defiant   — walls off ALL maneuvers for an hour. The price of hitting an immunity.
  *
@@ -269,6 +272,10 @@ const SOCIAL_CONDITIONS = {
   // Active Effect's description so the debuff follows them into the fight.
   // `midiChanges` — automation for dnd5e tables running midi-qol (harmless
   // no-ops elsewhere).
+  // `links` — matching SYSTEM status ids added to the effect's `statuses`,
+  //   so a5e/dnd5e native condition automation (e.g. A5E's own Rattled)
+  //   picks the status up as if applied from the core list.
+  // `dnd5eChanges` — plain numeric Active Effect changes for dnd5e.
   rattled: {
     id: "rattled",
     label: "Rattled",
@@ -277,7 +284,8 @@ const SOCIAL_CONDITIONS = {
     seconds: 3600,
     oneShot: false,
     description: "Composure cracked: the DC to sway them is reduced by 5. No reactions or expertise dice.",
-    combat: "Disadvantage on Wisdom saving throws.",
+    combat: "Disadvantage on Wisdom saving throws; no reactions or expertise dice (A5E Rattled).",
+    links: ["rattled"],
     midiChanges: [{ key: "flags.midi-qol.disadvantage.ability.save.wis", mode: 0, value: "1" }],
   },
   smitten: {
@@ -288,7 +296,8 @@ const SOCIAL_CONDITIONS = {
     seconds: 3600,
     oneShot: false,
     description: "Charmed: cannot act against the charmer, and the charmer's Persuasion maneuvers roll with Advantage.",
-    combat: "Disadvantage on attack rolls against the charmer; counts as charmed by them.",
+    combat: "Counts as charmed by them: disadvantage on attack rolls against the charmer.",
+    links: ["charmed"],
   },
   provoked: {
     id: "provoked",
@@ -298,7 +307,8 @@ const SOCIAL_CONDITIONS = {
     seconds: 600,
     oneShot: true,
     description: "Off balance with anger: the next maneuver against them gains +2, then this fades.",
-    combat: "Must attack the provoker if able; attacks against anyone else are at disadvantage.",
+    combat: "Reckless: −2 AC. Must attack the provoker if able.",
+    dnd5eChanges: [{ key: "system.attributes.ac.bonus", mode: 2, value: "-2" }],
   },
   guilted: {
     id: "guilted",
@@ -308,7 +318,11 @@ const SOCIAL_CONDITIONS = {
     seconds: 600,
     oneShot: true,
     description: "Weighed down by obligation: the guilter's next maneuver rolls with Advantage, then this fades.",
-    combat: "Disadvantage on attack rolls against the one they owe.",
+    combat: "The weight drags every swing: −2 on attack rolls.",
+    dnd5eChanges: [
+      { key: "system.bonuses.mwak.attack", mode: 2, value: "-2" },
+      { key: "system.bonuses.rwak.attack", mode: 2, value: "-2" },
+    ],
   },
   desperate: {
     id: "desperate",
@@ -317,8 +331,9 @@ const SOCIAL_CONDITIONS = {
     color: "#5588e8",
     seconds: 600,
     oneShot: true,
-    description: "Starved of attention: the next Gilded Mirror or Honeyed Siege against them rolls with Advantage, then this fades.",
-    combat: "Disadvantage on Wisdom (Insight) checks.",
+    description: "Starved of attention: the next Flatter or Charm against them rolls with Advantage, then this fades.",
+    combat: "Disadvantage on Wisdom (Insight) checks; −2 on initiative.",
+    dnd5eChanges: [{ key: "system.attributes.init.bonus", mode: 2, value: "-2" }],
     midiChanges: [{ key: "flags.midi-qol.disadvantage.skill.ins", mode: 0, value: "1" }],
   },
   defiant: {
@@ -328,8 +343,8 @@ const SOCIAL_CONDITIONS = {
     color: "#e8c855",
     seconds: 3600,
     oneShot: false,
-    description: "Walls up: immune to social maneuvers for 1 hour (only Study the Mask slips through). Triggered by striking an archetype's immunity.",
-    combat: "Advantage on saving throws against being charmed or frightened.",
+    description: "Walls up: immune to social maneuvers for 1 hour (only Read Them slips through). Triggered by striking an archetype's immunity.",
+    combat: "Dug in: advantage on saving throws against being charmed or frightened.",
   },
 };
 
@@ -425,12 +440,14 @@ class SocialArchetypeManager {
     const sourceName = sourceActor?.name || "Social Fencing";
 
     // The combat rider travels with the effect — if talk turns to steel, the
-    // debuff is already on the token. midi-qol changes automate it on dnd5e.
+    // debuff is already on the token. Numeric changes + midi flags automate
+    // it on dnd5e; `links` hooks the system's own conditions (A5E Rattled,
+    // charmed) so native automation treats it as the real thing.
     const description = meta.combat
       ? `${meta.description}<br><b>Combat:</b> ${meta.combat}`
       : meta.description;
-    const changes = (game.system.id === "dnd5e" && meta.midiChanges)
-      ? foundry.utils.deepClone(meta.midiChanges)
+    const changes = game.system.id === "dnd5e"
+      ? foundry.utils.deepClone([...(meta.dnd5eChanges ?? []), ...(meta.midiChanges ?? [])])
       : [];
 
     return {
@@ -440,6 +457,7 @@ class SocialArchetypeManager {
       origin: `module.${SocialArchetypeManager.getFlagScope()}`,
       disabled: false,
       duration: { seconds: meta.seconds ?? 3600 },
+      statuses: [`tsl-${conditionId}`, ...(meta.links ?? [])],
       flags: {
         [SocialArchetypeManager.getFlagScope()]: {
           condition: conditionId,
@@ -481,10 +499,17 @@ class SocialArchetypeManager {
     await actor.deleteEmbeddedDocuments("ActiveEffect", toRemove.map((e) => e.id));
   }
 
-  /** The ActiveEffect for a fencing status on this actor, or null. */
+  /**
+   * The ActiveEffect for a fencing status on this actor, or null.
+   * Matches both module-applied effects (flag) and ones toggled from the
+   * token HUD's main status list (statuses set `tsl-<id>`).
+   */
   static getActiveCondition(actor, conditionId) {
     return actor?.effects.find(e =>
-      !e.disabled && e.flags?.[SocialArchetypeManager.getFlagScope()]?.condition === conditionId
+      !e.disabled && (
+        e.flags?.[SocialArchetypeManager.getFlagScope()]?.condition === conditionId
+        || e.statuses?.has?.(`tsl-${conditionId}`)
+      )
     ) ?? null;
   }
 
