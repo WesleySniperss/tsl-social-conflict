@@ -189,7 +189,7 @@ class SocialFencingApp extends Application {
     return `<div class="tsl-dice-overlay"><div class="tsl-dice-panel tsl-dice-panel--maneuver">
       <div class="tsl-dice-move"><i class="fas ${r.icon}"></i> ${foundry.utils.escapeHTML(r.name)}</div>
       <div class="tsl-dice-total" data-outcome="${oc}">${r.total}</div>
-      <div class="tsl-dice-breakdown">vs DC ${r.dc}</div>
+      <div class="tsl-dice-breakdown">${game.user.isGM ? `vs DC ${r.dc}` : "vs ?"}</div>
       <div class="tsl-dice-outcome" data-outcome="${oc}">${label}</div>
       <button class="tsl-fence-close">Continue</button>
     </div></div>`;
@@ -696,6 +696,8 @@ class SocialFencingApp extends Application {
 
     // A visible, plain-language breakdown of every modifier in play — so it's
     // obvious WHERE the bonuses come from, not hidden in a tooltip.
+    // The DC itself (and its modifiers) is GM knowledge — players earn a feel
+    // for the difficulty from outcomes, not from a readout.
     const breakdown = [];
     breakdown.push(`<span class="tsl-fc-mod tsl-fc-mod--base">${esc(m.skill)} ${a.skillMod >= 0 ? "+" : "−"}${Math.abs(a.skillMod)}</span>`);
     if (strAdd) breakdown.push(`<span class="tsl-fc-mod pos">+${strAdd} String spent</span>`);
@@ -703,8 +705,14 @@ class SocialFencingApp extends Application {
       breakdown.push(`<span class="tsl-fc-mod ${b.value >= 0 ? "pos" : "neg"}">${b.value >= 0 ? "+" : "−"}${Math.abs(b.value)} ${esc(b.label)}</span>`);
     }
     for (const r of a.advantageReasons) breakdown.push(`<span class="tsl-fc-mod adv">ADV — ${esc(r)}</span>`);
-    for (const dm of a.dcMods) breakdown.push(`<span class="tsl-fc-mod ${dm.value < 0 ? "pos" : "neg"}">DC ${dm.value > 0 ? "+" : "−"}${Math.abs(dm.value)} · ${esc(dm.label)}</span>`);
+    if (ctx.isGM) {
+      for (const dm of a.dcMods) breakdown.push(`<span class="tsl-fc-mod ${dm.value < 0 ? "pos" : "neg"}">DC ${dm.value > 0 ? "+" : "−"}${Math.abs(dm.value)} · ${esc(dm.label)}</span>`);
+    }
     if (isGuess && known) breakdown.push(`<span class="tsl-fc-mod">predictions follow your read — may be wrong</span>`);
+
+    const dcHtml = ctx.isGM
+      ? `<span class="tsl-bar-dim">vs DC <b>${a.dc}</b></span>`
+      : `<span class="tsl-bar-dim">vs <b data-tooltip="The difficulty is hidden — only the GM sees the number. Read them, watch outcomes, and you'll sense it.">?</b></span>`;
 
     const blocked = a.relation === "blocked";
     return `<div class="tsl-bar tsl-bar--fence">
@@ -712,7 +720,7 @@ class SocialFencingApp extends Application {
         <div class="tsl-bar-core">
           <span class="tsl-bar-move">${esc(m.name)} ${advMark}</span>
           <span class="tsl-bar-roll">${esc(m.skill)} ${a.skillMod >= 0 ? "+" : "−"} ${Math.abs(a.skillMod)} ${extraChip}
-            <span class="tsl-bar-dim">vs DC <b>${a.dc}</b></span></span>
+            ${dcHtml}</span>
         </div>
         ${strBtn}
         ${blocked ? "" : `<button class="tsl-fc-roll tsl-roll-btn" style="--active-color:#9b6ee8">Roll</button>`}

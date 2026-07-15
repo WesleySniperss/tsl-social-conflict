@@ -132,6 +132,8 @@ One-shot economy: a one-shot is consumed ONLY if it is the thing granting the ad
 
 **Social DC (`getSocialDC`):** max(passive Insight, 10 + WIS mod + proficiency) — proficiency from `attributes.prof`, falling back to level/CR math. Scales defense with level so high-tier attack stacking doesn't trivialize targets.
 
+**Hidden DC (v1.9.1):** players never see the number — difficulty is earned knowledge. GM-gated in all four surfaces: conflict duel bar & Chronicle fence bar show `vs ?` (tooltip explains) for players, DC-mod breakdown chips are GM-only, the d20 overlays gate on `game.user.isGM`, and the SHARED chat card always bakes `vs DC ?` (even a GM roll must not leak the number to everyone reading chat). Rolls still use the real DC.
+
 ### UI Structure Notes (minimalist redesign)
 - **One focus at a time.** Center = unified `.tsl-actions` (a single `.tsl-chip` grid: Feelings·2d6 group + triad maneuver groups, thin colored left-border per group) → `centerBottom()` action **bar**. No two stacked labeled sections, no always-open duel panel.
 - **The action bar** (`.tsl-bar`) replaces the old ~10-line duel panel with **3 tight lines max**: (1) matchup — portrait · move · `Skill ±N` `+extra`(tooltip breakdown) `ADV`(tooltip reasons) · `vs DC X`(tooltip base+mods) · Roll; (2) toggles — String spend + leverage chips (`_stringToggle` / `_leverageToggles`); (3) ONE priority-picked hint sentence. Everything else lives in tooltips.

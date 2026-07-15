@@ -731,10 +731,6 @@ class SocialManeuverRoller {
       ? `[${d.rawDice.join("] [")}] → ${kept} ${sign}${a.skillMod}${bonusText}${d.disadvantage ? " (dis)" : ""}`
       : `[${d.rawDice[0]}] ${sign}${a.skillMod}${bonusText}`;
 
-    const dcModsText = a.dcMods.length
-      ? ` <span class="tsl-mv-att" data-tooltip="${esc(a.dcMods.map(m => `${m.value > 0 ? "+" : ""}${m.value} ${m.label}`).join(", "))}">(${a.dcBase}${a.dcMods.map(m => `${m.value > 0 ? "+" : "−"}${Math.abs(m.value)}`).join("")})</span>`
-      : "";
-
     // Evidence without answers: the two dice already show the Advantage; the
     // reason lines must not name the archetype for everyone to read.
     const reasons = a.advantageReasons.map(r => {
@@ -767,7 +763,7 @@ class SocialManeuverRoller {
   ${reasons}
   <div class="tsl-mv-roll">
     <span class="tsl-mv-dice">${diceText}</span>
-    <span class="tsl-mv-vs">vs DC ${a.dc}${dcModsText}</span>
+    <span class="tsl-mv-vs" data-tooltip="The difficulty stays with the GM — the card never shows it.">vs DC ?</span>
     <span class="tsl-mv-total tsl-mv-total--${d.outcomeType}">${d.total}</span>
   </div>
   <div class="tsl-mv-outcome tsl-mv-outcome--${d.outcomeType}">${esc(d.outcomeText)}</div>

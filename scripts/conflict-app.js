@@ -443,7 +443,12 @@ class TSLConflictApp extends Application {
       const extraChip = extra
         ? `<span class="tsl-bar-extra ${extra >= 0 ? "pos" : "neg"}" data-tooltip="${esc(bonusList.join(", "))}${isGuess && seeRel ? " — predictions follow your read" : ""}">${extra >= 0 ? "+" : "−"}${Math.abs(extra)}</span>`
         : "";
-      const dcTip = a.dcMods.length ? ` (${a.dcBase}${a.dcMods.map(m => `${m.value > 0 ? "+" : "−"}${Math.abs(m.value)}`).join("")})` : "";
+      // Players never see the number they must beat — difficulty is earned
+      // knowledge (reads, evidence), not a free readout.
+      const dcTip  = a.dcMods.length ? ` (${a.dcBase}${a.dcMods.map(m => `${m.value > 0 ? "+" : "−"}${Math.abs(m.value)}`).join("")})` : "";
+      const dcHtml = isGM
+        ? `<span class="tsl-bar-dim">vs DC <b data-tooltip="${dcTip ? "Base " + dcTip : "10 + WIS + proficiency"}">${a.dc}</b></span>`
+        : `<span class="tsl-bar-dim">vs <b data-tooltip="The difficulty is hidden — only the GM sees the number. Read them, watch outcomes, and you'll sense it.">?</b></span>`;
 
       const advMark = a.advantage
         ? `<span class="tsl-bar-adv" data-tooltip="${esc(a.advantageReasons.join("; "))}${isGuess ? " — if your read is right" : ""}">ADV${isGuess && a.relation === "vulnerable" ? "?" : ""}</span>` : "";
@@ -467,7 +472,7 @@ class TSLConflictApp extends Application {
           <div class="tsl-bar-core">
             <span class="tsl-bar-move">${esc(move.name)} ${relMark}${advMark}</span>
             <span class="tsl-bar-roll">${esc(move.skill)} ${a.skillMod >= 0 ? "+" : "−"} ${Math.abs(a.skillMod)} ${extraChip}
-              <span class="tsl-bar-dim">vs DC <b data-tooltip="${dcTip ? "Base " + dcTip : "10 + WIS + proficiency"}">${a.dc}</b></span></span>
+              ${dcHtml}</span>
           </div>
           ${this._stringToggle(activeP, tgtP)}
           ${blocked ? "" : `<button class="tsl-roll-btn" style="--active-color:${activeColor}">Roll</button>`}
@@ -486,7 +491,7 @@ class TSLConflictApp extends Application {
         return `<div class="tsl-dice-overlay"><div class="tsl-dice-panel tsl-dice-panel--maneuver">
           <div class="tsl-dice-move"><i class="fas ${r.icon}"></i> ${r.moveName}</div>
           <div class="tsl-dice-total" data-outcome="${oc}">${r.total}</div>
-          <div class="tsl-dice-breakdown">vs DC ${r.dc}</div>
+          <div class="tsl-dice-breakdown">${game.user.isGM ? `vs DC ${r.dc}` : "vs ?"}</div>
           <div class="tsl-dice-outcome" data-outcome="${oc}">${label}</div>
           <button class="tsl-dice-close">Continue</button>
         </div></div>`;
