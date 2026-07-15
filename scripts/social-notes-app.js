@@ -26,6 +26,11 @@ class SocialFencingDialog {
 
   static open(actor) {
     if (!actor) return;
+    // Chronicle data lives on the WORLD actor. An unlinked token hands us its
+    // synthetic actor (same id, token-local flags) — writing there would give
+    // every token its own private bonds/strings. Normalize to the base actor
+    // so all copies of a character share one chronicle.
+    actor = game.actors.get(actor.id) ?? actor;
     if (!game.user.isGM && !actor.isOwner) {
       ui.notifications.warn("You can only open the Chronicle of characters you own. What you know about others is written in your own character's Bonds.");
       return;
@@ -363,7 +368,7 @@ class SocialFencingApp extends Application {
           <li><b>Lean into your nature.</b> Your own Extended Triad dots (Profile tab) power your attacks: <b>+1 per dot</b> on that triad's maneuvers, <b>−1</b> on a triad where you have none — foreign ground. Watch for the ★/▼ badges on the maneuver groups. General Tactics are always neutral.</li>
           <li><b>Know the counter cycle.</b> Every archetype is soft against the school that counters its triad (<b>+2</b> to the attacker, » badge): <b>Power breaks Emotion → Emotion cracks Reason → Reason binds Power</b>. Read them first — before a read, the panel only whispers that "something in them yields".</li>
           <li><b>Play your leverage.</b> A read dossier unlocks their <b>Desire</b> (Advantage, +1 Resolve damage), <b>Fear</b> (+3, but a failed threat burns their Patience) and <b>Weakness</b> (neutral counts as vulnerable) — each once per encounter.</li>
-          <li><b>Win the exchange.</b> Successes break <b>Resolve</b> (0 = swayed, attitude +1); failures burn <b>Patience</b> (0 = they walk away, attitude −1 — and HOW they leave depends on their triad). Statuses chain into combos; Strings buy +2.</li>
+          <li><b>Win the exchange.</b> Successes break <b>Resolve</b> (0 = swayed, attitude +1); failures burn <b>Patience</b> (0 = they walk away, attitude −1 — and HOW they leave depends on their triad). Statuses chain into combos. Strings are a standing grip: holding any gives +1 on maneuvers against that person (and theirs on you raise your DC to sway them); spending one buys +2 more.</li>
           <li><b>Or win sincerely.</b> Emotional moves (2d6) are the honest route: a Strong Hit on Speak from the Heart or Provoke also chips 1 Resolve, and Read the Room (10+) reveals their nature without manipulation.</li>
         </ol>
       </section>`;
@@ -1084,11 +1089,15 @@ class SocialFencingApp extends Application {
     const mods = await SocialManeuverRoller.promptRollMods(`${maneuver.name} → ${tgt.name}`, assessment.advantage);
     if (!mods) return;
 
+    // Reserve the String now, burn it AFTER the roll — the in-roll assess
+    // still counts it for the grip passive (preview must match the dice),
+    // and an error can't eat the String without a roll happening.
     let stringBonus = 0;
+    let spentString = null;
     if (this._fenceStringSpend) {
       const held = TSLStringStore.getList(src.id).filter(e => e.targetActorId === tgt.id);
       if (held.length) {
-        await TSLStringStore.removeEntry(src.id, held[0].id);
+        spentString = held[0];
         stringBonus = STRING_SPEND_BONUS;
       }
     }
@@ -1096,6 +1105,7 @@ class SocialFencingApp extends Application {
     const payload = await SocialManeuverRoller.rollManeuver(src, tgt, maneuver, {
       stringBonus, leverage, situational: mods.situational, mode: mods.mode,
     });
+    if (spentString) await TSLStringStore.removeEntry(src.id, spentString.id);
     TSLGMActions.request("maneuverOutcome", payload);
 
     this._fenceRoll = {

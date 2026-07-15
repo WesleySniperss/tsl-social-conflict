@@ -398,6 +398,10 @@ class SocialManeuverRoller {
     const attitude = TSLBondStore.getAttitude(targetActor.id, sourceActor.id);
     if (attitude) dcMods.push({ label: attitude > 0 ? "they like you" : "they distrust you", value: -attitude });
     if (cond("rattled")) dcMods.push({ label: "Rattled", value: -5 });
+    // Strings are leverage even unspent — THEIRS on you stiffen their guard
+    const theirGrip = TSLStringStore.getList(targetActor.id)
+      .filter(e => e.targetActorId === sourceActor.id).length;
+    if (theirGrip) dcMods.push({ label: `they hold ${theirGrip} String${theirGrip > 1 ? "s" : ""} on you`, value: 1 });
     const dc = dcMods.reduce((sum, m) => sum + m.value, dcBase);
 
     // ── Hard walls: Defiant target / Smitten attacker ────────────────────────
@@ -468,6 +472,12 @@ class SocialManeuverRoller {
         const atkShort = (SOCIAL_TRIADS[maneuver.group]?.label ?? "").replace("Triad of ", "");
         const defShort = (SOCIAL_TRIADS[arch.triad]?.label ?? "").replace("Triad of ", "");
         bonusReasons.push({ label: `${atkShort} counters ${defShort} — their kind bends to this school`, value: 2, kind: "counter" });
+      }
+      // Held Strings are a standing grip on them — +1 even before you spend one
+      const myGrip = TSLStringStore.getList(sourceActor.id)
+        .filter(e => e.targetActorId === targetActor.id).length;
+      if (myGrip) {
+        bonusReasons.push({ label: `String grip (${myGrip} held) — you know which threads to pull`, value: 1 });
       }
       // Bond passive: the relationship itself is a lever — its school gets +1
       // (hearts respond to hearts, rivalries to power plays, debts to bargains)

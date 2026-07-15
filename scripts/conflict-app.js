@@ -239,7 +239,7 @@ class TSLConflictApp extends Application {
             held ? `holds ${held}` : null,
             inc ? `${inc} on them` : null,
           ].filter(Boolean).join(" · ");
-          strChip = `<span class="tsl-str-chip" data-tooltip="Strings — ${parts}. Spend one in the action bar for +2.">
+          strChip = `<span class="tsl-str-chip" data-tooltip="Strings — ${parts}. Holding a String grips them: +1 on your maneuvers against them. Spend one in the action bar for +2 more.">
             <i class="fas fa-masks-theater"></i>${held || inc}</span>`;
         }
       }
@@ -809,11 +809,12 @@ class TSLConflictApp extends Application {
     const mods = await SocialManeuverRoller.promptRollMods(`${maneuver.name} → ${tgtP.name}`, assessment.advantage);
     if (!mods) return;
 
-    // Spend string if pending — +2 to the maneuver roll
+    // Reserve the String, burn it AFTER the roll — the in-roll assess still
+    // counts it for the grip passive, so the preview matches the dice.
     let stringBonus = 0;
+    let spentString = null;
     if (this._pendingStringSpend) {
-      const { sourceActorId, stringId } = this._pendingStringSpend;
-      await TSLStringStore.removeEntry(sourceActorId, stringId);
+      spentString = this._pendingStringSpend;
       stringBonus = STRING_SPEND_BONUS;
       this._pendingStringSpend = null;
     }
@@ -822,6 +823,7 @@ class TSLConflictApp extends Application {
     const payload = await SocialManeuverRoller.rollManeuver(srcActor, tgtActor, maneuver, {
       stringBonus, leverage, situational: mods.situational, mode: mods.mode,
     });
+    if (spentString) await TSLStringStore.removeEntry(spentString.sourceActorId, spentString.stringId);
 
     // Effects + log + turn advance happen on the GM client
     TSLGMActions.request("maneuverOutcome", payload);
