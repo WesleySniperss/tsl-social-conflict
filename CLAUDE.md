@@ -100,9 +100,9 @@ tsl-social-conflict/
 | Provoked | next maneuver vs them +2; **combat:** must attack the provoker, dis vs others | Taunt | one-shot |
 | Guilted | guilter's next maneuver gets Advantage; **combat:** dis on attacks vs the guilter | Guilt Trip | one-shot |
 | Desperate | next Flatter/Charm gets Advantage; **combat:** dis on Insight checks (midi flag) | Ignore Them | one-shot |
-| Defiant | immune to maneuvers; **Read Them slips through** (`worksThroughDefiant`); **combat:** adv on saves vs charm/fear | hitting an immunity | 1h |
+| Defiant | immune to maneuvers; **Read Them slips through** (`worksThroughDefiant`) and a SUCCESSFUL read breaks the wall; **combat:** adv on WIS saves | hitting an immunity | 10 min or until read |
 
-**Combat riders** live in each condition's `combat` field → appended to the AE description (`buildConditionEffect`), plus `midiChanges` (midi-qol automation) applied only on dnd5e.
+**Combat riders** live in each condition's `combat` field → appended to the AE description (`buildConditionEffect`), plus per-system changes: `dnd5eChanges`+`midiChanges` on dnd5e, `a5eChanges` on standalone a5e.
 
 ### Maneuver redesign (v1.8) — school identities
 - **General** (safe basics, no vuln/imm): Read Them (scout: tell+String, 0 dmg, through Defiant) · Mock (the jab: 1 dmg flat) · Taunt (setup: Provoked, 0 dmg)
@@ -198,6 +198,12 @@ TSL stats mapped to D&D abilities:
 
 ### Statuses render as named colored tags
 - `SOCIAL_CONDITIONS[*].color`; conflict cards and the scene board show `.tsl-status-tag`/`.tsl-board-tag` (name + color) instead of icon-only dots (the old `icons/svg` dots read as blank squares).
+
+### v1.9.2 — unblock the wall, native A5E status automation
+- **Taunt rolls Performance** (was Intimidation) — a jeer played for the room, not a threat; Humiliate keeps Intimidation. Ids unchanged (`instigate`, skillKeys dnd5e:`prf`).
+- **Defiant is breakable**: a successful Read Them REMOVES Defiant (`worksThroughDefiant` + wall-break block in `applyOutcome`, public "🧱 wall cracks" card); duration 3600→600 s. Root cause of "can't roll maneuvers, only Strings pop out": one triggered immunity made the target Defiant, which blocked every maneuver *forever* (world time doesn't tick on its own) — only Read Them kept working and granting Strings.
+- **a5e combat riders** (`a5eChanges`, applied when `game.system.id === "a5e"`, same `flags.a5e.effects.*` OVERRIDE encoding as a5e's built-in conditions; 1=adv, −1=dis): Rattled dis WIS saves; Provoked grants attackers advantage; Guilted dis attacks; Desperate dis Insight + −2 initiative; Defiant adv WIS saves (midi advantage flag added on dnd5e too). Smitten stays a native `charmed` link (A5E charmed already blocks attacking the charmer).
+- **Smoke-test harness** (Developer Notes): stub Foundry globals, concatenate manifest scripts into ONE `new Function` scope (classic script tags share the global lexical env; node eval does not), drive assess → rollManeuver → applyOutcome for all 12 maneuvers, then the Defiant wall-break. It found the wall bug that static reading missed.
 
 ### VTools Integration (hud-button.js)
 ```js

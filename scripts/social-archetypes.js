@@ -276,6 +276,9 @@ const SOCIAL_CONDITIONS = {
   //   so a5e/dnd5e native condition automation (e.g. A5E's own Rattled)
   //   picks the status up as if applied from the core list.
   // `dnd5eChanges` — plain numeric Active Effect changes for dnd5e.
+  // `a5eChanges` — Level Up (standalone a5e) changes via the system's own
+  //   roll-mode flags (value 1 = advantage, −1 = disadvantage, mode OVERRIDE),
+  //   the same encoding a5e's built-in conditions use.
   rattled: {
     id: "rattled",
     label: "Rattled",
@@ -287,6 +290,7 @@ const SOCIAL_CONDITIONS = {
     combat: "Disadvantage on Wisdom saving throws; no reactions or expertise dice (A5E Rattled).",
     links: ["rattled"],
     midiChanges: [{ key: "flags.midi-qol.disadvantage.ability.save.wis", mode: 0, value: "1" }],
+    a5eChanges: [{ key: "flags.a5e.effects.rollMode.abilitySave.wis", mode: 5, value: -1, priority: 50 }],
   },
   smitten: {
     id: "smitten",
@@ -296,7 +300,7 @@ const SOCIAL_CONDITIONS = {
     seconds: 3600,
     oneShot: false,
     description: "Charmed: cannot act against the charmer, and the charmer's Persuasion maneuvers roll with Advantage.",
-    combat: "Counts as charmed by them: disadvantage on attack rolls against the charmer.",
+    combat: "Counts as charmed by them: they cannot attack the charmer, and the charmer has advantage on social checks against them (A5E Charmed).",
     links: ["charmed"],
   },
   provoked: {
@@ -307,8 +311,9 @@ const SOCIAL_CONDITIONS = {
     seconds: 600,
     oneShot: true,
     description: "Off balance with anger: the next maneuver against them gains +2, then this fades.",
-    combat: "Reckless: −2 AC. Must attack the provoker if able.",
+    combat: "Reckless: −2 AC (on A5E, attacks against them have advantage). Must attack the provoker if able.",
     dnd5eChanges: [{ key: "system.attributes.ac.bonus", mode: 2, value: "-2" }],
+    a5eChanges: [{ key: "flags.a5e.effects.grants.rollMode.attack.all", mode: 5, value: 1, priority: 50 }],
   },
   guilted: {
     id: "guilted",
@@ -318,11 +323,12 @@ const SOCIAL_CONDITIONS = {
     seconds: 600,
     oneShot: true,
     description: "Weighed down by obligation: the guilter's next maneuver rolls with Advantage, then this fades.",
-    combat: "The weight drags every swing: −2 on attack rolls.",
+    combat: "The weight drags every swing: −2 on attack rolls (disadvantage on A5E).",
     dnd5eChanges: [
       { key: "system.bonuses.mwak.attack", mode: 2, value: "-2" },
       { key: "system.bonuses.rwak.attack", mode: 2, value: "-2" },
     ],
+    a5eChanges: [{ key: "flags.a5e.effects.rollMode.attack.all", mode: 5, value: -1, priority: 50 }],
   },
   desperate: {
     id: "desperate",
@@ -335,16 +341,22 @@ const SOCIAL_CONDITIONS = {
     combat: "Disadvantage on Wisdom (Insight) checks; −2 on initiative.",
     dnd5eChanges: [{ key: "system.attributes.init.bonus", mode: 2, value: "-2" }],
     midiChanges: [{ key: "flags.midi-qol.disadvantage.skill.ins", mode: 0, value: "1" }],
+    a5eChanges: [
+      { key: "flags.a5e.effects.rollMode.skillCheck.ins", mode: 5, value: -1, priority: 50 },
+      { key: "system.attributes.initiative.bonus", mode: 2, value: "-2" },
+    ],
   },
   defiant: {
     id: "defiant",
     label: "Defiant",
     icon: "icons/svg/holy-shield.svg",
     color: "#e8c855",
-    seconds: 3600,
+    seconds: 600,
     oneShot: false,
-    description: "Walls up: immune to social maneuvers for 1 hour (only Read Them slips through). Triggered by striking an archetype's immunity.",
-    combat: "Dug in: advantage on saving throws against being charmed or frightened.",
+    description: "Walls up: immune to social maneuvers (only Read Them slips through — and a successful read breaks the wall). Triggered by striking an archetype's immunity.",
+    combat: "Dug in: advantage on Wisdom saving throws — charm and fear break against the wall.",
+    midiChanges: [{ key: "flags.midi-qol.advantage.ability.save.wis", mode: 0, value: "1" }],
+    a5eChanges: [{ key: "flags.a5e.effects.rollMode.abilitySave.wis", mode: 5, value: 1, priority: 50 }],
   },
 };
 
@@ -441,14 +453,17 @@ class SocialArchetypeManager {
 
     // The combat rider travels with the effect — if talk turns to steel, the
     // debuff is already on the token. Numeric changes + midi flags automate
-    // it on dnd5e; `links` hooks the system's own conditions (A5E Rattled,
-    // charmed) so native automation treats it as the real thing.
+    // it on dnd5e; a5eChanges use Level Up's own roll-mode flags; `links`
+    // hooks the system's own conditions (A5E Rattled, charmed) so native
+    // automation treats it as the real thing.
     const description = meta.combat
       ? `${meta.description}<br><b>Combat:</b> ${meta.combat}`
       : meta.description;
     const changes = game.system.id === "dnd5e"
       ? foundry.utils.deepClone([...(meta.dnd5eChanges ?? []), ...(meta.midiChanges ?? [])])
-      : [];
+      : game.system.id === "a5e"
+        ? foundry.utils.deepClone(meta.a5eChanges ?? [])
+        : [];
 
     return {
       name:  `${meta.label} (${sourceName})`,

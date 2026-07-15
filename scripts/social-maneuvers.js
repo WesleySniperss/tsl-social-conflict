@@ -79,10 +79,10 @@ const SOCIAL_MANEUVERS = [
   {
     id:    "instigate",
     name:  "Taunt",
-    skill: "Intimidation",
+    skill: "Performance",
     icon:  "fa-fire",
     group: "general",
-    skillKeys:       { dnd5e: "itm", "a5e-for-dnd5e": "intimidation" },
+    skillKeys:       { dnd5e: "prf", "a5e-for-dnd5e": "performance" },
     vulnerabilityTags: [],
     immunityTags:      ["intimidate", "emotional intimidation"],  // Tyrant, Hermit
     description:  "The setup. Needle their temper until composure slips — then strike into the gap.",
@@ -409,7 +409,7 @@ class SocialManeuverRoller {
     const smittenBy   = smittenSelf?.flags?.[scope]?.sourceActorId === targetActor.id;
     if (cond("defiant") && !maneuver.worksThroughDefiant) {
       relation = "blocked";
-      relationReason = "Defiant — walled off from maneuvers (Read Them still works)";
+      relationReason = "Defiant — walled off from maneuvers. A successful Read Them breaks the wall.";
     } else if (smittenBy) {
       relation = "blocked";
       relationReason = "You are Smitten with them — you cannot bring yourself to move against them";
@@ -586,7 +586,7 @@ class SocialManeuverRoller {
 
     const outcomeType = isWalled ? "immune" : success ? "success" : "failure";
     const outcomeText =
-      a.relation === "blocked" ? "They are Defiant — nothing gets through right now." :
+      a.relation === "blocked" ? "They are Defiant — only Read Them gets through, and a successful read breaks the wall." :
       a.relation === "immune"  ? (maneuver.immuneText ?? "Target becomes Defiant.") :
       success ? maneuver.successText : maneuver.failText;
 
@@ -675,6 +675,18 @@ class SocialManeuverRoller {
       // deduces the nature themselves and writes their guess into the Bond.
       if (maneuver.reveals)
         await SocialManeuverRoller.whisperTell(sourceActor, targetActor);
+      // Read Them slips through the Defiant wall — and a SUCCESSFUL read
+      // finds the seam and brings it down. Without this, one triggered
+      // immunity walls the target off with no counter-play (game time does
+      // not tick on its own, so "1 hour" is effectively forever).
+      if (maneuver.worksThroughDefiant
+          && SocialArchetypeManager.getActiveCondition(targetActor, "defiant")) {
+        await SocialArchetypeManager.removeCondition(targetActor, "defiant");
+        await ChatMessage.create({
+          speaker: ChatMessage.getSpeaker({ actor: targetActor }),
+          content: `<div class="tsl-maneuver-card tsl-mv--success"><div class="tsl-mv-outcome tsl-mv-outcome--success">🧱 The wall cracks — ${foundry.utils.escapeHTML(targetActor.name)} is no longer Defiant.</div></div>`,
+        });
+      }
       // A vulnerability strike adds +1 to the maneuver's own damage profile
       let damage = (maneuver.resolveDamage ?? 1) + (relation === "vulnerable" ? 1 : 0);
       if (leverage === "desire") damage += 1;  // the offer does half the work
