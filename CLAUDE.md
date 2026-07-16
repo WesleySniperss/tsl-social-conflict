@@ -225,6 +225,9 @@ TSL stats mapped to D&D abilities:
 - **Statuses visible in the maneuver console**: the Chronicle Fencing tab shows the target's active status tags under the tracks; ALL status tooltips (conflict cards, console, GM toggles) now include the `Combat:` rider line.
 - **No duplicate Rattled in the token HUD**: registration skips `tsl-<id>` when a `links` target with the SAME localized label already exists in `CONFIG.statusEffects` (A5E's own Rattled) and stores `meta.nativeAlias` instead; `getActiveCondition`/`removeCondition` also match the alias — toggling the system's native Rattled counts as the social one (DC −5) and is removable/consumable by the module.
 
+### v1.9.8 — ambient button-width immunity
+- **Root cause of the ballooning Map button / crushed target select** (and the earlier stretched String pill): Foundry v13 / system skins give `<button>` a stretchy base (full width, flex). Fix: `.tsl-fc-target-row` is a GRID (`auto minmax(0,1fr) auto` — label · select · button), and every content-sized button in our windows gets explicit `width: auto` (pick/string/adjust/remove/lev/target/dice-close), with deliberate full-width ones (`.tsl-fc-roll`, `.tsl-notes-enc-btn`) re-asserted after the sweep. When adding new buttons, ALWAYS set an explicit width strategy.
+
 ### v1.9.7 — console alignment pass
 - **Target header is a card**: portrait (triad-colored ring) · name+archetype · tracks · status tags in one bordered block with a soft triad-tinted gradient — same silhouette as conflict participant cards (`.tsl-fc-head` rebuilt, `.tsl-fc-portrait`, `.tsl-fc-head-main/-row`).
 - **Even maneuver rail**: fixed 64px label column, labels vertically centered, each school band gets a soft triad tint + right-rounded corners (`.tsl-fc .tsl-chip-group` overrides).

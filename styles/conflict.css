@@ -3236,3 +3236,46 @@
 .tsl-notes-patience-label { width: 64px; }
 .tsl-notes-patience-count { margin-left: auto; text-align: right; }
 .tsl-notes-pips { align-items: center; }
+
+/* ═══ v1.9.8 — deterministic target row; ambient button-width immunity ═══
+   Foundry v13 / system skins give <button> a stretchy base (full width,
+   flex). Inside our rows that balloons the Map button and crushes the
+   select. Grid columns + explicit width:auto make the layout immune to
+   whatever the environment styles buttons to. */
+
+.tsl-fc-target-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+.tsl-fencing .tsl-notes-root .tsl-fc-target {
+  width: 100%;
+  height: 30px;
+}
+.tsl-fencing .tsl-notes-root .tsl-fc-target-row .tsl-chr-pick-btn {
+  width: auto;
+  justify-self: end;
+}
+
+/* Content-sized buttons everywhere ambient styles could stretch them */
+.tsl-fencing .tsl-notes-root .tsl-chr-pick-btn,
+.tsl-fencing .tsl-notes-root .tsl-fc-string,
+.tsl-fencing .tsl-notes-root .tsl-chr-str-adj,
+.tsl-fencing .tsl-notes-root .tsl-notes-patience-adj,
+.tsl-fencing .tsl-notes-root .tsl-chr-bond-remove,
+.tsl-fencing .tsl-notes-root .tsl-notes-string-remove,
+.tsl-fencing .tsl-notes-root .tsl-lev-btn,
+.tsl-conflict-root .tsl-lev-btn,
+.tsl-conflict-root .tsl-spend-string,
+.tsl-conflict-root .tsl-target-btn,
+.tsl-conflict-root .tsl-dice-close {
+  width: auto;
+}
+
+/* Full-width is a deliberate choice for these — re-assert it after the
+   auto sweep so the cascade can't flip them */
+.tsl-fencing .tsl-notes-root .tsl-fc-roll,
+.tsl-fencing .tsl-notes-root .tsl-notes-enc-btn {
+  width: 100%;
+}
