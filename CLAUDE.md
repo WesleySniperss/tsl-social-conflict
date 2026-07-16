@@ -225,6 +225,11 @@ TSL stats mapped to D&D abilities:
 - **Statuses visible in the maneuver console**: the Chronicle Fencing tab shows the target's active status tags under the tracks; ALL status tooltips (conflict cards, console, GM toggles) now include the `Combat:` rider line.
 - **No duplicate Rattled in the token HUD**: registration skips `tsl-<id>` when a `links` target with the SAME localized label already exists in `CONFIG.statusEffects` (A5E's own Rattled) and stores `meta.nativeAlias` instead; `getActiveCondition`/`removeCondition` also match the alias — toggling the system's native Rattled counts as the social one (DC −5) and is removable/consumable by the module.
 
+### v1.9.7 — console alignment pass
+- **Target header is a card**: portrait (triad-colored ring) · name+archetype · tracks · status tags in one bordered block with a soft triad-tinted gradient — same silhouette as conflict participant cards (`.tsl-fc-head` rebuilt, `.tsl-fc-portrait`, `.tsl-fc-head-main/-row`).
+- **Even maneuver rail**: fixed 64px label column, labels vertically centered, each school band gets a soft triad tint + right-rounded corners (`.tsl-fc .tsl-chip-group` overrides).
+- **Aligned GM tracks**: fixed 64px label column so Resolve/Patience pips start at the same x; counts right-aligned. Target row controls share one 30px height.
+
 ### VTools Integration (hud-button.js)
 ```js
 Hooks.once("vtools.ready", () => {

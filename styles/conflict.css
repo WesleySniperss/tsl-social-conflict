@@ -3155,3 +3155,84 @@
   opacity: 0.8;
   margin: 0;
 }
+
+/* ═══ v1.9.7 — Fencing console alignment pass ═════════════════════ */
+
+/* Target row: one consistent 30px control line */
+.tsl-fc-target-row { margin: 2px 0 8px; }
+.tsl-fencing .tsl-notes-root .tsl-fc-target { height: 30px; }
+.tsl-fc-target-row .tsl-chr-pick-btn {
+  height: 30px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Target header: portrait · name/archetype · tracks · statuses — one block,
+   same silhouette as the conflict window's participant cards */
+.tsl-fc-head {
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--tsl-notes-border);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--triad-color, transparent) 8%, transparent),
+      transparent 60%),
+    var(--tsl-notes-surface);
+}
+.tsl-fc-portrait {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--triad-color, rgba(255,255,255,0.18));
+  flex-shrink: 0;
+}
+.tsl-fc-head-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+.tsl-fc-head-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.tsl-fc-head .tsl-fc-tracks { margin: 0; }
+.tsl-fc-head .tsl-status-row { margin: 0; }
+
+/* Maneuver groups: even rail — fixed label column, centered labels,
+   soft triad tint so each school reads as one deliberate band */
+.tsl-fc-maneuvers { gap: 5px; margin: 8px 0; }
+.tsl-fc .tsl-chip-group {
+  grid-template-columns: 64px 1fr;
+  gap: 10px;
+  padding: 4px 4px 4px 8px;
+  border-radius: 0 6px 6px 0;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--triad-color, transparent) 6%, transparent),
+    transparent 55%);
+}
+.tsl-fc .tsl-chip-group-label {
+  align-self: center;
+  padding-top: 0;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+}
+.tsl-fc .tsl-chip { height: 28px; }
+.tsl-fc .tsl-chip-grid { gap: 5px; }
+
+/* "Pick a maneuver" hint breathes instead of floating */
+.tsl-fc-note--pick { padding: 8px 0; }
+
+/* GM track rows: fixed label column so Resolve/Patience pips align */
+.tsl-notes-patience-label { width: 64px; }
+.tsl-notes-patience-count { margin-left: auto; text-align: right; }
+.tsl-notes-pips { align-items: center; }

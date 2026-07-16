@@ -627,13 +627,20 @@ class SocialFencingApp extends Application {
             <span class="tsl-status-tag" style="--st-color:${c.meta.color ?? "#806858"}" data-tooltip="<b>${c.meta.label}</b><br>${esc(c.meta.description)}${c.meta.combat ? `<br><b>Combat:</b> ${esc(c.meta.combat)}` : ""}">${esc(c.meta.label)}</span>`).join("")}</div>`
         : "";
 
+      // Portrait + name + tracks share one aligned header block, mirroring
+      // the conflict window's participant cards — one design language.
       body = `
-        <div class="tsl-fc-head">
-          <div class="tsl-fc-head-name">${esc(tgt.name)}</div>
-          ${archLine}
+        <div class="tsl-fc-head" style="--triad-color:${triad?.color ?? "rgba(255,255,255,0.18)"}">
+          <img class="tsl-fc-portrait" src="${tgt.img ?? "icons/svg/mystery-man.svg"}" alt="">
+          <div class="tsl-fc-head-main">
+            <div class="tsl-fc-head-row">
+              <div class="tsl-fc-head-name">${esc(tgt.name)}</div>
+              ${archLine}
+            </div>
+            ${tracks}
+            ${statusRow}
+          </div>
         </div>
-        ${tracks}
-        ${statusRow}
         <div class="tsl-fc-maneuvers">${chips}</div>
         ${this._buildFenceBar(ctx, src, tgt, arch, isGuess)}`;
     }
