@@ -24,6 +24,15 @@ Hooks.once("init", () => {
     },
   });
 
+  game.settings.register("tsl-social-conflict", "enableHoldLine", {
+    name: "Hold the Line",
+    hint: "When a maneuver lands a status, ask (GM dialog) whether the defender holds the line: refuse the status and the Resolve hit by taking an emotional TSL Condition instead. Four Conditions = Overwhelmed.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
+  });
+
   game.settings.register("tsl-social-conflict", "enableKiss", {
     name: "Enable “Finally Kiss” move",
     hint: "Show the Thirsty Sword Lesbians special move that ends a conflict with a mutual kiss (+1 attitude both ways). Always available in TSL-only mode.",

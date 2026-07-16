@@ -189,8 +189,12 @@ class SocialFencingApp extends Application {
   _buildFenceOverlay() {
     const r = this._fenceRoll;
     if (!r) return "";
-    const oc = r.outcome === "success" ? "Strong Hit" : "Miss";
-    const label = r.outcome === "success" ? "Success" : r.outcome === "immune" ? "⚡ Walled off" : "Failure";
+    const oc = (r.outcome === "success" || r.outcome === "crit") ? "Strong Hit" : "Miss";
+    const label = r.outcome === "crit"    ? "✦ Clean hit"
+                : r.outcome === "success" ? "Success"
+                : r.outcome === "immune"  ? "⚡ Walled off"
+                : r.outcome === "botch"   ? "⚔ They answer"
+                : "Failure";
     return `<div class="tsl-dice-overlay"><div class="tsl-dice-panel tsl-dice-panel--maneuver">
       <div class="tsl-dice-move"><i class="fas ${r.icon}"></i> ${foundry.utils.escapeHTML(r.name)}</div>
       <div class="tsl-dice-total" data-outcome="${oc}">${r.total}</div>
@@ -300,6 +304,12 @@ class SocialFencingApp extends Application {
         <textarea name="motivation" rows="2" placeholder="Why do they want this?" ${disabled}>${foundry.utils.escapeHTML(notes.motivation)}</textarea>
       </section>
 
+      ${!isGM ? "" : `
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title" data-tooltip="GM only. What THEY want from the party in this conversation — a secret, a promise, money, humiliation. If they walk away with Patience intact, this agenda ADVANCES: losing the exchange must cost the players something.">Agenda — what they want (GM)</div>
+        <textarea name="intent" rows="2" placeholder="What do they want from this conversation?">${foundry.utils.escapeHTML(notes.intent)}</textarea>
+      </section>`}
+
       <section class="tsl-notes-section">
         <div class="tsl-notes-section-title">Personality</div>
         <textarea name="personality" rows="2" placeholder="How do they behave?" ${disabled}>${foundry.utils.escapeHTML(notes.personality)}</textarea>
@@ -368,10 +378,24 @@ class SocialFencingApp extends Application {
           <li><b>Lean into your nature.</b> Your own Extended Triad dots (Profile tab) power your attacks: <b>+1 per dot</b> on that triad's maneuvers, <b>−1</b> on a triad where you have none — foreign ground. Watch for the ★/▼ badges on the maneuver groups. General Tactics are always neutral.</li>
           <li><b>Know the counter cycle.</b> Every archetype is soft against the school that counters its triad (<b>+2</b> to the attacker, » badge): <b>Power breaks Emotion → Emotion cracks Reason → Reason binds Power</b>. Read them first — before a read, the panel only whispers that "something in them yields".</li>
           <li><b>Play the states, not the buttons (◆).</b> Every set-up cashes in the way you'd guess from life: <b>heat them</b> (Taunt → Provoked) and strike the temper — Humiliate lands +1 into the gap, and <b>Mock kicks anyone off balance</b> (+1 vs any status). <b>Push-pull</b>: Turn Cold makes them Desperate for warmth — then Charm them while they cling (+1 damage) or Bargain while they'd sign anything (+1 String). <b>Hearts owe</b>: a Smitten heart weighs debts double (Charm → Guilt Trip, +1 String), and the Guilted over-explain (→ Cross-Examine, +1 String). The ◆ mark = armed right now.</li>
-          <li><b>Don't get caught.</b> Their nature answers your mistakes in its own language. Hit an <b>immunity</b> and: Power towers over you (you're Rattled) · Emotion turns it into their wound before the room (you're Guilted) · Reason files it away (a String on you) — plus the Defiant wall. And each archetype READS the school its triad counters: <b>fail</b> such a maneuver and they riposte for a String on you. Know who you're playing before you commit.</li>
+          <li><b>The exchange has grades.</b> Beat the mark cleanly (well over) and the hit cuts deeper (+1 damage). Miss BADLY — or hit an immunity — and you earn <b>their Answer</b>, in their triad's own language: Power towers over you (you're Rattled) · Emotion turns it into their wound before the room (you're Guilted) · Reason files it away (a String on you). One rule. Know who you're playing before you commit.</li>
+          <li><b>The gamble.</b> When your roll falls short, you may burn a String on them for +2 — decided AFTER you see the die, against a difficulty you cannot see. Sometimes it turns the exchange. Sometimes you just fed them your last hold.</li>
+          <li><b>Hold the line.</b> When a maneuver lands on YOU, the words cannot be unsaid — but you may refuse their power: take a fitting emotional <b>Condition</b> instead of the status and the Resolve hit. Speak how you hold it. Four Conditions and you are <b>Overwhelmed</b> — you must yield or flee. Refusing is never free.</li>
+          <li><b>Tempo.</b> This is fencing, not a firing squad: after your maneuver, THEY answer — a demand, a question, a maneuver of their own (the GM speaks) — before you act again. One exchange, one blade each.</li>
           <li><b>Play your leverage.</b> A read dossier unlocks their <b>Desire</b> (Advantage, +1 Resolve damage), <b>Fear</b> (+3, but a failed threat burns their Patience) and <b>Weakness</b> (neutral counts as vulnerable) — each once per encounter.</li>
           <li><b>Win the exchange.</b> Successes break <b>Resolve</b> (0 = swayed, attitude +1); failures burn <b>Patience</b> (0 = they walk away, attitude −1 — and HOW they leave depends on their triad). Statuses chain into combos. Strings are a standing grip: holding any gives +1 on maneuvers against that person (and theirs on you raise your DC to sway them); spending one buys +2 more.</li>
           <li><b>Or win sincerely.</b> Emotional moves (2d6) are the honest route: a Strong Hit on Speak from the Heart or Provoke also chips 1 Resolve, and Read the Room (10+) reveals their nature without manipulation.</li>
+        </ol>
+      </section>
+
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title">Running it (GM)</div>
+        <ol class="tsl-codex-how">
+          <li><b>When to draw blades.</b> The fencing runs only when the NPC is UNWILLING and the stakes are real. A friendly favor, an easy lie, a routine haggle — that's one ordinary skill check, not an exchange.</li>
+          <li><b>Both sides play.</b> Give every fencing NPC an <b>Agenda</b> (Profile → GM field): what THEY want from this conversation. If they walk away with Patience intact, their agenda ADVANCES — losing an exchange must cost the players something. And answer every player maneuver with one of the NPC's own: maneuver the PCs back, demand, bluff.</li>
+          <li><b>The crowd hardens people.</b> When several PCs pile onto one target in the same exchange, add +1 to the DC per extra voice (the situational modifier is for this). Being pressed by a chorus feels like a siege — people close up. Let the party pick their fencer; the rest pass Strings and leverage.</li>
+          <li><b>Size the ask.</b> Set Resolve by the WEIGHT of what the players want, not just the sheet: a small favor 3 · a real cost 5–6 · against their nature 8, and the impossible also demands played leverage (their Desire or Fear on the table). Nobody betrays their king over a nice speech.</li>
+          <li><b>Their patience is the scene's clock.</b> Past half, they harden (the DC quietly rises) — change their manner at the table. On the last point, say it plainly: one more misstep and this conversation is over.</li>
         </ol>
       </section>`;
 
@@ -689,19 +713,18 @@ class SocialFencingApp extends Application {
       archetypeOverride: ctx.isGM ? undefined : (dispArch ?? null),
     });
     const strAdd = this._fenceStringSpend ? STRING_SPEND_BONUS : 0;
-    const extra  = a.bonus + strAdd;
+    // String spend moved AFTER the roll (the gamble) — no pre-commit toggle
+    const extra  = a.bonus;
 
-    const bonusList = [
-      ...(strAdd ? [`+${strAdd} String`] : []),
-      ...a.bonusReasons.map(b => `${b.value >= 0 ? "+" : "−"}${Math.abs(b.value)} ${esc(b.label.split(" — ")[0])}`),
-    ];
+    const bonusList =
+      a.bonusReasons.map(b => `${b.value >= 0 ? "+" : "−"}${Math.abs(b.value)} ${esc(b.label.split(" — ")[0])}`);
     const extraChip = extra ? `<span class="tsl-bar-extra ${extra >= 0 ? "pos" : "neg"}" data-tooltip="${esc(bonusList.join(", "))}${isGuess && known ? " — predictions follow your read" : ""}">${extra >= 0 ? "+" : "−"}${Math.abs(extra)}</span>` : "";
     const advMark = a.advantage ? `<span class="tsl-bar-adv" data-tooltip="${esc(a.advantageReasons.join("; "))}${isGuess ? " — if your read is right" : ""}">ADV${isGuess && a.relation === "vulnerable" ? "?" : ""}</span>` : "";
 
-    // String spend toggle (src holds a String on tgt)
+    // Held Strings show as the gamble reserve — spendable AFTER a miss
     const held = TSLStringStore.getList(src.id).filter(e => e.targetActorId === tgt.id);
     const strBtn = held.length
-      ? `<button class="tsl-fc-string ${this._fenceStringSpend ? "pending" : ""}" data-tooltip="${this._fenceStringSpend ? "Cancel" : `Spend a String for +${STRING_SPEND_BONUS} (${held.length} held)`}"><i class="fas fa-masks-theater"></i> +${STRING_SPEND_BONUS}</button>`
+      ? `<span class="tsl-fc-string" data-tooltip="You hold ${held.length} String${held.length > 1 ? "s" : ""} on them (+1 grip already counted). On a MISS you'll be offered to burn one for +2 — the gamble."><i class="fas fa-masks-theater"></i> ${held.length}</span>`
       : "";
 
     // Leverage toggles
@@ -727,7 +750,9 @@ class SocialFencingApp extends Application {
     else if (known && a.relation === "immune")     { hint = `${readPrefix}${a.relationReason} — ${isGuess ? "if you're right, it fails and they turn Defiant." : "it fails, they turn Defiant."}`; hintCls = "imm"; }
     else if (known && a.relation === "vulnerable") { hint = `${readPrefix}this should cut deep — Advantage & +1 Resolve damage${isGuess ? " (if your read is right)" : ""}.`; hintCls = "vuln"; }
     else if (a.combo)                    { hint = `◆ Combo armed — ${a.combo.label}.`; hintCls = "vuln"; }
-    else if (known && a.riposteRisk)     { hint = `${readPrefix}their kind reads this school like a book — a miss hands them a String on you${isGuess ? " (if your read is right)" : ""}.`; hintCls = "imm"; }
+    else if (a.lastExchange)             { hint = "⚠ Their patience is at its end — one more misstep ends this."; hintCls = "imm"; }
+    else if (known && a.answerRisk)      { hint = `${readPrefix}fumble badly here and their answer comes — ${a.answerRisk}${isGuess ? " (if your read is right)" : ""}.`; hintCls = "imm"; }
+    else if (a.patienceThin)             { hint = "⏳ Their patience wears thin — they're getting harder to reach."; }
     else if (!known)                     { hint = "Their nature is a riddle — read tells, then note your guess in your Bond ('Read as')."; }
 
     // A visible, plain-language breakdown of every modifier in play — so it's
@@ -736,7 +761,6 @@ class SocialFencingApp extends Application {
     // for the difficulty from outcomes, not from a readout.
     const breakdown = [];
     breakdown.push(`<span class="tsl-fc-mod tsl-fc-mod--base">${esc(m.skill)} ${a.skillMod >= 0 ? "+" : "−"}${Math.abs(a.skillMod)}</span>`);
-    if (strAdd) breakdown.push(`<span class="tsl-fc-mod pos">+${strAdd} String spent</span>`);
     for (const b of a.bonusReasons) {
       breakdown.push(`<span class="tsl-fc-mod ${b.value >= 0 ? "pos" : "neg"}">${b.value >= 0 ? "+" : "−"}${Math.abs(b.value)} ${esc(b.label)}</span>`);
     }
@@ -916,7 +940,7 @@ class SocialFencingApp extends Application {
       TSLPlaybooks.setForActor(this._actor, e.target.value || null);
     });
 
-    for (const name of ["motivation", "personality", "notes"]) {
+    for (const name of ["motivation", "personality", "notes", "intent"]) {
       el.querySelector(`textarea[name='${name}']`)?.addEventListener("change", (e) => {
         SocialArchetypeManager.setActorData(this._actor, { [name]: e.target.value.trim() });
       });
@@ -1085,11 +1109,6 @@ class SocialFencingApp extends Application {
       });
     });
 
-    el.querySelector(".tsl-fc-string")?.addEventListener("click", () => {
-      this._fenceStringSpend = !this._fenceStringSpend;
-      this.render(true);
-    });
-
     el.querySelectorAll("[data-fence-leverage]").forEach(btn => {
       btn.addEventListener("click", () => {
         if (btn.disabled) return;
@@ -1124,23 +1143,15 @@ class SocialFencingApp extends Application {
     const mods = await SocialManeuverRoller.promptRollMods(`${maneuver.name} → ${tgt.name}`, assessment.advantage);
     if (!mods) return;
 
-    // Reserve the String now, burn it AFTER the roll — the in-roll assess
-    // still counts it for the grip passive (preview must match the dice),
-    // and an error can't eat the String without a roll happening.
-    let stringBonus = 0;
-    let spentString = null;
-    if (this._fenceStringSpend) {
-      const held = TSLStringStore.getList(src.id).filter(e => e.targetActorId === tgt.id);
-      if (held.length) {
-        spentString = held[0];
-        stringBonus = STRING_SPEND_BONUS;
-      }
-    }
-
+    // Strings are the post-roll gamble: on a miss, rollManeuver offers to
+    // burn one for +2 — decided AFTER the die, against a hidden difficulty.
     const payload = await SocialManeuverRoller.rollManeuver(src, tgt, maneuver, {
-      stringBonus, leverage, situational: mods.situational, mode: mods.mode,
+      leverage, situational: mods.situational, mode: mods.mode, offerString: true,
     });
-    if (spentString) await TSLStringStore.removeEntry(src.id, spentString.id);
+    if (payload.spentStringPostRoll) {
+      const held = TSLStringStore.getList(src.id).filter(e => e.targetActorId === tgt.id);
+      if (held.length) await TSLStringStore.removeEntry(src.id, held[0].id);
+    }
     TSLGMActions.request("maneuverOutcome", payload);
 
     this._fenceRoll = {

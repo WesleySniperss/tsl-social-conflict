@@ -302,7 +302,7 @@ const SOCIAL_CONDITIONS = {
     seconds: 3600,
     oneShot: false,
     description: "Charmed: cannot act against the charmer, and the charmer's Persuasion maneuvers roll with Advantage.",
-    combat: "Counts as charmed by them: they cannot attack the charmer, and the charmer has advantage on social checks against them (A5E Charmed).",
+    combat: "Cannot attack or knowingly harm the charmer (A5E Charmed). Once while smitten, the charmer may press ONE plausible demand — WIS save or comply. GM: if the charmer's side harms them, love curdles — Smitten breaks into Provoked against the charmer.",
     links: ["charmed"],
   },
   provoked: {
@@ -313,12 +313,9 @@ const SOCIAL_CONDITIONS = {
     seconds: 600,
     oneShot: true,
     description: "Off balance with anger: the next maneuver against them gains +2, then this fades.",
-    combat: "Reckless: −2 AC, and attacks against them have advantage (A5E). Must attack the provoker if able.",
-    dnd5eChanges: [{ key: "system.attributes.ac.bonus", mode: 2, value: "-2" }],
-    a5eChanges: [
-      { key: "system.attributes.ac.changes.bonuses.value", mode: 2, value: "-2" },
-      { key: "flags.a5e.effects.grants.rollMode.attack.all", mode: 5, value: 1, priority: 50 },
-    ],
+    combat: "Red mist: must move toward and attack the provoker if able; attacks against anyone ELSE at disadvantage; attacks against THEM have advantage — they've dropped their guard.",
+    a5eChanges: [{ key: "flags.a5e.effects.grants.rollMode.attack.all", mode: 5, value: 1, priority: 50 }],
+    midiChanges: [{ key: "flags.midi-qol.grants.advantage.attack.all", mode: 0, value: "1" }],
   },
   guilted: {
     id: "guilted",
@@ -328,12 +325,7 @@ const SOCIAL_CONDITIONS = {
     seconds: 600,
     oneShot: true,
     description: "Weighed down by obligation: the guilter's next maneuver rolls with Advantage, then this fades.",
-    combat: "The weight drags every swing: disadvantage on attack rolls (−2 on dnd5e).",
-    dnd5eChanges: [
-      { key: "system.bonuses.mwak.attack", mode: 2, value: "-2" },
-      { key: "system.bonuses.rwak.attack", mode: 2, value: "-2" },
-    ],
-    a5eChanges: [{ key: "flags.a5e.effects.rollMode.attack.all", mode: 5, value: -1, priority: 50 }],
+    combat: "Deserved punishment: they don't truly defend against the one they owe — that one's attacks against them have advantage, and they take no reactions against them. GM: if that one draws their blood, Guilted collapses into Rattled (the punishment lands).",
   },
   desperate: {
     id: "desperate",
@@ -343,12 +335,14 @@ const SOCIAL_CONDITIONS = {
     seconds: 600,
     oneShot: true,
     description: "Starved and grasping: the next Flatter or Charm against them rolls with Advantage, and a Bargain cashes it for an extra String. Fades once used.",
-    combat: "Disadvantage on Wisdom (Insight) checks; −2 on initiative.",
-    dnd5eChanges: [{ key: "system.attributes.init.bonus", mode: 2, value: "-2" }],
-    midiChanges: [{ key: "flags.midi-qol.disadvantage.skill.ins", mode: 0, value: "1" }],
+    combat: "All-in: advantage on ALL their attack rolls — and all attacks against them have advantage too. A drowning swing drags everyone under.",
+    midiChanges: [
+      { key: "flags.midi-qol.advantage.attack.all", mode: 0, value: "1" },
+      { key: "flags.midi-qol.grants.advantage.attack.all", mode: 0, value: "1" },
+    ],
     a5eChanges: [
-      { key: "flags.a5e.effects.rollMode.skillCheck.ins", mode: 5, value: -1, priority: 50 },
-      { key: "system.attributes.initiative.bonus", mode: 2, value: "-2" },
+      { key: "flags.a5e.effects.rollMode.attack.all", mode: 5, value: 1, priority: 50 },
+      { key: "flags.a5e.effects.grants.rollMode.attack.all", mode: 5, value: 1, priority: 50 },
     ],
   },
   defiant: {
@@ -359,7 +353,7 @@ const SOCIAL_CONDITIONS = {
     seconds: 600,
     oneShot: false,
     description: "Walls up: immune to social maneuvers (only Read Them slips through — and a successful read breaks the wall). Triggered by striking an archetype's immunity.",
-    combat: "Dug in: advantage on Wisdom saving throws — charm and fear break against the wall.",
+    combat: "Dug in: advantage on saving throws against being charmed or frightened — but they cannot willingly retreat, disengage, or leave the confrontation while this lasts.",
     midiChanges: [{ key: "flags.midi-qol.advantage.ability.save.wis", mode: 0, value: "1" }],
     a5eChanges: [{ key: "flags.a5e.effects.rollMode.abilitySave.wis", mode: 5, value: 1, priority: 50 }],
   },
@@ -417,6 +411,7 @@ class SocialArchetypeManager {
       motivation: data.motivation || "",
       personality: data.personality || "",
       psychotype: data.psychotype || "",
+      intent: data.intent || "",
       notes: data.notes || "",
       triad: {
         power:     data.triad?.power     ?? 0,

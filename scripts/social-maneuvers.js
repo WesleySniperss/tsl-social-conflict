@@ -289,20 +289,32 @@ const ATTENTION_MANEUVERS = ["flatter", "love_bombing"];
 const TRIAD_COUNTERS = { power: "attention", attention: "order", order: "power" };
 
 /**
- * What an archetype DOES to you when you hit its immunity — the wrong lever
- * doesn't just fail, their kind answers in its own language. Predictable if
- * you know their nature: that's the "don't get caught" layer.
+ * THE ANSWER — one rule for "don't get caught". When you fumble badly (miss
+ * by 5+) or hit their immunity outright, the archetype answers in its
+ * triad's own language, and the debuff lands on YOU:
  *   Power   — they tower over the misstep: YOU are Rattled.
  *   Emotion — they make your fumble about THEIR hurt: YOU are Guilted.
  *   Reason  — they file it away: a String on you.
+ * Predictable if you know their nature; evidence for deduction if you don't.
  */
-const TRIAD_PUNISH = {
+const TRIAD_ANSWER = {
   power:     { status: "rattled",
+               risk: "you'll be Rattled",
                line: (src, tgt) => `${tgt} answers the misstep with sheer presence — <b>${src} is Rattled</b>.` },
   attention: { status: "guilted",
+               risk: "you'll be Guilted",
                line: (src, tgt) => `${tgt} turns the fumble into THEIR wound, and the room feels it — <b>${src} is Guilted</b>.` },
   order:     { strings: 1,
+               risk: "they'll gain a String on you",
                line: (src, tgt) => `${tgt} quietly files the fumble away — <b>a String on ${src}</b>.` },
+};
+
+/** TSL Conditions offered by "Hold the Line", by the school of the incoming maneuver. */
+const HOLD_LINE_CONDITIONS = {
+  power:     ["angry", "scared"],
+  attention: ["smitten", "guilty"],
+  order:     ["scared", "hopeless"],
+  general:   ["angry", "guilty"],
 };
 
 class SocialManeuverRoller {
@@ -425,6 +437,11 @@ class SocialManeuverRoller {
     const theirGrip = TSLStringStore.getList(targetActor.id)
       .filter(e => e.targetActorId === sourceActor.id).length;
     if (theirGrip) dcMods.push({ label: `they hold ${theirGrip} String${theirGrip > 1 ? "s" : ""} on you`, value: 1 });
+    // A wearing conversation hardens people: past half Patience the door is closing
+    const enc = SocialEncounterManager.getEncounter(targetActor);
+    const patienceThin = enc.active && enc.patience <= Math.floor(enc.maxPatience / 2);
+    const lastExchange = enc.active && enc.patience === 1;
+    if (patienceThin) dcMods.push({ label: "their patience wears thin", value: 1 });
     const dc = dcMods.reduce((sum, m) => sum + m.value, dcBase);
 
     // ── Hard walls: Defiant target / Smitten attacker ────────────────────────
@@ -549,18 +566,19 @@ class SocialManeuverRoller {
       }
     }
 
-    // Riposte risk: the defender's triad READS this school easily (their kind
-    // counters it) — a failed attempt hands them leverage. Computed from the
-    // same arch the rest of the assessment uses: truth for rolls/GM, the
-    // player's guess for display — so the warning follows your read.
-    const riposteRisk = !!(arch && TRIAD_COUNTERS[arch.triad] === maneuver.group
-      && relation !== "blocked" && relation !== "immune");
+    // The Answer you risk on a bad miss — worded from the same arch the rest
+    // of the assessment uses (truth for rolls/GM, the player's GUESS for
+    // display), so the warning follows your read and never leaks the truth.
+    const answerRisk = arch && relation !== "blocked" && relation !== "immune"
+      ? TRIAD_ANSWER[arch.triad]?.risk ?? null
+      : null;
 
     const bonus = bonusReasons.reduce((s, b) => s + b.value, 0);
     return {
       arch, relation, relationReason,
       advantage, advantageReasons,
-      bonus, bonusReasons, combo, kick, riposteRisk,
+      bonus, bonusReasons, combo, kick, answerRisk,
+      patienceThin, lastExchange,
       dc, dcBase, dcMods, skillMod, consumes, leverage,
     };
   }
@@ -591,9 +609,32 @@ class SocialManeuverRoller {
     const burn = (maneuver.failPatience ?? 1) + (a.leverage === "fear" ? 1 : 0);
     const miss = [
       `−${burn} their Patience`,
-      a.riposteRisk ? "riposte — String on you" : null,
+      a.answerRisk ? `badly — their answer (${a.answerRisk})` : null,
     ].filter(Boolean).join(" · ");
     return { hit, miss };
+  }
+
+  /**
+   * The post-roll gamble: the die is cast, the DC is hidden — burn a String
+   * for +2 and hope it turns the exchange? Decided AFTER seeing the total.
+   */
+  static async promptStringBurn(total, maneuver, heldCount) {
+    return new Promise(resolve => {
+      new Dialog({
+        title: `${maneuver.name} — it doesn't land…`,
+        content: `<div class="tsl-rollmods">
+          <p>Your total is <b>${total}</b> — and it isn't enough. You hold
+          ${heldCount} String${heldCount > 1 ? "s" : ""} on them.</p>
+          <p class="notes">Burn one for +2? The difficulty is hidden — this is a bet.</p>
+        </div>`,
+        buttons: {
+          burn: { icon: '<i class="fas fa-masks-theater"></i>', label: "Burn a String (+2)", callback: () => resolve(true) },
+          keep: { label: "Let it stand", callback: () => resolve(false) },
+        },
+        default: "keep",
+        close: () => resolve(false),
+      }).render(true);
+    });
   }
 
   /**
@@ -650,7 +691,7 @@ class SocialManeuverRoller {
    * options.mode         — "normal" | "adv" | "dis" from the pre-roll dialog
    */
   static async rollManeuver(sourceActor, targetActor, maneuver, options = {}) {
-    const stringBonus = options.stringBonus ?? 0;
+    let stringBonus   = options.stringBonus ?? 0;
     const situational = options.situational ?? 0;
     const a = SocialManeuverRoller.assess(sourceActor, targetActor, maneuver, { leverage: options.leverage ?? null });
 
@@ -664,14 +705,34 @@ class SocialManeuverRoller {
     await roll.evaluate();
 
     const rawDice  = roll.dice[0].results.map(r => r.result);
-    const total    = roll.total;
+    let   total    = roll.total;
     const isWalled = a.relation === "immune" || a.relation === "blocked";
-    const success  = !isWalled && total >= a.dc;
+    let   success  = !isWalled && total >= a.dc;
 
-    const outcomeType = isWalled ? "immune" : success ? "success" : "failure";
+    // The post-roll gamble: on a miss the roller may burn a String for +2 —
+    // decided AFTER seeing the die, against a difficulty they cannot see.
+    let spentStringPostRoll = false;
+    if (!isWalled && !success && options.offerString) {
+      const held = TSLStringStore.getList(sourceActor.id)
+        .filter(e => e.targetActorId === targetActor.id).length;
+      if (held > 0 && await SocialManeuverRoller.promptStringBurn(total, maneuver, held)) {
+        spentStringPostRoll = true;
+        stringBonus += STRING_SPEND_BONUS;
+        total       += STRING_SPEND_BONUS;
+        success      = total >= a.dc;
+      }
+    }
+
+    // Graded outcomes — named, never numbered, so chat can't leak the DC:
+    //   crit (beat it by 5+) · success · failure · botch (missed by 5+ → the Answer)
+    const outcomeType = isWalled ? "immune"
+      : success ? (total >= a.dc + 5 ? "crit" : "success")
+      : (total <= a.dc - 5 ? "botch" : "failure");
     const outcomeText =
       a.relation === "blocked" ? "They are Defiant — only Read Them gets through, and a successful read breaks the wall." :
       a.relation === "immune"  ? (maneuver.immuneText ?? "Target becomes Defiant.") :
+      outcomeType === "crit"   ? `Clean through the guard. ${maneuver.successText}` :
+      outcomeType === "botch"  ? `${maneuver.failText} The opening is yours no longer — they answer.` :
       success ? maneuver.successText : maneuver.failText;
 
     await SocialManeuverRoller._postCard({
@@ -692,6 +753,7 @@ class SocialManeuverRoller {
       total,
       dc: a.dc,
       spentString: stringBonus > 0,
+      spentStringPostRoll,
     };
   }
 
@@ -755,22 +817,39 @@ class SocialManeuverRoller {
       // Archetype immunity raises the wall; an existing Defiant wall just wastes the attempt
       if (relation === "immune") {
         await SocialArchetypeManager.applyCondition(targetActor, "defiant", sourceActor);
-        // ...and their kind answers the wrong lever in its own language —
-        // the attacker pays. Predictable, if you knew their nature.
-        const realArch = SocialArchetypeManager.getArchetype(targetActor);
-        const punish   = realArch ? TRIAD_PUNISH[realArch.triad] : null;
-        if (punish) {
-          if (punish.status)  await SocialArchetypeManager.applyCondition(sourceActor, punish.status, targetActor);
-          if (punish.strings) await TSLStringStore.add(targetActorId, sourceActorId, punish.strings);
+        // ...and the wrong lever earns their Answer outright
+        await SocialManeuverRoller._applyAnswer(sourceActor, targetActor);
+      }
+      await SocialEncounterManager.adjustPatience(targetActor, -1, sourceActorId);
+    } else if (outcomeType === "success" || outcomeType === "crit") {
+      // Hold the Line: the words landed — the defender may refuse the STATUS
+      // and the Resolve hit by taking an emotional wound (a TSL Condition)
+      // instead. Asked out loud at the table; the GM clicks the answer.
+      let heldTheLine = false;
+      if (maneuver.applyOnSuccess && SocialManeuverRoller._holdLineEnabled()) {
+        const choice = await SocialManeuverRoller.promptHoldLine(targetActor, maneuver);
+        if (choice) {
+          heldTheLine = true;
+          const count = await TSLConditionEffects.applyOne(targetActor, choice, sourceActor.name);
           const esc = foundry.utils.escapeHTML;
+          const condLabel = { smitten: "Smitten", angry: "Angry", scared: "Scared", guilty: "Guilty", hopeless: "Hopeless" }[choice] ?? choice;
           await ChatMessage.create({
             speaker: ChatMessage.getSpeaker({ actor: targetActor }),
-            content: `<div class="tsl-maneuver-card tsl-mv--immune"><div class="tsl-mv-outcome tsl-mv-outcome--immune">${punish.line(esc(sourceActor.name), esc(targetActor.name))}</div></div>`,
+            content: `<div class="tsl-maneuver-card tsl-mv--immune"><div class="tsl-mv-outcome tsl-mv-outcome--immune">🛡 ${esc(targetActor.name)} holds the line — the words land, but they swallow them: <b>${condLabel}</b>.${count >= 4 ? " <b>Overwhelmed — they must yield or flee.</b>" : ""}</div></div>`,
           });
         }
       }
-      await SocialEncounterManager.adjustPatience(targetActor, -1, sourceActorId);
-    } else if (outcomeType === "success") {
+      if (heldTheLine) {
+        // The effect is refused, not erased: Strings/tells the ATTACKER earned
+        // still stand (they learned something), but no status, no Resolve hit.
+        if (maneuver.grantStrings > 0)
+          await TSLStringStore.add(sourceActorId, targetActorId, maneuver.grantStrings);
+        if (combo?.strings > 0)
+          await TSLStringStore.add(sourceActorId, targetActorId, combo.strings);
+        if (maneuver.reveals)
+          await SocialManeuverRoller.whisperTell(sourceActor, targetActor);
+        return SocialManeuverRoller._afterOutcome(payload, encBefore);
+      }
       if (maneuver.applyOnSuccess)
         await SocialArchetypeManager.applyCondition(targetActor, maneuver.applyOnSuccess, sourceActor);
       if (maneuver.grantStrings > 0)
@@ -794,6 +873,8 @@ class SocialManeuverRoller {
       // A vulnerability strike adds +1 to the maneuver's own damage profile
       let damage = (maneuver.resolveDamage ?? 1) + (relation === "vulnerable" ? 1 : 0);
       if (leverage === "desire") damage += 1;  // the offer does half the work
+      // A clean hit (beat the mark by 5+) cuts deeper
+      if (outcomeType === "crit") damage += 1;
       // Mock kicks them while they're down: +1 vs a target with any status
       if (maneuver.kickWhileDown && wasOffBalance) damage += 1;
       // A cashed combo pays out on top: extra damage and/or a String
@@ -808,18 +889,71 @@ class SocialManeuverRoller {
       // Heavy plays (failPatience) and failed threats (fear) burn extra Patience
       const burn = (maneuver.failPatience ?? 1) + (leverage === "fear" ? 1 : 0);
       await SocialEncounterManager.adjustPatience(targetActor, -burn, sourceActorId);
-      // Riposte: their kind reads this school like an open book — a slip
-      // hands them leverage. Veiled in public: it's EVIDENCE of their nature.
-      const realArch = SocialArchetypeManager.getArchetype(targetActor);
-      if (realArch && TRIAD_COUNTERS[realArch.triad] === maneuver.group) {
-        await TSLStringStore.add(targetActorId, sourceActorId, 1);
-        const esc = foundry.utils.escapeHTML;
-        await ChatMessage.create({
-          speaker: ChatMessage.getSpeaker({ actor: targetActor }),
-          content: `<div class="tsl-maneuver-card tsl-mv--failure"><div class="tsl-mv-outcome tsl-mv-outcome--failure">⚔ Riposte — ${esc(targetActor.name)} reads the approach like an open book and turns the slip into leverage: <b>a String on ${esc(sourceActor.name)}</b>.</div></div>`,
-        });
-      }
+      // A BAD miss (5+ under) earns their Answer — one rule, one table
+      if (outcomeType === "botch")
+        await SocialManeuverRoller._applyAnswer(sourceActor, targetActor);
     }
+
+    return SocialManeuverRoller._afterOutcome(payload, encBefore);
+  }
+
+  /**
+   * The Answer: the archetype punishes a bad misstep (botch or immunity hit)
+   * in its triad's own language — the debuff lands on the ATTACKER. Public
+   * card is veiled: it's evidence of their nature, not the answer sheet.
+   */
+  static async _applyAnswer(sourceActor, targetActor) {
+    const realArch = SocialArchetypeManager.getArchetype(targetActor);
+    const answer   = realArch ? TRIAD_ANSWER[realArch.triad] : null;
+    if (!answer) return;
+    if (answer.status)  await SocialArchetypeManager.applyCondition(sourceActor, answer.status, targetActor);
+    if (answer.strings) await TSLStringStore.add(targetActor.id, sourceActor.id, answer.strings);
+    const esc = foundry.utils.escapeHTML;
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: targetActor }),
+      content: `<div class="tsl-maneuver-card tsl-mv--immune"><div class="tsl-mv-outcome tsl-mv-outcome--immune">⚔ ${answer.line(esc(sourceActor.name), esc(targetActor.name))}</div></div>`,
+    });
+  }
+
+  static _holdLineEnabled() {
+    try { return game.settings.get("tsl-social-conflict", "enableHoldLine") !== false; }
+    catch { return true; }
+  }
+
+  /**
+   * Ask the table: accept the incoming status, or hold the line and take an
+   * emotional wound instead? GM clicks for NPCs; for PCs the GM asks the
+   * player out loud — the words were already spoken, only their MEANING is
+   * being decided. Resolves to a TSL condition id, or null (accept).
+   */
+  static async promptHoldLine(targetActor, maneuver) {
+    const statusLabel = SOCIAL_CONDITIONS[maneuver.applyOnSuccess]?.label ?? maneuver.applyOnSuccess;
+    const pair = HOLD_LINE_CONDITIONS[maneuver.group] ?? HOLD_LINE_CONDITIONS.general;
+    const condName = (id) => ({ smitten: "Smitten", angry: "Angry", scared: "Scared", guilty: "Guilty", hopeless: "Hopeless" }[id] ?? id);
+    return new Promise(resolve => {
+      new Dialog({
+        title: `${targetActor.name} — hold the line?`,
+        content: `<div class="tsl-rollmods">
+          <p>The maneuver lands: <b>${targetActor.name}</b> would become <b>${statusLabel}</b> and lose Resolve.</p>
+          <p class="notes">They may HOLD THE LINE instead — the words still cut, but they take an
+          emotional Condition and refuse the effect. Four Conditions = Overwhelmed. Ask the table.</p>
+        </div>`,
+        buttons: {
+          accept: { icon: '<i class="fas fa-check"></i>', label: `Accept ${statusLabel}`, callback: () => resolve(null) },
+          holdA:  { icon: '<i class="fas fa-shield"></i>', label: `Hold — take ${condName(pair[0])}`, callback: () => resolve(pair[0]) },
+          holdB:  { icon: '<i class="fas fa-shield"></i>', label: `Hold — take ${condName(pair[1])}`, callback: () => resolve(pair[1]) },
+        },
+        default: "accept",
+        close: () => resolve(null),
+      }).render(true);
+    });
+  }
+
+  /** Shared-conflict bookkeeping that runs whatever the outcome was. */
+  static async _afterOutcome(payload, encBefore) {
+    const { sourceActorId, targetActorId, maneuverId, outcomeType, spentString } = payload;
+    const targetActor = game.actors.get(targetActorId);
+    const maneuver    = SocialManeuverRoller.getManeuver(maneuverId);
 
     // ── Shared conflict integration: log + advance turn ──────────────────────
     const state = ConflictStore.state;
@@ -828,7 +962,7 @@ class SocialManeuverRoller {
     const tgtP   = state.participants.find(p => p.actorId === targetActorId);
     if (srcIdx === -1 || !tgtP) return;
 
-    const typeMap = { success: "hit", failure: "miss", immune: "warn" };
+    const typeMap = { success: "hit", crit: "hit", failure: "miss", botch: "warn", immune: "warn" };
     const spendNote = spentString ? " (String spent)" : "";
     ConflictStore.addLog(
       `${state.participants[srcIdx].name} → ${tgtP.name}: ${maneuver.name}${spendNote} — ${outcomeType}`,

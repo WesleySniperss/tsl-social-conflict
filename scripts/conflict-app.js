@@ -443,14 +443,12 @@ class TSLConflictApp extends Application {
         archetypeOverride: isGM ? undefined : dispArch,
       });
       const seeRel  = !!dispArch;
-      const strAdd  = this._pendingStringSpend ? STRING_SPEND_BONUS : 0;
-      const extra   = a.bonus + strAdd;
+      // String spend moved AFTER the roll (the gamble) — no pre-commit here
+      const extra   = a.bonus;
 
       // Bonus/DC breakdowns fold into single signed numbers with tooltip detail.
-      const bonusList = [
-        ...(strAdd ? [`+${strAdd} String`] : []),
-        ...a.bonusReasons.map(b => `${b.value >= 0 ? "+" : "−"}${Math.abs(b.value)} ${esc(b.label.split(" — ")[0])}`),
-      ];
+      const bonusList =
+        a.bonusReasons.map(b => `${b.value >= 0 ? "+" : "−"}${Math.abs(b.value)} ${esc(b.label.split(" — ")[0])}`);
       const extraChip = extra
         ? `<span class="tsl-bar-extra ${extra >= 0 ? "pos" : "neg"}" data-tooltip="${esc(bonusList.join(", "))}${isGuess && seeRel ? " — predictions follow your read" : ""}">${extra >= 0 ? "+" : "−"}${Math.abs(extra)}</span>`
         : "";
@@ -473,7 +471,9 @@ class TSLConflictApp extends Application {
       else if (seeRel && a.relation === "immune")     { hint = `${readPrefix}${a.relationReason} — ${isGuess ? "if you're right, it fails and they turn Defiant." : "it fails, they turn Defiant."}`; hintCls = "imm"; }
       else if (seeRel && a.relation === "vulnerable") { hint = `${readPrefix}this should cut deep — Advantage & +1 Resolve damage${isGuess ? " (if your read is right)" : ""}.`; hintCls = "vuln"; }
       else if (a.combo)                    { hint = `◆ Combo armed — ${a.combo.label}.`; hintCls = "vuln"; }
-      else if (seeRel && a.riposteRisk)    { hint = `${readPrefix}their kind reads this school like a book — a miss hands them a String on you${isGuess ? " (if your read is right)" : ""}.`; hintCls = "imm"; }
+      else if (a.lastExchange)             { hint = "⚠ Their patience is at its end — one more misstep ends this."; hintCls = "imm"; }
+      else if (seeRel && a.answerRisk)     { hint = `${readPrefix}fumble badly here and their answer comes — ${a.answerRisk}${isGuess ? " (if your read is right)" : ""}.`; hintCls = "imm"; }
+      else if (a.patienceThin)             { hint = "⏳ Their patience wears thin — they're getting harder to reach."; }
       else if (a.advantage)                { hint = a.advantageReasons[a.advantageReasons.length - 1]; hintCls = "vuln"; }
       else if (isGM && !a.arch)            { hint = "No archetype set — open their Chronicle to arm weak spots."; }
       else if (!seeRel)                    { hint = "Their nature is a riddle — read tells, then note your guess in your Bond ('Read as')."; }
@@ -487,7 +487,6 @@ class TSLConflictApp extends Application {
             <span class="tsl-bar-roll">${esc(move.skill)} ${a.skillMod >= 0 ? "+" : "−"} ${Math.abs(a.skillMod)} ${extraChip}
               ${dcHtml}</span>
           </div>
-          ${this._stringToggle(activeP, tgtP)}
           ${blocked ? "" : `<button class="tsl-roll-btn" style="--active-color:${activeColor}">Roll</button>`}
         </div>
         ${this._leverageToggles(activeP, tgtP, tgtActor)}
@@ -503,8 +502,12 @@ class TSLConflictApp extends Application {
     const diceOverlay = this._pendingRoll ? (() => {
       const r = this._pendingRoll;
       if (r.kind === "maneuver") {
-        const oc    = r.outcome === "success" ? "Strong Hit" : "Miss";
-        const label = r.outcome === "success" ? "Success" : r.outcome === "immune" ? "⚡ Walled off" : "Failure";
+        const oc    = (r.outcome === "success" || r.outcome === "crit") ? "Strong Hit" : "Miss";
+        const label = r.outcome === "crit"    ? "✦ Clean hit"
+                    : r.outcome === "success" ? "Success"
+                    : r.outcome === "immune"  ? "⚡ Walled off"
+                    : r.outcome === "botch"   ? "⚔ They answer"
+                    : "Failure";
         return `<div class="tsl-dice-overlay"><div class="tsl-dice-panel tsl-dice-panel--maneuver">
           <div class="tsl-dice-move"><i class="fas ${r.icon}"></i> ${r.moveName}</div>
           <div class="tsl-dice-total" data-outcome="${oc}">${r.total}</div>
@@ -826,21 +829,18 @@ class TSLConflictApp extends Application {
     const mods = await SocialManeuverRoller.promptRollMods(`${maneuver.name} → ${tgtP.name}`, assessment.advantage);
     if (!mods) return;
 
-    // Reserve the String, burn it AFTER the roll — the in-roll assess still
-    // counts it for the grip passive, so the preview matches the dice.
-    let stringBonus = 0;
-    let spentString = null;
-    if (this._pendingStringSpend) {
-      spentString = this._pendingStringSpend;
-      stringBonus = STRING_SPEND_BONUS;
-      this._pendingStringSpend = null;
-    }
+    // Strings are the post-roll gamble now: on a miss, rollManeuver offers to
+    // burn one for +2 — decided AFTER the die, against a hidden difficulty.
+    this._pendingStringSpend = null;
     this._pendingLeverage = null;
 
     const payload = await SocialManeuverRoller.rollManeuver(srcActor, tgtActor, maneuver, {
-      stringBonus, leverage, situational: mods.situational, mode: mods.mode,
+      leverage, situational: mods.situational, mode: mods.mode, offerString: true,
     });
-    if (spentString) await TSLStringStore.removeEntry(spentString.sourceActorId, spentString.stringId);
+    if (payload.spentStringPostRoll) {
+      const held = TSLStringStore.getList(srcActor.id).filter(e => e.targetActorId === tgtActor.id);
+      if (held.length) await TSLStringStore.removeEntry(srcActor.id, held[0].id);
+    }
 
     // Effects + log + turn advance happen on the GM client
     TSLGMActions.request("maneuverOutcome", payload);

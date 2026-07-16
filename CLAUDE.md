@@ -62,7 +62,7 @@ tsl-social-conflict/
 - Chronicle/encounter data syncs natively via actor flags (`updateActor` hooks re-render open apps)
 
 ### Data on Actor Flags (scope `tsl-social-conflict`)
-- `socialFencing` — { archetypeId, motivation, personality, psychotype, notes, triad:{power,attention,order 0–3}, points:{desire,fear,weakness,mask,line} }
+- `socialFencing` — { archetypeId, motivation, personality, psychotype, intent (GM agenda), notes, triad:{power,attention,order 0–3}, points:{desire,fear,weakness,mask,line} }
 - `bonds` — [{ id, targetActorId, type, attitude −3..+3, perceivedArchetypeId, profileKnown, notes }]
 - `stringList` — [{ id, label, targetActorId }]
 - `encounter` — { active, patience, maxPatience, resolve, maxResolve, round, outcome: null|"swayed"|"walked", leverage:{desire,fear,weakness → used?} }
@@ -95,12 +95,14 @@ tsl-social-conflict/
 ### Fencing Statuses (SOCIAL_CONDITIONS, all mechanical)
 | Status | Effect | From | Lifetime |
 |--------|--------|------|----------|
-| Rattled | DC to sway them −5; **combat:** dis on WIS saves (midi flag on dnd5e) | Undermine | scene (1h) |
-| Smitten | charmer's Persuasion maneuvers get Advantage; the smitten one CANNOT maneuver against the charmer (hard block in assess); **combat:** dis on attacks vs charmer | Flatter, Charm | scene (1h) |
-| Provoked | next maneuver vs them +2; **combat:** must attack the provoker, dis vs others | Taunt | one-shot |
-| Guilted | guilter's next maneuver gets Advantage; **combat:** dis on attacks vs the guilter | Guilt Trip | one-shot |
-| Desperate | next Flatter/Charm gets Advantage, Bargain cashes it (+1 String); **combat:** dis on Insight checks (midi flag) | Turn Cold | one-shot |
-| Defiant | immune to maneuvers; **Read Them slips through** (`worksThroughDefiant`) and a SUCCESSFUL read breaks the wall; **combat:** adv on WIS saves | hitting an immunity | 10 min or until read |
+| Rattled | DC to sway them −5; **combat:** standard A5E Rattled (no expertise dice/reactions; midi dis WIS saves on dnd5e) | Undermine | scene (1h) |
+| Smitten | charmer's Persuasion maneuvers get Advantage; the smitten one CANNOT maneuver against the charmer (hard block in assess); **combat:** can't attack the charmer; ONE plausible command (WIS save or comply); harmed by charmer's side → breaks into Provoked vs charmer | Flatter, Charm | scene (1h) |
+| Provoked | next maneuver vs them +2; **combat:** must move to & attack the provoker, dis vs others, attacks AGAINST them have adv | Taunt | one-shot |
+| Guilted | guilter's next maneuver gets Advantage; **combat:** the one they owe attacks them with adv, no reactions vs them; if that one draws blood → Guilted becomes Rattled | Guilt Trip | one-shot |
+| Desperate | next Flatter/Charm gets Advantage, Bargain cashes it (+1 String); **combat:** all-in — adv on ALL their attacks AND all attacks against them | Turn Cold | one-shot |
+| Defiant | immune to maneuvers; **Read Them slips through** (`worksThroughDefiant`) and a SUCCESSFUL read breaks the wall; **combat:** adv saves vs charm/fear, cannot willingly retreat/disengage | hitting an immunity | 10 min or until read |
+
+Combat statuses are BEHAVIORS with transitions (Smitten→Provoked on heartbreak, Guilted→Rattled on drawn blood — GM applies the flip per the effect text), not stat nudges; automatable parts ship as a5e/midi flags, behavioral parts as bold rules text in the effect description.
 
 **Combat riders** live in each condition's `combat` field → appended to the AE description (`buildConditionEffect`), plus per-system changes: `dnd5eChanges`+`midiChanges` on dnd5e, `a5eChanges` on standalone a5e.
 
@@ -245,6 +247,15 @@ TSL stats mapped to D&D abilities:
 - **Target header is a card**: portrait (triad-colored ring) · name+archetype · tracks · status tags in one bordered block with a soft triad-tinted gradient — same silhouette as conflict participant cards (`.tsl-fc-head` rebuilt, `.tsl-fc-portrait`, `.tsl-fc-head-main/-row`).
 - **Even maneuver rail**: fixed 64px label column, labels vertically centered, each school band gets a soft triad tint + right-rounded corners (`.tsl-fc .tsl-chip-group` overrides).
 - **Aligned GM tracks**: fixed 64px label column so Resolve/Patience pips start at the same x; counts right-aligned. Target row controls share one 30px height.
+
+### v1.11.0 — the living opponent: grades, the Answer, the gamble, Hold the Line
+- **Graded outcomes** (`rollManeuver`): beat DC by 5+ = `crit` (+1 damage, "Clean hit"); miss by 5+ = `botch` → **the Answer**. Outcome names never carry numbers, so chat can't leak the DC — but outcomes ARE how players learn to sense it.
+- **The Answer (`TRIAD_ANSWER`)** replaces riposte + immunity punish with ONE rule: on a botch OR an immunity hit, the archetype answers in its triad's language and the debuff lands on the ATTACKER — Power: you're Rattled · Emotion: you're Guilted · Reason: String on you. `assess().answerRisk` words the warning from the DISPLAY arch (player's guess).
+- **The gamble**: pre-roll String toggle REMOVED from maneuvers; on a MISS `rollManeuver` (with `offerString: true`) offers to burn a String for +2 — decided AFTER the die, against a hidden DC (`promptStringBurn`; payload `spentStringPostRoll`, caller removes the entry). Grip passive unchanged.
+- **Hold the Line** (world setting `enableHoldLine`, default on): when a maneuver would land a STATUS, the GM dialog (`promptHoldLine`) asks the table — accept, or refuse the status + Resolve hit by taking a TSL Condition fitting the school (`HOLD_LINE_CONDITIONS`: power→angry/scared, attention→smitten/guilty, order→scared/hopeless). Applied via `TSLConditionEffects.applyOne` (actor-level AE, cleared on short rest); 4+ Conditions = Overwhelmed (card warns). Attacker's Strings/tells still land — words are never erased, only their power refused.
+- **The patience clock**: past half Patience the DC quietly rises +1 ("their patience wears thin" dcMod) with a ⏳ hint; at 1 the bar warns "last exchange".
+- **NPC Agenda (`socialFencing.intent`, GM-only Profile field)**: what THEY want from the conversation. `walked` now BITES: the walker gains a String on the attacker and the resolution card notes their agenda advances — losing an exchange costs the players something.
+- **Codex "Running it (GM)"**: when to draw blades (unwilling + real stakes only), both sides play (answer every maneuver), crowd hardens (+1 DC per extra voice), size the ask (Resolve 3/5–6/8 + leverage for the impossible), patience as the scene clock. Player list adds: grades/Answer, the gamble, Hold the Line, tempo (one exchange, one blade each).
 
 ### VTools Integration (hud-button.js)
 ```js

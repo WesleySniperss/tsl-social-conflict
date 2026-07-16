@@ -2751,6 +2751,14 @@
 .tsl-bar-hint--vuln { color: #7fd89a; }
 .tsl-bar-hint--imm  { color: #e8a855; }
 
+/* Graded outcome cards: crit reads as success, botch as failure — louder */
+.tsl-maneuver-card.tsl-mv--crit    { border-color: #55e885; box-shadow: 0 0 14px rgba(85,232,133,0.25); }
+.tsl-mv-total--crit,
+.tsl-mv-outcome--crit  { color: #55e885; }
+.tsl-maneuver-card.tsl-mv--botch   { border-color: #e85555; box-shadow: 0 0 14px rgba(232,85,85,0.25); }
+.tsl-mv-total--botch,
+.tsl-mv-outcome--botch { color: #e88a8a; }
+
 /* The wager line: what a hit buys · what a miss costs */
 .tsl-bar-stakes {
   display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px;

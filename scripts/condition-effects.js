@@ -98,6 +98,34 @@ class TSLConditionEffects {
     );
   }
 
+  /**
+   * Apply ONE TSL condition to an actor outside a conflict window — used by
+   * "Hold the Line" (refusing a maneuver's effect at an emotional cost).
+   * Skips silently if the same condition is already carried.
+   * Returns how many TSL conditions the actor now carries (4+ = Overwhelmed).
+   */
+  static async applyOne(actor, condId, sourceName = "Social Fencing") {
+    if (!actor || !CONDITION_META[condId]) return 0;
+    const has = actor.effects.some(e => e.flags?.[TSL_EFFECT_FLAG]?.condition === condId);
+    if (!has) {
+      await actor.createEmbeddedDocuments("ActiveEffect", [
+        TSLConditionEffects._buildEffect(condId, sourceName, actor.id),
+      ]);
+    }
+    return TSLConditionEffects.countConditions(actor);
+  }
+
+  /** How many TSL conditions this actor carries (Overwhelmed at 4+). */
+  static countConditions(actor) {
+    if (!actor) return 0;
+    const seen = new Set();
+    for (const e of actor.effects) {
+      const c = e.flags?.[TSL_EFFECT_FLAG]?.condition;
+      if (c && CONDITION_META[c]) seen.add(c);
+    }
+    return seen.size;
+  }
+
   static _buildEffect(condId, sourceName, _actorId) {
     const meta = CONDITION_META[condId];
     const hint = meta.hint.replace("{source}", sourceName);

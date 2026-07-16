@@ -155,6 +155,7 @@ class SocialEncounterManager {
    */
   static async _resolveConsequences(actor, sourceId, outcome) {
     let gainedString = false;
+    let tookString   = false;
     const winner = sourceId ? game.actors.get(sourceId) : null;
 
     if (outcome === "swayed" && winner) {
@@ -163,6 +164,10 @@ class SocialEncounterManager {
       gainedString = true;
     } else if (outcome === "walked" && winner) {
       await TSLBondStore.shiftAttitude(actor.id, sourceId, -1);
+      // Walking away is not a draw: they spent this whole exchange READING
+      // you while you failed to land — they leave holding a String on you.
+      await TSLStringStore.add(actor.id, sourceId, 1);
+      tookString = true;
     }
 
     // The exchange is over — clear the scene's fencing statuses on the loser
@@ -170,7 +175,7 @@ class SocialEncounterManager {
       await SocialArchetypeManager.removeCondition(actor, id);
     }
 
-    await SocialEncounterManager._announce(actor, outcome, { winner, gainedString });
+    await SocialEncounterManager._announce(actor, outcome, { winner, gainedString, tookString });
   }
 
   static async advanceRound(actor) {
@@ -204,6 +209,10 @@ class SocialEncounterManager {
       : [
           `They <strong>disengage</strong> — this conversation is over on their terms.`,
           `Their regard for ${who} cools — <strong>attitude −1</strong>.`,
+          opts.tookString ? `They spent the whole exchange reading ${who} — <strong>they gain a String</strong> on them.` : null,
+          SocialArchetypeManager.getCharacterNotes(actor).intent?.trim()
+            ? `They leave with what they came for — <strong>their agenda advances</strong> (GM: see their Profile).`
+            : null,
           walkFlavor ? esc(walkFlavor) : null,
           `The scene's fencing statuses on them clear.`,
         ].filter(Boolean);
