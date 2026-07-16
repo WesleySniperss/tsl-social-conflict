@@ -220,6 +220,11 @@ TSL stats mapped to D&D abilities:
 - **String grip**: holding ≥1 String on the target → +1 bonusReason on maneuvers vs them; the target holding Strings on the roller → +1 dcMod. Both flat +1 regardless of count. String SPEND is reserved before the roll but removed after it (both `_doFenceRoll` and `_doManeuverRoll`) — the in-roll assess still sees the held String, so the grip in the preview matches the dice.
 - **Unlinked-token chronicle split fixed**: `SocialFencingDialog.open` normalizes to the WORLD actor (`game.actors.get(actor.id) ?? actor`) — a token HUD on an unlinked token hands over the synthetic actor (same id, token-local flags); writing there gave every token a private chronicle. All profile/bonds/strings/encounter data now lands on the base actor and syncs across every token of that character. (Store APIs were already id-based via `game.actors.get` — the app instance was the only leak.)
 
+### v1.9.6 — token-delta rescue; statuses in the console; no double Rattled
+- **`migrateTokenChronicles` (main.js, GM, ready)**: pre-1.9.5 chronicle data written to UNLINKED TOKEN DELTAS (each token had a private copy — the visible "bonds don't sync" symptom even after the open() fix) is merged UP into the world actor (union: bonds by targetActorId, strings by id; profile/encounter only if the world actor has none) and the delta flag is wiped so nothing shadows the shared chronicle. Idempotent, sweeps all scenes.
+- **Statuses visible in the maneuver console**: the Chronicle Fencing tab shows the target's active status tags under the tracks; ALL status tooltips (conflict cards, console, GM toggles) now include the `Combat:` rider line.
+- **No duplicate Rattled in the token HUD**: registration skips `tsl-<id>` when a `links` target with the SAME localized label already exists in `CONFIG.statusEffects` (A5E's own Rattled) and stores `meta.nativeAlias` instead; `getActiveCondition`/`removeCondition` also match the alias — toggling the system's native Rattled counts as the social one (DC −5) and is removable/consumable by the module.
+
 ### VTools Integration (hud-button.js)
 ```js
 Hooks.once("vtools.ready", () => {

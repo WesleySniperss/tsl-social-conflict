@@ -619,12 +619,21 @@ class SocialFencingApp extends Application {
           <div class="tsl-chip-group-label" data-tooltip="${esc(schoolTip)}">${esc(short)}</div><div class="tsl-chip-grid">${cs}</div></div>`;
       }).join("");
 
+      // The target's active social statuses — name tags with the full effect
+      // (social + combat rider) in the tooltip, right where you pick the move.
+      const tgtConds  = SocialArchetypeManager.getActiveConditions(tgt);
+      const statusRow = tgtConds.length
+        ? `<div class="tsl-status-row">${tgtConds.map(c => `
+            <span class="tsl-status-tag" style="--st-color:${c.meta.color ?? "#806858"}" data-tooltip="<b>${c.meta.label}</b><br>${esc(c.meta.description)}${c.meta.combat ? `<br><b>Combat:</b> ${esc(c.meta.combat)}` : ""}">${esc(c.meta.label)}</span>`).join("")}</div>`
+        : "";
+
       body = `
         <div class="tsl-fc-head">
           <div class="tsl-fc-head-name">${esc(tgt.name)}</div>
           ${archLine}
         </div>
         ${tracks}
+        ${statusRow}
         <div class="tsl-fc-maneuvers">${chips}</div>
         ${this._buildFenceBar(ctx, src, tgt, arch, isGuess)}`;
     }
@@ -778,7 +787,7 @@ class SocialFencingApp extends Application {
       const on   = activeConditions[id];
       const meta = SOCIAL_CONDITIONS[id];
       return `<button class="tsl-cond-toggle ${on ? "active" : ""}" data-condition="${id}"
-                      data-tooltip="<b>${meta.label}</b><br>${esc(meta.description)}">
+                      data-tooltip="<b>${meta.label}</b><br>${esc(meta.description)}${meta.combat ? `<br><b>Combat:</b> ${esc(meta.combat)}` : ""}">
                 <img src="${meta.icon}" alt=""><span>${meta.label}</span>
               </button>`;
     }).join("");

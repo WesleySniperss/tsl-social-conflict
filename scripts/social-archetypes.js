@@ -514,9 +514,11 @@ class SocialArchetypeManager {
     if (!actor) return;
     // Match flag OR statuses set, like getActiveCondition — a status toggled
     // from the token HUD must be consumable/removable exactly like ours.
+    const alias = SOCIAL_CONDITIONS[conditionId]?.nativeAlias;
     const toRemove = actor.effects.filter((effect) =>
       effect.flags?.[SocialArchetypeManager.getFlagScope()]?.condition === conditionId
       || effect.statuses?.has?.(`tsl-${conditionId}`)
+      || (alias && effect.statuses?.has?.(alias))
     );
     if (!toRemove.length) return;
     await actor.deleteEmbeddedDocuments("ActiveEffect", toRemove.map((e) => e.id));
@@ -528,10 +530,14 @@ class SocialArchetypeManager {
    * token HUD's main status list (statuses set `tsl-<id>`).
    */
   static getActiveCondition(actor, conditionId) {
+    // nativeAlias: on systems whose OWN condition covers ours (A5E Rattled)
+    // we register no duplicate — the native status counts as the social one.
+    const alias = SOCIAL_CONDITIONS[conditionId]?.nativeAlias;
     return actor?.effects.find(e =>
       !e.disabled && (
         e.flags?.[SocialArchetypeManager.getFlagScope()]?.condition === conditionId
         || e.statuses?.has?.(`tsl-${conditionId}`)
+        || (alias && e.statuses?.has?.(alias))
       )
     ) ?? null;
   }

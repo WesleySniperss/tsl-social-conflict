@@ -74,6 +74,49 @@ async function syncExistingConditionEffects(actors) {
   }
 }
 
+/**
+ * Rescue chronicle data written to TOKEN DELTAS by pre-1.9.5 versions.
+ * Back then the Chronicle app wrote to an unlinked token's synthetic actor,
+ * so every token kept a private copy of bonds/strings/profile. Merge each
+ * token-local copy up into the WORLD actor (union, world data wins) and wipe
+ * the delta so nothing shadows the shared chronicle. GM client, idempotent.
+ */
+async function migrateTokenChronicles() {
+  if (!game.user?.isGM) return;
+  const scope = "tsl-social-conflict";
+  for (const scene of game.scenes ?? []) {
+    for (const tok of scene.tokens ?? []) {
+      if (tok.actorLink) continue;
+      const delta = tok.delta?.flags?.[scope];
+      if (!delta || foundry.utils.isEmpty(delta)) continue;
+      const base = game.actors.get(tok.actorId);
+      if (!base) continue;
+      try {
+        if (delta.socialFencing && !base.getFlag(scope, "socialFencing"))
+          await base.setFlag(scope, "socialFencing", delta.socialFencing);
+        if (Array.isArray(delta.bonds) && delta.bonds.length) {
+          const bonds = base.getFlag(scope, "bonds") ?? [];
+          const have  = new Set(bonds.map(b => b.targetActorId));
+          const extra = delta.bonds.filter(b => b?.targetActorId && !have.has(b.targetActorId));
+          if (extra.length) await base.setFlag(scope, "bonds", [...bonds, ...extra]);
+        }
+        if (Array.isArray(delta.stringList) && delta.stringList.length) {
+          const strings = base.getFlag(scope, "stringList") ?? [];
+          const have    = new Set(strings.map(s => s.id));
+          const extra   = delta.stringList.filter(s => s?.id && !have.has(s.id));
+          if (extra.length) await base.setFlag(scope, "stringList", [...strings, ...extra]);
+        }
+        if (delta.encounter && !base.getFlag(scope, "encounter"))
+          await base.setFlag(scope, "encounter", delta.encounter);
+        await tok.delta.update({ [`flags.-=${scope}`]: null });
+        console.log(`TSL | Migrated token-local chronicle of "${tok.name}" (${scene.name}) into actor "${base.name}"`);
+      } catch (err) {
+        console.warn(`TSL | Chronicle migration failed for token "${tok.name}":`, err);
+      }
+    }
+  }
+}
+
 Hooks.once("ready", () => {
   console.log("TSL | Social Conflict ready hook firing");
 
@@ -86,6 +129,17 @@ Hooks.once("ready", () => {
     for (const id of SOCIAL_CONDITION_ORDER) {
       const meta = SOCIAL_CONDITIONS[id];
       if (!meta || CONFIG.statusEffects.some(s => s.id === `tsl-${id}`)) continue;
+      // If the SYSTEM already ships a same-named condition we link to (A5E's
+      // own Rattled), don't add a duplicate entry to the HUD — remember the
+      // native id as an alias instead, so toggling the system's condition
+      // counts as the social status too (getActiveCondition matches it).
+      const twin = (meta.links ?? []).find(l => CONFIG.statusEffects.some(s =>
+        s.id === l && game.i18n.localize(s.name ?? "") === meta.label));
+      if (twin) {
+        meta.nativeAlias = twin;
+        console.log(`TSL | ${meta.label}: using the system's native "${twin}" status (no duplicate entry)`);
+        continue;
+      }
       const fx = SocialArchetypeManager.buildConditionEffect(id);
       CONFIG.statusEffects.push({
         id: `tsl-${id}`,
@@ -105,7 +159,9 @@ Hooks.once("ready", () => {
 
   // Bring statuses applied by OLDER versions up to the current automation —
   // world actors now, scene token actors (incl. unlinked) once canvas is up.
+  // Then rescue pre-1.9.5 token-local chronicles into the shared world actor.
   syncExistingConditionEffects(game.actors?.contents ?? []);
+  migrateTokenChronicles();
   Hooks.on("canvasReady", () => {
     syncExistingConditionEffects(
       (canvas.tokens?.placeables ?? []).map(t => t.actor).filter(Boolean)
