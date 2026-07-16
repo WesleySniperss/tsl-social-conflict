@@ -342,7 +342,7 @@ const SOCIAL_CONDITIONS = {
     color: "#5588e8",
     seconds: 600,
     oneShot: true,
-    description: "Starved of attention: the next Flatter or Charm against them rolls with Advantage, then this fades.",
+    description: "Starved and grasping: the next Flatter or Charm against them rolls with Advantage, and a Bargain cashes it for an extra String. Fades once used.",
     combat: "Disadvantage on Wisdom (Insight) checks; −2 on initiative.",
     dnd5eChanges: [{ key: "system.attributes.init.bonus", mode: 2, value: "-2" }],
     midiChanges: [{ key: "flags.midi-qol.disadvantage.skill.ins", mode: 0, value: "1" }],

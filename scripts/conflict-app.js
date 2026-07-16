@@ -357,8 +357,9 @@ class TSLConflictApp extends Application {
           const isSel   = move?.id === m.id;
           const rel     = tgtActor ? SocialManeuverRoller.getRelation(tgtActor, m, isGM ? undefined : (tgtArch ?? null)) : "neutral";
           const counter = seeRel && TRIAD_COUNTERS[m.group] === tgtArch.triad;
-          const comboReady = tgtActor && m.combos
-            && Object.keys(m.combos).some(st => SocialArchetypeManager.getActiveCondition(tgtActor, st));
+          const comboReady = tgtActor && (
+            (m.combos && Object.keys(m.combos).some(st => SocialArchetypeManager.getActiveCondition(tgtActor, st)))
+            || (m.kickWhileDown && SOCIAL_CONDITION_ORDER.some(st => SocialArchetypeManager.getActiveCondition(tgtActor, st))));
           const mark    = seeRel && rel === "immune" ? `<span class="tsl-chip-mark tsl-chip-mark--imm">⚡</span>`
                         : seeRel && rel === "vulnerable" ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">✦</span>`
                         : comboReady ? `<span class="tsl-chip-mark tsl-chip-mark--combo">◆</span>`
@@ -367,10 +368,12 @@ class TSLConflictApp extends Application {
           const ar = SocialArchetypeManager.getArchetypeRelationsFor(m);
           const counterShort = TRIAD_COUNTERS[m.group]
             ? (SOCIAL_TRIADS[TRIAD_COUNTERS[m.group]]?.label ?? "").replace("Triad of ", "") : null;
-          const comboTip = m.combos ? Object.entries(m.combos).map(([st, c]) =>
-            `◆ Combo — consumes ${SOCIAL_CONDITIONS[st]?.label ?? st}: ${c.label}` +
-            `${c.resolveDamage ? ` (+${c.resolveDamage} Resolve damage)` : ""}${c.strings ? ` (+${c.strings} String)` : ""}`
-          ).join("<br>") : null;
+          const comboTip = [
+            ...(m.combos ? Object.entries(m.combos).map(([st, c]) =>
+              `◆ Combo — consumes ${SOCIAL_CONDITIONS[st]?.label ?? st}: ${c.label}` +
+              `${c.resolveDamage ? ` (+${c.resolveDamage} Resolve damage)` : ""}${c.strings ? ` (+${c.strings} String)` : ""}`) : []),
+            ...(m.kickWhileDown ? ["◆ Kicks while down: +1 Resolve damage if they have any status (not consumed)"] : []),
+          ].join("<br>") || null;
           const tip = [
             `<b>${esc(m.name)}</b> · ${esc(m.skill)} ${mod >= 0 ? "+" : ""}${mod}`,
             esc(m.description),
@@ -489,6 +492,10 @@ class TSLConflictApp extends Application {
         </div>
         ${this._leverageToggles(activeP, tgtP, tgtActor)}
         ${hint ? `<div class="tsl-bar-hint tsl-bar-hint--${hintCls}">${esc(hint)}</div>` : ""}
+        ${(() => {
+          const pv = SocialManeuverRoller.previewOutcomes(a, move);
+          return pv ? `<div class="tsl-bar-stakes"><span class="tsl-stake-hit">✓ ${esc(pv.hit)}</span><span class="tsl-stake-sep">·</span><span class="tsl-stake-miss">✗ ${esc(pv.miss)}</span></div>` : "";
+        })()}
       </div>`;
     };
 

@@ -99,7 +99,7 @@ tsl-social-conflict/
 | Smitten | charmer's Persuasion maneuvers get Advantage; the smitten one CANNOT maneuver against the charmer (hard block in assess); **combat:** dis on attacks vs charmer | Flatter, Charm | scene (1h) |
 | Provoked | next maneuver vs them +2; **combat:** must attack the provoker, dis vs others | Taunt | one-shot |
 | Guilted | guilter's next maneuver gets Advantage; **combat:** dis on attacks vs the guilter | Guilt Trip | one-shot |
-| Desperate | next Flatter/Charm gets Advantage; **combat:** dis on Insight checks (midi flag) | Turn to Leave | one-shot |
+| Desperate | next Flatter/Charm gets Advantage, Bargain cashes it (+1 String); **combat:** dis on Insight checks (midi flag) | Turn Cold | one-shot |
 | Defiant | immune to maneuvers; **Read Them slips through** (`worksThroughDefiant`) and a SUCCESSFUL read breaks the wall; **combat:** adv on WIS saves | hitting an immunity | 10 min or until read |
 
 **Combat riders** live in each condition's `combat` field → appended to the AE description (`buildConditionEffect`), plus per-system changes: `dnd5eChanges`+`midiChanges` on dnd5e, `a5eChanges` on standalone a5e.
@@ -107,7 +107,7 @@ tsl-social-conflict/
 ### Maneuver redesign (v1.8) — school identities
 - **General** (safe basics, no vuln/imm): Read Them (scout: tell+String, 0 dmg, through Defiant) · Mock (the jab: 1 dmg flat) · Taunt (setup: Provoked, 0 dmg)
 - **Power** (domination — hits harder, risks harder): Flatter (Smitten + 1 dmg) · Play Weak (deep bait: 3 Strings, 0 dmg) · Humiliate (2 dmg, but `failPatience: 2`)
-- **Emotion** (hearts → combos): Charm (Smitten + 1 String, 0 dmg) · Turn to Leave (Desperate + 1 dmg; the dramatic exit that begs to be stopped — replaced the flat "Ignore Them" in v1.9.9) · Guilt Trip (Guilted + 1 dmg)
+- **Emotion** (hearts → combos): Charm (Smitten + 1 String, 0 dmg) · Turn Cold (Desperate + 1 dmg; push-pull — the warmth drains mid-sentence and they chase it; replaced "Ignore Them"/"Turn to Leave" in v1.10) · Guilt Trip (Guilted + 1 dmg)
 - **Order** (ledgers: economy/info/control): Undermine (Rattled, 0 dmg) · Cross-Examine (tell + String + 1 dmg) · Bargain (2 Strings + 1 dmg)
 - Damage rule: **vulnerability adds +1 to the maneuver's own `resolveDamage`** (not a flat 2); failure burns `failPatience ?? 1` Patience (+1 more on a failed Fear leverage). Ids are unchanged — only names/effects.
 
@@ -127,10 +127,17 @@ tsl-social-conflict/
 One-shot economy: a one-shot is consumed ONLY if it is the thing granting the advantage — free sources (vulnerability, Smitten) are used first, so resources are never wasted. Provoked (+2 flat) always applies and always burns. Combos create the fencing feel: Turn to Leave → Desperate → Charm with Advantage → Smitten → Persuasion chain.
 
 ### v1.9.9 — the chess layer: named combos & ripostes
-- **Turn to Leave** replaces Ignore Them (id `cold_shoulder` unchanged): Deception, `fa-person-walking-arrow-right` — the dramatic exit that begs to be stopped; still applies Desperate + 1 dmg, same vuln/imm tags.
-- **Named combos (`maneuver.combos: { statusId: { label, resolveDamage?, strings? } }`)**: a finisher CASHES IN a set-up status for an extra payout on success; the status is added to `consumes` and burns. Four pairs: Taunt→**Humiliate** (Provoked: +1 dmg) · Turn to Leave→**Charm** (Desperate: +1 dmg) · Charm→**Guilt Trip** (Smitten: +1 String) · Guilt Trip→**Cross-Examine** (Guilted: +1 String). Detected in `assess` (returns `combo`), paid out in `applyOutcome`, shown as ◆ chip mark (armed NOW), tooltip line, bar hint "◆ Combo armed", and a card line.
-- **Riposte (don't get caught)**: on a FAILED maneuver whose school is countered by the defender's triad (`TRIAD_COUNTERS[arch.triad] === maneuver.group` — Reason punishes Power plays, Power punishes Emotion, Emotion punishes Reason), the defender gains a String on the attacker + a public veiled card (deduction evidence!). `assess` returns `riposteRisk` from the DISPLAY arch (player's guess), so the warning hint only appears once you have a read — knowing the archetype = knowing which school not to fumble.
-- Codex teaches both (◆ chains + "Don't get caught"); combo tooltips list status → payout on every chip.
+- **Named combos (`maneuver.combos: { statusId: { label, resolveDamage?, strings? } }`)**: a finisher CASHES IN a set-up status for an extra payout on success; the status is added to `consumes` and burns. Detected in `assess` (returns `combo`), paid out in `applyOutcome`, shown as ◆ chip mark (armed NOW), tooltip line, bar hint "◆ Combo armed", and a card line.
+- **Riposte (don't get caught)**: on a FAILED maneuver whose school is countered by the defender's triad (`TRIAD_COUNTERS[arch.triad] === maneuver.group` — Reason punishes Power plays, Power punishes Emotion, Emotion punishes Reason), the defender gains a String on the attacker + a public veiled card (deduction evidence!). `assess` returns `riposteRisk` from the DISPLAY arch (player's guess), so the warning hint only appears once you have a read.
+
+### v1.10.0 — fiction-first rebuild: states as the board
+Design rules learned the hard way: (1) every maneuver must be REPEATABLE in live conversation and its effect must be guessable from the fiction alone; (2) combos must read like life, not a lookup table; (3) the wager must be visible before the roll.
+- **Turn Cold** replaces Turn to Leave (id `cold_shoulder` unchanged): Deception, `fa-snowflake` — mid-sentence the warmth drains away; push-pull. Still applies Desperate + 1 dmg. ("Leaving" was a once-per-scene fiction sold as a repeatable button — that's what felt wrong.)
+- **Mock kicks while down** (`kickWhileDown: true`): +1 dmg vs a target with ANY fencing status, nothing consumed (`assess.kick`, `wasOffBalance` computed in applyOutcome BEFORE the consume loop). General school now has a reactive pressure tool.
+- **Bargain cashes Desperate** (+1 String, "a desperate soul signs anything") — Desperate now has two consumers (Charm's adv+dmg vs Bargain's String): a real choice.
+- **Immunity punish by triad (`TRIAD_PUNISH`)**: hitting an immunity now costs the ATTACKER in the defender's language — Power: attacker Rattled · Emotion: attacker Guilted · Reason: String on attacker — plus the usual Defiant wall and a public veiled card. Knowing the archetype = knowing exactly what you risk.
+- **Stakes line (`previewOutcomes`)**: both bars show "✓ hit: −N Resolve · they're X · +N Strings" / "✗ miss: −N their Patience · riposte" under the breakdown — built from the same assessment as the dice (guess-based for players). `.tsl-bar-stakes` CSS.
+- Codex rewritten around three life-readable lines: heat them → strike the temper · push-pull the heart · corner the mind → they sign. Combo chains: Taunt→Humiliate · Turn Cold→Charm/Bargain · Charm→Guilt Trip→Cross-Examine.
 
 **Attacker-side triad leanings:** the attacker's Extended Triad dots ARE their attack style — +1 per dot on that triad's maneuvers, −1 on a triad with 0 dots while others have some ("foreign ground"); General tactics always neutral. Shown as ★ +N / ▼ −1 badges on maneuver group labels and as signed chips in the Duel Panel. Picking an archetype auto-fills its triad to 2● (QoL in the Chronicle archetype handler). PCs set this in their own Chronicle → Profile.
 

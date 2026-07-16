@@ -2751,6 +2751,16 @@
 .tsl-bar-hint--vuln { color: #7fd89a; }
 .tsl-bar-hint--imm  { color: #e8a855; }
 
+/* The wager line: what a hit buys · what a miss costs */
+.tsl-bar-stakes {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px;
+  font-size: 10px; line-height: 1.4;
+  padding-top: 3px; border-top: 1px dashed rgba(255,255,255,0.07);
+}
+.tsl-stake-hit  { color: #7fd89a; }
+.tsl-stake-miss { color: #e88a8a; }
+.tsl-stake-sep  { color: var(--tsl-dim, #6a4a56); }
+
 .tsl-bar-lev { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
 .tsl-bar-lev-hint { font-size: 10px; font-style: italic; color: var(--tsl-dim); }
 

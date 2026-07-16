@@ -67,13 +67,14 @@ const SOCIAL_MANEUVERS = [
     skillKeys:       { dnd5e: "dec", "a5e-for-dnd5e": "deception" },
     vulnerabilityTags: [],
     immunityTags:      ["sow doubt", "criticism"],   // Exalted
-    description:  "The jab. A joke with a razor in it — reliable, unremarkable, it simply cuts.",
-    successText:  "The barb lands where it hurts. Resolve −1.",
+    description:  "The jab. A joke with a razor in it — and it cuts twice as deep into someone already off balance. Kick them while they're down.",
+    successText:  "The barb lands where it hurts. Resolve −1 (−2 if they were off balance).",
     failText:     "The joke dies in the air. Patience −1.",
     immuneText:   "They cannot imagine being the punchline. Target becomes Defiant.",
     applyOnSuccess: null,
     grantStrings: 0,
     resolveDamage: 1,
+    kickWhileDown: true,   // +1 dmg if the target has ANY fencing status (not consumed)
   },
 
   {
@@ -175,17 +176,17 @@ const SOCIAL_MANEUVERS = [
 
   {
     id:    "cold_shoulder",
-    name:  "Turn to Leave",
+    name:  "Turn Cold",
     skill: "Deception",
-    icon:  "fa-person-walking-arrow-right",
+    icon:  "fa-snowflake",
     group: "attention",
     skillKeys:       { dnd5e: "dec", "a5e-for-dnd5e": "deception" },
     vulnerabilityTags: ["stone-walling", "ignore"],   // Martyr → Advantage
     immunityTags:      ["selfless focus"],            // Caretaker
-    description:  "The dramatic exit that begs to be stopped. Gather your coat, turn for the door — and count the heartbeats until they call you back.",
-    successText:  "“Wait—” The word escapes before they can swallow it. Desperate (the next Flatter or Charm against them gains Advantage). Resolve −1.",
-    failText:     "They let you reach the door. Now you have to actually leave, or look ridiculous. Patience −1.",
-    immuneText:   "They hold the door open for you, unmoved. Target becomes Defiant.",
+    description:  "Push-pull. Mid-sentence, let the warmth drain away — short answers, distant eyes, a temperature drop they can't ignore. Then watch them chase it.",
+    successText:  "The chill lands. They talk faster, lean closer — Desperate (the next Flatter or Charm against them gains Advantage). Resolve −1.",
+    failText:     "They pretend not to notice the frost. Patience −1.",
+    immuneText:   "They simply enjoy the quiet. Target becomes Defiant.",
     applyOnSuccess: "desperate",
     grantStrings: 0,
     resolveDamage: 1,
@@ -266,6 +267,7 @@ const SOCIAL_MANEUVERS = [
     applyOnSuccess: null,
     grantStrings: 2,
     resolveDamage: 1,
+    combos: { desperate: { label: "A desperate soul signs anything", strings: 1 } },
   },
 ];
 
@@ -285,6 +287,23 @@ const ATTENTION_MANEUVERS = ["flatter", "love_bombing"];
  * Maps maneuver group → the defender triad it counters.
  */
 const TRIAD_COUNTERS = { power: "attention", attention: "order", order: "power" };
+
+/**
+ * What an archetype DOES to you when you hit its immunity — the wrong lever
+ * doesn't just fail, their kind answers in its own language. Predictable if
+ * you know their nature: that's the "don't get caught" layer.
+ *   Power   — they tower over the misstep: YOU are Rattled.
+ *   Emotion — they make your fumble about THEIR hurt: YOU are Guilted.
+ *   Reason  — they file it away: a String on you.
+ */
+const TRIAD_PUNISH = {
+  power:     { status: "rattled",
+               line: (src, tgt) => `${tgt} answers the misstep with sheer presence — <b>${src} is Rattled</b>.` },
+  attention: { status: "guilted",
+               line: (src, tgt) => `${tgt} turns the fumble into THEIR wound, and the room feels it — <b>${src} is Guilted</b>.` },
+  order:     { strings: 1,
+               line: (src, tgt) => `${tgt} quietly files the fumble away — <b>a String on ${src}</b>.` },
+};
 
 class SocialManeuverRoller {
   static getManeuver(id) {
@@ -441,6 +460,7 @@ class SocialManeuverRoller {
     const bonusReasons     = [];
     const consumes         = [];
     let   combo            = null;
+    let   kick             = false;
     let   advantage        = relation === "vulnerable";
     if (advantage) advantageReasons.push(relationReason);
 
@@ -479,6 +499,9 @@ class SocialManeuverRoller {
         if (!consumes.includes(st)) consumes.push(st);
         break;
       }
+      // Kick them while they're down: +1 damage against a target with ANY
+      // fencing status (not consumed — mockery doesn't calm anyone)
+      if (maneuver.kickWhileDown && SOCIAL_CONDITION_ORDER.some(id => cond(id))) kick = true;
       // The triad counter cycle: the defender's ruling triad is soft against
       // the school that counters it (Power→Emotion→Order→Power)
       if (arch && TRIAD_COUNTERS[maneuver.group] === arch.triad) {
@@ -537,9 +560,40 @@ class SocialManeuverRoller {
     return {
       arch, relation, relationReason,
       advantage, advantageReasons,
-      bonus, bonusReasons, combo, riposteRisk,
+      bonus, bonusReasons, combo, kick, riposteRisk,
       dc, dcBase, dcMods, skillMod, consumes, leverage,
     };
+  }
+
+  /**
+   * The stakes of this exchange, in plain words — what a hit buys and what a
+   * miss costs. Built from the SAME assessment the dice use (guess-based for
+   * players), so the wager you read is the wager you make.
+   * Returns { hit, miss } or null when there is nothing to weigh (walled).
+   */
+  static previewOutcomes(a, maneuver) {
+    if (!a || a.relation === "blocked" || a.relation === "immune") return null;
+    const dmg = (maneuver.resolveDamage ?? 1)
+      + (a.relation === "vulnerable" ? 1 : 0)
+      + (a.combo?.resolveDamage ?? 0)
+      + (a.leverage === "desire" ? 1 : 0)
+      + (a.kick ? 1 : 0);
+    const strings = (maneuver.grantStrings ?? 0) + (a.combo?.strings ?? 0);
+    const applies = maneuver.applyOnSuccess
+      ? SOCIAL_CONDITIONS[maneuver.applyOnSuccess]?.label ?? maneuver.applyOnSuccess
+      : null;
+    const hit = [
+      dmg ? `−${dmg} Resolve` : null,
+      applies ? `they're ${applies}` : null,
+      strings ? `+${strings} String${strings > 1 ? "s" : ""}` : null,
+      maneuver.reveals ? "a tell" : null,
+    ].filter(Boolean).join(" · ") || "pressure";
+    const burn = (maneuver.failPatience ?? 1) + (a.leverage === "fear" ? 1 : 0);
+    const miss = [
+      `−${burn} their Patience`,
+      a.riposteRisk ? "riposte — String on you" : null,
+    ].filter(Boolean).join(" · ");
+    return { hit, miss };
   }
 
   /**
@@ -684,6 +738,11 @@ class SocialManeuverRoller {
     await SocialEncounterManager.ensureActive(targetActor);
     const encBefore = SocialEncounterManager.getEncounter(targetActor);
 
+    // Off-balance check BEFORE anything burns — Mock's kick counts the state
+    // the target was actually in when the words landed
+    const wasOffBalance = SOCIAL_CONDITION_ORDER.some(id =>
+      SocialArchetypeManager.getActiveCondition(targetActor, id));
+
     // One-shot statuses that influenced this roll burn away
     for (const condId of consumed ?? []) {
       await SocialArchetypeManager.removeCondition(targetActor, condId);
@@ -694,8 +753,22 @@ class SocialManeuverRoller {
 
     if (outcomeType === "immune") {
       // Archetype immunity raises the wall; an existing Defiant wall just wastes the attempt
-      if (relation === "immune")
+      if (relation === "immune") {
         await SocialArchetypeManager.applyCondition(targetActor, "defiant", sourceActor);
+        // ...and their kind answers the wrong lever in its own language —
+        // the attacker pays. Predictable, if you knew their nature.
+        const realArch = SocialArchetypeManager.getArchetype(targetActor);
+        const punish   = realArch ? TRIAD_PUNISH[realArch.triad] : null;
+        if (punish) {
+          if (punish.status)  await SocialArchetypeManager.applyCondition(sourceActor, punish.status, targetActor);
+          if (punish.strings) await TSLStringStore.add(targetActorId, sourceActorId, punish.strings);
+          const esc = foundry.utils.escapeHTML;
+          await ChatMessage.create({
+            speaker: ChatMessage.getSpeaker({ actor: targetActor }),
+            content: `<div class="tsl-maneuver-card tsl-mv--immune"><div class="tsl-mv-outcome tsl-mv-outcome--immune">${punish.line(esc(sourceActor.name), esc(targetActor.name))}</div></div>`,
+          });
+        }
+      }
       await SocialEncounterManager.adjustPatience(targetActor, -1, sourceActorId);
     } else if (outcomeType === "success") {
       if (maneuver.applyOnSuccess)
@@ -721,6 +794,8 @@ class SocialManeuverRoller {
       // A vulnerability strike adds +1 to the maneuver's own damage profile
       let damage = (maneuver.resolveDamage ?? 1) + (relation === "vulnerable" ? 1 : 0);
       if (leverage === "desire") damage += 1;  // the offer does half the work
+      // Mock kicks them while they're down: +1 vs a target with any status
+      if (maneuver.kickWhileDown && wasOffBalance) damage += 1;
       // A cashed combo pays out on top: extra damage and/or a String
       if (combo) {
         damage += combo.resolveDamage ?? 0;
