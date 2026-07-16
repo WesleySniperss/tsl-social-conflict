@@ -149,6 +149,7 @@ const SOCIAL_MANEUVERS = [
     grantStrings: 0,
     resolveDamage: 2,
     failPatience: 2,
+    combos: { provoked: { label: "They lash out into your trap — the fall is twice as public", resolveDamage: 1 } },
   },
 
   // ── Triad of Emotion — hearts: statuses that chain into combos ─────────────
@@ -169,21 +170,22 @@ const SOCIAL_MANEUVERS = [
     applyOnSuccess: "smitten",
     grantStrings: 1,
     resolveDamage: 0,
+    combos: { desperate: { label: "Starved for warmth, they cling to the first kind word", resolveDamage: 1 } },
   },
 
   {
     id:    "cold_shoulder",
-    name:  "Ignore Them",
-    skill: "Insight",
-    icon:  "fa-user-slash",
+    name:  "Turn to Leave",
+    skill: "Deception",
+    icon:  "fa-person-walking-arrow-right",
     group: "attention",
-    skillKeys:       { dnd5e: "ins", "a5e-for-dnd5e": "insight" },
+    skillKeys:       { dnd5e: "dec", "a5e-for-dnd5e": "deception" },
     vulnerabilityTags: ["stone-walling", "ignore"],   // Martyr → Advantage
     immunityTags:      ["selfless focus"],            // Caretaker
-    description:  "Deny them the air they burn — attention. Watch the fire gutter and reach for you.",
-    successText:  "Starved, they reach for any warmth — Desperate (the next Flatter or Charm against them gains Advantage). Resolve −1.",
-    failText:     "Your silence doesn't touch them. Patience −1.",
-    immuneText:   "They give attention rather than crave it — your silence changes nothing. Target becomes Defiant.",
+    description:  "The dramatic exit that begs to be stopped. Gather your coat, turn for the door — and count the heartbeats until they call you back.",
+    successText:  "“Wait—” The word escapes before they can swallow it. Desperate (the next Flatter or Charm against them gains Advantage). Resolve −1.",
+    failText:     "They let you reach the door. Now you have to actually leave, or look ridiculous. Patience −1.",
+    immuneText:   "They hold the door open for you, unmoved. Target becomes Defiant.",
     applyOnSuccess: "desperate",
     grantStrings: 0,
     resolveDamage: 1,
@@ -205,6 +207,7 @@ const SOCIAL_MANEUVERS = [
     applyOnSuccess: "guilted",
     grantStrings: 0,
     resolveDamage: 1,
+    combos: { smitten: { label: "A smitten heart weighs every debt double", strings: 1 } },
   },
 
   // ── Triad of Reason — ledgers: economy, information, field control ──────────
@@ -244,6 +247,7 @@ const SOCIAL_MANEUVERS = [
     grantStrings: 1,
     reveals: true,
     resolveDamage: 1,
+    combos: { guilted: { label: "Guilt makes them over-explain — every excuse is a loose thread", strings: 1 } },
   },
 
   {
@@ -436,6 +440,7 @@ class SocialManeuverRoller {
     const advantageReasons = [];
     const bonusReasons     = [];
     const consumes         = [];
+    let   combo            = null;
     let   advantage        = relation === "vulnerable";
     if (advantage) advantageReasons.push(relationReason);
 
@@ -465,6 +470,14 @@ class SocialManeuverRoller {
       if (cond("provoked")) {
         bonusReasons.push({ label: "Provoked — off balance", value: 2 });
         consumes.push("provoked");
+      }
+      // Named combos: this maneuver CASHES IN a set-up status for an extra
+      // effect (bonus damage / a String) on success. The status burns.
+      for (const [st, meta] of Object.entries(maneuver.combos ?? {})) {
+        if (!cond(st)) continue;
+        combo = { status: st, label: meta.label, resolveDamage: meta.resolveDamage ?? 0, strings: meta.strings ?? 0 };
+        if (!consumes.includes(st)) consumes.push(st);
+        break;
       }
       // The triad counter cycle: the defender's ruling triad is soft against
       // the school that counters it (Power→Emotion→Order→Power)
@@ -513,11 +526,18 @@ class SocialManeuverRoller {
       }
     }
 
+    // Riposte risk: the defender's triad READS this school easily (their kind
+    // counters it) — a failed attempt hands them leverage. Computed from the
+    // same arch the rest of the assessment uses: truth for rolls/GM, the
+    // player's guess for display — so the warning follows your read.
+    const riposteRisk = !!(arch && TRIAD_COUNTERS[arch.triad] === maneuver.group
+      && relation !== "blocked" && relation !== "immune");
+
     const bonus = bonusReasons.reduce((s, b) => s + b.value, 0);
     return {
       arch, relation, relationReason,
       advantage, advantageReasons,
-      bonus, bonusReasons,
+      bonus, bonusReasons, combo, riposteRisk,
       dc, dcBase, dcMods, skillMod, consumes, leverage,
     };
   }
@@ -613,6 +633,7 @@ class SocialManeuverRoller {
       outcomeType,
       relation:      a.relation,
       consumed:      isWalled ? [] : a.consumes,
+      combo:         isWalled ? null : a.combo,
       leverage:      a.leverage,
       total,
       dc: a.dc,
@@ -652,7 +673,7 @@ class SocialManeuverRoller {
    */
   static async applyOutcome(payload) {
     if (!game.user.isGM) return;
-    const { sourceActorId, targetActorId, maneuverId, outcomeType, relation, consumed, leverage, spentString } = payload;
+    const { sourceActorId, targetActorId, maneuverId, outcomeType, relation, consumed, combo, leverage, spentString } = payload;
     const sourceActor = game.actors.get(sourceActorId);
     const targetActor = game.actors.get(targetActorId);
     const maneuver    = SocialManeuverRoller.getManeuver(maneuverId);
@@ -700,12 +721,29 @@ class SocialManeuverRoller {
       // A vulnerability strike adds +1 to the maneuver's own damage profile
       let damage = (maneuver.resolveDamage ?? 1) + (relation === "vulnerable" ? 1 : 0);
       if (leverage === "desire") damage += 1;  // the offer does half the work
+      // A cashed combo pays out on top: extra damage and/or a String
+      if (combo) {
+        damage += combo.resolveDamage ?? 0;
+        if (combo.strings > 0)
+          await TSLStringStore.add(sourceActorId, targetActorId, combo.strings);
+      }
       if (damage > 0)
         await SocialEncounterManager.adjustResolve(targetActor, -damage, sourceActorId);
     } else {
       // Heavy plays (failPatience) and failed threats (fear) burn extra Patience
       const burn = (maneuver.failPatience ?? 1) + (leverage === "fear" ? 1 : 0);
       await SocialEncounterManager.adjustPatience(targetActor, -burn, sourceActorId);
+      // Riposte: their kind reads this school like an open book — a slip
+      // hands them leverage. Veiled in public: it's EVIDENCE of their nature.
+      const realArch = SocialArchetypeManager.getArchetype(targetActor);
+      if (realArch && TRIAD_COUNTERS[realArch.triad] === maneuver.group) {
+        await TSLStringStore.add(targetActorId, sourceActorId, 1);
+        const esc = foundry.utils.escapeHTML;
+        await ChatMessage.create({
+          speaker: ChatMessage.getSpeaker({ actor: targetActor }),
+          content: `<div class="tsl-maneuver-card tsl-mv--failure"><div class="tsl-mv-outcome tsl-mv-outcome--failure">⚔ Riposte — ${esc(targetActor.name)} reads the approach like an open book and turns the slip into leverage: <b>a String on ${esc(sourceActor.name)}</b>.</div></div>`,
+        });
+      }
     }
 
     // ── Shared conflict integration: log + advance turn ──────────────────────
@@ -783,6 +821,7 @@ class SocialManeuverRoller {
   <div class="tsl-mv-target">↳ ${esc(d.targetActor.name)}</div>
   ${archHtml}
   ${reasons}
+  ${a.combo ? `<div class="tsl-mv-reason">◆ Combo — ${esc(a.combo.label)}</div>` : ""}
   <div class="tsl-mv-roll">
     <span class="tsl-mv-dice">${diceText}</span>
     <span class="tsl-mv-vs" data-tooltip="The difficulty stays with the GM — the card never shows it.">vs DC ?</span>

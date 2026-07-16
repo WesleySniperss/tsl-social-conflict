@@ -367,6 +367,8 @@ class SocialFencingApp extends Application {
           <li><b>Pick the lever.</b> A maneuver is d20 + skill vs their <b>social DC</b> — 10 + WIS + proficiency, or passive Insight if higher (± their attitude to you, −5 if Rattled). Hitting a <span class="tsl-codex-vuln">✦ vulnerability</span> gives Advantage and +1 Resolve damage; hitting an <span class="tsl-codex-imm">⚡ immunity</span> auto-fails and makes them Defiant.</li>
           <li><b>Lean into your nature.</b> Your own Extended Triad dots (Profile tab) power your attacks: <b>+1 per dot</b> on that triad's maneuvers, <b>−1</b> on a triad where you have none — foreign ground. Watch for the ★/▼ badges on the maneuver groups. General Tactics are always neutral.</li>
           <li><b>Know the counter cycle.</b> Every archetype is soft against the school that counters its triad (<b>+2</b> to the attacker, » badge): <b>Power breaks Emotion → Emotion cracks Reason → Reason binds Power</b>. Read them first — before a read, the panel only whispers that "something in them yields".</li>
+          <li><b>Chain combos (◆).</b> Statuses are set-ups; four maneuvers cash them in: <b>Taunt → Humiliate</b> (Provoked: +1 damage into the gap) · <b>Turn to Leave → Charm</b> (Desperate: they cling, +1 damage) · <b>Charm → Guilt Trip</b> (Smitten: the debt weighs double, +1 String) · <b>Guilt Trip → Cross-Examine</b> (Guilted: they over-explain, +1 String). The ◆ mark on a chip means the combo is armed right now.</li>
+          <li><b>Don't get caught.</b> The cycle cuts both ways: each archetype READS the school its triad counters — fail such a maneuver against them and they <b>riposte</b>, gaining a String on you. If you suspect a Broker, keep your Power plays sharp or keep them sheathed.</li>
           <li><b>Play your leverage.</b> A read dossier unlocks their <b>Desire</b> (Advantage, +1 Resolve damage), <b>Fear</b> (+3, but a failed threat burns their Patience) and <b>Weakness</b> (neutral counts as vulnerable) — each once per encounter.</li>
           <li><b>Win the exchange.</b> Successes break <b>Resolve</b> (0 = swayed, attitude +1); failures burn <b>Patience</b> (0 = they walk away, attitude −1 — and HOW they leave depends on their triad). Statuses chain into combos. Strings are a standing grip: holding any gives +1 on maneuvers against that person (and theirs on you raise your DC to sway them); spending one buys +2 more.</li>
           <li><b>Or win sincerely.</b> Emotional moves (2d6) are the honest route: a Strong Hit on Speak from the Heart or Provoke also chips 1 Resolve, and Read the Room (10+) reveals their nature without manipulation.</li>
@@ -607,10 +609,17 @@ class SocialFencingApp extends Application {
         const cs = mvs.map(m => {
           const isSel = this._fenceManeuverId === m.id;
           const rel   = SocialManeuverRoller.getRelation(tgt, m, ctx.isGM ? undefined : (arch ?? null));
+          const comboReady = m.combos
+            && Object.keys(m.combos).some(st => SocialArchetypeManager.getActiveCondition(tgt, st));
           const mark  = known && rel === "immune" ? `<span class="tsl-chip-mark tsl-chip-mark--imm">⚡</span>`
-                      : known && rel === "vulnerable" ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">✦</span>` : "";
+                      : known && rel === "vulnerable" ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">✦</span>`
+                      : comboReady ? `<span class="tsl-chip-mark tsl-chip-mark--combo">◆</span>` : "";
+          const comboTip = m.combos ? "<br>" + Object.entries(m.combos).map(([st, c]) =>
+            `◆ Combo — consumes ${SOCIAL_CONDITIONS[st]?.label ?? st}: ${c.label}` +
+            `${c.resolveDamage ? ` (+${c.resolveDamage} Resolve damage)` : ""}${c.strings ? ` (+${c.strings} String)` : ""}`
+          ).join("<br>") : "";
           return `<button class="tsl-chip ${isSel ? "selected" : ""}" data-fence-maneuver="${m.id}"
-                    data-tooltip="<b>${esc(m.name)}</b> · ${esc(m.skill)}<br>${esc(m.description)}">
+                    data-tooltip="<b>${esc(m.name)}</b> · ${esc(m.skill)}<br>${esc(m.description)}${comboTip}">
                     <i class="fas ${m.icon}"></i><span class="tsl-chip-name">${esc(m.name)}</span>${mark}</button>`;
         }).join("");
         const schoolTip = SOCIAL_TRIADS[g.id]?.hint
@@ -713,6 +722,8 @@ class SocialFencingApp extends Application {
     if (a.relation === "blocked")        { hint = a.relationReason; hintCls = "imm"; }
     else if (known && a.relation === "immune")     { hint = `${readPrefix}${a.relationReason} — ${isGuess ? "if you're right, it fails and they turn Defiant." : "it fails, they turn Defiant."}`; hintCls = "imm"; }
     else if (known && a.relation === "vulnerable") { hint = `${readPrefix}this should cut deep — Advantage & +1 Resolve damage${isGuess ? " (if your read is right)" : ""}.`; hintCls = "vuln"; }
+    else if (a.combo)                    { hint = `◆ Combo armed — ${a.combo.label}.`; hintCls = "vuln"; }
+    else if (known && a.riposteRisk)     { hint = `${readPrefix}their kind reads this school like a book — a miss hands them a String on you${isGuess ? " (if your read is right)" : ""}.`; hintCls = "imm"; }
     else if (!known)                     { hint = "Their nature is a riddle — read tells, then note your guess in your Bond ('Read as')."; }
 
     // A visible, plain-language breakdown of every modifier in play — so it's

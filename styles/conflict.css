@@ -2687,6 +2687,7 @@
 .tsl-chip-mark--vuln    { color: #55e885; }
 .tsl-chip-mark--imm     { color: #e85555; }
 .tsl-chip-mark--counter { color: #e8c855; font-weight: 700; }
+.tsl-chip-mark--combo   { color: #e8a855; }
 
 /* Quiet one-line hint when nothing is selected */
 .tsl-hint {

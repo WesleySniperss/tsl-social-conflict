@@ -357,16 +357,24 @@ class TSLConflictApp extends Application {
           const isSel   = move?.id === m.id;
           const rel     = tgtActor ? SocialManeuverRoller.getRelation(tgtActor, m, isGM ? undefined : (tgtArch ?? null)) : "neutral";
           const counter = seeRel && TRIAD_COUNTERS[m.group] === tgtArch.triad;
+          const comboReady = tgtActor && m.combos
+            && Object.keys(m.combos).some(st => SocialArchetypeManager.getActiveCondition(tgtActor, st));
           const mark    = seeRel && rel === "immune" ? `<span class="tsl-chip-mark tsl-chip-mark--imm">⚡</span>`
                         : seeRel && rel === "vulnerable" ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">✦</span>`
+                        : comboReady ? `<span class="tsl-chip-mark tsl-chip-mark--combo">◆</span>`
                         : counter ? `<span class="tsl-chip-mark tsl-chip-mark--counter">»</span>` : "";
           const mod  = srcActor ? SocialManeuverRoller.getSkillMod(srcActor, m) : 0;
           const ar = SocialArchetypeManager.getArchetypeRelationsFor(m);
           const counterShort = TRIAD_COUNTERS[m.group]
             ? (SOCIAL_TRIADS[TRIAD_COUNTERS[m.group]]?.label ?? "").replace("Triad of ", "") : null;
+          const comboTip = m.combos ? Object.entries(m.combos).map(([st, c]) =>
+            `◆ Combo — consumes ${SOCIAL_CONDITIONS[st]?.label ?? st}: ${c.label}` +
+            `${c.resolveDamage ? ` (+${c.resolveDamage} Resolve damage)` : ""}${c.strings ? ` (+${c.strings} String)` : ""}`
+          ).join("<br>") : null;
           const tip = [
             `<b>${esc(m.name)}</b> · ${esc(m.skill)} ${mod >= 0 ? "+" : ""}${mod}`,
             esc(m.description),
+            comboTip,
             ar.vulnerable.length ? `✦ Cuts deep: ${esc(ar.vulnerable.map(x => x.label).join(", "))}` : null,
             ar.immune.length     ? `⚡ Bounces off: ${esc(ar.immune.map(x => x.label).join(", "))}` : null,
             counterShort         ? `» School counters ${esc(counterShort)} archetypes (+2)` : null,
@@ -461,6 +469,8 @@ class TSLConflictApp extends Application {
       if (a.relation === "blocked")        { hint = a.relationReason; hintCls = "imm"; }
       else if (seeRel && a.relation === "immune")     { hint = `${readPrefix}${a.relationReason} — ${isGuess ? "if you're right, it fails and they turn Defiant." : "it fails, they turn Defiant."}`; hintCls = "imm"; }
       else if (seeRel && a.relation === "vulnerable") { hint = `${readPrefix}this should cut deep — Advantage & +1 Resolve damage${isGuess ? " (if your read is right)" : ""}.`; hintCls = "vuln"; }
+      else if (a.combo)                    { hint = `◆ Combo armed — ${a.combo.label}.`; hintCls = "vuln"; }
+      else if (seeRel && a.riposteRisk)    { hint = `${readPrefix}their kind reads this school like a book — a miss hands them a String on you${isGuess ? " (if your read is right)" : ""}.`; hintCls = "imm"; }
       else if (a.advantage)                { hint = a.advantageReasons[a.advantageReasons.length - 1]; hintCls = "vuln"; }
       else if (isGM && !a.arch)            { hint = "No archetype set — open their Chronicle to arm weak spots."; }
       else if (!seeRel)                    { hint = "Their nature is a riddle — read tells, then note your guess in your Bond ('Read as')."; }
