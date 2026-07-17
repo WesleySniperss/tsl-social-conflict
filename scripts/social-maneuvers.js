@@ -1062,8 +1062,11 @@ class SocialManeuverRoller {
     const bonusText = (d.stringBonus ? ` +${d.stringBonus} String` : "")
                     + (d.situational ? ` ${d.situational >= 0 ? "+" : "−"}${Math.abs(d.situational)} situational` : "")
                     + a.bonusReasons.map(b => {
-                        // Don't solve the riddle in public: veil archetype-derived labels
-                        const label = b.kind === "counter" ? "a hidden yielding" : b.label.split(" — ")[0];
+                        // Don't solve the riddle in public: veil archetype-derived
+                        // labels, and keep card labels SHORT (no parentheticals)
+                        const label = b.kind === "counter"
+                          ? "a hidden yielding"
+                          : b.label.split(" — ")[0].replace(/\s*\(.+\)\s*$/, "");
                         return ` ${b.value >= 0 ? "+" : "−"}${Math.abs(b.value)} ${label}`;
                       }).join("");
     const kept = d.advantage ? Math.max(...d.rawDice)

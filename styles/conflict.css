@@ -1146,10 +1146,15 @@
   gap: 8px;
   margin-top: 2px;
 }
-.tsl-mv-dice  { font-size: 12px; color: #c0a898; letter-spacing: 0.03em; }
-.tsl-mv-vs    { font-size: 11px; color: #5a4a3e; }
+/* The dice text is the only child allowed to wrap/shrink — the "vs DC ?"
+   and the big total keep their shape no matter how long the bonuses get */
+.tsl-mv-dice  { flex: 1; min-width: 0; font-size: 12px; color: #c0a898; letter-spacing: 0.03em; }
+.tsl-mv-vs    { flex-shrink: 0; white-space: nowrap; font-size: 11px; color: #5a4a3e; }
 .tsl-mv-total {
   margin-left: auto;
+  flex-shrink: 0;
+  white-space: nowrap;
+  line-height: 1;
   font-family: 'Cinzel', serif;
   font-size: 22px;
   font-weight: 700;
