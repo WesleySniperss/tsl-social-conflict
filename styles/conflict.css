@@ -3058,6 +3058,18 @@
 /* The console's Roll CTA is a full-width row of its own — unmissable */
 .tsl-bar--fence .tsl-fc-roll { width: 100%; margin-top: 2px; padding: 9px; }
 
+/* The whole action bar PINS to the bottom of the visible window while the
+   maneuver section is on screen — pick a chip anywhere in the list and the
+   Roll button is right there, no scrolling. Opaque background + shadow so
+   content scrolling beneath it never bleeds through. */
+.tsl-fc .tsl-bar--fence {
+  position: sticky;
+  bottom: 4px;
+  z-index: 4;
+  background: color-mix(in srgb, #9b6ee8 9%, #150c0f);
+  box-shadow: 0 -8px 18px rgba(0, 0, 0, 0.5), 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+
 /* Explicit wall notice replaces the Roll button on a Defiant target */
 .tsl-fc-walled {
   width: 100%;
