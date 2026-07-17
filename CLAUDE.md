@@ -71,7 +71,7 @@ tsl-social-conflict/
 - **Guess → Test → Refine (deduction loop, v1.7)**: archetypes are NEVER revealed to players. A successful read (Cold Reading / Logic Exploit, or Read the Room 10+) → `SocialManeuverRoller.whisperTell` — one random tell/crave/dread whispered to the reader. The player writes their guess into their Bond ("Read as"); **all ✦/⚡/» marks and bar predictions follow the GUESS** (`assess`/`getRelation` take `archetypeOverride`; GM passes `undefined` = truth), while **rolls always use the truth**. Wrong guesses self-correct via evidence (surprise Advantage dice, unexpected Defiant bounces). Chat cards veil archetype-naming reasons and never bake in `archHtml` — even GM rolls stay riddle-safe. PCs pick NO archetype (selector is GM-only, "their defence (GM)"); players build only triad dots
 - **Push-your-luck**: success −1 Resolve (−2 on vulnerability), failure −1 Patience, immunity → auto-fail + target **Defiant** (maneuver-immune 1h) + −1 Patience
 - **9 archetypes × 12 maneuvers**: each archetype has ≥1 vulnerable and ≥1 immune maneuver; traps sit *inside* the same triad (e.g. Stir Jealousy wrecks the Martyr but bounces off the Caretaker) so knowing the triad isn't enough — you profile the person
-- **Strings economy**: earned by reads and baits (Feigned Weakness / Sweeten the Deal grant 2), spent for +1 on TSL moves / +2 on maneuvers; also visible & editable in Chronicle bonds. **Grip passive (v1.9.5)**: HOLDING ≥1 String on someone gives +1 on maneuvers against them; Strings THEY hold on you add +1 to their DC when you try to sway them (flat, not per-String — no farm stacking). Spend burns AFTER the roll so the grip preview matches the dice and an error can't eat a String.
+- **Strings economy (v1.13: trump cards)**: `STRING_SPEND_BONUS = 5` — burning a String on a MISSED maneuver (the post-roll gamble) is +5 and almost always turns a near miss; TSL 2d6 moves still spend for +1. **The PRIMARY earn is roleplay**: when a player opens up in character, the GM awards a String on the person they opened up to — 💖 button on the conflict participant card (`_awardStringDialog`, public card + log) or the Bonds tab +. Maneuvers still pay out (baits/reads/combos). **Grip passive**: HOLDING ≥1 String gives +1 on maneuvers against them; Strings THEY hold on you add +1 to their DC (flat, not per-String).
 - **Attitude**: the target's bond toward the roller shifts the DC (devoted +3 → DC −3)
 - **`assess()` is the single source of truth** (`social-maneuvers.js`): archetype relation, status combos, DC breakdown, advantage/bonuses, consumed one-shots — used by BOTH the pre-roll Duel Panel and the actual roll, so the preview always matches the dice
 
@@ -263,6 +263,11 @@ TSL stats mapped to D&D abilities:
 - **The PC's Answer**: `_applyAnswer` and `answerRisk` fall back to the ruling triad — an NPC that botches against a power-ruled PC walks away Rattled, etc.
 - **Split builds (e.g. 2/2/0) have no ruling nature**: no home ground, no Answer — but no counter school reads them either (blind 0-dot schools stay open). A real build choice: sharp identity vs unreadability.
 - Surfaced in the Profile triad tooltip ("Extended Triad · your nature") and the Codex "Lean into your nature — it cuts both ways" bullet.
+
+### v1.13.0 — Strings as trump cards, earned with the heart
+- **+5 gamble** (`STRING_SPEND_BONUS` 2→5): a String is now a trump card, not small change — burning one after a miss nearly always turns a close exchange. 2d6 TSL spend stays +1 (different dice math).
+- **Opened-heart award**: GM 💖 button on every conflict participant card → dialog "to whom?" → String + public "opens their heart" card + log. Codex (player + GM lists) teaches that vulnerability roleplay is the PRIMARY String source — TSL's soul: the thread is made by baring your heart.
+- Balance note: with +5 value, String-granting maneuvers (Play Weak 3, Bargain 2) are rich — if farming appears in play, trim their grants first.
 
 ### VTools Integration (hud-button.js)
 ```js

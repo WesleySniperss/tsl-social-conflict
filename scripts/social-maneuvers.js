@@ -273,7 +273,10 @@ const SOCIAL_MANEUVERS = [
 
 // ─── Roller ────────────────────────────────────────────────────────────────────
 
-const STRING_SPEND_BONUS = 2;
+// A String is a TRUMP CARD: burning one is +5 — it almost always turns a
+// near miss. Earned rarely (baits, deep reads, and above all: OPENING UP at
+// the table), held as a +1 grip, spent as the gamble after the die falls.
+const STRING_SPEND_BONUS = 5;
 
 /** Maneuvers that feed on the Desperate status. */
 const ATTENTION_MANEUVERS = ["flatter", "love_bombing"];
@@ -633,7 +636,7 @@ class SocialManeuverRoller {
 
   /**
    * The post-roll gamble: the die is cast, the DC is hidden — burn a String
-   * for +2 and hope it turns the exchange? Decided AFTER seeing the total.
+   * for +5 and hope it turns the exchange? Decided AFTER seeing the total.
    */
   static async promptStringBurn(total, maneuver, heldCount) {
     return new Promise(resolve => {
@@ -642,10 +645,10 @@ class SocialManeuverRoller {
         content: `<div class="tsl-rollmods">
           <p>Your total is <b>${total}</b> — and it isn't enough. You hold
           ${heldCount} String${heldCount > 1 ? "s" : ""} on them.</p>
-          <p class="notes">Burn one for +2? The difficulty is hidden — this is a bet.</p>
+          <p class="notes">Pull the thread for +${STRING_SPEND_BONUS}? The difficulty is hidden — this is a bet.</p>
         </div>`,
         buttons: {
-          burn: { icon: '<i class="fas fa-masks-theater"></i>', label: "Burn a String (+2)", callback: () => resolve(true) },
+          burn: { icon: '<i class="fas fa-masks-theater"></i>', label: `Burn a String (+${STRING_SPEND_BONUS})`, callback: () => resolve(true) },
           keep: { label: "Let it stand", callback: () => resolve(false) },
         },
         default: "keep",

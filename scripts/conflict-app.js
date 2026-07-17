@@ -239,13 +239,19 @@ class TSLConflictApp extends Application {
             held ? `holds ${held}` : null,
             inc ? `${inc} on them` : null,
           ].filter(Boolean).join(" · ");
-          strChip = `<span class="tsl-str-chip" data-tooltip="Strings — ${parts}. Holding a String grips them: +1 on your maneuvers against them. Spend one in the action bar for +2 more.">
+          strChip = `<span class="tsl-str-chip" data-tooltip="Strings — ${parts}. Holding a String grips them: +1 on your maneuvers against them. On a missed maneuver you may burn one for +${STRING_SPEND_BONUS} — the gamble. Earned above all by OPENING UP in play.">
             <i class="fas fa-masks-theater"></i>${held || inc}</span>`;
         }
       }
 
+      const awardBtn = isGM
+        ? `<button class="tsl-award-string" data-award-string="${idx}"
+             data-tooltip="Award a String for roleplay: ${p.name} opened their heart in character — pick who it was aimed at. Vulnerability is how trump cards are made.">
+             <i class="fas fa-hand-holding-heart"></i></button>`
+        : "";
+
       return `<div class="tsl-card-footer" data-tooltip="Conditions — 4+ = Overwhelmed">
-        <div class="tsl-cond-pips">${pips}</div>${strChip}
+        <div class="tsl-cond-pips">${pips}</div>${strChip}${awardBtn}
       </div>`;
     };
 
@@ -598,8 +604,8 @@ class TSLConflictApp extends Application {
     const idx     = ConflictStore.state.participants.findIndex(p => p.actorId === tgtP.actorId);
     return `<button class="tsl-spend-string ${pending ? "pending" : ""}"
               data-source-actor="${activeP.actorId}" data-string-id="${s.id}" data-target-idx="${idx}"
-              data-tooltip="${pending ? "Cancel — String not spent" : `Spend a String for +${STRING_SPEND_BONUS} (${list.length} held)`}">
-              <i class="fas fa-masks-theater"></i> +${STRING_SPEND_BONUS}</button>`;
+              data-tooltip="${pending ? "Cancel — String not spent" : `Spend a String for +1 on this 2d6 move (${list.length} held)`}">
+              <i class="fas fa-masks-theater"></i> +1</button>`;
   }
 
   /** Dossier leverage toggles (Desire / Fear / Weakness) for the action bar. */
@@ -630,8 +636,14 @@ class TSLConflictApp extends Application {
   }
 
   _onClick(event) {
-    const el = event.target.closest("[data-select-target], [data-select-token], .tsl-start-conflict-btn, .tsl-cond-pip, .tsl-chip, .tsl-roll-btn, .tsl-kiss-btn, .tsl-yield-btn, .tsl-dice-close, .tsl-close-btn, .tsl-spend-string, .tsl-string-remove, .tsl-lev-btn, .tsl-target-btn");
+    const el = event.target.closest("[data-select-target], [data-select-token], .tsl-start-conflict-btn, .tsl-cond-pip, .tsl-chip, .tsl-roll-btn, .tsl-kiss-btn, .tsl-yield-btn, .tsl-dice-close, .tsl-close-btn, .tsl-spend-string, .tsl-string-remove, .tsl-lev-btn, .tsl-target-btn, .tsl-award-string");
     if (!el) return;
+
+    // GM: award a String for emotional roleplay — "they opened their heart"
+    if (el.matches(".tsl-award-string") && game.user.isGM) {
+      this._awardStringDialog(parseInt(el.dataset.awardString));
+      return;
+    }
 
     // Toggle a dossier leverage card for the pending maneuver
     if (el.matches(".tsl-lev-btn")) {
@@ -761,6 +773,40 @@ class TSLConflictApp extends Application {
       ConflictStore.close();
       return;
     }
+  }
+
+  /**
+   * GM award: a participant opened their heart in character — grant them a
+   * String on the person the openness was aimed at, with a public card.
+   * This is the PRIMARY way Strings enter play: vulnerability makes trumps.
+   */
+  _awardStringDialog(idx) {
+    const state = ConflictStore.state;
+    const p = state?.participants?.[idx];
+    if (!p) return;
+    const esc = foundry.utils.escapeHTML;
+    const buttons = {};
+    state.participants.forEach((o, i) => {
+      if (i === idx) return;
+      buttons[`t${i}`] = {
+        label: o.name,
+        callback: async () => {
+          await TSLStringStore.add(p.actorId, o.actorId, 1);
+          await ChatMessage.create({
+            content: `<div class="tsl-maneuver-card tsl-mv--success"><div class="tsl-mv-outcome tsl-mv-outcome--success">💖 ${esc(p.name)} opens their heart — and a truth shared is a thread: <b>a String on ${esc(o.name)}</b>.</div></div>`,
+          });
+          ConflictStore.addLog(`💖 ${p.name} opened up — String on ${o.name}`, "kiss");
+          ConflictStore._broadcast();
+        },
+      };
+    });
+    buttons.cancel = { label: "Cancel" };
+    new Dialog({
+      title: `${p.name} opened their heart — to whom?`,
+      content: `<div class="tsl-rollmods"><p>Award a String for emotional roleplay: a true fear spoken, a confession, the story behind the scar. Pick who the openness was aimed at.</p></div>`,
+      buttons,
+      default: "cancel",
+    }).render(true);
   }
 
   async _doRoll(move, targetIndex) {
