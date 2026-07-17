@@ -910,8 +910,20 @@ class SocialManeuverRoller {
       const burn = (maneuver.failPatience ?? 1) + (leverage === "fear" ? 1 : 0);
       await SocialEncounterManager.adjustPatience(targetActor, -burn, sourceActorId);
       // A BAD miss (5+ under) earns their Answer — one rule, one table
-      if (outcomeType === "botch")
+      if (outcomeType === "botch") {
         await SocialManeuverRoller._applyAnswer(sourceActor, targetActor);
+        // TSL's "mark XP on a miss": a spectacular social fumble feeds the
+        // story. A player character who eats the Answer gains Inspiration.
+        if (sourceActor.hasPlayerOwner
+            && foundry.utils.getProperty(sourceActor, "system.attributes.inspiration") === false) {
+          await sourceActor.update({ "system.attributes.inspiration": true });
+          const esc = foundry.utils.escapeHTML;
+          await ChatMessage.create({
+            speaker: ChatMessage.getSpeaker({ actor: sourceActor }),
+            content: `<div class="tsl-maneuver-card tsl-mv--success"><div class="tsl-mv-outcome tsl-mv-outcome--success">💫 A fumble this good feeds the story — <b>${esc(sourceActor.name)} gains Inspiration</b>.</div></div>`,
+          });
+        }
+      }
     }
 
     return SocialManeuverRoller._afterOutcome(payload, encBefore);

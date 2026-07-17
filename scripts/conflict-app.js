@@ -227,7 +227,7 @@ class TSLConflictApp extends Application {
         <button class="tsl-cond-pip ${p.conditions[c.id] ? "active" : ""}"
           data-participant="${idx}" data-condition="${c.id}"
           style="--cond-color:${c.color}" ${!isGM ? "disabled" : ""}
-          data-tooltip="${c.label}${p.conditions[c.id] ? " — active" : ""}"></button>`).join("");
+          data-tooltip="<b>${c.label}</b>${p.conditions[c.id] ? " — active" : ""}<br>Clears when: ${c.clears}. Not by short rests — feelings are lived out, not slept off."></button>`).join("");
 
       const data = strings[p.actorId];
       let strChip = "";

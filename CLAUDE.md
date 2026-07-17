@@ -269,6 +269,11 @@ TSL stats mapped to D&D abilities:
 - **Opened-heart award**: GM 💖 button on every conflict participant card → dialog "to whom?" → String + public "opens their heart" card + log. Codex (player + GM lists) teaches that vulnerability roleplay is the PRIMARY String source — TSL's soul: the thread is made by baring your heart.
 - Balance note: with +5 value, String-granting maneuvers (Play Weak 3, Bargain 2) are rich — if farming appears in play, trim their grants first.
 
+### v1.14.0 — feelings are lived out, not slept off; fumbles feed the story
+- **Dramatic clears (`CONDITION_META[*].clears`)**: every TSL Condition names the ACTION that lifts it (Smitten — confess or heartbreak · Angry — vent it · Scared — flee to safety or face it with an ally · Guilty — confess/amends · Hopeless — someone must rekindle you). Baked into the actor effect description and the conflict pips tooltip. **Short rests no longer clear Conditions** — only the dramatic action or a LONG rest (`registerRestHooks` gates on longRest). Conditions become personal story hooks, TSL-style.
+- **Pips ↔ actor effects are ONE truth**: `ConflictStore.toggleCondition` now applies/removes the actor-level TSL Condition AE alongside the participant pip — a dramatic clear is one GM click, and Hold the Line wounds show on the pips.
+- **Inspiration on botch** (TSL's "mark XP on a miss"): a player character whose maneuver botches gains Inspiration (`system.attributes.inspiration`, dnd5e & a5e, only if not already inspired) with a "a fumble this good feeds the story" card — losing spectacularly is now WORTH something.
+
 ### VTools Integration (hud-button.js)
 ```js
 Hooks.once("vtools.ready", () => {

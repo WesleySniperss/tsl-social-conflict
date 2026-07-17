@@ -12,11 +12,11 @@ const PARTICIPANT_COLORS = [
 ];
 
 const CONDITIONS = [
-  { id: "smitten",  label: "Smitten",  color: "#e8557a" },
-  { id: "angry",    label: "Angry",    color: "#e85555" },
-  { id: "scared",   label: "Scared",   color: "#9b6ee8" },
-  { id: "guilty",   label: "Guilty",   color: "#e8a855" },
-  { id: "hopeless", label: "Hopeless", color: "#5588e8" },
+  { id: "smitten",  label: "Smitten",  color: "#e8557a", clears: "confess it, or let them break your heart" },
+  { id: "angry",    label: "Angry",    color: "#e85555", clears: "vent it — break something, start the fight, say the words" },
+  { id: "scared",   label: "Scared",   color: "#9b6ee8", clears: "flee to safety, or face it with an ally beside you" },
+  { id: "guilty",   label: "Guilty",   color: "#e8a855", clears: "confess, or make real amends" },
+  { id: "hopeless", label: "Hopeless", color: "#5588e8", clears: "someone must rekindle you — you can't clear this alone" },
 ];
 
 const MOVES = [
@@ -189,6 +189,15 @@ class ConflictStore {
   static toggleCondition(participantIndex, conditionId) {
     const p = ConflictStore.state.participants[participantIndex];
     p.conditions[conditionId] = !p.conditions[conditionId];
+
+    // ONE truth for feelings: the pip and the actor's Active Effect move
+    // together — the GM honors a dramatic clear ("Clears when…") with a
+    // single click, and Hold the Line wounds show up on the pips too.
+    const actor = game.actors.get(p.actorId);
+    if (actor && typeof TSLConditionEffects !== "undefined") {
+      if (p.conditions[conditionId]) TSLConditionEffects.applyOne(actor, conditionId, "the conflict");
+      else TSLConditionEffects._clearConditions(actor, [conditionId]);
+    }
 
     const active = Object.values(p.conditions).filter(Boolean).length;
     if (active >= 4) {

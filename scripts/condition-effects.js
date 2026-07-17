@@ -10,32 +10,40 @@ console.log("TSL | Loading condition-effects.js...");
 
 const TSL_EFFECT_FLAG = "tsl-social-conflict";
 
-// Icons are core Foundry status icons (icons/svg/*) — present in every install
+// Icons are core Foundry status icons (icons/svg/*) — present in every install.
+// `clears` — the DRAMATIC action that lifts the condition (TSL-style): feelings
+// are not cured by a nap, they're cured by living them out. A long rest still
+// works as the slow fallback; short rests do NOT touch them.
 const CONDITION_META = {
   smitten: {
     label:  "Smitten",
     icon:   "icons/svg/regen.svg",
     hint:   "Disadvantage on attacks against {source}. Their Persuasion checks against you have advantage.",
+    clears: "Confess it — to them, or out loud to someone else — or let them break your heart.",
   },
   angry: {
     label:  "Angry",
     icon:   "icons/svg/fire.svg",
     hint:   "Disadvantage on Wisdom checks. Must target {source} when attacking if possible.",
+    clears: "Vent it: break something, start the fight, or finally say the words you've been swallowing.",
   },
   scared: {
     label:  "Scared",
     icon:   "icons/svg/terror.svg",
     hint:   "Frightened of {source}. Disadvantage on checks while they are visible.",
+    clears: "Flee the source and catch your breath somewhere safe — or face it with an ally at your side.",
   },
   guilty: {
     label:  "Guilty",
     icon:   "icons/svg/net.svg",
     hint:   "Disadvantage on Insight against {source}. Cannot use Help to assist them.",
+    clears: "Confess, or make real amends to the one you wronged.",
   },
   hopeless: {
     label:  "Hopeless",
     icon:   "icons/svg/degen.svg",
     hint:   "Disadvantage on death saving throws. Cannot benefit from Inspiration.",
+    clears: "You cannot clear this alone — someone must rekindle you: comfort, an embrace, a speech that lands.",
   },
 };
 
@@ -134,7 +142,7 @@ class TSLConditionEffects {
       name:   `${meta.label} (by ${sourceName})`,
       icon:   meta.icon,
       origin: "tsl-social-conflict",
-      description: hint,
+      description: `${hint}<br><b>Clears when:</b> ${meta.clears} (Or a long rest — time dulls everything.)`,
       flags: {
         [TSL_EFFECT_FLAG]: {
           condition: condId,
@@ -150,18 +158,19 @@ class TSLConditionEffects {
   // ── Rest hooks ────────────────────────────────────────────────────────────────
 
   static registerRestHooks() {
+    // TSL-style: feelings do not clear on a SHORT rest — they clear when
+    // lived out (the "Clears when" line) or, slowly, over a long rest.
     // dnd5e
     Hooks.on("dnd5e.restCompleted", (actor, result) => {
-      if (result.longRest || result.shortRest) {
+      if (result.longRest) {
         TSLConditionEffects._clearFromActor(actor);
       }
     });
 
     // A5E
     Hooks.on("a5e.actorRest", (actor, result) => {
-      if (result?.restType === "short" || result?.restType === "long") {
+      if (result?.restType === "long") {
         TSLConditionEffects._clearFromActor(actor);
-        // Remove Strife added by TSL (1 per condition cleared)
         // A5E handles strife reduction itself on rest — no extra work needed
       }
     });
