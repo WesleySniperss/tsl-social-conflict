@@ -320,6 +320,35 @@ const HOLD_LINE_CONDITIONS = {
   general:   ["angry", "guilty"],
 };
 
+/**
+ * THE CIRCULATION — emotional WOUNDS (TSL Conditions) are open doors for
+ * matching maneuvers: +2, NOT consumed (wounds clear through drama, not use).
+ * This closes the loop TSL-style: Speak from the Heart / Hold the Line
+ * inflict Conditions → Conditions open doors for the fencing → landed
+ * maneuvers force new Hold-the-Line choices → new wounds, new doors.
+ * Which wound you take when holding the line decides which doors open on you.
+ */
+const CONDITION_OPENINGS = {
+  instigate:      { angry:    "their temper is already lit" },
+  throw_gauntlet: { angry:    "their temper is already lit" },
+  flatter:        { smitten:  "their heart is already open" },
+  love_bombing:   { smitten:  "their heart is already open", hopeless: "in the dark, any warmth will do" },
+  guilt_trip:     { guilty:   "their guilt spills into every answer" },
+  logic_exploit:  { guilty:   "their guilt spills into every answer" },
+  gaslight:       { scared:   "their fear makes every doubt land" },
+  sow_doubt:      { scared:   "their fear makes every doubt land" },
+  sweeten_deal:   { hopeless: "in the dark, any offer glows" },
+};
+
+/** First open wound on the target that this maneuver can walk through. */
+function findOpening(targetActor, maneuver) {
+  if (typeof TSLConditionEffects === "undefined") return null;
+  for (const [condId, flavor] of Object.entries(CONDITION_OPENINGS[maneuver.id] ?? {})) {
+    if (TSLConditionEffects.hasCondition(targetActor, condId)) return { cond: condId, flavor };
+  }
+  return null;
+}
+
 class SocialManeuverRoller {
   static getManeuver(id) {
     return SOCIAL_MANEUVERS.find(m => m.id === id) ?? null;
@@ -491,6 +520,7 @@ class SocialManeuverRoller {
     const consumes         = [];
     let   combo            = null;
     let   kick             = false;
+    let   opening          = null;
     let   advantage        = relation === "vulnerable";
     if (advantage) advantageReasons.push(relationReason);
 
@@ -532,6 +562,13 @@ class SocialManeuverRoller {
       // Kick them while they're down: +1 damage against a target with ANY
       // fencing status (not consumed — mockery doesn't calm anyone)
       if (maneuver.kickWhileDown && SOCIAL_CONDITION_ORDER.some(id => cond(id))) kick = true;
+      // Open wounds: a matching TSL Condition is a door standing open — +2,
+      // never consumed (wounds clear through drama, not through use)
+      opening = findOpening(targetActor, maneuver);
+      if (opening) {
+        const condLabel = { smitten: "Smitten", angry: "Angry", scared: "Scared", guilty: "Guilty", hopeless: "Hopeless" }[opening.cond] ?? opening.cond;
+        bonusReasons.push({ label: `open wound (${condLabel}) — ${opening.flavor}`, value: 2 });
+      }
       // The triad counter cycle: the defender's ruling triad is soft against
       // the school that counters it (Power→Emotion→Order→Power). Works on
       // archetypes AND on dots-built defenders with a ruling triad.
@@ -597,7 +634,7 @@ class SocialManeuverRoller {
     return {
       arch, relation, relationReason,
       advantage, advantageReasons,
-      bonus, bonusReasons, combo, kick, answerRisk,
+      bonus, bonusReasons, combo, kick, opening, answerRisk,
       patienceThin, lastExchange,
       dc, dcBase, dcMods, skillMod, consumes, leverage,
     };

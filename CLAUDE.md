@@ -274,6 +274,11 @@ TSL stats mapped to D&D abilities:
 - **Pips ↔ actor effects are ONE truth**: `ConflictStore.toggleCondition` now applies/removes the actor-level TSL Condition AE alongside the participant pip — a dramatic clear is one GM click, and Hold the Line wounds show on the pips.
 - **Inspiration on botch** (TSL's "mark XP on a miss"): a player character whose maneuver botches gains Inspiration (`system.attributes.inspiration`, dnd5e & a5e, only if not already inspired) with a "a fumble this good feeds the story" card — losing spectacularly is now WORTH something.
 
+### v1.15.0 — the circulation: wounds open doors
+- **`CONDITION_OPENINGS` (social-maneuvers.js)**: a TSL Condition on the TARGET is a standing +2 for matching maneuvers, NEVER consumed (wounds close only through drama or long rest): angry → Taunt/Humiliate · smitten → Flatter/Charm · guilty → Guilt Trip/Cross-Examine · scared → Undermine/Mock · hopeless → Bargain/Charm. `findOpening(target, maneuver)` helper; `assess()` returns `opening`; `TSLConditionEffects.hasCondition`.
+- This closes the TSL-style loop across ALL layers: **Speak from the Heart (2d6) / Hold the Line inflict Conditions → Conditions open fencing doors (+2) → landed maneuvers force new Hold-the-Line choices → new wounds, new doors** — and the wound you CHOOSE when holding the line decides which door opens on you (chess in the defense).
+- Surfaced: ◆ chip mark counts openings, ❤ tooltip lines per maneuver, bar hint "❤ Open wound — …", bonus breakdown entry; Codex bullet "Wounds open doors" with the choose-your-wound warning. (Note: openings sit in the bonus section, so they don't apply through blocked/immune walls.)
+
 ### VTools Integration (hud-button.js)
 ```js
 Hooks.once("vtools.ready", () => {

@@ -123,6 +123,12 @@ class TSLConditionEffects {
     return TSLConditionEffects.countConditions(actor);
   }
 
+  /** Does this actor carry a given TSL condition (actor-level effect)? */
+  static hasCondition(actor, condId) {
+    return !!actor?.effects?.some?.(e =>
+      !e.disabled && e.flags?.[TSL_EFFECT_FLAG]?.condition === condId);
+  }
+
   /** How many TSL conditions this actor carries (Overwhelmed at 4+). */
   static countConditions(actor) {
     if (!actor) return 0;

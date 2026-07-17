@@ -382,6 +382,7 @@ class SocialFencingApp extends Application {
           <li><b>Strings are trump cards — earned with your heart.</b> The surest way to gain a String is to OPEN UP at the table: speak a true fear in character, share the memory that stings, show the wound. The GM awards you a String on the person you opened up to — intimacy is a thread, and you now hold one end. (Baits and deep reads earn them too.)</li>
           <li><b>The gamble.</b> When your roll falls short, you may burn a String on them for <b>+5</b> — decided AFTER you see the die, against a difficulty you cannot see. A String almost always turns a near miss. Sometimes you still just fed them your last hold.</li>
           <li><b>Hold the line.</b> When a maneuver lands on YOU, the words cannot be unsaid — but you may refuse their power: take a fitting emotional <b>Condition</b> instead of the status and the Resolve hit. Speak how you hold it. Four Conditions and you are <b>Overwhelmed</b> — you must yield or flee. Refusing is never free.</li>
+          <li><b>Wounds open doors (❤).</b> Conditions are not just burdens — they are standing openings (+2, never consumed; wounds close only through drama): the <b>Angry</b> rise to Taunts and Humiliation · a <b>Smitten</b> heart melts before Flattery and Charm · the <b>Guilty</b> spill into Guilt Trips and Cross-Examination · the <b>Scared</b> let every doubt land · the <b>Hopeless</b> will take any offer, any warmth. So when you hold the line, CHOOSE your wound wisely — it decides which door stands open on you. And Speak from the Heart can inflict Conditions: the sincere 2d6 layer loads the fencing layer's guns.</li>
           <li><b>Tempo.</b> This is fencing, not a firing squad: after your maneuver, THEY answer — a demand, a question, a maneuver of their own (the GM speaks) — before you act again. One exchange, one blade each.</li>
           <li><b>Play your leverage.</b> A read dossier unlocks their <b>Desire</b> (Advantage, +1 Resolve damage), <b>Fear</b> (+3, but a failed threat burns their Patience) and <b>Weakness</b> (neutral counts as vulnerable) — each once per encounter.</li>
           <li><b>Win the exchange.</b> Successes break <b>Resolve</b> (0 = swayed, attitude +1); failures burn <b>Patience</b> (0 = they walk away, attitude −1 — and HOW they leave depends on their triad). Statuses chain into combos. Strings are a standing grip: holding any gives +1 on maneuvers against that person (and theirs on you raise your DC to sway them); burning one on a miss is the +5 gamble.</li>
@@ -637,7 +638,8 @@ class SocialFencingApp extends Application {
           const rel   = SocialManeuverRoller.getRelation(tgt, m, ctx.isGM ? undefined : (arch ?? null));
           const comboReady =
             (m.combos && Object.keys(m.combos).some(st => SocialArchetypeManager.getActiveCondition(tgt, st)))
-            || (m.kickWhileDown && SOCIAL_CONDITION_ORDER.some(st => SocialArchetypeManager.getActiveCondition(tgt, st)));
+            || (m.kickWhileDown && SOCIAL_CONDITION_ORDER.some(st => SocialArchetypeManager.getActiveCondition(tgt, st)))
+            || !!findOpening(tgt, m);
           const mark  = known && rel === "immune" ? `<span class="tsl-chip-mark tsl-chip-mark--imm">⚡</span>`
                       : known && rel === "vulnerable" ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">✦</span>`
                       : comboReady ? `<span class="tsl-chip-mark tsl-chip-mark--combo">◆</span>` : "";
@@ -646,6 +648,8 @@ class SocialFencingApp extends Application {
               `◆ Combo — consumes ${SOCIAL_CONDITIONS[st]?.label ?? st}: ${c.label}` +
               `${c.resolveDamage ? ` (+${c.resolveDamage} Resolve damage)` : ""}${c.strings ? ` (+${c.strings} String)` : ""}`) : []),
             ...(m.kickWhileDown ? ["◆ Kicks while down: +1 Resolve damage if they have any status (not consumed)"] : []),
+            ...Object.entries(CONDITION_OPENINGS[m.id] ?? {}).map(([c, f]) =>
+              `❤ Open wound (${c.charAt(0).toUpperCase() + c.slice(1)}): +2 — ${f} (never consumed)`),
           ];
           const comboTip = comboLines.length ? "<br>" + comboLines.join("<br>") : "";
           return `<button class="tsl-chip ${isSel ? "selected" : ""}" data-fence-maneuver="${m.id}"
@@ -752,6 +756,7 @@ class SocialFencingApp extends Application {
     else if (known && a.relation === "immune")     { hint = `${readPrefix}${a.relationReason} — ${isGuess ? "if you're right, it fails and they turn Defiant." : "it fails, they turn Defiant."}`; hintCls = "imm"; }
     else if (known && a.relation === "vulnerable") { hint = `${readPrefix}this should cut deep — Advantage & +1 Resolve damage${isGuess ? " (if your read is right)" : ""}.`; hintCls = "vuln"; }
     else if (a.combo)                    { hint = `◆ Combo armed — ${a.combo.label}.`; hintCls = "vuln"; }
+    else if (a.opening)                  { hint = `❤ Open wound — ${a.opening.flavor} (+2).`; hintCls = "vuln"; }
     else if (a.lastExchange)             { hint = "⚠ Their patience is at its end — one more misstep ends this."; hintCls = "imm"; }
     else if (known && a.answerRisk)      { hint = `${readPrefix}fumble badly here and their answer comes — ${a.answerRisk}${isGuess ? " (if your read is right)" : ""}.`; hintCls = "imm"; }
     else if (a.patienceThin)             { hint = "⏳ Their patience wears thin — they're getting harder to reach."; }
