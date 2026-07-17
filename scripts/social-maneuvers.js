@@ -176,17 +176,17 @@ const SOCIAL_MANEUVERS = [
 
   {
     id:    "cold_shoulder",
-    name:  "Turn Cold",
-    skill: "Deception",
-    icon:  "fa-snowflake",
+    name:  "Stir Jealousy",
+    skill: "Performance",
+    icon:  "fa-heart-circle-exclamation",
     group: "attention",
-    skillKeys:       { dnd5e: "dec", "a5e-for-dnd5e": "deception" },
+    skillKeys:       { dnd5e: "prf", "a5e-for-dnd5e": "performance" },
     vulnerabilityTags: ["stone-walling", "ignore"],   // Martyr → Advantage
     immunityTags:      ["selfless focus"],            // Caretaker
-    description:  "Push-pull. Mid-sentence, let the warmth drain away — short answers, distant eyes, a temperature drop they can't ignore. Then watch them chase it.",
-    successText:  "The chill lands. They talk faster, lean closer — Desperate (the next Flatter or Charm against them gains Advantage). Resolve −1.",
-    failText:     "They pretend not to notice the frost. Patience −1.",
-    immuneText:   "They simply enjoy the quiet. Target becomes Defiant.",
+    description:  "Warmth, aimed past them. Laugh at another's joke, praise a rival's wit, let your attention settle anywhere but on them — and let them feel the room tilt away.",
+    successText:  "Their eyes keep flicking to your new favorite. They talk faster, lean closer — Desperate (the next Flatter or Charm against them gains Advantage). Resolve −1.",
+    failText:     "They genuinely don't care who you smile at. Patience −1.",
+    immuneText:   "They're pleased to see someone else get the attention. Target becomes Defiant.",
     applyOnSuccess: "desperate",
     grantStrings: 0,
     resolveDamage: 1,

@@ -70,7 +70,7 @@ tsl-social-conflict/
 ### Social Fencing Design (the loop)
 - **Guess → Test → Refine (deduction loop, v1.7)**: archetypes are NEVER revealed to players. A successful read (Cold Reading / Logic Exploit, or Read the Room 10+) → `SocialManeuverRoller.whisperTell` — one random tell/crave/dread whispered to the reader. The player writes their guess into their Bond ("Read as"); **all ✦/⚡/» marks and bar predictions follow the GUESS** (`assess`/`getRelation` take `archetypeOverride`; GM passes `undefined` = truth), while **rolls always use the truth**. Wrong guesses self-correct via evidence (surprise Advantage dice, unexpected Defiant bounces). Chat cards veil archetype-naming reasons and never bake in `archHtml` — even GM rolls stay riddle-safe. PCs pick NO archetype (selector is GM-only, "their defence (GM)"); players build only triad dots
 - **Push-your-luck**: success −1 Resolve (−2 on vulnerability), failure −1 Patience, immunity → auto-fail + target **Defiant** (maneuver-immune 1h) + −1 Patience
-- **9 archetypes × 12 maneuvers**: each archetype has ≥1 vulnerable and ≥1 immune maneuver; traps sit *inside* the same triad (e.g. Turn to Leave wrecks the Martyr but bounces off the Caretaker) so knowing the triad isn't enough — you profile the person
+- **9 archetypes × 12 maneuvers**: each archetype has ≥1 vulnerable and ≥1 immune maneuver; traps sit *inside* the same triad (e.g. Stir Jealousy wrecks the Martyr but bounces off the Caretaker) so knowing the triad isn't enough — you profile the person
 - **Strings economy**: earned by reads and baits (Feigned Weakness / Sweeten the Deal grant 2), spent for +1 on TSL moves / +2 on maneuvers; also visible & editable in Chronicle bonds. **Grip passive (v1.9.5)**: HOLDING ≥1 String on someone gives +1 on maneuvers against them; Strings THEY hold on you add +1 to their DC when you try to sway them (flat, not per-String — no farm stacking). Spend burns AFTER the roll so the grip preview matches the dice and an error can't eat a String.
 - **Attitude**: the target's bond toward the roller shifts the DC (devoted +3 → DC −3)
 - **`assess()` is the single source of truth** (`social-maneuvers.js`): archetype relation, status combos, DC breakdown, advantage/bonuses, consumed one-shots — used by BOTH the pre-roll Duel Panel and the actual roll, so the preview always matches the dice
@@ -99,7 +99,7 @@ tsl-social-conflict/
 | Smitten | charmer's Persuasion maneuvers get Advantage; the smitten one CANNOT maneuver against the charmer (hard block in assess); **combat:** can't attack the charmer; ONE plausible command (WIS save or comply); harmed by charmer's side → breaks into Provoked vs charmer | Flatter, Charm | scene (1h) |
 | Provoked | next maneuver vs them +2; **combat:** must move to & attack the provoker, dis vs others, attacks AGAINST them have adv | Taunt | one-shot |
 | Guilted | guilter's next maneuver gets Advantage; **combat:** the one they owe attacks them with adv, no reactions vs them; if that one draws blood → Guilted becomes Rattled | Guilt Trip | one-shot |
-| Desperate | next Flatter/Charm gets Advantage, Bargain cashes it (+1 String); **combat:** all-in — adv on ALL their attacks AND all attacks against them | Turn Cold | one-shot |
+| Desperate | next Flatter/Charm gets Advantage, Bargain cashes it (+1 String); **combat:** all-in — adv on ALL their attacks AND all attacks against them | Stir Jealousy | one-shot |
 | Defiant | immune to maneuvers; **Read Them slips through** (`worksThroughDefiant`) and a SUCCESSFUL read breaks the wall; **combat:** adv saves vs charm/fear, cannot willingly retreat/disengage | hitting an immunity | 10 min or until read |
 
 Combat statuses are BEHAVIORS with transitions (Smitten→Provoked on heartbreak, Guilted→Rattled on drawn blood — GM applies the flip per the effect text), not stat nudges; automatable parts ship as a5e/midi flags, behavioral parts as bold rules text in the effect description.
@@ -109,7 +109,7 @@ Combat statuses are BEHAVIORS with transitions (Smitten→Provoked on heartbreak
 ### Maneuver redesign (v1.8) — school identities
 - **General** (safe basics, no vuln/imm): Read Them (scout: tell+String, 0 dmg, through Defiant) · Mock (the jab: 1 dmg flat) · Taunt (setup: Provoked, 0 dmg)
 - **Power** (domination — hits harder, risks harder): Flatter (Smitten + 1 dmg) · Play Weak (deep bait: 3 Strings, 0 dmg) · Humiliate (2 dmg, but `failPatience: 2`)
-- **Emotion** (hearts → combos): Charm (Smitten + 1 String, 0 dmg) · Turn Cold (Desperate + 1 dmg; push-pull — the warmth drains mid-sentence and they chase it; replaced "Ignore Them"/"Turn to Leave" in v1.10) · Guilt Trip (Guilted + 1 dmg)
+- **Emotion** (hearts → combos): Charm (Smitten + 1 String, 0 dmg) · Stir Jealousy (Desperate + 1 dmg; warmth aimed past them — praise a rival and they chase your attention; the slot went Ignore Them → Turn to Leave → Turn Cold → Stir Jealousy in v1.12.1: every WITHDRAWAL framing contradicted an active pursuit, jealousy is the ACTIVE way to starve someone) · Guilt Trip (Guilted + 1 dmg)
 - **Order** (ledgers: economy/info/control): Undermine (Rattled, 0 dmg) · Cross-Examine (tell + String + 1 dmg) · Bargain (2 Strings + 1 dmg)
 - Damage rule: **vulnerability adds +1 to the maneuver's own `resolveDamage`** (not a flat 2); failure burns `failPatience ?? 1` Patience (+1 more on a failed Fear leverage). Ids are unchanged — only names/effects.
 
@@ -139,7 +139,7 @@ Design rules learned the hard way: (1) every maneuver must be REPEATABLE in live
 - **Bargain cashes Desperate** (+1 String, "a desperate soul signs anything") — Desperate now has two consumers (Charm's adv+dmg vs Bargain's String): a real choice.
 - **Immunity punish by triad (`TRIAD_PUNISH`)**: hitting an immunity now costs the ATTACKER in the defender's language — Power: attacker Rattled · Emotion: attacker Guilted · Reason: String on attacker — plus the usual Defiant wall and a public veiled card. Knowing the archetype = knowing exactly what you risk.
 - **Stakes line (`previewOutcomes`)**: both bars show "✓ hit: −N Resolve · they're X · +N Strings" / "✗ miss: −N their Patience · riposte" under the breakdown — built from the same assessment as the dice (guess-based for players). `.tsl-bar-stakes` CSS.
-- Codex rewritten around three life-readable lines: heat them → strike the temper · push-pull the heart · corner the mind → they sign. Combo chains: Taunt→Humiliate · Turn Cold→Charm/Bargain · Charm→Guilt Trip→Cross-Examine.
+- Codex rewritten around three life-readable lines: heat them → strike the temper · push-pull the heart · corner the mind → they sign. Combo chains: Taunt→Humiliate · Stir Jealousy→Charm/Bargain · Charm→Guilt Trip→Cross-Examine.
 
 **Attacker-side triad leanings:** the attacker's Extended Triad dots ARE their attack style — +1 per dot on that triad's maneuvers, −1 on a triad with 0 dots while others have some ("foreign ground"); General tactics always neutral. Shown as ★ +N / ▼ −1 badges on maneuver group labels and as signed chips in the Duel Panel. Picking an archetype auto-fills its triad to 2● (QoL in the Chronicle archetype handler). PCs set this in their own Chronicle → Profile.
 
