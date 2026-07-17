@@ -438,6 +438,24 @@ class SocialArchetypeManager {
     await SocialArchetypeManager.setActorData(actor, payload);
   }
 
+  /**
+   * The DEFENSIVE identity of a dots-built character (a PC). NPCs defend
+   * with an archetype; a PC defends with the triad THEY built:
+   *   ruling — unique maximum of 2+ dots, or null (a split build has no
+   *            ruling nature: no home ground, no Answer — but no counter
+   *            school reads them either).
+   * Used for the counter cycle, "home ground" DC, blind spots and the Answer.
+   */
+  static getDefensiveProfile(actor) {
+    const triad = SocialArchetypeManager.getCharacterNotes(actor).triad ?? {};
+    const dots  = { power: triad.power ?? 0, attention: triad.attention ?? 0, order: triad.order ?? 0 };
+    const total = dots.power + dots.attention + dots.order;
+    const max   = Math.max(dots.power, dots.attention, dots.order);
+    const leaders = Object.keys(dots).filter(k => dots[k] === max);
+    const ruling  = (max >= 2 && leaders.length === 1) ? leaders[0] : null;
+    return { dots, total, ruling };
+  }
+
   static getArchetypeOptions() {
     return SOCIAL_ARCHETYPES.map((arch) => ({ id: arch.id, label: arch.label, triad: arch.triad }));
   }

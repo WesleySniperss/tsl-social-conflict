@@ -257,6 +257,13 @@ TSL stats mapped to D&D abilities:
 - **NPC Agenda (`socialFencing.intent`, GM-only Profile field)**: what THEY want from the conversation. `walked` now BITES: the walker gains a String on the attacker and the resolution card notes their agenda advances — losing an exchange costs the players something.
 - **Codex "Running it (GM)"**: when to draw blades (unwilling + real stakes only), both sides play (answer every maneuver), crowd hardens (+1 DC per extra voice), size the ask (Resolve 3/5–6/8 + leverage for the impossible), patience as the scene clock. Player list adds: grades/Answer, the gamble, Hold the Line, tempo (one exchange, one blade each).
 
+### v1.12.0 — the PC's defensive nature: dots cut both ways
+- **`getDefensiveProfile(actor)`** (social-archetypes.js): { dots, total, ruling } — `ruling` = the unique maximum of 2+ dots, else null. NPCs defend with archetypes; a PC (no archetype) defends with the triad THEY built.
+- In `assess`, when the target has NO archetype: **home ground** — the ruling triad's own school gets DC +2 against them ("they know this game"); **blind side** — a 0-dot school (while invested elsewhere) gives the attacker +1 ("an unguarded approach"); the **counter cycle** now keys off `defTriad = arch?.triad ?? defProfile.ruling`, so the school countering a PC's ruling triad gets its +2 too.
+- **The PC's Answer**: `_applyAnswer` and `answerRisk` fall back to the ruling triad — an NPC that botches against a power-ruled PC walks away Rattled, etc.
+- **Split builds (e.g. 2/2/0) have no ruling nature**: no home ground, no Answer — but no counter school reads them either (blind 0-dot schools stay open). A real build choice: sharp identity vs unreadability.
+- Surfaced in the Profile triad tooltip ("Extended Triad · your nature") and the Codex "Lean into your nature — it cuts both ways" bullet.
+
 ### VTools Integration (hud-button.js)
 ```js
 Hooks.once("vtools.ready", () => {

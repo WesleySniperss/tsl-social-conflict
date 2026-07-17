@@ -420,6 +420,11 @@ class SocialManeuverRoller {
     const arch     = options.archetypeOverride !== undefined
       ? options.archetypeOverride
       : SocialArchetypeManager.getArchetype(targetActor);
+    // Defensive identity: an NPC defends with its archetype's triad; a PC
+    // (no archetype) defends with the triad THEY built from dots. A split
+    // build has no ruling nature — unreadable, but answerless.
+    const defProfile = arch ? null : SocialArchetypeManager.getDefensiveProfile(targetActor);
+    const defTriad   = arch?.triad ?? defProfile?.ruling ?? null;
     const skillMod = SocialManeuverRoller.getSkillMod(sourceActor, maneuver);
     const cond     = (id) => SocialArchetypeManager.getActiveCondition(targetActor, id);
     const condBy   = (id) => {
@@ -442,6 +447,11 @@ class SocialManeuverRoller {
     const patienceThin = enc.active && enc.patience <= Math.floor(enc.maxPatience / 2);
     const lastExchange = enc.active && enc.patience === 1;
     if (patienceThin) dcMods.push({ label: "their patience wears thin", value: 1 });
+    // A dots-built defender knows their OWN school's tricks — home ground
+    if (defProfile && defProfile.total > 0 && maneuver.group !== "general"
+        && defProfile.ruling === maneuver.group) {
+      dcMods.push({ label: "they know this game — home ground", value: 2 });
+    }
     const dc = dcMods.reduce((sum, m) => sum + m.value, dcBase);
 
     // ── Hard walls: Defiant target / Smitten attacker ────────────────────────
@@ -520,11 +530,18 @@ class SocialManeuverRoller {
       // fencing status (not consumed — mockery doesn't calm anyone)
       if (maneuver.kickWhileDown && SOCIAL_CONDITION_ORDER.some(id => cond(id))) kick = true;
       // The triad counter cycle: the defender's ruling triad is soft against
-      // the school that counters it (Power→Emotion→Order→Power)
-      if (arch && TRIAD_COUNTERS[maneuver.group] === arch.triad) {
+      // the school that counters it (Power→Emotion→Order→Power). Works on
+      // archetypes AND on dots-built defenders with a ruling triad.
+      if (defTriad && TRIAD_COUNTERS[maneuver.group] === defTriad) {
         const atkShort = (SOCIAL_TRIADS[maneuver.group]?.label ?? "").replace("Triad of ", "");
-        const defShort = (SOCIAL_TRIADS[arch.triad]?.label ?? "").replace("Triad of ", "");
+        const defShort = (SOCIAL_TRIADS[defTriad]?.label ?? "").replace("Triad of ", "");
         bonusReasons.push({ label: `${atkShort} counters ${defShort} — their kind bends to this school`, value: 2, kind: "counter" });
+      }
+      // A dots-built defender's BLIND side: a school they never learned
+      // (0 dots while invested elsewhere) finds nothing guarding the door
+      if (defProfile && defProfile.total > 0 && maneuver.group !== "general"
+          && (defProfile.dots[maneuver.group] ?? 0) === 0) {
+        bonusReasons.push({ label: "an unguarded approach — nothing in them answers this school", value: 1 });
       }
       // Held Strings are a standing grip on them — +1 even before you spend one
       const myGrip = TSLStringStore.getList(sourceActor.id)
@@ -566,11 +583,11 @@ class SocialManeuverRoller {
       }
     }
 
-    // The Answer you risk on a bad miss — worded from the same arch the rest
-    // of the assessment uses (truth for rolls/GM, the player's GUESS for
-    // display), so the warning follows your read and never leaks the truth.
-    const answerRisk = arch && relation !== "blocked" && relation !== "immune"
-      ? TRIAD_ANSWER[arch.triad]?.risk ?? null
+    // The Answer you risk on a bad miss — worded from the same defensive
+    // identity the rest of the assessment uses (archetype truth/guess, or a
+    // PC's ruling triad), so the warning follows your read.
+    const answerRisk = defTriad && relation !== "blocked" && relation !== "immune"
+      ? TRIAD_ANSWER[defTriad]?.risk ?? null
       : null;
 
     const bonus = bonusReasons.reduce((s, b) => s + b.value, 0);
@@ -903,8 +920,12 @@ class SocialManeuverRoller {
    * card is veiled: it's evidence of their nature, not the answer sheet.
    */
   static async _applyAnswer(sourceActor, targetActor) {
+    // NPC: archetype's triad. PC: the ruling triad of the dots THEY built —
+    // the player's chosen nature answers in its own language.
     const realArch = SocialArchetypeManager.getArchetype(targetActor);
-    const answer   = realArch ? TRIAD_ANSWER[realArch.triad] : null;
+    const triad    = realArch?.triad
+      ?? SocialArchetypeManager.getDefensiveProfile(targetActor).ruling;
+    const answer   = triad ? TRIAD_ANSWER[triad] : null;
     if (!answer) return;
     if (answer.status)  await SocialArchetypeManager.applyCondition(sourceActor, answer.status, targetActor);
     if (answer.strings) await TSLStringStore.add(targetActor.id, sourceActor.id, answer.strings);
