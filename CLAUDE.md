@@ -63,7 +63,7 @@ tsl-social-conflict/
 
 ### Data on Actor Flags (scope `tsl-social-conflict`)
 - `socialFencing` — { archetypeId, motivation, personality, psychotype, intent (GM agenda), notes, triad:{power,attention,order 0–3}, points:{desire,fear,weakness,mask,line} }
-- `bonds` — [{ id, targetActorId, type, attitude −3..+3, perceivedArchetypeId, profileKnown, notes }]
+- `bonds` — [{ id, targetActorId, type, attitude (= STRENGTH 0..3 since v1.18; legacy ±3 read as abs), perceivedArchetypeId, profileKnown, notes }]
 - `stringList` — [{ id, label, targetActorId }]
 - `encounter` — { active, patience, maxPatience, resolve, maxResolve, round, outcome: null|"swayed"|"walked", leverage:{desire,fear,weakness → used?} }
 
@@ -72,7 +72,7 @@ tsl-social-conflict/
 - **Push-your-luck**: success −1 Resolve (−2 on vulnerability), failure −1 Patience, immunity → auto-fail + target **Defiant** (maneuver-immune 1h) + −1 Patience
 - **9 archetypes × 12 maneuvers**: each archetype has ≥1 vulnerable and ≥1 immune maneuver; traps sit *inside* the same triad (e.g. Stir Jealousy wrecks the Martyr but bounces off the Caretaker) so knowing the triad isn't enough — you profile the person
 - **Strings economy (v1.13: trump cards)**: `STRING_SPEND_BONUS = 5` — burning a String on a MISSED maneuver (the post-roll gamble) is +5 and almost always turns a near miss; TSL 2d6 moves still spend for +1. **The PRIMARY earn is roleplay**: when a player opens up in character, the GM awards a String on the person they opened up to — 💖 button on the conflict participant card (`_awardStringDialog`, public card + log) or the Bonds tab +. Maneuvers still pay out (baits/reads/combos). **Grip passive**: HOLDING ≥1 String gives +1 on maneuvers against them; Strings THEY hold on you add +1 to their DC (flat, not per-String).
-- **Attitude**: the target's bond toward the roller shifts the DC (devoted +3 → DC −3). **Closeness (v1.17)**: the target's bond TYPE toward the roller also lowers the DC — depth of relationship is access, whatever its sign: stranger 0 · ally/rival/enemy/indebted/creditor −1 ("they know your voice") · friend/family/crush/lover/mentor/protégé −2 ("their guard is down"). `BOND_TYPES[*].closeness`, applied in assess dcMods; attitude is the SIGN, closeness is the DEPTH.
+- **Bonds = TYPE + STRENGTH (v1.18, replaces attitude/closeness)**: a bond has a type and a strength 0–3● (stored in the old `attitude` field — legacy ±3 saves read as absolute value via `TSLBondStore.getStrength`). Effects scale with strength: **your bond toward them is your weapon** — its `school` gets +● on maneuvers vs them (ally/indebted/creditor→Reason, heart types→Emotion, rival/enemy→Power); **their bond toward you is their guard** — `guardDc` −1 types open (friend/family/crush/lover/mentor/protégé/indebted: DC −their ●), enemy is wary (+●), ally/rival/creditor/stranger neutral; **`guilt` types** (friend/family/lover/protégé): landing a POWER-school maneuver on them gives the ATTACKER the Guilty TSL Condition (public card; feeds the circulation). Swayed deepens the loser's bond +1●, walked cools it −1● (`shiftAttitude` clamps 0..3 now).
 - **`assess()` is the single source of truth** (`social-maneuvers.js`): archetype relation, status combos, DC breakdown, advantage/bonuses, consumed one-shots — used by BOTH the pre-roll Duel Panel and the actual roll, so the preview always matches the dice
 
 ### Settings

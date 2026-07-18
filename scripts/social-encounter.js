@@ -202,13 +202,13 @@ class SocialEncounterManager {
     const bullets = outcome === "swayed"
       ? [
           `They <strong>concede the exchange</strong> — they do the thing, or grant the point (the GM frames exactly what).`,
-          `Their regard for ${who} warms — <strong>attitude +1</strong>.`,
+          `The bond toward ${who} deepens — <strong>strength +1</strong>.`,
           opts.gainedString ? `${who} gains a <strong>String</strong> on them — the concession is a hold to invoke later.` : null,
           `The scene's fencing statuses on them clear.`,
         ].filter(Boolean)
       : [
           `They <strong>disengage</strong> — this conversation is over on their terms.`,
-          `Their regard for ${who} cools — <strong>attitude −1</strong>.`,
+          `The bond toward ${who} cools — <strong>strength −1</strong>.`,
           opts.tookString ? `They spent the whole exchange reading ${who} — <strong>they gain a String</strong> on them.` : null,
           SocialArchetypeManager.getCharacterNotes(actor).intent?.trim()
             ? `They leave with what they came for — <strong>their agenda advances</strong> (GM: see their Profile).`

@@ -467,16 +467,22 @@ class SocialManeuverRoller {
     // ── DC: 10 + WIS + proficiency (or passive Insight), ± attitude/Rattled ──
     const dcBase = SocialManeuverRoller.getSocialDC(targetActor);
     const dcMods = [];
-    const attitude = TSLBondStore.getAttitude(targetActor.id, sourceActor.id);
-    if (attitude) dcMods.push({ label: attitude > 0 ? "they like you" : "they distrust you", value: -attitude });
-    // Closeness: how deep THEIR bond toward you reaches past the formal
-    // guard — a stranger gets the polite wall, a friend's door is open,
-    // even an enemy knows your voice. Attitude is the sign; this is depth.
+    // THEIR bond toward you is their guard: type × strength decides whether
+    // the door stands open (friend/lover/debt: DC −strength) or barred
+    // (enemy: DC +strength — you can't charm hatred).
     const theirBond = TSLBondStore.find(targetActor.id, sourceActor.id);
-    const closeness = theirBond ? (SocialArchetypeManager.getBondType(theirBond.type)?.closeness ?? 0) : 0;
-    if (closeness) {
-      const typeLabel = SocialArchetypeManager.getBondType(theirBond.type)?.label ?? theirBond.type;
-      dcMods.push({ label: `closeness — you are ${typeLabel} to them`, value: closeness });
+    if (theirBond) {
+      const meta = SocialArchetypeManager.getBondType(theirBond.type);
+      const str  = TSLBondStore.getStrength(targetActor.id, sourceActor.id);
+      const dcFx = (meta?.guardDc ?? 0) * str;
+      if (dcFx) {
+        dcMods.push({
+          label: dcFx < 0
+            ? `their guard is down for you — ${meta.label} ${"●".repeat(str)}`
+            : `they are wary of you — ${meta.label} ${"●".repeat(str)}`,
+          value: dcFx,
+        });
+      }
     }
     if (cond("rattled")) dcMods.push({ label: "Rattled", value: -5 });
     // Strings are leverage even unspent — THEIRS on you stiffen their guard
@@ -598,12 +604,13 @@ class SocialManeuverRoller {
       if (myGrip) {
         bonusReasons.push({ label: `String grip (${myGrip} held) — you know which threads to pull`, value: 1 });
       }
-      // Bond passive: the relationship itself is a lever — its school gets +1
+      // YOUR bond toward them is your weapon: its school gets +STRENGTH
       // (hearts respond to hearts, rivalries to power plays, debts to bargains)
       const myBond = TSLBondStore.find(sourceActor.id, targetActor.id);
       const bondMeta = myBond ? SocialArchetypeManager.getBondType(myBond.type) : null;
-      if (bondMeta?.school && bondMeta.school === maneuver.group) {
-        bonusReasons.push({ label: `Bond: ${bondMeta.label} — this approach runs deep between you`, value: 1 });
+      const myStr = TSLBondStore.getStrength(sourceActor.id, targetActor.id);
+      if (bondMeta?.school && bondMeta.school === maneuver.group && myStr > 0) {
+        bonusReasons.push({ label: `Bond: ${bondMeta.label} ${"●".repeat(myStr)} — this approach runs deep between you`, value: myStr });
       }
       // The attacker's Extended Triad leanings shape their own attack style:
       // +1 per dot in the maneuver's triad; a triad with NO dots (while the
@@ -985,6 +992,20 @@ class SocialManeuverRoller {
       }
       if (damage > 0)
         await SocialEncounterManager.adjustResolve(targetActor, -damage, sourceActorId);
+      // The cost of closeness: turning POWER on someone you love wounds YOU.
+      // Your own bond type decides — and the Guilt opens doors against you.
+      const myBond2 = TSLBondStore.find(sourceActorId, targetActorId);
+      const myMeta2 = myBond2 ? SocialArchetypeManager.getBondType(myBond2.type) : null;
+      if (maneuver.group === "power" && myMeta2?.guilt
+          && typeof TSLConditionEffects !== "undefined"
+          && !TSLConditionEffects.hasCondition(sourceActor, "guilty")) {
+        await TSLConditionEffects.applyOne(sourceActor, "guilty", targetActor.name);
+        const esc2 = foundry.utils.escapeHTML;
+        await ChatMessage.create({
+          speaker: ChatMessage.getSpeaker({ actor: sourceActor }),
+          content: `<div class="tsl-maneuver-card tsl-mv--immune"><div class="tsl-mv-outcome tsl-mv-outcome--immune">💔 It worked — and it cost: turning power on ${esc2(targetActor.name)} leaves <b>${esc2(sourceActor.name)} Guilty</b>.</div></div>`,
+        });
+      }
     } else {
       // Heavy plays (failPatience) and failed threats (fear) burn extra Patience
       const burn = (maneuver.failPatience ?? 1) + (leverage === "fear" ? 1 : 0);

@@ -74,7 +74,9 @@ class TSLBondStore {
       id: foundry.utils.randomID(),
       targetActorId,
       type:                 data.type ?? "stranger",
-      attitude:             data.attitude ?? 0,
+      // `attitude` stores the bond's STRENGTH 0..3 (name kept for save
+      // compatibility — older ±3 values read as their absolute strength)
+      attitude:             data.attitude ?? 1,
       perceivedArchetypeId: data.perceivedArchetypeId ?? null,
       profileKnown:         data.profileKnown ?? false,
       notes:                data.notes ?? "",
@@ -98,18 +100,28 @@ class TSLBondStore {
   }
 
   /**
-   * Shift how `actorId` feels about `targetActorId` by delta (clamped −3..+3).
-   * Creates the bond if missing. Fencing outcomes write history: being swayed
-   * warms the bond toward the winner, walking away cools it — VTM blood-bond
-   * style escalation across sessions.
+   * The STRENGTH (0..3) of `actorId`'s bond toward `targetActorId`.
+   * Pre-rework saves stored attitude −3..+3 — read as absolute strength.
+   */
+  static getStrength(actorId, targetActorId) {
+    const bond = TSLBondStore.find(actorId, targetActorId);
+    if (!bond) return 0;
+    return Math.min(3, Math.abs(bond.attitude ?? 0));
+  }
+
+  /**
+   * Deepen or cool the bond by delta (strength clamped 0..3). Creates the
+   * bond if missing. Fencing outcomes write history: being swayed deepens
+   * the bond toward the winner, walking away cools it.
    */
   static async shiftAttitude(actorId, targetActorId, delta) {
     if (!delta || actorId === targetActorId) return null;
-    const clamp = (v) => Math.max(-3, Math.min(3, v));
+    const clamp = (v) => Math.max(0, Math.min(3, v));
     const bond = TSLBondStore.find(actorId, targetActorId);
     if (bond) {
-      await TSLBondStore.update(actorId, bond.id, { attitude: clamp((bond.attitude ?? 0) + delta) });
-      return clamp((bond.attitude ?? 0) + delta);
+      const next = clamp(Math.min(3, Math.abs(bond.attitude ?? 0)) + delta);
+      await TSLBondStore.update(actorId, bond.id, { attitude: next });
+      return next;
     }
     await TSLBondStore.add(actorId, targetActorId, { attitude: clamp(delta) });
     return clamp(delta);

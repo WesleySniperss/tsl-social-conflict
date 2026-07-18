@@ -374,7 +374,7 @@ class SocialFencingApp extends Application {
         <div class="tsl-notes-section-title">How Fencing Works</div>
         <ol class="tsl-codex-how">
           <li><b>Read them — and guess.</b> No one hands you the archetype. Watch behavior; a successful Read Them / Cross-Examine whispers a <b>tell</b>. Write your guess into your Bond ("Read as") — the ✦/⚡ marks follow YOUR read, right or wrong, while the dice always follow the truth. Wrong guesses teach: an unexpected bounce or a surprising crit is evidence.</li>
-          <li><b>Pick the lever.</b> A maneuver is d20 + skill vs their <b>social DC</b> — 10 + WIS + proficiency, or passive Insight if higher. The relationship IS the terrain: their <b>attitude</b> toward you shifts it (±3), their bond's <b>closeness</b> opens them (friend/lover −2, even a rival knows your voice −1, a stranger gets the polite wall), Rattled −5. Hitting a <span class="tsl-codex-vuln">✦ vulnerability</span> gives Advantage and +1 Resolve damage; hitting an <span class="tsl-codex-imm">⚡ immunity</span> auto-fails and makes them Defiant.</li>
+          <li><b>Pick the lever.</b> A maneuver is d20 + skill vs their <b>social DC</b> — 10 + WIS + proficiency, or passive Insight if higher. The relationship IS the terrain, and it has TYPE and STRENGTH (0–3 ●): <b>your bond</b> toward them arms its school (+● on those maneuvers — rivalries feed Power plays, love feeds Emotion, debts feed Reason); <b>their bond</b> toward you is their guard (a friend's or debtor's door opens, DC −their ●; an enemy is wary, DC +●); and closeness has a COST — turn Power on someone you love and the Guilt is yours. Rattled −5. ✦ vulnerability = Advantage & +1 damage; ⚡ immunity = auto-fail, Defiant.</li>
           <li><b>Lean into your nature — it cuts both ways.</b> Your Extended Triad dots (Profile tab) power your attacks: <b>+1 per dot</b> on that triad's maneuvers, <b>−1</b> on a triad where you have none. And they DEFEND you: your ruling triad (unique 2+●) is <b>home ground</b> — its school struggles against you (+2 DC) and your <b>Answer</b> punishes bad misses in its language; but a 0-dot school is your <b>blind side</b> (+1 against you), and the school that counters your ruling triad reads you (+2). Split evenly and you're unreadable — no home ground, no Answer, no counter reads you.</li>
           <li><b>Know the counter cycle.</b> Every archetype is soft against the school that counters its triad (<b>+2</b> to the attacker, » badge): <b>Power breaks Emotion → Emotion cracks Reason → Reason binds Power</b>. Read them first — before a read, the panel only whispers that "something in them yields".</li>
           <li><b>Play the states, not the buttons (◆).</b> Every set-up cashes in the way you'd guess from life: <b>heat them</b> (Taunt → Provoked) and strike the temper — Humiliate lands +1 into the gap, and <b>Mock kicks anyone off balance</b> (+1 vs any status). <b>Make them chase</b>: Stir Jealousy — give your warmth to someone ELSE in front of them and they turn Desperate — then Charm them while they cling (+1 damage) or Bargain while they'd sign anything (+1 String). <b>Hearts owe</b>: a Smitten heart weighs debts double (Charm → Guilt Trip, +1 String), and the Guilted over-explain (→ Cross-Examine, +1 String). The ◆ mark = armed right now.</li>
@@ -385,7 +385,7 @@ class SocialFencingApp extends Application {
           <li><b>Wounds open doors (❤).</b> Conditions are not just burdens — they are standing openings (+2, never consumed; wounds close only through drama): the <b>Angry</b> rise to Taunts and Humiliation · a <b>Smitten</b> heart melts before Flattery and Charm · the <b>Guilty</b> spill into Guilt Trips and Cross-Examination · the <b>Scared</b> let every doubt land · the <b>Hopeless</b> will take any offer, any warmth. So when you hold the line, CHOOSE your wound wisely — it decides which door stands open on you. And Speak from the Heart can inflict Conditions: the sincere 2d6 layer loads the fencing layer's guns.</li>
           <li><b>Tempo.</b> This is fencing, not a firing squad: after your maneuver, THEY answer — a demand, a question, a maneuver of their own (the GM speaks) — before you act again. One exchange, one blade each.</li>
           <li><b>Play your leverage.</b> A read dossier unlocks their <b>Desire</b> (Advantage, +1 Resolve damage), <b>Fear</b> (+3, but a failed threat burns their Patience) and <b>Weakness</b> (neutral counts as vulnerable) — each once per encounter.</li>
-          <li><b>Win the exchange.</b> Successes break <b>Resolve</b> (0 = swayed, attitude +1); failures burn <b>Patience</b> (0 = they walk away, attitude −1 — and HOW they leave depends on their triad). Statuses chain into combos. Strings are a standing grip: holding any gives +1 on maneuvers against that person (and theirs on you raise your DC to sway them); burning one on a miss is the +5 gamble.</li>
+          <li><b>Win the exchange.</b> Successes break <b>Resolve</b> (0 = swayed — and the bond toward you deepens, +1 strength); failures burn <b>Patience</b> (0 = they walk away, the bond cools −1 — and HOW they leave depends on their triad). Statuses chain into combos. Strings are a standing grip: holding any gives +1 on maneuvers against that person (and theirs on you raise your DC to sway them); burning one on a miss is the +5 gamble.</li>
           <li><b>Or win sincerely.</b> Emotional moves (2d6) are the honest route: a Strong Hit on Speak from the Heart or Provoke also chips 1 Resolve, and Read the Room (10+) reveals their nature without manipulation.</li>
         </ol>
       </section>
@@ -454,20 +454,23 @@ class SocialFencingApp extends Application {
         `<option value="${a.id}" ${selected === a.id ? "selected" : ""}>${a.label}</option>`),
     ].join("");
 
-    const attitudeDots = (bond) => Array.from({ length: 7 }, (_, i) => {
-      const v = i - 3;
-      return `<button class="tsl-chr-att-dot ${bond.attitude === v ? "active" : ""} ${v < 0 ? "neg" : v > 0 ? "pos" : "zero"}"
-                      data-bond-id="${bond.id}" data-attitude="${v}" ${disabled}
-                      data-tooltip="${v > 0 ? "+" : ""}${v}">${v === 0 ? "·" : ""}</button>`;
-    }).join("");
+    // Bond STRENGTH 0–3 ● — how deep this relationship runs. Old ±attitude
+    // saves read as their absolute value.
+    const bondStr = (bond) => Math.min(3, Math.abs(bond.attitude ?? 0));
+    const attitudeDots = (bond) => Array.from({ length: 4 }, (_, v) =>
+      `<button class="tsl-chr-att-dot ${bondStr(bond) === v ? "active" : ""} ${v > 0 ? "pos" : "zero"}"
+              data-bond-id="${bond.id}" data-attitude="${v}" ${disabled}
+              data-tooltip="${v === 0 ? "Faded — no bond effects" : `Strength ${v}: ${"●".repeat(v)} — scales the bond's buffs and their guard`}">${v === 0 ? "·" : v}</button>`
+    ).join("");
 
     // Collapsed one-line summaries; click a row to unfold its editors.
     const rows = bonds.length ? bonds.map(b => {
       const type = SocialArchetypeManager.getBondType(b.type);
       const open = this._expandedBonds.has(b.id);
       const perceived = SOCIAL_ARCHETYPES.find(a => a.id === b.perceivedArchetypeId);
-      const attCls  = b.attitude > 0 ? "pos" : b.attitude < 0 ? "neg" : "zero";
-      const attText = b.attitude > 0 ? `+${b.attitude}` : `${b.attitude}`;
+      const bStr    = Math.min(3, Math.abs(b.attitude ?? 0));
+      const attCls  = bStr > 0 ? "pos" : "zero";
+      const attText = bStr > 0 ? "●".repeat(bStr) : "○";
       // Every read is a guess now — the pencil is a reminder, not a verdict
       const knownDot = perceived
         ? `<i class="fas fa-pencil tsl-chr-known-dot tsl-chr-known-dot--no" data-tooltip="Your read — may be wrong"></i>`
@@ -481,7 +484,7 @@ class SocialFencingApp extends Application {
             ${canEdit ? `<button class="tsl-chr-bond-remove" data-bond-id="${b.id}" data-tooltip="Remove bond">✕</button>` : ""}
           </div>
           <div class="tsl-chr-bond-line">
-            <span class="tsl-chr-bond-label" data-tooltip="How ${esc(this._actor.name)} feels about them, −3 hostile … +3 devoted. When THEY try to sway ${esc(this._actor.name)}, this shifts the DC — and the bond TYPE adds closeness on top: a friend's guard is down (−2 DC), even a rival knows your voice (−1).">Attitude</span>
+            <span class="tsl-chr-bond-label" data-tooltip="How DEEP this bond runs, 0–3 ●. Strength scales everything the bond TYPE gives: your +● on its school of maneuvers against them, and THEIR guard when they sway ${esc(this._actor.name)} (a friend's door opens −●, an enemy grows wary +●). Swayed exchanges deepen bonds; walking away cools them.">Strength</span>
             <div class="tsl-chr-att-track">${attitudeDots(b)}</div>
           </div>
           <div class="tsl-chr-bond-line">
