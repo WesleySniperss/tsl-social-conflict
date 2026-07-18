@@ -236,19 +236,23 @@ const PROFILE_POINTS = [
 // `school` — the bond's passive: maneuvers of that school get +1 against this
 // person (the relationship itself is a lever: hearts respond to hearts,
 // rivalries to power plays, debts to bargains).
+// `closeness` — how far past their formal guard this relationship reaches:
+// THEIR bond type toward the roller LOWERS the DC to sway them (0 / −1 / −2).
+// A stranger gets the polite wall; a friend's door is already open. Even a
+// rival or an enemy knows your voice — intimacy is access, whatever its sign.
 const BOND_TYPES = [
-  { id: "stranger", label: "Stranger",  icon: "fa-circle-question", school: null,        hint: "Barely acquainted — everything is still to be written." },
-  { id: "ally",     label: "Ally",      icon: "fa-handshake",       school: "order",     hint: "Shared cause. They'll take risks for you while your interests align. Passive: +1 on Reason maneuvers against them." },
-  { id: "friend",   label: "Friend",    icon: "fa-mug-hot",         school: "attention", hint: "Genuine warmth. Easier to comfort, harder to deceive. Passive: +1 on Emotion maneuvers against them." },
-  { id: "family",   label: "Family",    icon: "fa-house-chimney",   school: "attention", hint: "Blood or chosen. Guilt and obligation cut deepest here. Passive: +1 on Emotion maneuvers against them." },
-  { id: "crush",    label: "Crush",     icon: "fa-heart-circle-exclamation", school: "attention", hint: "One-sided longing. Smitten comes easily; rejection stings twice. Passive: +1 on Emotion maneuvers against them." },
-  { id: "lover",    label: "Lover",     icon: "fa-heart",           school: "attention", hint: "Hearts entangled. Finally Kiss can end a conflict; betrayal wounds double. Passive: +1 on Emotion maneuvers against them." },
-  { id: "mentor",   label: "Mentor",    icon: "fa-graduation-cap",  school: "attention", hint: "They shaped you. Their approval still matters more than you admit. Passive: +1 on Emotion maneuvers against them." },
-  { id: "protege",  label: "Protégé",   icon: "fa-seedling",        school: "attention", hint: "You shaped them. Responsibility pulls at you when they are threatened. Passive: +1 on Emotion maneuvers against them." },
-  { id: "rival",    label: "Rival",     icon: "fa-khanda",          school: "power",     hint: "A respected opponent. Challenges and one-upmanship escalate fast. Passive: +1 on Power maneuvers against them." },
-  { id: "enemy",    label: "Enemy",     icon: "fa-skull",           school: "power",     hint: "Open hostility. Every word is a weapon already drawn. Passive: +1 on Power maneuvers against them." },
-  { id: "indebted", label: "Indebted",  icon: "fa-scale-unbalanced", school: "order",    hint: "You owe them. Leverage flows their way until the debt is paid. Passive: +1 on Reason maneuvers against them." },
-  { id: "creditor", label: "Creditor",  icon: "fa-scale-unbalanced-flip", school: "order", hint: "They owe you — a String made formal. Call it in at the right moment. Passive: +1 on Reason maneuvers against them." },
+  { id: "stranger", label: "Stranger",  icon: "fa-circle-question", school: null,        closeness: 0,  hint: "Barely acquainted — everything is still to be written." },
+  { id: "ally",     label: "Ally",      icon: "fa-handshake",       school: "order",     closeness: -1, hint: "Shared cause. They'll take risks for you while your interests align. Passive: +1 on Reason maneuvers against them; they hear you out (−1 DC)." },
+  { id: "friend",   label: "Friend",    icon: "fa-mug-hot",         school: "attention", closeness: -2, hint: "Genuine warmth. Easier to comfort, harder to deceive. Passive: +1 on Emotion maneuvers against them; their guard is down for you (−2 DC)." },
+  { id: "family",   label: "Family",    icon: "fa-house-chimney",   school: "attention", closeness: -2, hint: "Blood or chosen. Guilt and obligation cut deepest here. Passive: +1 on Emotion maneuvers against them; their guard is down for you (−2 DC)." },
+  { id: "crush",    label: "Crush",     icon: "fa-heart-circle-exclamation", school: "attention", closeness: -2, hint: "One-sided longing. Smitten comes easily; rejection stings twice. Passive: +1 on Emotion maneuvers against them; their guard is down for you (−2 DC)." },
+  { id: "lover",    label: "Lover",     icon: "fa-heart",           school: "attention", closeness: -2, hint: "Hearts entangled. Finally Kiss can end a conflict; betrayal wounds double. Passive: +1 on Emotion maneuvers against them; their guard is down for you (−2 DC)." },
+  { id: "mentor",   label: "Mentor",    icon: "fa-graduation-cap",  school: "attention", closeness: -2, hint: "They shaped you. Their approval still matters more than you admit. Passive: +1 on Emotion maneuvers against them; their guard is down for you (−2 DC)." },
+  { id: "protege",  label: "Protégé",   icon: "fa-seedling",        school: "attention", closeness: -2, hint: "You shaped them. Responsibility pulls at you when they are threatened. Passive: +1 on Emotion maneuvers against them; their guard is down for you (−2 DC)." },
+  { id: "rival",    label: "Rival",     icon: "fa-khanda",          school: "power",     closeness: -1, hint: "A respected opponent. Challenges and one-upmanship escalate fast. Passive: +1 on Power maneuvers against them; they know your voice (−1 DC)." },
+  { id: "enemy",    label: "Enemy",     icon: "fa-skull",           school: "power",     closeness: -1, hint: "Open hostility. Every word is a weapon already drawn. Passive: +1 on Power maneuvers against them; they know your voice (−1 DC)." },
+  { id: "indebted", label: "Indebted",  icon: "fa-scale-unbalanced", school: "order",    closeness: -1, hint: "You owe them. Leverage flows their way until the debt is paid. Passive: +1 on Reason maneuvers against them; they hear you out (−1 DC)." },
+  { id: "creditor", label: "Creditor",  icon: "fa-scale-unbalanced-flip", school: "order", closeness: -1, hint: "They owe you — a String made formal. Call it in at the right moment. Passive: +1 on Reason maneuvers against them; they hear you out (−1 DC)." },
 ];
 
 /**

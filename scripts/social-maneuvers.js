@@ -469,6 +469,15 @@ class SocialManeuverRoller {
     const dcMods = [];
     const attitude = TSLBondStore.getAttitude(targetActor.id, sourceActor.id);
     if (attitude) dcMods.push({ label: attitude > 0 ? "they like you" : "they distrust you", value: -attitude });
+    // Closeness: how deep THEIR bond toward you reaches past the formal
+    // guard — a stranger gets the polite wall, a friend's door is open,
+    // even an enemy knows your voice. Attitude is the sign; this is depth.
+    const theirBond = TSLBondStore.find(targetActor.id, sourceActor.id);
+    const closeness = theirBond ? (SocialArchetypeManager.getBondType(theirBond.type)?.closeness ?? 0) : 0;
+    if (closeness) {
+      const typeLabel = SocialArchetypeManager.getBondType(theirBond.type)?.label ?? theirBond.type;
+      dcMods.push({ label: `closeness — you are ${typeLabel} to them`, value: closeness });
+    }
     if (cond("rattled")) dcMods.push({ label: "Rattled", value: -5 });
     // Strings are leverage even unspent — THEIRS on you stiffen their guard
     const theirGrip = TSLStringStore.getList(targetActor.id)
