@@ -874,19 +874,22 @@ class TSLConflictApp extends Application {
       return;
     }
 
-    // The system-style roll dialog: situational modifier + advantage/disadvantage.
-    // Cancelling costs nothing — no String or leverage is spent yet.
-    const mods = await SocialManeuverRoller.promptRollMods(`${maneuver.name} → ${tgtP.name}`, assessment.advantage);
+    // Roll config: the SYSTEM's own dialog when the setting is on (advantage,
+    // expertise dice, situational mods live there), else our slim prompt.
+    const mods = SocialManeuverRoller.usesSystemDialog(srcActor)
+      ? { situational: 0, mode: "normal" }
+      : await SocialManeuverRoller.promptRollMods(`${maneuver.name} → ${tgtP.name}`, assessment.advantage);
     if (!mods) return;
 
     // Strings are the post-roll gamble now: on a miss, rollManeuver offers to
-    // burn one for +2 — decided AFTER the die, against a hidden difficulty.
+    // burn one for +5 — decided AFTER the die, against a hidden difficulty.
     this._pendingStringSpend = null;
     this._pendingLeverage = null;
 
     const payload = await SocialManeuverRoller.rollManeuver(srcActor, tgtActor, maneuver, {
       leverage, situational: mods.situational, mode: mods.mode, offerString: true,
     });
+    if (!payload) return;   // system dialog cancelled — nothing spent
     if (payload.spentStringPostRoll) {
       const held = TSLStringStore.getList(srcActor.id).filter(e => e.targetActorId === tgtActor.id);
       if (held.length) await TSLStringStore.removeEntry(srcActor.id, held[0].id);

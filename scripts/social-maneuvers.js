@@ -747,22 +747,56 @@ class SocialManeuverRoller {
    * options.situational  — flat modifier from the pre-roll dialog
    * options.mode         — "normal" | "adv" | "dis" from the pre-roll dialog
    */
+  /**
+   * Should this actor's maneuvers roll through the SYSTEM's own skill-check
+   * dialog (A5E: advantage, expertise dice, situational mods) instead of the
+   * module's plain d20 + prompt? World setting; needs the system API.
+   */
+  static usesSystemDialog(actor) {
+    try {
+      return game.settings.get("tsl-social-conflict", "useSystemRollDialog")
+        && typeof actor?.rollSkillCheck === "function";
+    } catch { return false; }
+  }
+
   static async rollManeuver(sourceActor, targetActor, maneuver, options = {}) {
     let stringBonus   = options.stringBonus ?? 0;
     const situational = options.situational ?? 0;
     const a = SocialManeuverRoller.assess(sourceActor, targetActor, maneuver, { leverage: options.leverage ?? null });
 
     // Advantage from the situation + the dialog; dis + adv cancel out (5e rules)
-    const wantAdv = a.advantage || options.mode === "adv";
-    const wantDis = options.mode === "dis";
-    const die = wantAdv && wantDis ? "1d20" : wantAdv ? "2d20kh1" : wantDis ? "2d20kl1" : "1d20";
+    let wantAdv = a.advantage || options.mode === "adv";
+    let wantDis = options.mode === "dis";
 
-    const mod     = a.skillMod + stringBonus + a.bonus + situational;
-    const roll    = new Roll(`${die} + ${mod}`);
-    await roll.evaluate();
+    let roll, rawDice, total;
+    let systemRoll = false;
+    if (SocialManeuverRoller.usesSystemDialog(sourceActor)) {
+      // The SYSTEM rolls the skill (its dialog owns advantage/expertise/
+      // situational); our fencing extras ride along as a pre-filled
+      // situational modifier. Outcome vs the hidden DC stays ours.
+      systemRoll = true;
+      const key   = maneuver.skillKeys?.dnd5e;   // a5e uses the same 3-letter keys
+      const extra = stringBonus + a.bonus + situational;
+      const advMode = a.advantage && !wantDis ? (CONFIG.A5E?.ROLL_MODE?.ADVANTAGE ?? 1) : undefined;
+      const msg = await sourceActor.rollSkillCheck(key, {
+        situationalMods: extra ? `${extra >= 0 ? "+" : ""}${extra}` : "",
+        ...(advMode !== undefined ? { rollMode: advMode } : {}),
+      });
+      roll = msg?.rolls?.[0] ?? null;
+      if (!roll) return null;                    // dialog cancelled — nothing spent
+      total    = roll.total;
+      rawDice  = roll.dice?.[0]?.results?.map(r => r.result) ?? [];
+      wantAdv  = rawDice.length > 1;             // display only — the system already resolved it
+      wantDis  = false;
+    } else {
+      const die = wantAdv && wantDis ? "1d20" : wantAdv ? "2d20kh1" : wantDis ? "2d20kl1" : "1d20";
+      const mod = a.skillMod + stringBonus + a.bonus + situational;
+      roll = new Roll(`${die} + ${mod}`);
+      await roll.evaluate();
+      rawDice = roll.dice[0].results.map(r => r.result);
+      total   = roll.total;
+    }
 
-    const rawDice  = roll.dice[0].results.map(r => r.result);
-    let   total    = roll.total;
     const isWalled = a.relation === "immune" || a.relation === "blocked";
     let   success  = !isWalled && total >= a.dc;
 
@@ -793,7 +827,7 @@ class SocialManeuverRoller {
       success ? maneuver.successText : maneuver.failText;
 
     await SocialManeuverRoller._postCard({
-      sourceActor, targetActor, maneuver, roll, rawDice,
+      sourceActor, targetActor, maneuver, roll, rawDice, systemRoll,
       stringBonus, situational, total, outcomeType, outcomeText, assessment: a,
       advantage: wantAdv && !wantDis, disadvantage: wantDis && !wantAdv,
     });
@@ -1072,9 +1106,13 @@ class SocialManeuverRoller {
     const kept = d.advantage ? Math.max(...d.rawDice)
                : d.disadvantage ? Math.min(...d.rawDice)
                : d.rawDice[0];
-    const diceText = d.rawDice.length > 1
-      ? `[${d.rawDice.join("] [")}] → ${kept} ${sign}${a.skillMod}${bonusText}${d.disadvantage ? " (dis)" : ""}`
-      : `[${d.rawDice[0]}] ${sign}${a.skillMod}${bonusText}`;
+    // A system-dialog roll already carries its own breakdown in the system's
+    // card — ours just shows the dice and what the module added on top.
+    const diceText = d.systemRoll
+      ? `[${d.rawDice.join("] [")}] — system check${d.stringBonus ? ` +${d.stringBonus} String` : ""}`
+      : d.rawDice.length > 1
+        ? `[${d.rawDice.join("] [")}] → ${kept} ${sign}${a.skillMod}${bonusText}${d.disadvantage ? " (dis)" : ""}`
+        : `[${d.rawDice[0]}] ${sign}${a.skillMod}${bonusText}`;
 
     // Evidence without answers: the two dice already show the Advantage; the
     // reason lines must not name the archetype for everyone to read.
@@ -1114,7 +1152,9 @@ class SocialManeuverRoller {
   </div>
   <div class="tsl-mv-outcome tsl-mv-outcome--${d.outcomeType}">${esc(d.outcomeText)}</div>
 </div>`,
-      rolls: [d.roll],
+      // A system roll already lives in the system's own message — re-attaching
+      // it here would fire dice animations twice
+      rolls: d.systemRoll ? [] : [d.roll],
     });
   }
 }

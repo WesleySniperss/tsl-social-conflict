@@ -78,6 +78,8 @@ tsl-social-conflict/
 ### Settings
 - `conflictMode` (world, default **both**) — `both` = TSL moves + Social Fencing; `tsl` = pure TSL (no maneuvers/tracks/statuses/Fencing tab, Kiss always on, playbook shown as participant subtitle); `fencing` = classic D&D only (no 2d6 moves)
 - `enableKiss` (world, default **false**) — shows/hides the TSL "Finally Kiss" special move; ORed with `conflictMode === "tsl"`
+- `enableHoldLine` (world, default **true**) — the GM dialog offering to refuse a landed status by taking a TSL Condition
+- `useSystemRollDialog` (world, default **false**) — maneuvers roll through the SYSTEM's skill-check dialog (A5E: advantage, expertise dice, situational mods); the module's fencing extras ride along as a pre-filled situational modifier; outcome vs hidden DC, cards and consequences stay module-side (`usesSystemDialog`, system path in `rollManeuver`; dialog cancel → null payload, nothing spent)
 
 ### TSL Playbooks (tsl-playbooks.js)
 - 9 playbooks (Beast, Chosen, Devoted, Infamous, Nature Witch, Scoundrel, Seeker, Spooky Witch, Trickster), adapted under the Powered by Lesbians license
@@ -278,6 +280,10 @@ TSL stats mapped to D&D abilities:
 - **`CONDITION_OPENINGS` (social-maneuvers.js)**: a TSL Condition on the TARGET is a standing +2 for matching maneuvers, NEVER consumed (wounds close only through drama or long rest): angry → Taunt/Humiliate · smitten → Flatter/Charm · guilty → Guilt Trip/Cross-Examine · scared → Undermine/Mock · hopeless → Bargain/Charm. `findOpening(target, maneuver)` helper; `assess()` returns `opening`; `TSLConditionEffects.hasCondition`.
 - This closes the TSL-style loop across ALL layers: **Speak from the Heart (2d6) / Hold the Line inflict Conditions → Conditions open fencing doors (+2) → landed maneuvers force new Hold-the-Line choices → new wounds, new doors** — and the wound you CHOOSE when holding the line decides which door opens on you (chess in the defense).
 - Surfaced: ◆ chip mark counts openings, ❤ tooltip lines per maneuver, bar hint "❤ Open wound — …", bonus breakdown entry; Codex bullet "Wounds open doors" with the choose-your-wound warning. (Note: openings sit in the bonus section, so they don't apply through blocked/immune walls.)
+
+### v1.16.0 — the system's own dice; Strings bite in combat
+- **`useSystemRollDialog`**: maneuver rolls go through `actor.rollSkillCheck(key, { situationalMods, rollMode })` — the A5E dialog with advantage/expertise dice. The module passes its assess extras (grip/combo/wound/dots…) as a pre-filled situational mod, reads `msg.rolls[0].total` back, and resolves outcome/gamble/cards itself. Our card shows `[dice] — system check` and attaches no roll (no double dice animation). Maneuver skills: Insight, Deception, Performance, Intimidation, Persuasion + Investigation (Cross-Examine) — a5e uses the same 3-letter keys as dnd5e.
+- **Pull the String (universal +5)**: a String is +5 to ANY roll against that person — even an attack. The 🎭+5 button in the Bonds row burns one and posts a public card ("+5 to this roll against them"); the table applies it to the roll just made. Codex gamble bullet teaches the universal rule.
 
 ### VTools Integration (hud-button.js)
 ```js

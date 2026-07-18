@@ -24,6 +24,15 @@ Hooks.once("init", () => {
     },
   });
 
+  game.settings.register("tsl-social-conflict", "useSystemRollDialog", {
+    name: "Use the system's roll dialog (A5E)",
+    hint: "Maneuver rolls open the system's own skill-check dialog — pick advantage, expertise dice and situational modifiers there. The module's fencing bonuses are pre-filled as a situational modifier; outcome, hidden DC and consequences still resolve through the module.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: false,
+  });
+
   game.settings.register("tsl-social-conflict", "enableHoldLine", {
     name: "Hold the Line",
     hint: "When a maneuver lands a status, ask (GM dialog) whether the defender holds the line: refuse the status and the Resolve hit by taking an emotional TSL Condition instead. Four Conditions = Overwhelmed.",

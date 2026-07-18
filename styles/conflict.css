@@ -2756,6 +2756,21 @@
 .tsl-bar-hint--vuln { color: #7fd89a; }
 .tsl-bar-hint--imm  { color: #e8a855; }
 
+/* "Pull the String" — the universal +5 burn in the bond row */
+.tsl-chr-str-pull {
+  background: transparent;
+  border: 1px solid rgba(232, 85, 122, 0.4);
+  border-radius: 10px;
+  color: var(--tsl-notes-accent, #e8557a);
+  font-size: 10px;
+  padding: 2px 7px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.tsl-chr-str-pull:hover:not(:disabled) { background: rgba(232, 85, 122, 0.12); }
+.tsl-chr-str-pull:disabled { opacity: 0.4; cursor: default; }
+
 /* GM "opened heart" String award — a quiet icon on the participant card */
 .tsl-conflict-root .tsl-award-string {
   width: auto; flex-shrink: 0;
@@ -3308,6 +3323,7 @@
 .tsl-fencing .tsl-notes-root .tsl-chr-pick-btn,
 .tsl-fencing .tsl-notes-root .tsl-fc-string,
 .tsl-fencing .tsl-notes-root .tsl-chr-str-adj,
+.tsl-fencing .tsl-notes-root .tsl-chr-str-pull,
 .tsl-fencing .tsl-notes-root .tsl-notes-patience-adj,
 .tsl-fencing .tsl-notes-root .tsl-chr-bond-remove,
 .tsl-fencing .tsl-notes-root .tsl-notes-string-remove,

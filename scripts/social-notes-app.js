@@ -380,7 +380,7 @@ class SocialFencingApp extends Application {
           <li><b>Play the states, not the buttons (◆).</b> Every set-up cashes in the way you'd guess from life: <b>heat them</b> (Taunt → Provoked) and strike the temper — Humiliate lands +1 into the gap, and <b>Mock kicks anyone off balance</b> (+1 vs any status). <b>Make them chase</b>: Stir Jealousy — give your warmth to someone ELSE in front of them and they turn Desperate — then Charm them while they cling (+1 damage) or Bargain while they'd sign anything (+1 String). <b>Hearts owe</b>: a Smitten heart weighs debts double (Charm → Guilt Trip, +1 String), and the Guilted over-explain (→ Cross-Examine, +1 String). The ◆ mark = armed right now.</li>
           <li><b>The exchange has grades.</b> Beat the mark cleanly (well over) and the hit cuts deeper (+1 damage). Miss BADLY — or hit an immunity — and you earn <b>their Answer</b>, in their triad's own language: Power towers over you (you're Rattled) · Emotion turns it into their wound before the room (you're Guilted) · Reason files it away (a String on you). One rule. Know who you're playing before you commit.</li>
           <li><b>Strings are trump cards — earned with your heart.</b> The surest way to gain a String is to OPEN UP at the table: speak a true fear in character, share the memory that stings, show the wound. The GM awards you a String on the person you opened up to — intimacy is a thread, and you now hold one end. (Baits and deep reads earn them too.)</li>
-          <li><b>The gamble.</b> When your roll falls short, you may burn a String on them for <b>+5</b> — decided AFTER you see the die, against a difficulty you cannot see. A String almost always turns a near miss. Sometimes you still just fed them your last hold.</li>
+          <li><b>The gamble.</b> When your maneuver falls short, you may burn a String on them for <b>+5</b> — decided AFTER you see the die, against a difficulty you cannot see. And the rule is UNIVERSAL: a String is +5 to <b>any roll against that person — even an attack</b> — pulled right after the die falls (the 🎭+5 button in your Bonds posts the public card). A String almost always turns a near miss. Sometimes you still just fed them your last hold.</li>
           <li><b>Hold the line.</b> When a maneuver lands on YOU, the words cannot be unsaid — but you may refuse their power: take a fitting emotional <b>Condition</b> instead of the status and the Resolve hit. Speak how you hold it. Four Conditions and you are <b>Overwhelmed</b> — you must yield or flee. Refusing is never free.</li>
           <li><b>Wounds open doors (❤).</b> Conditions are not just burdens — they are standing openings (+2, never consumed; wounds close only through drama): the <b>Angry</b> rise to Taunts and Humiliation · a <b>Smitten</b> heart melts before Flattery and Charm · the <b>Guilty</b> spill into Guilt Trips and Cross-Examination · the <b>Scared</b> let every doubt land · the <b>Hopeless</b> will take any offer, any warmth. So when you hold the line, CHOOSE your wound wisely — it decides which door stands open on you. And Speak from the Heart can inflict Conditions: the sincere 2d6 layer loads the fencing layer's guns.</li>
           <li><b>Tempo.</b> This is fencing, not a firing squad: after your maneuver, THEY answer — a demand, a question, a maneuver of their own (the GM speaks) — before you act again. One exchange, one blade each.</li>
@@ -489,7 +489,9 @@ class SocialFencingApp extends Application {
             <select class="tsl-chr-bond-arch" data-bond-id="${b.id}" ${disabled}>${archOpts(b.perceivedArchetypeId)}</select>
             ${canEdit ? `
               <button class="tsl-chr-str-adj" data-bond-id="${b.id}" data-target="${b.targetActorId}" data-delta="1"  data-tooltip="Gain a string on them">+</button>
-              <button class="tsl-chr-str-adj" data-bond-id="${b.id}" data-target="${b.targetActorId}" data-delta="-1" data-tooltip="Spend / remove a string" ${b.stringCount ? "" : "disabled"}>−</button>` : ""}
+              <button class="tsl-chr-str-adj" data-bond-id="${b.id}" data-target="${b.targetActorId}" data-delta="-1" data-tooltip="Spend / remove a string" ${b.stringCount ? "" : "disabled"}>−</button>
+              <button class="tsl-chr-str-pull" data-target="${b.targetActorId}" ${b.stringCount ? "" : "disabled"}
+                data-tooltip="PULL THE STRING: burn 1 for +5 to the roll just made against them — ANY roll: a maneuver, an attack, a contest. Posts a public card.">🎭+5</button>` : ""}
           </div>
           <input type="text" class="tsl-chr-bond-notes" data-bond-id="${b.id}" value="${esc(b.notes)}"
                  placeholder="History, debts, secrets between you…" ${disabled} />
@@ -1041,6 +1043,25 @@ class SocialFencingApp extends Application {
       });
     });
 
+    // Pull the String: burn one for +5 to ANY roll against that person —
+    // a maneuver, an ATTACK, a contested check. The card announces it; the
+    // table applies the +5 to the roll that was just made.
+    el.querySelectorAll(".tsl-chr-str-pull").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const targetId = btn.dataset.target;
+        const list = TSLStringStore.getList(this._actor.id).filter(e => e.targetActorId === targetId);
+        if (!list.length) { ui.notifications.warn("No Strings held on them."); return; }
+        await TSLStringStore.removeEntry(this._actor.id, list[0].id);
+        const target = game.actors.get(targetId);
+        const esc = foundry.utils.escapeHTML;
+        await ChatMessage.create({
+          speaker: ChatMessage.getSpeaker({ actor: this._actor }),
+          content: `<div class="tsl-maneuver-card tsl-mv--success"><div class="tsl-mv-outcome tsl-mv-outcome--success">🎭 ${esc(this._actor.name)} pulls a String on ${esc(target?.name ?? "them")} — <b>+5 to this roll</b> against them (any roll: a maneuver, an attack, a contest). ${list.length - 1} String${list.length - 1 === 1 ? "" : "s"} left.</div></div>`,
+        });
+        this.render(true);
+      });
+    });
+
     el.querySelectorAll(".tsl-chr-str-adj").forEach(btn => {
       btn.addEventListener("click", async () => {
         const targetId = btn.dataset.target;
@@ -1146,15 +1167,19 @@ class SocialFencingApp extends Application {
       return;
     }
 
-    // System-style roll dialog: situational modifier + adv/dis. Cancel = free.
-    const mods = await SocialManeuverRoller.promptRollMods(`${maneuver.name} → ${tgt.name}`, assessment.advantage);
+    // Roll config: the SYSTEM's own dialog when the setting is on (advantage,
+    // expertise dice, situational mods live there), else our slim prompt.
+    const mods = SocialManeuverRoller.usesSystemDialog(src)
+      ? { situational: 0, mode: "normal" }
+      : await SocialManeuverRoller.promptRollMods(`${maneuver.name} → ${tgt.name}`, assessment.advantage);
     if (!mods) return;
 
     // Strings are the post-roll gamble: on a miss, rollManeuver offers to
-    // burn one for +2 — decided AFTER the die, against a hidden difficulty.
+    // burn one for +5 — decided AFTER the die, against a hidden difficulty.
     const payload = await SocialManeuverRoller.rollManeuver(src, tgt, maneuver, {
       leverage, situational: mods.situational, mode: mods.mode, offerString: true,
     });
+    if (!payload) return;   // system dialog cancelled — nothing spent
     if (payload.spentStringPostRoll) {
       const held = TSLStringStore.getList(src.id).filter(e => e.targetActorId === tgt.id);
       if (held.length) await TSLStringStore.removeEntry(src.id, held[0].id);
