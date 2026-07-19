@@ -311,6 +311,10 @@ TSL stats mapped to D&D abilities:
 - What PLAYERS still see (all deduction-safe): their own bonuses (support skill, bond ●, string grip, triad leaning), armed combos ◆ and open wounds ❤ (read off VISIBLE statuses), a live Defiant wall ⚡ (a visible status). Nature is learned from OUTCOMES (surprise Advantage dice, unexpected bounces, whispered tells), never off a pre-roll readout. The dice always follow the truth regardless.
 - Rationale: the user judged that even guess-relative weak/strong hints risked players reverse-engineering the archetype via the Codex matrix. GM-only closes it entirely.
 
+### v1.25.0 — Codex rebuilt for clarity; better fit
+- **Codex restructured** (`_buildCodexTab`): opens with a 5-step **"Your turn, step by step"** quick-start (pick who → pick maneuver → roll → GM calls it → see what it did), then tight titled sub-blocks (`tsl-codex-sub` + `-sub-title`, a `sub(title, items[])` helper) instead of a 13-bullet wall. Adds the two previously-missing facts every player needs: the GM confirms the outcome (final word), and the A5E system roll dialog is what opens. GM section regrouped into Setting the scene / Playing the opponent / Rewarding play. Archetypes get a "nine natures" intro; statuses render as a responsive 2-col grid.
+- Chronicle window width 460→500 for breathing room; `.tsl-codex-quick` numbered-accent styling, `.tsl-codex-statuses` grid.
+
 ### VTools Integration (hud-button.js)
 ```js
 Hooks.once("vtools.ready", () => {

@@ -81,7 +81,7 @@ class SocialFencingApp extends Application {
       id:          "tsl-social-fencing",
       title:       "Social Chronicle",
       template:    null,
-      width:       460,
+      width:       500,
       height:      "auto",
       resizable:   true,
       minimizable: true,
@@ -369,38 +369,81 @@ class SocialFencingApp extends Application {
   _buildCodexTab() {
     const esc = foundry.utils.escapeHTML;
 
-    const how = `
-      <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title">How Fencing Works</div>
-        <ol class="tsl-codex-how">
-          <li><b>Read them — and guess.</b> No one hands you the archetype. Watch behavior; a successful Read Them / Cross-Examine whispers a <b>tell</b>. Write your guess into your Bond ("Read as") — the ✦/⚡ marks follow YOUR read, right or wrong, while the dice always follow the truth. Wrong guesses teach: an unexpected bounce or a surprising crit is evidence.</li>
-          <li><b>Pick the lever.</b> A maneuver rolls d20 + a primary skill + a support skill vs their <b>social DC</b> — the target defends with two mental stats: 10 + WIS + INT + proficiency (or passive Insight if higher), so a sharp mind resists on both fronts while a dull one folds. The relationship IS the terrain, and it has TYPE and STRENGTH (0–3 ●): <b>your bond</b> toward them arms its school (+● on those maneuvers — rivalries feed Power plays, love feeds Emotion, debts feed Reason); <b>their bond</b> toward you is their guard (a friend's or debtor's door opens, DC −their ●; an enemy is wary, DC +●); and closeness has a COST — turn Power on someone you love and the Guilt is yours. Rattled −5. ✦ vulnerability = Advantage & +1 damage; ⚡ immunity = auto-fail, Defiant.</li>
-          <li><b>Lean into your nature — it cuts both ways.</b> Your Extended Triad dots (Profile tab) power your attacks: <b>+1 per dot</b> on that triad's maneuvers, <b>−1</b> on a triad where you have none. And they DEFEND you: your ruling triad (unique 2+●) is <b>home ground</b> — its school struggles against you (+2 DC) and your <b>Answer</b> punishes bad misses in its language; but a 0-dot school is your <b>blind side</b> (+1 against you), and the school that counters your ruling triad reads you (+2). Split evenly and you're unreadable — no home ground, no Answer, no counter reads you.</li>
-          <li><b>Know the counter cycle.</b> Every archetype is soft against the school that counters its triad (<b>+2</b> to the attacker, » badge): <b>Power breaks Emotion → Emotion cracks Reason → Reason binds Power</b>. Read them first — before a read, the panel only whispers that "something in them yields".</li>
-          <li><b>Play the states, not the buttons (◆).</b> Every set-up cashes in the way you'd guess from life: <b>heat them</b> (Taunt → Provoked) and strike the temper — Humiliate lands +1 into the gap, and <b>Mock kicks anyone off balance</b> (+1 vs any status). <b>Make them chase</b>: Stir Jealousy — signal your warmth is wanted elsewhere (a rival real or invented, "others would leap at this") and they turn Desperate — then Charm them while they cling (+1 damage) or Bargain while they'd sign anything (+1 String). <b>Hearts owe</b>: a Smitten heart weighs debts double (Charm → Guilt Trip, +1 String), and the Guilted over-explain (→ Cross-Examine, +1 String). The ◆ mark = armed right now.</li>
-          <li><b>The exchange has grades.</b> Beat the mark cleanly (well over) and the hit cuts deeper (+1 damage). Miss BADLY — or hit an immunity — and you earn <b>their Answer</b>, in their triad's own language: Power towers over you (you're Rattled) · Emotion turns it into their wound before the room (you're Guilted) · Reason files it away (a String on you). One rule. Know who you're playing before you commit.</li>
-          <li><b>Strings are trump cards — earned with your heart.</b> The surest way to gain a String is to OPEN UP at the table: speak a true fear in character, share the memory that stings, show the wound. The GM awards you a String on the person you opened up to — intimacy is a thread, and you now hold one end. (Baits and deep reads earn them too.)</li>
-          <li><b>The gamble.</b> When your maneuver falls short, you may burn a String on them for <b>+5</b> — decided AFTER you see the die, against a difficulty you cannot see. And the rule is UNIVERSAL: a String is +5 to <b>any roll against that person — even an attack</b> — pulled right after the die falls (the 🎭+5 button in your Bonds posts the public card). A String almost always turns a near miss. Sometimes you still just fed them your last hold.</li>
-          <li><b>Hold the line.</b> When a maneuver lands on YOU, the words cannot be unsaid — but you may refuse their power: take a fitting emotional <b>Condition</b> instead of the status and the Resolve hit. Speak how you hold it. Four Conditions and you are <b>Overwhelmed</b> — you must yield or flee. Refusing is never free.</li>
-          <li><b>Wounds open doors (❤).</b> Conditions are not just burdens — they are standing openings (+2, never consumed; wounds close only through drama): the <b>Angry</b> rise to Taunts and Humiliation · a <b>Smitten</b> heart melts before Flattery and Charm · the <b>Guilty</b> spill into Guilt Trips and Cross-Examination · the <b>Scared</b> let every doubt land · the <b>Hopeless</b> will take any offer, any warmth. So when you hold the line, CHOOSE your wound wisely — it decides which door stands open on you. And Speak from the Heart can inflict Conditions: the sincere 2d6 layer loads the fencing layer's guns.</li>
-          <li><b>Tempo.</b> This is fencing, not a firing squad: after your maneuver, THEY answer — a demand, a question, a maneuver of their own (the GM speaks) — before you act again. One exchange, one blade each.</li>
-          <li><b>Play your leverage.</b> A read dossier unlocks their <b>Desire</b> (Advantage, +1 Resolve damage), <b>Fear</b> (+3, but a failed threat burns their Patience) and <b>Weakness</b> (neutral counts as vulnerable) — each once per encounter.</li>
-          <li><b>Win the exchange.</b> Successes break <b>Resolve</b> (0 = swayed — and the bond toward you deepens, +1 strength); failures burn <b>Patience</b> (0 = they walk away, the bond cools −1 — and HOW they leave depends on their triad). Statuses chain into combos. Strings are a standing grip: holding any gives +1 on maneuvers against that person (and theirs on you raise your DC to sway them); burning one on a miss is the +5 gamble.</li>
-          <li><b>Or win sincerely.</b> Emotional moves (2d6) are the honest route: a Strong Hit on Speak from the Heart or Provoke also chips 1 Resolve, and Read the Room (10+) reveals their nature without manipulation.</li>
-        </ol>
-      </section>
+    // A titled block of short bullets — scannable, not a wall of prose.
+    const sub = (title, items) => `
+      <div class="tsl-codex-sub">
+        <div class="tsl-codex-sub-title">${title}</div>
+        <ul class="tsl-codex-how">${items.map(i => `<li>${i}</li>`).join("")}</ul>
+      </div>`;
 
+    const quickStart = `
       <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title">Running it (GM)</div>
-        <ol class="tsl-codex-how">
-          <li><b>When to draw blades.</b> The fencing runs only when the NPC is UNWILLING and the stakes are real. A friendly favor, an easy lie, a routine haggle — that's one ordinary skill check, not an exchange.</li>
-          <li><b>Both sides play.</b> Give every fencing NPC an <b>Agenda</b> (Profile → GM field): what THEY want from this conversation. If they walk away with Patience intact, their agenda ADVANCES — losing an exchange must cost the players something. And answer every player maneuver with one of the NPC's own: maneuver the PCs back, demand, bluff.</li>
-          <li><b>The crowd hardens people.</b> When several PCs pile onto one target in the same exchange, add +1 to the DC per extra voice (the situational modifier is for this). Being pressed by a chorus feels like a siege — people close up. Let the party pick their fencer; the rest pass Strings and leverage.</li>
-          <li><b>Size the ask.</b> Set Resolve by the WEIGHT of what the players want, not just the sheet: a small favor 3 · a real cost 5–6 · against their nature 8, and the impossible also demands played leverage (their Desire or Fear on the table). Nobody betrays their king over a nice speech.</li>
-          <li><b>Their patience is the scene's clock.</b> Past half, they harden (the DC quietly rises) — change their manner at the table. On the last point, say it plainly: one more misstep and this conversation is over.</li>
-          <li><b>Reward open hearts.</b> When a player genuinely opens up in character — a true fear, a confession, the story behind the scar — award them a <b>String</b> on the person they opened up to (the 💖 button on their conflict card, or the Bonds tab anytime). This is the PRIMARY way Strings should enter play: a +5 trump card is the price of a bared heart, not of button-mashing.</li>
+        <div class="tsl-notes-section-title">Your turn, step by step</div>
+        <ol class="tsl-codex-how tsl-codex-quick">
+          <li><b>Pick who.</b> Choose a target above (or the <b>Map</b> button to click their token). You act on one person at a time — never yourself.</li>
+          <li><b>Pick a maneuver.</b> Twelve, in four schools. Hover any chip to see exactly what it does to <b>this</b> target. Each rolls a main skill + a support skill.</li>
+          <li><b>Roll it.</b> On A5E the system's own roll dialog opens (advantage, expertise dice) with your fencing bonuses pre-filled. You never see the number you must beat — only the GM does.</li>
+          <li><b>The GM calls it.</b> After the dice, the GM has the final word on whether you got through — clean hit, hit, miss, or fumble.</li>
+          <li><b>See what it did.</b> A hit chips their <b>Resolve</b> or lands a status; a miss burns their <b>Patience</b>. Break their Resolve to sway them; empty their Patience and they walk away.</li>
         </ol>
       </section>`;
+
+    const reference = `
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title">The details</div>
+        ${sub("Read them — nature is hidden", [
+          `No one is handed the archetype. A successful <b>Read Them</b> whispers a private <b>tell</b> — deduce who they are and note your guess in the Bond ("Read as").`,
+          `You never see their weak spots or their difficulty — that's the GM's to know. You learn by watching what happens: an unexpected bounce, a surprise clean hit, a whispered tell.`,
+        ])}
+        ${sub("The relationship is the terrain (Bonds)", [
+          `A bond has a <b>TYPE</b> and a <b>STRENGTH</b> (0–3 ●). <b>Your</b> bond toward them is a weapon — its school gets <b>+●</b> (rivals feed Power, love feeds Emotion, debts feed Reason).`,
+          `<b>Their</b> bond toward you is their guard — a friend, lover or debtor opens up (easier); an enemy is wary (harder).`,
+          `Closeness costs: turn a <b>Power</b> play on someone you love and the <b>Guilt</b> is yours.`,
+        ])}
+        ${sub("Statuses & combos (◆)", [
+          `Maneuvers apply statuses — Provoked, Smitten, Desperate, Guilted, Rattled. A <b>◆</b> on a chip means a combo or open wound is live <b>right now</b>.`,
+          `Chains read like life: <b>heat them</b> (Taunt → Provoked) then Humiliate the gap; <b>make them chase</b> (Stir Jealousy → Desperate) then Charm or Bargain; a <b>Smitten</b> heart owes double (Charm → Guilt Trip).`,
+          `<b>Wounds open doors (❤):</b> an emotional Condition (Angry, Smitten, Guilty, Scared, Hopeless) is a standing <b>+2</b> for the maneuvers that speak to it, until the story resolves it.`,
+        ])}
+        ${sub("Grades & the Answer", [
+          `A <b>clean hit</b> (well over) cuts +1 deeper. A <b>bad miss</b> — or hitting an immunity — earns their <b>Answer</b>: Power leaves you Rattled · Emotion leaves you Guilty before the room · Reason takes a String on you.`,
+          `Fumble that badly as a player and you gain <b>Inspiration</b> — losing spectacularly is worth something.`,
+        ])}
+        ${sub("Strings — earned with your heart", [
+          `The surest way to earn a String is to <b>open up</b> in character — a true fear, a confession, the story behind the scar. The GM grants you one on the person you opened up to.`,
+          `Spend a String for <b>+5 to ANY roll against that person — even an attack</b> (the 🎭+5 button), decided after you see the die. Holding one is also a quiet +1 on maneuvers against them.`,
+        ])}
+        ${sub("Hold the line — when it lands on YOU", [
+          `The words can't be unsaid, but you may refuse their <b>power</b>: take a fitting emotional <b>Condition</b> instead of the status and the Resolve hit. Only the effect is refused, never the words.`,
+          `Four Conditions and you are <b>Overwhelmed</b> — you must yield or flee.`,
+        ])}
+        ${sub("Win, lose, or be sincere", [
+          `Break their <b>Resolve</b> to 0 → <b>swayed</b> (they concede; the bond toward you deepens). Empty their <b>Patience</b> → they <b>walk away</b> (and leave holding something over you).`,
+          `Or win honestly: the 2d6 <b>Feelings</b> moves (Speak from the Heart, Read the Room) chip Resolve and reveal nature <b>without</b> manipulation.`,
+          `<b>Leverage</b> (once each): a read dossier unlocks their Desire (Advantage, +1 damage), Fear (+3, but a failed threat costs them Patience), Weakness (a plain approach counts as a weak spot).`,
+        ])}
+      </section>`;
+
+    const gm = `
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title">Running it (GM)</div>
+        ${sub("Setting the scene", [
+          `<b>Draw blades only when it's real:</b> the NPC is unwilling AND the stakes matter. A favor, an easy lie, a routine haggle is one ordinary check, not an exchange.`,
+          `<b>Size the ask by weight, not sheet:</b> Resolve 3 for a small favor · 5–6 for a real cost · 8 against their nature (and demand played leverage for the impossible). Nobody betrays their king over a nice speech.`,
+          `<b>A crowd hardens people:</b> +1 DC per extra voice pressing the same target (use the situational modifier). Let the party pick one fencer; the rest pass Strings and leverage.`,
+        ])}
+        ${sub("Playing the opponent", [
+          `<b>Both sides play:</b> give each fencing NPC an <b>Agenda</b> (Profile → GM field) — what THEY want. Answer every player maneuver with one of the NPC's own: maneuver back, demand, bluff.`,
+          `<b>Losing must cost:</b> if they walk away with Patience intact, their Agenda advances.`,
+          `<b>Patience is the clock:</b> past half they harden (the DC quietly rises) — change their manner; on the last point, say it plainly.`,
+        ])}
+        ${sub("Rewarding play", [
+          `<b>Reward open hearts:</b> when a player truly opens up, grant a <b>String</b> on the one they opened up to (💖 on the conflict card, or the Bonds tab). This is the main way Strings should enter play — the price of a bared heart, not button-mashing.`,
+          `<b>You have the final word:</b> after each roll you confirm the grade against the hidden DC (it's pre-selected — one click). The story, not the raw die, decides.`,
+        ])}
+      </section>`;
+
+    const how = quickStart + reference + gm;
 
     const triadBlocks = Object.values(SOCIAL_TRIADS).map(triad => {
       const cards = SOCIAL_ARCHETYPES
@@ -431,6 +474,10 @@ class SocialFencingApp extends Application {
 
     return `
       ${how}
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title">The nine natures</div>
+        <div class="tsl-codex-hint-sm">Never shown to players — deduce them. Each has at least one ✦ weak spot and one ⚡ wall, and the traps sit INSIDE a triad, so knowing the school isn't enough.</div>
+      </section>
       ${triadBlocks}
       <section class="tsl-notes-section">
         <div class="tsl-notes-section-title">Statuses</div>

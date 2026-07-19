@@ -2102,12 +2102,38 @@
   margin: 0;
   padding-left: 18px;
   font-size: 12px;
-  line-height: 1.55;
+  line-height: 1.5;
   color: var(--tsl-notes-muted);
 }
+.tsl-codex-how li { margin-bottom: 3px; }
 .tsl-codex-how b { color: var(--tsl-notes-text); }
 .tsl-codex-vuln { color: #7ee89a; }
 .tsl-codex-imm  { color: #e88a8a; }
+
+/* Quick-start: numbered, a touch bolder — the first thing a new player reads */
+.tsl-codex-quick { font-size: 12.5px; line-height: 1.5; }
+.tsl-codex-quick li { margin-bottom: 5px; }
+.tsl-codex-quick li::marker { color: var(--tsl-notes-accent); font-family: 'Cinzel', serif; }
+
+/* Titled sub-blocks inside a section — scannable chunks with a left rule */
+.tsl-codex-sub { margin: 9px 0 0; }
+.tsl-codex-sub:first-child { margin-top: 2px; }
+.tsl-codex-sub-title {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--tsl-notes-accent);
+  margin-bottom: 2px;
+  padding-left: 8px;
+  border-left: 2px solid color-mix(in srgb, var(--tsl-notes-accent) 55%, transparent);
+}
+.tsl-codex-hint-sm {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--tsl-notes-muted);
+  line-height: 1.4;
+}
 
 .tsl-codex-triad-head {
   font-family: 'Cinzel', serif;
@@ -2126,9 +2152,9 @@
 }
 
 .tsl-codex-statuses {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  gap: 8px 14px;
 }
 
 .tsl-codex-status {
