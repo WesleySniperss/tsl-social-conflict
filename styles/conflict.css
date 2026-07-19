@@ -1723,6 +1723,17 @@
   font-style: italic;
 }
 
+/* Veiled archetype reaction — a tell, not an answer; quiet, evidence-toned */
+.tsl-mv-tell {
+  font-size: 11px;
+  font-style: italic;
+  color: #b79ad0;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed rgba(255,255,255,0.08);
+  line-height: 1.4;
+}
+
 /* ═══ DESIGN PASS ══════════════════════════════════════════════ */
 
 /* ─── Layout guards: nothing may spill out of its window ──────── */

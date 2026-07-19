@@ -292,6 +292,11 @@ TSL stats mapped to D&D abilities:
 - **Card posting moved to the GM client**: `rollManeuver` no longer posts the chat card; it returns a `card:{}` payload (rawDice, systemRoll, adv/dis, `rollData: roll.toJSON()`). `applyOutcome` (always GM) re-assesses on the truth side, posts the card AFTER adjudication (rebuilding the Roll via `Roll.fromData` for non-system rolls), so the shared card can never show a result the GM then overrode. The acting client still gets its instant dice overlay from the payload.
 - Skills audit (answer to "do all rolls use the five social skills?"): 11/12 do — Insight, Deception (Mock/Play Weak/Undermine), Performance (Taunt/Charm/Stir Jealousy), Intimidation (Humiliate), Persuasion (Flatter/Guilt Trip/Bargain); the lone exception is **Cross-Examine → Investigation**.
 
+### v1.20.0 — archetypes react in their own voice
+- **`ARCHETYPE_REACTIONS` (social-archetypes.js)**: 20 VEILED reaction lines per archetype (9×20=180) — how that nature visibly cracks when a maneuver lands. Appended to the outcome card on success/crit (`SocialArchetypeManager.pickReaction`, rendered as `.tsl-mv-tell`), EXCEPT for `reveals` maneuvers (Read Them keeps its private whisper). Never names the archetype — reads as deduction evidence, a richer tell stream than reads alone.
+- **`ARCHETYPE_TELLS` (social-archetypes.js)**: 20 whispered Read Them clues per archetype (9×20=180) — the deepest pool, since Read Them is cast most. `whisperTell` now draws from `pickTell` (falls back to the old tells/craves/dreads for custom archetypes with no pool).
+- Both pools are strictly veiled (a harness test asserts no line contains an archetype label) and support the hidden-archetype deduction loop: you learn WHO someone is by how they break under pressure, refreshed every roll so it never goes stale.
+
 ### VTools Integration (hud-button.js)
 ```js
 Hooks.once("vtools.ready", () => {

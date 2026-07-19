@@ -913,11 +913,16 @@ class SocialManeuverRoller {
       ...game.users.filter(u => sourceActor.testUserPermission(u, "OWNER")).map(u => u.id),
       ...game.users.filter(u => u.isGM).map(u => u.id),
     ];
-    const pool = arch
+    // The deepest pool of all — Read Them is cast most, so it draws from the
+    // 20-per-archetype whisper set (falling back to the old tells/craves/dreads
+    // if a custom archetype has no pool).
+    const tell = arch ? SocialArchetypeManager.pickTell(arch.id) : null;
+    const fallback = arch
       ? [...(arch.tells ?? []), `They seem to crave: ${arch.craves ?? "?"}`, `They seem to dread: ${arch.dreads ?? "?"}`]
       : null;
-    const text = pool?.length
-      ? `🔍 Reading ${esc(targetActor.name)}: <i>“${esc(pool[Math.floor(Math.random() * pool.length)])}”</i><br><span class="tsl-mv-target">Deduce their nature and note your guess in your Bond (“Read as”).</span>`
+    const line = tell ?? (fallback?.length ? fallback[Math.floor(Math.random() * fallback.length)] : null);
+    const text = line
+      ? `🔍 Reading ${esc(targetActor.name)}: <i>“${esc(line)}”</i><br><span class="tsl-mv-target">Deduce their nature and note your guess in your Bond (“Read as”).</span>`
       : `🔍 Reading ${esc(targetActor.name)}: <i>the GM should describe a tell of their nature</i> (no archetype is set).`;
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: sourceActor }),
@@ -963,8 +968,13 @@ class SocialManeuverRoller {
         outcomeType === "crit"    ? `Clean through the guard. ${maneuver.successText}` :
         outcomeType === "botch"   ? `${maneuver.failText} The opening is yours no longer — they answer.` :
         (outcomeType === "success") ? maneuver.successText : maneuver.failText;
+      // A landed blow shows WHO you hit: a veiled archetype reaction (evidence,
+      // never a name). Skipped for Read Them — its clue is the private whisper.
+      const reaction = (!maneuver.reveals && (outcomeType === "success" || outcomeType === "crit"))
+        ? SocialArchetypeManager.pickReaction(SocialArchetypeManager.getArchetype(targetActor)?.id)
+        : null;
       await SocialManeuverRoller._postCard({
-        sourceActor, targetActor, maneuver, assessment: a,
+        sourceActor, targetActor, maneuver, assessment: a, reaction,
         total: payload.total, outcomeType, outcomeText,
         rawDice: payload.card.rawDice, systemRoll: payload.card.systemRoll,
         stringBonus: payload.card.stringBonus, situational: payload.card.situational,
@@ -1247,6 +1257,7 @@ class SocialManeuverRoller {
     <span class="tsl-mv-total tsl-mv-total--${d.outcomeType}">${d.total}</span>
   </div>
   <div class="tsl-mv-outcome tsl-mv-outcome--${d.outcomeType}">${esc(d.outcomeText)}</div>
+  ${d.reaction ? `<div class="tsl-mv-tell">${esc(d.reaction)}</div>` : ""}
 </div>`,
       // A system roll already lives in the system's own message — re-attaching
       // it here would fire dice animations twice
