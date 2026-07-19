@@ -98,16 +98,16 @@ tsl-social-conflict/
 ### Fencing Statuses (SOCIAL_CONDITIONS, all mechanical)
 | Status | Effect | From | Lifetime |
 |--------|--------|------|----------|
-| Rattled | DC to sway them −5; **combat:** standard A5E Rattled (no expertise dice/reactions; midi dis WIS saves on dnd5e) | Undermine | scene (1h) |
-| Smitten | charmer's Persuasion maneuvers get Advantage; the smitten one CANNOT maneuver against the charmer (hard block in assess); **combat:** can't attack the charmer; ONE plausible command (WIS save or comply); harmed by charmer's side → breaks into Provoked vs charmer | Flatter, Charm | scene (1h) |
-| Provoked | next maneuver vs them +2; **combat:** must move to & attack the provoker, dis vs others, attacks AGAINST them have adv | Taunt | one-shot |
-| Guilted | guilter's next maneuver gets Advantage; **combat:** the one they owe attacks them with adv, no reactions vs them; if that one draws blood → Guilted becomes Rattled | Guilt Trip | one-shot |
-| Desperate | next Flatter/Charm gets Advantage, Bargain cashes it (+1 String); **combat:** all-in — adv on ALL their attacks AND all attacks against them | Stir Jealousy | one-shot |
-| Defiant | immune to maneuvers; **Read Them slips through** (`worksThroughDefiant`) and a SUCCESSFUL read breaks the wall; **combat:** adv saves vs charm/fear, cannot willingly retreat/disengage | hitting an immunity | 10 min or until read |
+| Rattled | DC to sway them −5; **combat:** −2 saves (dnd5e flat) / dis saves (a5e), no expertise dice/reactions (A5E Rattled) | Undermine | scene (1h) |
+| Smitten | charmer's Persuasion maneuvers get Advantage; the smitten one CANNOT maneuver against the charmer (hard block in assess); **combat:** can't attack the charmer (native Charmed); ONE plausible command (WIS save or comply); harmed by charmer's side → breaks into Provoked vs charmer | Flatter, Charm | scene (1h) |
+| Provoked | next maneuver vs them +2; **combat:** reckless — +2 their weapon attacks (adv a5e), −2 AC; GM: must go for the provoker | Taunt | one-shot |
+| Guilted | guilter's next maneuver gets Advantage; **combat:** −2 their weapon attacks (dis a5e); GM: no reactions vs the one they owe; if that one draws blood → Guilted becomes Rattled | Guilt Trip | one-shot |
+| Desperate | next Flatter/Charm gets Advantage, Bargain cashes it (+1 String); **combat:** all-in — +2 their weapon attacks (adv a5e), −2 AC + attacks against them adv (a5e) | Stir Jealousy | one-shot |
+| Defiant | immune to maneuvers; **Read Them slips through** (`worksThroughDefiant`) and a SUCCESSFUL read breaks the wall; **combat:** +2 saves (adv a5e), cannot willingly retreat/disengage | hitting an immunity | 10 min or until read |
 
-Combat statuses are BEHAVIORS with transitions (Smitten→Provoked on heartbreak, Guilted→Rattled on drawn blood — GM applies the flip per the effect text), not stat nudges; automatable parts ship as a5e/midi flags, behavioral parts as bold rules text in the effect description.
+Combat riders are now REAL modifiers that hit weapon attacks and saves OUTSIDE the module, per system: **dnd5e** = flat numeric AE changes with no midi needed (`system.bonuses.mwak.attack`/`rwak.attack`, `system.bonuses.abilities.save`, `system.attributes.ac.bonus`); **a5e** = the system's own roll-mode flags (`flags.a5e.effects.rollMode.attack.all`/`savingThrow.all` adv/dis, `grants.rollMode.attack.all`, `expertiseDice`, `system.attributes.ac.changes.bonuses.value`). Behavioral parts + transitions (Smitten→Provoked, Guilted→Rattled) stay bold rules text the GM applies. Guilted's "vs the one they owe" is generalized to a flat −2/dis on ALL their attacks (target-conditional can't be a flat flag).
 
-**Combat riders** live in each condition's `combat` field → appended to the AE description (`buildConditionEffect`), plus per-system changes: `dnd5eChanges`+`midiChanges` on dnd5e, `a5eChanges` on standalone a5e.
+**Combat riders** live in each condition's `combat` field → appended to the AE description (`buildConditionEffect`), plus per-system changes: `dnd5eChanges`+`midiChanges` on dnd5e, `a5eChanges` on standalone a5e. Codex status rows now render an "In combat:" line.
 
 ### Maneuver redesign (v1.8) — school identities
 - **General** (safe basics, no vuln/imm): Read Them (scout: tell+String, 0 dmg, through Defiant) · Mock (the jab: 1 dmg flat) · Taunt (setup: Provoked, 0 dmg)

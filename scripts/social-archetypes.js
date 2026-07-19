@@ -888,12 +888,15 @@ const SOCIAL_CONDITIONS = {
     seconds: 3600,
     oneShot: false,
     description: "Composure cracked: the DC to sway them is reduced by 5. No reactions or expertise dice.",
-    combat: "Standard A5E Rattled: no expertise dice, no reactions. (dnd5e: disadvantage on Wisdom saves.)",
+    combat: "Shaken: −2 on saving throws (disadvantage on A5E), no expertise dice, no reactions (standard A5E Rattled).",
     links: ["rattled"],
-    midiChanges: [{ key: "flags.midi-qol.disadvantage.ability.save.wis", mode: 0, value: "1" }],
-    // Exactly the standard A5E Rattled automation — same change the system's
-    // own condition carries, so ours behaves identically in combat.
-    a5eChanges: [{ key: "flags.a5e.effects.expertiseDice", mode: 5, value: 0, priority: 200 }],
+    // Flat numbers apply on dnd5e core with no midi needed; a5e reads its own
+    // roll-mode flags natively — both hit real saves outside the module.
+    dnd5eChanges: [{ key: "system.bonuses.abilities.save", mode: 2, value: "-2" }],
+    a5eChanges: [
+      { key: "flags.a5e.effects.expertiseDice", mode: 5, value: 0, priority: 200 },
+      { key: "flags.a5e.effects.rollMode.savingThrow.all", mode: 5, value: -1, priority: 50 },
+    ],
   },
   smitten: {
     id: "smitten",
@@ -914,9 +917,16 @@ const SOCIAL_CONDITIONS = {
     seconds: 600,
     oneShot: true,
     description: "Off balance with anger: the next maneuver against them gains +2, then this fades.",
-    combat: "Red mist: must move toward and attack the provoker if able; attacks against anyone ELSE at disadvantage; attacks against THEM have advantage — they've dropped their guard.",
-    a5eChanges: [{ key: "flags.a5e.effects.grants.rollMode.attack.all", mode: 5, value: 1, priority: 50 }],
-    midiChanges: [{ key: "flags.midi-qol.grants.advantage.attack.all", mode: 0, value: "1" }],
+    combat: "Red mist: their weapon attacks come reckless (+2 to hit, advantage on A5E) but their guard drops (−2 AC). GM: they must go for the provoker; strikes at anyone else suffer.",
+    dnd5eChanges: [
+      { key: "system.bonuses.mwak.attack", mode: 2, value: "+2" },
+      { key: "system.bonuses.rwak.attack", mode: 2, value: "+2" },
+      { key: "system.attributes.ac.bonus", mode: 2, value: "-2" },
+    ],
+    a5eChanges: [
+      { key: "flags.a5e.effects.rollMode.attack.all", mode: 5, value: 1, priority: 50 },
+      { key: "system.attributes.ac.changes.bonuses.value", mode: 2, value: "-2" },
+    ],
   },
   guilted: {
     id: "guilted",
@@ -926,7 +936,12 @@ const SOCIAL_CONDITIONS = {
     seconds: 600,
     oneShot: true,
     description: "Weighed down by obligation: the guilter's next maneuver rolls with Advantage, then this fades.",
-    combat: "Deserved punishment: they don't truly defend against the one they owe — that one's attacks against them have advantage, and they take no reactions against them. GM: if that one draws their blood, Guilted collapses into Rattled (the punishment lands).",
+    combat: "The weight drags every swing: −2 on their weapon attacks (disadvantage on A5E). GM: no reactions against the one they owe; if that one draws blood, Guilted collapses into Rattled.",
+    dnd5eChanges: [
+      { key: "system.bonuses.mwak.attack", mode: 2, value: "-2" },
+      { key: "system.bonuses.rwak.attack", mode: 2, value: "-2" },
+    ],
+    a5eChanges: [{ key: "flags.a5e.effects.rollMode.attack.all", mode: 5, value: -1, priority: 50 }],
   },
   desperate: {
     id: "desperate",
@@ -936,14 +951,16 @@ const SOCIAL_CONDITIONS = {
     seconds: 600,
     oneShot: true,
     description: "Starved and grasping: the next Flatter or Charm against them rolls with Advantage, and a Bargain cashes it for an extra String. Fades once used.",
-    combat: "All-in: advantage on ALL their attack rolls — and all attacks against them have advantage too. A drowning swing drags everyone under.",
-    midiChanges: [
-      { key: "flags.midi-qol.advantage.attack.all", mode: 0, value: "1" },
-      { key: "flags.midi-qol.grants.advantage.attack.all", mode: 0, value: "1" },
+    combat: "All-in: +2 on their weapon attacks (advantage on A5E), and they've thrown away defense — −2 AC, and on A5E attacks against them roll with advantage too. A drowning swing drags everyone under.",
+    dnd5eChanges: [
+      { key: "system.bonuses.mwak.attack", mode: 2, value: "+2" },
+      { key: "system.bonuses.rwak.attack", mode: 2, value: "+2" },
+      { key: "system.attributes.ac.bonus", mode: 2, value: "-2" },
     ],
     a5eChanges: [
       { key: "flags.a5e.effects.rollMode.attack.all", mode: 5, value: 1, priority: 50 },
       { key: "flags.a5e.effects.grants.rollMode.attack.all", mode: 5, value: 1, priority: 50 },
+      { key: "system.attributes.ac.changes.bonuses.value", mode: 2, value: "-2" },
     ],
   },
   defiant: {
@@ -954,9 +971,9 @@ const SOCIAL_CONDITIONS = {
     seconds: 600,
     oneShot: false,
     description: "Walls up: immune to social maneuvers (only Read Them slips through — and a successful read breaks the wall). Triggered by striking an archetype's immunity.",
-    combat: "Dug in: advantage on saving throws against being charmed or frightened — but they cannot willingly retreat, disengage, or leave the confrontation while this lasts.",
-    midiChanges: [{ key: "flags.midi-qol.advantage.ability.save.wis", mode: 0, value: "1" }],
-    a5eChanges: [{ key: "flags.a5e.effects.rollMode.abilitySave.wis", mode: 5, value: 1, priority: 50 }],
+    combat: "Dug in: +2 on their saving throws (advantage on A5E) — charm and fear break against the wall — but they cannot willingly retreat, disengage, or be talked out of the confrontation.",
+    dnd5eChanges: [{ key: "system.bonuses.abilities.save", mode: 2, value: "+2" }],
+    a5eChanges: [{ key: "flags.a5e.effects.rollMode.savingThrow.all", mode: 5, value: 1, priority: 50 }],
   },
 };
 

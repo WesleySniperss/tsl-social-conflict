@@ -2195,6 +2195,14 @@
   color: var(--tsl-notes-muted);
   line-height: 1.4;
 }
+.tsl-codex-status-combat {
+  font-size: 11px;
+  color: var(--tsl-notes-muted);
+  line-height: 1.4;
+  margin-top: 2px;
+  opacity: 0.9;
+}
+.tsl-codex-status-combat b { color: #e8a855; font-family: 'Cinzel', serif; font-weight: 400; }
 .tsl-codex-oneshot {
   font-family: 'EB Garamond', serif;
   font-size: 10px;

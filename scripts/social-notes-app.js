@@ -516,6 +516,7 @@ class SocialFencingApp extends Application {
           <div>
             <div class="tsl-codex-status-name">${esc(meta.label)}${meta.oneShot ? ` <span class="tsl-codex-oneshot" data-tooltip="Consumed by the first roll it affects.">one-shot</span>` : ""}</div>
             <div class="tsl-codex-status-desc">${esc(meta.description)}</div>
+            ${meta.combat ? `<div class="tsl-codex-status-combat"><b>In combat:</b> ${esc(meta.combat)}</div>` : ""}
           </div>
         </div>`;
     }).join("");
