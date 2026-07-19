@@ -294,7 +294,7 @@ TSL stats mapped to D&D abilities:
 
 ### v1.20.0 — archetypes react in their own voice
 - **`ARCHETYPE_REACTIONS` (social-archetypes.js)**: 20 VEILED reaction lines per archetype (9×20=180) — how that nature visibly cracks when a maneuver lands. Appended to the outcome card on success/crit (`SocialArchetypeManager.pickReaction`, rendered as `.tsl-mv-tell`), EXCEPT for `reveals` maneuvers (Read Them keeps its private whisper). Never names the archetype — reads as deduction evidence, a richer tell stream than reads alone.
-- **`ARCHETYPE_TELLS` (social-archetypes.js)**: 20 whispered Read Them clues per archetype (9×20=180) — the deepest pool, since Read Them is cast most. `whisperTell` now draws from `pickTell` (falls back to the old tells/craves/dreads for custom archetypes with no pool).
+- **`ARCHETYPE_TELLS` (social-archetypes.js)**: **40** whispered Read Them clues per archetype (9×40=360 as of v1.20.1) — the deepest pool, since Read Them is cast most. `whisperTell` now draws from `pickTell` (falls back to the old tells/craves/dreads for custom archetypes with no pool).
 - Both pools are strictly veiled (a harness test asserts no line contains an archetype label) and support the hidden-archetype deduction loop: you learn WHO someone is by how they break under pressure, refreshed every roll so it never goes stale.
 
 ### VTools Integration (hud-button.js)
