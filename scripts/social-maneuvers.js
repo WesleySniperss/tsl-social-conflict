@@ -183,10 +183,10 @@ const SOCIAL_MANEUVERS = [
     skillKeys:       { dnd5e: "prf", "a5e-for-dnd5e": "performance" },
     vulnerabilityTags: ["stone-walling", "ignore"],   // Martyr → Advantage
     immunityTags:      ["selfless focus"],            // Caretaker
-    description:  "Warmth, aimed past them. Laugh at another's joke, praise a rival's wit, let your attention settle anywhere but on them — and let them feel the room tilt away.",
-    successText:  "Their eyes keep flicking to your new favorite. They talk faster, lean closer — Desperate (the next Flatter or Charm against them gains Advantage). Resolve −1.",
-    failText:     "They genuinely don't care who you smile at. Patience −1.",
-    immuneText:   "They're pleased to see someone else get the attention. Target becomes Defiant.",
+    description:  "Warmth, aimed anywhere but at them. Make it clear you're wanted elsewhere — praise a rival present OR conjure one who isn't ('others would leap at this'), hint you're spoiled for choice. The rival can be real or invented; what bites is the fear of losing you to someone. They chase what they think they're losing.",
+    successText:  "The thought of someone else in your favor gnaws at them. They talk faster, lean closer, work to win you back — Desperate (the next Flatter or Charm against them gains Advantage). Resolve −1.",
+    failText:     "They call the bluff — they don't believe in your other admirers. Patience −1.",
+    immuneText:   "They'd rather you gave the attention to someone who needs it. Target becomes Defiant.",
     applyOnSuccess: "desperate",
     grantStrings: 0,
     resolveDamage: 1,
