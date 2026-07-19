@@ -378,6 +378,24 @@ class SocialManeuverRoller {
     return SOCIAL_MANEUVERS.find(m => m.id === id) ?? null;
   }
 
+  /**
+   * A small key for the corner marks on maneuver chips. The GM sees the
+   * archetype ones (✦/⚡/»); everyone sees ◆ (it reads off visible statuses).
+   */
+  static chipLegend(isGM) {
+    const items = isGM
+      ? [
+          "<b>◆</b> a combo or open wound is ready",
+          "<b>✦</b> their weak spot — cuts deep",
+          "<b>⚡</b> it bounces off / they're walled",
+          "<b>»</b> their nature yields to this school",
+        ]
+      : [
+          "<b>◆</b> a set-up combo or an open wound is ready to cash on this maneuver",
+        ];
+    return `<div class="tsl-chip-legend">${items.join(" &nbsp;·&nbsp; ")}</div>`;
+  }
+
   /** The actor's proficiency bonus (number), with level/CR fallback. */
   static getProfBonus(actor) {
     const sys = actor.system ?? {};

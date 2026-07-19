@@ -400,8 +400,12 @@ class SocialFencingApp extends Application {
           `<b>Their</b> bond toward you is their guard — a friend, lover or debtor opens up (easier); an enemy is wary (harder).`,
           `Closeness costs: turn a <b>Power</b> play on someone you love and the <b>Guilt</b> is yours.`,
         ])}
-        ${sub("Statuses & combos (◆)", [
-          `Maneuvers apply statuses — Provoked, Smitten, Desperate, Guilted, Rattled. A <b>◆</b> on a chip means a combo or open wound is live <b>right now</b>.`,
+        ${sub("Reading the chip corners", [
+          `<b>◆</b> — a combo or an open wound is ready to cash on this maneuver <b>right now</b> (everyone sees this; it reads off visible statuses).`,
+          `<b>✦</b> their weak spot · <b>⚡</b> it bounces off / they're walled · <b>»</b> their nature yields to this school — these are the <b>GM's</b> to see. Players deduce weak spots from outcomes, not the chips.`,
+        ])}
+        ${sub("Statuses & combos", [
+          `Maneuvers apply statuses — Provoked, Smitten, Desperate, Guilted, Rattled.`,
           `Chains read like life: <b>heat them</b> (Taunt → Provoked) then Humiliate the gap; <b>make them chase</b> (Stir Jealousy → Desperate) then Charm or Bargain; a <b>Smitten</b> heart owes double (Charm → Guilt Trip).`,
           `<b>Wounds open doors (❤):</b> an emotional Condition (Angry, Smitten, Guilty, Scared, Hopeless) is a standing <b>+2</b> for the maneuvers that speak to it, until the story resolves it.`,
         ])}
@@ -735,6 +739,7 @@ class SocialFencingApp extends Application {
           </div>
         </div>
         <div class="tsl-fc-maneuvers">${chips}</div>
+        ${SocialManeuverRoller.chipLegend(ctx.isGM)}
         ${this._buildFenceBar(ctx, src, tgt, arch, isGuess)}`;
     }
 

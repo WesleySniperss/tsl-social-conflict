@@ -414,7 +414,7 @@ class TSLConflictApp extends Application {
           <div class="tsl-chip-group-label" data-tooltip="${esc(schoolTip)}">${esc(short)}</div>
           <div class="tsl-chip-grid">${chips}</div>
         </div>`;
-      }).join("");
+      }).join("") + SocialManeuverRoller.chipLegend(isGM);
     };
 
     const centerBottom = () => {
