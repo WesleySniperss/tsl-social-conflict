@@ -190,9 +190,9 @@ class SocialFencingApp extends Application {
     const r = this._fenceRoll;
     if (!r) return "";
     const oc = (r.outcome === "success" || r.outcome === "crit") ? "Strong Hit" : "Miss";
-    const label = r.outcome === "crit"    ? "✦ Clean hit"
+    const label = r.outcome === "crit"    ? "★ Clean hit"
                 : r.outcome === "success" ? "Success"
-                : r.outcome === "immune"  ? "⚡ Walled off"
+                : r.outcome === "immune"  ? "✕ Walled off"
                 : r.outcome === "botch"   ? "⚔ They answer"
                 : "Failure";
     return `<div class="tsl-dice-overlay"><div class="tsl-dice-panel tsl-dice-panel--maneuver">
@@ -251,7 +251,7 @@ class SocialFencingApp extends Application {
     return `
       ${!isGM ? "" : `
       <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title" data-tooltip="GM ONLY — the character's TRUE nature when targeted: which maneuvers cut deep (✦) and which bounce off (⚡). Players never see this; they deduce it from tells and note their guess in their Bonds.">Archetype · their defence (GM)</div>
+        <div class="tsl-notes-section-title" data-tooltip="GM ONLY — the character's TRUE nature when targeted: which maneuvers cut deep (◎) and which bounce off (✕). Players never see this; they deduce it from tells and note their guess in their Bonds.">Archetype · their defence (GM)</div>
         <select name="archetypeId" ${disabled}>
           <option value="">— Unknown / None —</option>
           ${archetypeOpts}
@@ -337,8 +337,8 @@ class SocialFencingApp extends Application {
             data-tooltip="${esc(m.description)}<br><i>${esc(effect)}</i>">
         ${sym} <i class="fas ${m.icon}"></i> ${esc(m.name)}
       </span>`;
-    const vulnChips = rel.vulnerable.map(m => chip(m, "vulnerable", "✦", "Against this archetype: Advantage on the roll, +1 Resolve damage.")).join("");
-    const immChips  = rel.immune.map(m => chip(m, "immune", "⚡", "Against this archetype: auto-fails, they turn Defiant for 1 hour.")).join("");
+    const vulnChips = rel.vulnerable.map(m => chip(m, "vulnerable", "◎", "Against this archetype: Advantage on the roll, +1 Resolve damage.")).join("");
+    const immChips  = rel.immune.map(m => chip(m, "immune", "✕", "Against this archetype: auto-fails, they turn Defiant for 1 hour.")).join("");
 
     const tells = !compact && archetype.tells?.length
       ? `<ul class="tsl-arch-tells">${archetype.tells.map(t => `<li>${esc(t)}</li>`).join("")}</ul>`
@@ -401,13 +401,13 @@ class SocialFencingApp extends Application {
           `Closeness costs: turn a <b>Power</b> play on someone you love and the <b>Guilt</b> is yours.`,
         ])}
         ${sub("Reading the chip corners", [
-          `<b>◆</b> — a combo or an open wound is ready to cash on this maneuver <b>right now</b> (everyone sees this; it reads off visible statuses).`,
-          `<b>✦</b> their weak spot · <b>⚡</b> it bounces off / they're walled · <b>»</b> their nature yields to this school — these are the <b>GM's</b> to see. Players deduce weak spots from outcomes, not the chips.`,
+          `<b>⊕</b> — a <b>+2 opening is live right now</b>: either a combo you've set up (a status like Provoked or Desperate ready to cash) OR an <b>open wound</b> — a raw emotional Condition on them (Angry, Smitten, Guilty, Scared, Hopeless) that this maneuver presses. Everyone sees ⊕; it reads off visible statuses.`,
+          `<b>◎</b> weak spot (cuts deep) · <b>✕</b> bounces off / walled · <b>▲</b> their nature yields to this school — these are the <b>GM's</b> to see. Players deduce weak spots from outcomes, not the chips.`,
         ])}
         ${sub("Statuses & combos", [
           `Maneuvers apply statuses — Provoked, Smitten, Desperate, Guilted, Rattled.`,
           `Chains read like life: <b>heat them</b> (Taunt → Provoked) then Humiliate the gap; <b>make them chase</b> (Stir Jealousy → Desperate) then Charm or Bargain; a <b>Smitten</b> heart owes double (Charm → Guilt Trip).`,
-          `<b>Wounds open doors (❤):</b> an emotional Condition (Angry, Smitten, Guilty, Scared, Hopeless) is a standing <b>+2</b> for the maneuvers that speak to it, until the story resolves it.`,
+          `<b>Wounds open doors (⊕):</b> an emotional Condition (Angry, Smitten, Guilty, Scared, Hopeless) is a standing <b>+2</b> for the maneuvers that speak to it, until the story resolves it.`,
         ])}
         ${sub("Grades & the Answer", [
           `A <b>clean hit</b> (well over) cuts +1 deeper. A <b>bad miss</b> — or hitting an immunity — earns their <b>Answer</b>: Power leaves you Rattled · Emotion leaves you Guilty before the room · Reason takes a String on you.`,
@@ -480,7 +480,7 @@ class SocialFencingApp extends Application {
       ${how}
       <section class="tsl-notes-section">
         <div class="tsl-notes-section-title">The nine natures</div>
-        <div class="tsl-codex-hint-sm">Never shown to players — deduce them. Each has at least one ✦ weak spot and one ⚡ wall, and the traps sit INSIDE a triad, so knowing the school isn't enough.</div>
+        <div class="tsl-codex-hint-sm">Never shown to players — deduce them. Each has at least one ◎ weak spot and one ✕ wall, and the traps sit INSIDE a triad, so knowing the school isn't enough.</div>
       </section>
       ${triadBlocks}
       <section class="tsl-notes-section">
@@ -539,7 +539,7 @@ class SocialFencingApp extends Application {
             <div class="tsl-chr-att-track">${attitudeDots(b)}</div>
           </div>
           <div class="tsl-chr-bond-line">
-            <span class="tsl-chr-bond-label" data-tooltip="Your working guess at their archetype — deduce it from tells (Read Them whispers one). The ✦/⚡ marks in fencing follow THIS guess, right or wrong; refine it as you learn.">Read as</span>
+            <span class="tsl-chr-bond-label" data-tooltip="Your working guess at their archetype — deduce it from the tells Read Them whispers and from what happens when you roll. Refine it as you learn; the GM plays their true nature either way.">Read as</span>
             <select class="tsl-chr-bond-arch" data-bond-id="${b.id}" ${disabled}>${archOpts(b.perceivedArchetypeId)}</select>
             ${canEdit ? `
               <button class="tsl-chr-str-adj" data-bond-id="${b.id}" data-target="${b.targetActorId}" data-delta="1"  data-tooltip="Gain a string on them">+</button>
@@ -682,7 +682,7 @@ class SocialFencingApp extends Application {
 
       const archLine = arch
         ? `<span class="tsl-fc-arch" style="--triad-color:${triad?.color ?? "#806858"}" data-tooltip="${isGuess ? "<b>Your read (may be wrong)</b><br>" : ""}${esc(arch.hint ?? arch.description)}">${isGuess ? `<i class="fas fa-pencil tsl-guess-i"></i>` : `<i class="fas ${triad?.icon ?? "fa-user"}"></i>`} ${esc(arch.label)}${isGuess ? "?" : ""}</span>`
-        : `<span class="tsl-fc-arch tsl-fc-arch--unread" data-tooltip="Their nature is a riddle — Read Them whispers a tell; write your guess into your Bond ('Read as') and the ✦/⚡ marks will follow it.">Nature unread</span>`;
+        : `<span class="tsl-fc-arch tsl-fc-arch--unread" data-tooltip="Their nature is a riddle — Read Them whispers a tell; note your guess in your Bond ('Read as'). You'll sense their weak spots from outcomes, not the chips.">Nature unread</span>`;
 
       // Maneuver chips grouped by triad — marks follow the viewer's read
       const chips = MANEUVER_GROUPS.map(g => {
@@ -696,11 +696,11 @@ class SocialFencingApp extends Application {
             (m.combos && Object.keys(m.combos).some(st => SocialArchetypeManager.getActiveCondition(tgt, st)))
             || (m.kickWhileDown && SOCIAL_CONDITION_ORDER.some(st => SocialArchetypeManager.getActiveCondition(tgt, st)))
             || !!findOpening(tgt, m);
-          // Archetype weak/strong marks are the GM's; ◆ (armed combo / wound)
+          // Archetype weak/strong marks are the GM's; ⊕ (armed combo / wound)
           // stays for everyone — it reads off visible statuses, not the nature.
-          const mark  = ctx.isGM && rel === "immune" ? `<span class="tsl-chip-mark tsl-chip-mark--imm">⚡</span>`
-                      : ctx.isGM && rel === "vulnerable" ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">✦</span>`
-                      : comboReady ? `<span class="tsl-chip-mark tsl-chip-mark--combo">◆</span>` : "";
+          const mark  = ctx.isGM && rel === "immune" ? `<span class="tsl-chip-mark tsl-chip-mark--imm">✕</span>`
+                      : ctx.isGM && rel === "vulnerable" ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">◎</span>`
+                      : comboReady ? `<span class="tsl-chip-mark tsl-chip-mark--combo">⊕</span>` : "";
           // What this maneuver actually does against THIS target, right now
           // (veiled, follows the viewer's read). The console always has a target.
           const liveTip = "<br><b>Vs " + esc(tgt.name) + ":</b><br>" +
@@ -812,8 +812,8 @@ class SocialFencingApp extends Application {
     if (a.relation === "blocked")        { hint = a.relationReason; hintCls = "imm"; }
     else if (known && a.relation === "immune")     { hint = `${readPrefix}${a.relationReason} — ${isGuess ? "if you're right, it fails and they turn Defiant." : "it fails, they turn Defiant."}`; hintCls = "imm"; }
     else if (known && a.relation === "vulnerable") { hint = `${readPrefix}this should cut deep — Advantage & +1 Resolve damage${isGuess ? " (if your read is right)" : ""}.`; hintCls = "vuln"; }
-    else if (a.combo)                    { hint = `◆ Combo armed — ${a.combo.label}.`; hintCls = "vuln"; }
-    else if (a.opening)                  { hint = `❤ Open wound — ${a.opening.flavor} (+2).`; hintCls = "vuln"; }
+    else if (a.combo)                    { hint = `⊕ Combo armed — ${a.combo.label}.`; hintCls = "vuln"; }
+    else if (a.opening)                  { hint = `⊕ Open wound — ${a.opening.flavor} (+2).`; hintCls = "vuln"; }
     else if (a.lastExchange)             { hint = "⚠ Their patience is at its end — one more misstep ends this."; hintCls = "imm"; }
     else if (known && a.answerRisk)      { hint = `${readPrefix}fumble badly here and their answer comes — ${a.answerRisk}${isGuess ? " (if your read is right)" : ""}.`; hintCls = "imm"; }
     else if (a.patienceThin)             { hint = "⏳ Their patience wears thin — they're getting harder to reach."; }
@@ -859,7 +859,7 @@ class SocialFencingApp extends Application {
         return pv ? `<div class="tsl-bar-stakes"><span class="tsl-stake-hit">✓ ${esc(pv.hit)}</span><span class="tsl-stake-sep">·</span><span class="tsl-stake-miss">✗ ${esc(pv.miss)}</span></div>` : "";
       })()}
       ${blocked
-        ? `<div class="tsl-fc-walled">⚡ Walled off — a successful Read Them breaks the wall.</div>`
+        ? `<div class="tsl-fc-walled">✕ Walled off — a successful Read Them breaks the wall.</div>`
         : `<button class="tsl-fc-roll tsl-roll-btn" style="--active-color:#9b6ee8">Roll ${esc(m.name)}</button>`}
     </div>`;
   }

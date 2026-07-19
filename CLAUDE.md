@@ -315,6 +315,11 @@ TSL stats mapped to D&D abilities:
 - **Codex restructured** (`_buildCodexTab`): opens with a 5-step **"Your turn, step by step"** quick-start (pick who → pick maneuver → roll → GM calls it → see what it did), then tight titled sub-blocks (`tsl-codex-sub` + `-sub-title`, a `sub(title, items[])` helper) instead of a 13-bullet wall. Adds the two previously-missing facts every player needs: the GM confirms the outcome (final word), and the A5E system roll dialog is what opens. GM section regrouped into Setting the scene / Playing the opponent / Rewarding play. Archetypes get a "nine natures" intro; statuses render as a responsive 2-col grid.
 - Chronicle window width 460→500 for breathing room; `.tsl-codex-quick` numbered-accent styling, `.tsl-codex-statuses` grid.
 
+### v1.26.0 — intuitive chip-mark glyphs; "open wound" spelled out
+- **Corner-mark glyphs reassigned** (older notes above still say ✦/⚡/◆/»; the LIVE glyphs are now): **◎** green = weak spot (was ✦) · **✕** red = walled/immune (was ⚡) · **⊕** orange = a +2 opening, combo OR open wound (was ◆/❤) · **▲** gold = triad counter (was »). CSS classes (`--vuln/--imm/--combo/--counter`) and colors unchanged — only the glyph characters swapped (byte-level perl replace across conflict-app/social-maneuvers/social-notes). Crit result label uses **★** (not a chip glyph). Close/remove buttons keep their own ✕.
+- **"Open wound" explained everywhere it appears** (legend, Codex "Reading the chip corners"): a raw emotional TSL Condition on the target (Angry/Smitten/Guilty/Scared/Hopeless) that certain maneuvers press for +2, unconsumed until drama resolves it — folded under the same ⊕ opening mark as combos.
+- Stale player-facing prose ("the marks follow your guess") corrected to reflect v1.23: marks are GM-only; players deduce weak spots from OUTCOMES.
+
 ### VTools Integration (hud-button.js)
 ```js
 Hooks.once("vtools.ready", () => {

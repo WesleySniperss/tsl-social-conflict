@@ -380,20 +380,20 @@ class SocialManeuverRoller {
 
   /**
    * A small key for the corner marks on maneuver chips. The GM sees the
-   * archetype ones (✦/⚡/»); everyone sees ◆ (it reads off visible statuses).
+   * archetype ones (◎/✕/▲); everyone sees ⊕ (it reads off visible statuses).
    */
   static chipLegend(isGM) {
     const items = isGM
       ? [
-          "<b>◆</b> a combo or open wound is ready",
-          "<b>✦</b> their weak spot — cuts deep",
-          "<b>⚡</b> it bounces off / they're walled",
-          "<b>»</b> their nature yields to this school",
+          "<b>◎</b> their weak spot — cuts deep (Advantage, +1 damage)",
+          "<b>✕</b> bounces off / they're walled",
+          "<b>▲</b> their nature yields to this school (+2)",
+          "<b>⊕</b> a +2 opening is live — either a combo you've set up, or an open wound (a raw emotional Condition this maneuver presses)",
         ]
       : [
-          "<b>◆</b> a set-up combo or an open wound is ready to cash on this maneuver",
+          "<b>⊕</b> a +2 opening is live — a combo you've set up, or an open wound (a raw emotional Condition on them this maneuver presses)",
         ];
-    return `<div class="tsl-chip-legend">${items.join(" &nbsp;·&nbsp; ")}</div>`;
+    return `<div class="tsl-chip-legend">${items.join("<br>")}</div>`;
   }
 
   /** The actor's proficiency bonus (number), with level/CR fallback. */
@@ -767,24 +767,24 @@ class SocialManeuverRoller {
     const out = [];
 
     // Relation — GM only, EXCEPT a live Defiant wall (that's a visible status)
-    if (a.relation === "blocked")           out.push("⚡ Walled off right now — nothing gets through");
-    else if (isGM && a.relation === "immune")     out.push("⚡ Bounces off them — auto-fails, they turn Defiant");
-    else if (isGM && a.relation === "vulnerable") out.push("✦ Cuts deep here — Advantage & +1 Resolve damage");
+    if (a.relation === "blocked")           out.push("✕ Walled off right now — nothing gets through");
+    else if (isGM && a.relation === "immune")     out.push("✕ Bounces off them — auto-fails, they turn Defiant");
+    else if (isGM && a.relation === "vulnerable") out.push("◎ Cuts deep here — Advantage & +1 Resolve damage");
 
     // Combo armed on a set-up status (observable — safe for players)
     if (a.combo) {
       const st  = SOCIAL_CONDITIONS[a.combo.status]?.label ?? a.combo.status;
       const pay = [a.combo.resolveDamage ? `+${a.combo.resolveDamage} damage` : null,
                    a.combo.strings ? `+${a.combo.strings} String` : null].filter(Boolean).join(", ");
-      out.push(`◆ Combo armed — cashes ${st}${pay ? `: ${pay}` : ""}`);
+      out.push(`⊕ Combo armed — cashes ${st}${pay ? `: ${pay}` : ""}`);
     }
-    if (a.opening) out.push(`❤ Open wound — +2 (${a.opening.flavor})`);
-    if (a.kick)    out.push("◆ Kicks them while down — +1 Resolve damage");
+    if (a.opening) out.push(`⊕ Open wound — +2 (${a.opening.flavor})`);
+    if (a.kick)    out.push("⊕ Kicks them while down — +1 Resolve damage");
 
     // Flat bonuses. Archetype/defense-derived ones (counter, blind side) are
     // GM-only; the player's OWN bonuses (skill, bond, grip, leaning) always show.
     for (const b of a.bonusReasons) {
-      if (b.kind === "counter") { if (isGM) out.push(`» Their kind bends to this school — +${b.value}`); continue; }
+      if (b.kind === "counter") { if (isGM) out.push(`▲ Their kind bends to this school — +${b.value}`); continue; }
       if (/unguarded approach/i.test(b.label)) { if (isGM) out.push(`+${b.value} an unguarded approach`); continue; }
       const sign = b.value >= 0 ? "+" : "−";
       out.push(`${sign}${Math.abs(b.value)} ${b.label.split(" — ")[0]}`);
@@ -1005,7 +1005,7 @@ class SocialManeuverRoller {
           <p class="notes">You have the final word on whether it lands. The computed grade is pre-selected.</p>
         </div>`,
         buttons: {
-          crit:    { label: "◆ Clean hit", callback: () => resolve("crit") },
+          crit:    { label: "★ Clean hit", callback: () => resolve("crit") },
           success: { label: "✓ Success",   callback: () => resolve("success") },
           failure: { label: "✗ Failure",   callback: () => resolve("failure") },
           botch:   { label: "⚔ They answer", callback: () => resolve("botch") },
@@ -1341,7 +1341,7 @@ class SocialManeuverRoller {
       const veiled = a.relation === "vulnerable" && r === a.relationReason
         ? "You struck something raw — this approach truly works on them"
         : r;
-      return `<div class="tsl-mv-reason">✦ ${esc(veiled)}</div>`;
+      return `<div class="tsl-mv-reason">◎ ${esc(veiled)}</div>`;
     }).join("");
 
     // Never bake the archetype name into the shared card — even when the GM
@@ -1350,7 +1350,7 @@ class SocialManeuverRoller {
     void arch;
 
     const badgeHtml = a.relation !== "neutral"
-      ? `<span class="tsl-mv-badge tsl-mv-badge--${a.relation === "vulnerable" ? "vulnerable" : "immune"}">${a.relation === "vulnerable" ? "✦ Vulnerable" : "⚡ Walled"}</span>`
+      ? `<span class="tsl-mv-badge tsl-mv-badge--${a.relation === "vulnerable" ? "vulnerable" : "immune"}">${a.relation === "vulnerable" ? "◎ Vulnerable" : "✕ Walled"}</span>`
       : "";
 
     await ChatMessage.create({
@@ -1365,7 +1365,7 @@ class SocialManeuverRoller {
   <div class="tsl-mv-target">↳ ${esc(d.targetActor.name)}</div>
   ${archHtml}
   ${reasons}
-  ${a.combo ? `<div class="tsl-mv-reason">◆ Combo — ${esc(a.combo.label)}</div>` : ""}
+  ${a.combo ? `<div class="tsl-mv-reason">⊕ Combo — ${esc(a.combo.label)}</div>` : ""}
   <div class="tsl-mv-roll">
     <span class="tsl-mv-dice">${diceText}</span>
     <span class="tsl-mv-vs" data-tooltip="The difficulty stays with the GM — the card never shows it.">vs DC ?</span>

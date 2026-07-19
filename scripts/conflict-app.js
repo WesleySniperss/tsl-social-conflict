@@ -316,7 +316,7 @@ class TSLConflictApp extends Application {
         : arch
           ? `<div class="tsl-participant-arch" style="--triad-color:${triad?.color ?? "#806858"}" data-tooltip="${dossierTip}">
                ${isGuess ? `<i class="fas fa-pencil tsl-guess-i"></i>` : `<i class="fas ${triad?.icon ?? "fa-user"}"></i>`} ${arch.label}${isGuess ? "?" : ""}</div>`
-          : `<div class="tsl-participant-system" data-tooltip="Their nature is a riddle — watch their tells (Read Them whispers one) and write your guess into your Bond ('Read as'). The ✦/⚡ marks will follow your guess.">Nature unread</div>`;
+          : `<div class="tsl-participant-system" data-tooltip="Their nature is a riddle — watch their tells (Read Them whispers one) and note your guess in your Bond ('Read as'). You learn their weak spots from what HAPPENS when you roll, not from the chips.">Nature unread</div>`;
       const badge = isActing ? `<span class="tsl-turn-badge" style="--active-color:${p.color}">${game.user.isGM ? "Acting" : "You"}</span>`
                   : isTarget ? `<span class="tsl-turn-badge" style="--active-color:#e8a855">Target</span>` : "";
       return `
@@ -367,24 +367,24 @@ class TSLConflictApp extends Application {
             (m.combos && Object.keys(m.combos).some(st => SocialArchetypeManager.getActiveCondition(tgtActor, st)))
             || (m.kickWhileDown && SOCIAL_CONDITION_ORDER.some(st => SocialArchetypeManager.getActiveCondition(tgtActor, st)))
             || !!findOpening(tgtActor, m));
-          // Archetype weak/strong marks (✦/⚡/») are the GM's to see — players
-          // deduce nature from outcomes, not off the chips. ◆ (armed combo /
+          // Archetype weak/strong marks (◎/✕/▲) are the GM's to see — players
+          // deduce nature from outcomes, not off the chips. ⊕ (armed combo /
           // open wound) stays for everyone: it reads off visible statuses.
-          const mark    = isGM && rel === "immune" ? `<span class="tsl-chip-mark tsl-chip-mark--imm">⚡</span>`
-                        : isGM && rel === "vulnerable" ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">✦</span>`
-                        : comboReady ? `<span class="tsl-chip-mark tsl-chip-mark--combo">◆</span>`
-                        : isGM && counter ? `<span class="tsl-chip-mark tsl-chip-mark--counter">»</span>` : "";
+          const mark    = isGM && rel === "immune" ? `<span class="tsl-chip-mark tsl-chip-mark--imm">✕</span>`
+                        : isGM && rel === "vulnerable" ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">◎</span>`
+                        : comboReady ? `<span class="tsl-chip-mark tsl-chip-mark--combo">⊕</span>`
+                        : isGM && counter ? `<span class="tsl-chip-mark tsl-chip-mark--counter">▲</span>` : "";
           const mod  = srcActor ? SocialManeuverRoller.getSkillMod(srcActor, m) : 0;
           const ar = SocialArchetypeManager.getArchetypeRelationsFor(m);
           const counterShort = TRIAD_COUNTERS[m.group]
             ? (SOCIAL_TRIADS[TRIAD_COUNTERS[m.group]]?.label ?? "").replace("Triad of ", "") : null;
           const comboTip = [
             ...(m.combos ? Object.entries(m.combos).map(([st, c]) =>
-              `◆ Combo — consumes ${SOCIAL_CONDITIONS[st]?.label ?? st}: ${c.label}` +
+              `⊕ Combo — consumes ${SOCIAL_CONDITIONS[st]?.label ?? st}: ${c.label}` +
               `${c.resolveDamage ? ` (+${c.resolveDamage} Resolve damage)` : ""}${c.strings ? ` (+${c.strings} String)` : ""}`) : []),
-            ...(m.kickWhileDown ? ["◆ Kicks while down: +1 Resolve damage if they have any status (not consumed)"] : []),
+            ...(m.kickWhileDown ? ["⊕ Kicks while down: +1 Resolve damage if they have any status (not consumed)"] : []),
             ...Object.entries(CONDITION_OPENINGS[m.id] ?? {}).map(([c, f]) =>
-              `❤ Open wound (${c.charAt(0).toUpperCase() + c.slice(1)}): +2 — ${f} (never consumed)`),
+              `⊕ Open wound (${c.charAt(0).toUpperCase() + c.slice(1)}): +2 — ${f} (never consumed)`),
           ].join("<br>") || null;
           // Once a target is chosen, the tooltip shows what this maneuver
           // actually does against THEM right now (veiled, follows your read).
@@ -399,9 +399,9 @@ class TSLConflictApp extends Application {
             esc(m.description),
             liveBlock,
             liveBlock ? null : comboTip,
-            liveBlock ? null : (ar.vulnerable.length ? `✦ Cuts deep: ${esc(ar.vulnerable.map(x => x.label).join(", "))}` : null),
-            liveBlock ? null : (ar.immune.length     ? `⚡ Bounces off: ${esc(ar.immune.map(x => x.label).join(", "))}` : null),
-            liveBlock ? null : (counterShort         ? `» School counters ${esc(counterShort)} archetypes (+2)` : null),
+            liveBlock ? null : (ar.vulnerable.length ? `◎ Cuts deep: ${esc(ar.vulnerable.map(x => x.label).join(", "))}` : null),
+            liveBlock ? null : (ar.immune.length     ? `✕ Bounces off: ${esc(ar.immune.map(x => x.label).join(", "))}` : null),
+            liveBlock ? null : (counterShort         ? `▲ School counters ${esc(counterShort)} archetypes (+2)` : null),
           ].filter(Boolean).join("<br>").replaceAll('"', "&quot;");
           return `
             <button class="tsl-chip ${isSel ? "selected" : ""}" data-maneuver="${m.id}" data-tooltip="${tip}">
@@ -485,8 +485,8 @@ class TSLConflictApp extends Application {
 
       const advMark = a.advantage
         ? `<span class="tsl-bar-adv" data-tooltip="${esc(a.advantageReasons.join("; "))}${isGuess ? " — if your read is right" : ""}">ADV${isGuess && a.relation === "vulnerable" ? "?" : ""}</span>` : "";
-      const relMark = a.relation === "vulnerable" && seeRel ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">✦</span>`
-                    : (a.relation === "immune" || a.relation === "blocked") ? `<span class="tsl-chip-mark tsl-chip-mark--imm">⚡</span>` : "";
+      const relMark = a.relation === "vulnerable" && seeRel ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">◎</span>`
+                    : (a.relation === "immune" || a.relation === "blocked") ? `<span class="tsl-chip-mark tsl-chip-mark--imm">✕</span>` : "";
 
       // The single most useful sentence, chosen by priority — never a stack.
       const readPrefix = isGuess ? "Your read: " : "";
@@ -494,8 +494,8 @@ class TSLConflictApp extends Application {
       if (a.relation === "blocked")        { hint = a.relationReason; hintCls = "imm"; }
       else if (seeRel && a.relation === "immune")     { hint = `${readPrefix}${a.relationReason} — ${isGuess ? "if you're right, it fails and they turn Defiant." : "it fails, they turn Defiant."}`; hintCls = "imm"; }
       else if (seeRel && a.relation === "vulnerable") { hint = `${readPrefix}this should cut deep — Advantage & +1 Resolve damage${isGuess ? " (if your read is right)" : ""}.`; hintCls = "vuln"; }
-      else if (a.combo)                    { hint = `◆ Combo armed — ${a.combo.label}.`; hintCls = "vuln"; }
-      else if (a.opening)                  { hint = `❤ Open wound — ${a.opening.flavor} (+2).`; hintCls = "vuln"; }
+      else if (a.combo)                    { hint = `⊕ Combo armed — ${a.combo.label}.`; hintCls = "vuln"; }
+      else if (a.opening)                  { hint = `⊕ Open wound — ${a.opening.flavor} (+2).`; hintCls = "vuln"; }
       else if (a.lastExchange)             { hint = "⚠ Their patience is at its end — one more misstep ends this."; hintCls = "imm"; }
       else if (seeRel && a.answerRisk)     { hint = `${readPrefix}fumble badly here and their answer comes — ${a.answerRisk}${isGuess ? " (if your read is right)" : ""}.`; hintCls = "imm"; }
       else if (a.patienceThin)             { hint = "⏳ Their patience wears thin — they're getting harder to reach."; }
@@ -528,9 +528,9 @@ class TSLConflictApp extends Application {
       const r = this._pendingRoll;
       if (r.kind === "maneuver") {
         const oc    = (r.outcome === "success" || r.outcome === "crit") ? "Strong Hit" : "Miss";
-        const label = r.outcome === "crit"    ? "✦ Clean hit"
+        const label = r.outcome === "crit"    ? "★ Clean hit"
                     : r.outcome === "success" ? "Success"
-                    : r.outcome === "immune"  ? "⚡ Walled off"
+                    : r.outcome === "immune"  ? "✕ Walled off"
                     : r.outcome === "botch"   ? "⚔ They answer"
                     : "Failure";
         return `<div class="tsl-dice-overlay"><div class="tsl-dice-panel tsl-dice-panel--maneuver">
