@@ -436,16 +436,19 @@ class SocialManeuverRoller {
   }
 
   /**
-   * Social DC scales with the target like a save DC scales with a caster:
-   * 10 + WIS mod + proficiency bonus, or passive Insight when that's higher
-   * (Insight experts keep their edge). Proficiency falls back to level/CR
+   * Social DC — the target defends with TWO mental stats, mirroring the
+   * attacker's two skills: 10 + WIS mod + INT mod + proficiency, or passive
+   * Insight when that's higher (Insight experts keep their edge). WIS is
+   * their read/willpower, INT their refusal to be fooled — a clever target
+   * resists on both axes; a dim one folds. Proficiency falls back to level/CR
    * math when the system doesn't expose it.
    */
   static getSocialDC(actor) {
     const wis = actor.system?.abilities?.wis?.mod ?? 0;
+    const int = actor.system?.abilities?.int?.mod ?? 0;
     return Math.max(
       SocialManeuverRoller.getPassiveInsight(actor),
-      10 + wis + SocialManeuverRoller.getProfBonus(actor)
+      10 + wis + int + SocialManeuverRoller.getProfBonus(actor)
     );
   }
 
@@ -500,7 +503,7 @@ class SocialManeuverRoller {
       return e && e.flags?.[scope]?.sourceActorId === sourceActor.id ? e : null;
     };
 
-    // ── DC: 10 + WIS + proficiency (or passive Insight), ± attitude/Rattled ──
+    // ── DC: 10 + WIS + INT + proficiency (or passive Insight), ± bond/Rattled ──
     const dcBase = SocialManeuverRoller.getSocialDC(targetActor);
     const dcMods = [];
     // THEIR bond toward you is their guard: type × strength decides whether

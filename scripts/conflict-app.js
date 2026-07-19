@@ -480,7 +480,7 @@ class TSLConflictApp extends Application {
       // knowledge (reads, evidence), not a free readout.
       const dcTip  = a.dcMods.length ? ` (${a.dcBase}${a.dcMods.map(m => `${m.value > 0 ? "+" : "−"}${Math.abs(m.value)}`).join("")})` : "";
       const dcHtml = isGM
-        ? `<span class="tsl-bar-dim">vs DC <b data-tooltip="${dcTip ? "Base " + dcTip : "10 + WIS + proficiency"}">${a.dc}</b></span>`
+        ? `<span class="tsl-bar-dim">vs DC <b data-tooltip="${dcTip ? "Base " + dcTip : "10 + WIS + INT + proficiency"}">${a.dc}</b></span>`
         : `<span class="tsl-bar-dim">vs <b data-tooltip="The difficulty is hidden — only the GM sees the number. Read them, watch outcomes, and you'll sense it.">?</b></span>`;
 
       const advMark = a.advantage

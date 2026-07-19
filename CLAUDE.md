@@ -148,7 +148,7 @@ Design rules learned the hard way: (1) every maneuver must be REPEATABLE in live
 
 **Triad counter cycle (`TRIAD_COUNTERS`):** Power breaks Emotion → Emotion cracks Reason → Reason binds Power. A maneuver whose school counters the DEFENDER's ruling triad gets +2 (reason kind:"counter"). Pre-read the Duel Panel veils it as "Something in them yields to this school…" (+2 ?) so the bonus applies without leaking the triad; the » badge on chips appears only after a read.
 
-**Social DC (`getSocialDC`):** max(passive Insight, 10 + WIS mod + proficiency) — proficiency from `attributes.prof`, falling back to level/CR math. Scales defense with level so high-tier attack stacking doesn't trivialize targets.
+**Social DC (`getSocialDC`, v1.24):** max(passive Insight, 10 + WIS mod + **INT mod** + proficiency) — the target defends with TWO mental stats, mirroring the attacker's two skills (primary + support): WIS is read/willpower, INT is refusal to be fooled. This self-balances the two-skill inflation — a clever target resists on both fronts, a dim one folds. Proficiency from `attributes.prof`, falling back to level/CR math.
 
 **Hidden DC (v1.9.1):** players never see the number — difficulty is earned knowledge. GM-gated in all four surfaces: conflict duel bar & Chronicle fence bar show `vs ?` (tooltip explains) for players, DC-mod breakdown chips are GM-only, the d20 overlays gate on `game.user.isGM`, and the SHARED chat card always bakes `vs DC ?` (even a GM roll must not leak the number to everyone reading chat). Rolls still use the real DC.
 
