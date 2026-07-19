@@ -100,9 +100,9 @@ tsl-social-conflict/
 |--------|--------|------|----------|
 | Rattled | DC to sway them −5; **combat:** −2 saves (dnd5e flat) / dis saves (a5e), no expertise dice/reactions (A5E Rattled) | Undermine | scene (1h) |
 | Smitten | charmer's Persuasion maneuvers get Advantage; the smitten one CANNOT maneuver against the charmer (hard block in assess); **combat:** can't attack the charmer (native Charmed); ONE plausible command (WIS save or comply); harmed by charmer's side → breaks into Provoked vs charmer | Flatter, Charm | scene (1h) |
-| Provoked | next maneuver vs them +2; **combat:** reckless — +2 their weapon attacks (adv a5e), −2 AC; GM: must go for the provoker | Taunt | one-shot |
+| Provoked | next maneuver vs them +2; **combat:** links native **A5E Fixated** (tunnel-vision on the provoker); −2 AC (auto); GM: adv/+2 attacking the provoker, dis/−2 at anyone else (conditional → text) | Taunt | one-shot |
 | Guilted | guilter's next maneuver gets Advantage; **combat:** −2 their weapon attacks (dis a5e); GM: no reactions vs the one they owe; if that one draws blood → Guilted becomes Rattled | Guilt Trip | one-shot |
-| Desperate | next Flatter/Charm gets Advantage, Bargain cashes it (+1 String); **combat:** all-in — +2 their weapon attacks (adv a5e), −2 AC + attacks against them adv (a5e) | Stir Jealousy | one-shot |
+| Desperate | next Flatter/Charm gets Advantage, Bargain cashes it (+1 String); **combat:** all-in — +2 their weapon attacks (adv a5e), **crit on 19–20** (dnd5e `weaponCriticalThreshold` mode 6=DOWNGRADE; a5e = text), −2 AC + attacks against them adv (a5e) | Stir Jealousy | one-shot |
 | Defiant | immune to maneuvers; **Read Them slips through** (`worksThroughDefiant`) and a SUCCESSFUL read breaks the wall; **combat:** +2 saves (adv a5e), cannot willingly retreat/disengage | hitting an immunity | 10 min or until read |
 
 Combat riders are now REAL modifiers that hit weapon attacks and saves OUTSIDE the module, per system: **dnd5e** = flat numeric AE changes with no midi needed (`system.bonuses.mwak.attack`/`rwak.attack`, `system.bonuses.abilities.save`, `system.attributes.ac.bonus`); **a5e** = the system's own roll-mode flags (`flags.a5e.effects.rollMode.attack.all`/`savingThrow.all` adv/dis, `grants.rollMode.attack.all`, `expertiseDice`, `system.attributes.ac.changes.bonuses.value`). Behavioral parts + transitions (Smitten→Provoked, Guilted→Rattled) stay bold rules text the GM applies. Guilted's "vs the one they owe" is generalized to a flat −2/dis on ALL their attacks (target-conditional can't be a flat flag).
@@ -323,6 +323,11 @@ TSL stats mapped to D&D abilities:
 ### v1.27.0 — Codex combo cheat-sheet (data-generated)
 - **New Codex section "Combos & interactions — the cheat sheet"** (`_buildCodexTab`), built FROM the data so it can't drift: (1) **Set-ups** — each fencing status ← the maneuvers that apply it (from `applyOnSuccess`); (2) **Chains** — each combo finisher and its payout (from `maneuver.combos` + `kickWhileDown`); (3) **Wounds** — each emotional TSL Condition → the maneuvers that press it for +2 (from `CONDITION_OPENINGS`, inverted). Replaces the old prose "Statuses & combos" bullets. `.tsl-codex-combo` rows with dashed separators.
 - Clarifies the two sources of a ⊕ opening: cash a set-up (a status you applied this exchange) vs press a wound (a lasting Condition they carry), with a one-line note on where wounds come from (Hold the Line / Feelings moves / a bad fumble).
+
+### v1.29.0 — Provoked→Fixated, Desperate crit-19, Codex glossary tooltips
+- **Provoked** links native **A5E Fixated** (`links: ["fixated"]`) — the closest native match for red-mist tunnel-vision. The conditional "advantage attacking the provoker / disadvantage vs others" can't be a flat AE flag (target-conditional), so it stays GM rules text; only the −2 AC is automated. (a5e has NO native "goaded/taunted"; `fixated` = dis perceive-others + movement-toward, changes `[]`.)
+- **Desperate** now lowers the crit threshold: dnd5e `flags.dnd5e.weaponCriticalThreshold` mode 6 (DOWNGRADE) value "19" → their weapon attacks crit on 19–20 automatically. a5e has NO actor-level crit-threshold AE key (`critThreshold` lives per-action under `system.actions.*.rolls.*`), so on a5e it's rules text.
+- **Codex glossary** (`_buildCodexTab`): a `term(name)` helper wraps key concepts (Resolve, Patience, social DC, support skill, combo, open wound, String, the Answer, Hold the Line, Overwhelmed, swayed, walk away, leverage, bond) in `.tsl-term` spans (dotted underline, accent, `data-tooltip` definition from a `GLOSSARY` map). Hover any term for its definition. Statuses render an "In combat:" line.
 
 ### VTools Integration (hud-button.js)
 ```js

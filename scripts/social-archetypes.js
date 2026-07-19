@@ -917,16 +917,10 @@ const SOCIAL_CONDITIONS = {
     seconds: 600,
     oneShot: true,
     description: "Off balance with anger: the next maneuver against them gains +2, then this fades.",
-    combat: "Red mist: their weapon attacks come reckless (+2 to hit, advantage on A5E) but their guard drops (−2 AC). GM: they must go for the provoker; strikes at anyone else suffer.",
-    dnd5eChanges: [
-      { key: "system.bonuses.mwak.attack", mode: 2, value: "+2" },
-      { key: "system.bonuses.rwak.attack", mode: 2, value: "+2" },
-      { key: "system.attributes.ac.bonus", mode: 2, value: "-2" },
-    ],
-    a5eChanges: [
-      { key: "flags.a5e.effects.rollMode.attack.all", mode: 5, value: 1, priority: 50 },
-      { key: "system.attributes.ac.changes.bonuses.value", mode: 2, value: "-2" },
-    ],
+    combat: "Red mist — fixated on the provoker (A5E Fixated: they must move toward them, and can barely notice anyone else). GM: advantage / +2 attacking the PROVOKER, disadvantage / −2 attacking anyone else. Their guard drops: −2 AC (automatic).",
+    links: ["fixated"],
+    dnd5eChanges: [{ key: "system.attributes.ac.bonus", mode: 2, value: "-2" }],
+    a5eChanges: [{ key: "system.attributes.ac.changes.bonuses.value", mode: 2, value: "-2" }],
   },
   guilted: {
     id: "guilted",
@@ -951,11 +945,12 @@ const SOCIAL_CONDITIONS = {
     seconds: 600,
     oneShot: true,
     description: "Starved and grasping: the next Flatter or Charm against them rolls with Advantage, and a Bargain cashes it for an extra String. Fades once used.",
-    combat: "All-in: +2 on their weapon attacks (advantage on A5E), and they've thrown away defense — −2 AC, and on A5E attacks against them roll with advantage too. A drowning swing drags everyone under.",
+    combat: "All-in: +2 on their weapon attacks (advantage on A5E) and they CRIT on a 19–20 (auto on dnd5e; on A5E lower their weapon's crit threshold to 19). But they've thrown away defense — −2 AC, and attacks against them have advantage too (A5E). A drowning swing that lands, lands hard.",
     dnd5eChanges: [
       { key: "system.bonuses.mwak.attack", mode: 2, value: "+2" },
       { key: "system.bonuses.rwak.attack", mode: 2, value: "+2" },
       { key: "system.attributes.ac.bonus", mode: 2, value: "-2" },
+      { key: "flags.dnd5e.weaponCriticalThreshold", mode: 6, value: "19" },
     ],
     a5eChanges: [
       { key: "flags.a5e.effects.rollMode.attack.all", mode: 5, value: 1, priority: 50 },

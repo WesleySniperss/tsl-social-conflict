@@ -376,6 +376,30 @@ class SocialFencingApp extends Application {
         <ul class="tsl-codex-how">${items.map(i => `<li>${i}</li>`).join("")}</ul>
       </div>`;
 
+    // A key term: dotted underline + a hover definition. `term("Resolve")`
+    // looks the name up in GLOSSARY; a second arg overrides the tip.
+    const GLOSSARY = {
+      "Resolve": "Their will to hold their ground. Successful maneuvers chip it; break it to 0 and they're swayed. Starts at 3 + their WIS mod (3–8).",
+      "Patience": "Their tolerance for the whole exchange. Failures burn it; at 0 they walk away. Starts at 4 + their CHA mod (3–8).",
+      "social DC": "The hidden difficulty you roll against: 10 + WIS + INT + proficiency, or their passive Insight if higher. Only the GM ever sees the number.",
+      "support skill": "A SECOND skill whose modifier is added on top of the maneuver's main d20 roll (e.g. Read Them = Insight + Investigation).",
+      "combo": "A status you set up THIS exchange (Provoked, Desperate…) that a specific finisher cashes for an extra payout. Shows ⊕ when live.",
+      "open wound": "A lasting emotional Condition they carry (Angry, Smitten, Guilty, Scared, Hopeless) that matching maneuvers press for +2, until the story heals it. Shows ⊕.",
+      "String": "An emotional thread on a person — earned by opening up in character, held as +1 grip, spent for +5 on ANY roll against them (even an attack).",
+      "the Answer": "On a bad fumble OR hitting an immunity, the archetype strikes back in its triad's language: Power → you're Rattled · Emotion → you're Guilty · Reason → they take a String on you.",
+      "Hold the Line": "When a maneuver lands on YOU, refuse its effect by taking a fitting emotional Condition instead. The words still cut; only their power is refused.",
+      "Overwhelmed": "Carrying four emotional Conditions — you must yield or flee.",
+      "swayed": "Resolve broken to 0: they concede the exchange, and the bond toward you deepens.",
+      "walk away": "Patience emptied to 0: they leave on their terms, holding something over you.",
+      "leverage": "A read dossier unlocks their Desire, Fear or Weakness — each playable once per exchange for a strong edge.",
+      "bond": "A relationship with TYPE and STRENGTH (0–3 ●). Yours toward them is a weapon (+● on its school); theirs toward you is their guard (DC up or down).",
+      "Advantage": "Roll two d20 and keep the higher.",
+    };
+    const term = (name, txt) => {
+      const tip = (txt ?? GLOSSARY[name] ?? "").replaceAll('"', "&quot;");
+      return `<span class="tsl-term" data-tooltip="${tip}">${name}</span>`;
+    };
+
     // ── Combo reference, generated from the data so it's always accurate ──
     const mName = (id) => SOCIAL_MANEUVERS.find(m => m.id === id)?.name ?? id;
     const capId = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -430,10 +454,10 @@ class SocialFencingApp extends Application {
         <div class="tsl-notes-section-title">Your turn, step by step</div>
         <ol class="tsl-codex-how tsl-codex-quick">
           <li><b>Pick who.</b> Choose a target above (or the <b>Map</b> button to click their token). You act on one person at a time — never yourself.</li>
-          <li><b>Pick a maneuver.</b> Twelve, in four schools. Hover any chip to see exactly what it does to <b>this</b> target. Each rolls a main skill + a support skill.</li>
-          <li><b>Roll it.</b> On A5E the system's own roll dialog opens (advantage, expertise dice) with your fencing bonuses pre-filled. You never see the number you must beat — only the GM does.</li>
+          <li><b>Pick a maneuver.</b> Twelve, in four schools. Hover any chip to see exactly what it does to <b>this</b> target. Each rolls a main skill + a ${term("support skill")}.</li>
+          <li><b>Roll it.</b> On A5E the system's own roll dialog opens (advantage, expertise dice) with your fencing bonuses pre-filled. You never see the ${term("social DC", "The number you must beat is hidden — 10 + WIS + INT + proficiency, or passive Insight if higher. Only the GM sees it.")} — only the GM does.</li>
           <li><b>The GM calls it.</b> After the dice, the GM has the final word on whether you got through — clean hit, hit, miss, or fumble.</li>
-          <li><b>See what it did.</b> A hit chips their <b>Resolve</b> or lands a status; a miss burns their <b>Patience</b>. Break their Resolve to sway them; empty their Patience and they walk away.</li>
+          <li><b>See what it did.</b> A hit chips their ${term("Resolve")} or lands a status; a miss burns their ${term("Patience")}. Break their Resolve → ${term("swayed")}; empty their Patience → they ${term("walk away")}.</li>
         </ol>
       </section>`;
 
@@ -444,31 +468,31 @@ class SocialFencingApp extends Application {
           `No one is handed the archetype. A successful <b>Read Them</b> whispers a private <b>tell</b> — deduce who they are and note your guess in the Bond ("Read as").`,
           `You never see their weak spots or their difficulty — that's the GM's to know. You learn by watching what happens: an unexpected bounce, a surprise clean hit, a whispered tell.`,
         ])}
-        ${sub("The relationship is the terrain (Bonds)", [
-          `A bond has a <b>TYPE</b> and a <b>STRENGTH</b> (0–3 ●). <b>Your</b> bond toward them is a weapon — its school gets <b>+●</b> (rivals feed Power, love feeds Emotion, debts feed Reason).`,
+        ${sub("The relationship is the terrain", [
+          `A ${term("bond")} has a <b>TYPE</b> and a <b>STRENGTH</b> (0–3 ●). <b>Your</b> bond toward them is a weapon — its school gets <b>+●</b> (rivals feed Power, love feeds Emotion, debts feed Reason).`,
           `<b>Their</b> bond toward you is their guard — a friend, lover or debtor opens up (easier); an enemy is wary (harder).`,
           `Closeness costs: turn a <b>Power</b> play on someone you love and the <b>Guilt</b> is yours.`,
         ])}
         ${sub("Reading the chip corners", [
-          `<b>⊕</b> — a <b>+2 opening is live right now</b>: either a combo you've set up (a status like Provoked or Desperate ready to cash) OR an <b>open wound</b> — a raw emotional Condition on them (Angry, Smitten, Guilty, Scared, Hopeless) that this maneuver presses. Everyone sees ⊕; it reads off visible statuses.`,
+          `<b>⊕</b> — a <b>+2 opening is live right now</b>: either a ${term("combo")} you've set up, OR an ${term("open wound")} this maneuver presses. Everyone sees ⊕; it reads off visible statuses.`,
           `<b>◎</b> weak spot (cuts deep) · <b>✕</b> bounces off / walled · <b>▲</b> their nature yields to this school — these are the <b>GM's</b> to see. Players deduce weak spots from outcomes, not the chips.`,
         ])}
         ${sub("Grades & the Answer", [
-          `A <b>clean hit</b> (well over) cuts +1 deeper. A <b>bad miss</b> — or hitting an immunity — earns their <b>Answer</b>: Power leaves you Rattled · Emotion leaves you Guilty before the room · Reason takes a String on you.`,
+          `A <b>clean hit</b> (well over) cuts +1 deeper. A <b>bad miss</b> — or hitting an immunity — earns ${term("the Answer")}.`,
           `Fumble that badly as a player and you gain <b>Inspiration</b> — losing spectacularly is worth something.`,
         ])}
         ${sub("Strings — earned with your heart", [
-          `The surest way to earn a String is to <b>open up</b> in character — a true fear, a confession, the story behind the scar. The GM grants you one on the person you opened up to.`,
+          `The surest way to earn a ${term("String")} is to <b>open up</b> in character — a true fear, a confession, the story behind the scar. The GM grants you one on the person you opened up to.`,
           `Spend a String for <b>+5 to ANY roll against that person — even an attack</b> (the 🎭+5 button), decided after you see the die. Holding one is also a quiet +1 on maneuvers against them.`,
         ])}
         ${sub("Hold the line — when it lands on YOU", [
-          `The words can't be unsaid, but you may refuse their <b>power</b>: take a fitting emotional <b>Condition</b> instead of the status and the Resolve hit. Only the effect is refused, never the words.`,
-          `Four Conditions and you are <b>Overwhelmed</b> — you must yield or flee.`,
+          `The words can't be unsaid, but you may ${term("Hold the Line")}: take a fitting emotional <b>Condition</b> instead of the status and the Resolve hit. Only the effect is refused, never the words.`,
+          `Four Conditions and you are ${term("Overwhelmed")} — you must yield or flee.`,
         ])}
         ${sub("Win, lose, or be sincere", [
-          `Break their <b>Resolve</b> to 0 → <b>swayed</b> (they concede; the bond toward you deepens). Empty their <b>Patience</b> → they <b>walk away</b> (and leave holding something over you).`,
+          `Break their ${term("Resolve")} to 0 → ${term("swayed")}. Empty their ${term("Patience")} → they ${term("walk away")}.`,
           `Or win honestly: the 2d6 <b>Feelings</b> moves (Speak from the Heart, Read the Room) chip Resolve and reveal nature <b>without</b> manipulation.`,
-          `<b>Leverage</b> (once each): a read dossier unlocks their Desire (Advantage, +1 damage), Fear (+3, but a failed threat costs them Patience), Weakness (a plain approach counts as a weak spot).`,
+          `${term("leverage", GLOSSARY.leverage)} (once each): a read dossier unlocks their Desire (Advantage, +1 damage), Fear (+3, but a failed threat costs them Patience), Weakness (a plain approach counts as a weak spot).`,
         ])}
       </section>`;
 

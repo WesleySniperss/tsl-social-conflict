@@ -2110,6 +2110,15 @@
 .tsl-codex-vuln { color: #7ee89a; }
 .tsl-codex-imm  { color: #e88a8a; }
 
+/* Key terms — dotted underline, hover for a definition */
+.tsl-term {
+  color: var(--tsl-notes-accent);
+  border-bottom: 1px dotted color-mix(in srgb, var(--tsl-notes-accent) 60%, transparent);
+  cursor: help;
+  font-weight: 600;
+}
+.tsl-term:hover { border-bottom-color: var(--tsl-notes-accent); }
+
 /* Quick-start: numbered, a touch bolder — the first thing a new player reads */
 .tsl-codex-quick { font-size: 12.5px; line-height: 1.5; }
 .tsl-codex-quick li { margin-bottom: 5px; }
