@@ -645,8 +645,10 @@ class SocialFencingApp extends Application {
             (m.combos && Object.keys(m.combos).some(st => SocialArchetypeManager.getActiveCondition(tgt, st)))
             || (m.kickWhileDown && SOCIAL_CONDITION_ORDER.some(st => SocialArchetypeManager.getActiveCondition(tgt, st)))
             || !!findOpening(tgt, m);
-          const mark  = known && rel === "immune" ? `<span class="tsl-chip-mark tsl-chip-mark--imm">⚡</span>`
-                      : known && rel === "vulnerable" ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">✦</span>`
+          // Archetype weak/strong marks are the GM's; ◆ (armed combo / wound)
+          // stays for everyone — it reads off visible statuses, not the nature.
+          const mark  = ctx.isGM && rel === "immune" ? `<span class="tsl-chip-mark tsl-chip-mark--imm">⚡</span>`
+                      : ctx.isGM && rel === "vulnerable" ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">✦</span>`
                       : comboReady ? `<span class="tsl-chip-mark tsl-chip-mark--combo">◆</span>` : "";
           // What this maneuver actually does against THIS target, right now
           // (veiled, follows the viewer's read). The console always has a target.
@@ -714,10 +716,12 @@ class SocialFencingApp extends Application {
     const m = this._fenceManeuverId ? SocialManeuverRoller.getManeuver(this._fenceManeuverId) : null;
     if (!m) return `<div class="tsl-fc-note tsl-fc-note--pick">Pick a maneuver to see the roll.</div>`;
     const esc   = foundry.utils.escapeHTML;
-    const known = !!dispArch;
+    // GM assesses on the truth; a player's bar carries no archetype analysis
+    // (override null) — only their own bonuses and visible statuses.
+    const known = ctx.isGM && !!dispArch;
     const a = SocialManeuverRoller.assess(src, tgt, m, {
       leverage: this._fenceLeverage,
-      archetypeOverride: ctx.isGM ? undefined : (dispArch ?? null),
+      archetypeOverride: ctx.isGM ? undefined : null,
     });
     const strAdd = this._fenceStringSpend ? STRING_SPEND_BONUS : 0;
     // String spend moved AFTER the roll (the gamble) — no pre-commit toggle

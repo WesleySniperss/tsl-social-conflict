@@ -306,6 +306,11 @@ TSL stats mapped to D&D abilities:
 - **`SocialManeuverRoller.describeVsTarget(src, tgt, maneuver, dispArch, isGM)`**: runs `assess` and returns plain-language, VEILED lines of what the maneuver does against THIS target right now — relation (✦ cuts deep / ⚡ bounces off, read-gated), ◆ combo armed (which status it cashes + payout), ❤ open wound (+2), ◆ kick, every flat bonus (support skill, bond ●, grip, leaning, blind side), ADV sources, and — GM only — the DC mods. Follows the viewer's read (truth for GM, guess for player); never leaks the archetype name or the DC (harness-asserted).
 - Wired into BOTH chip tooltips: once a target is picked, the conflict window's maneuver chips show a `Vs <name>:` block (falling back to the generic archetype matrix with no target); the Chronicle console always has a target so it always shows it. Answers "what combos with what and what gives which bonus" at a glance across all 12 chips, no clicking required.
 
+### v1.23.0 — archetype weak/strong analysis is GM-only
+- Reversal of the guess-based marks: a PLAYER's pre-roll surfaces now carry NO archetype analysis. Both bars and `describeVsTarget` assess players with `archetypeOverride: null` (not their guess), so the relation (✦ vulnerable / ⚡ immune), the counter (»), the blind-side, and any archetype-derived advantage simply don't appear for players. The chip-face ✦/⚡/» marks gate on `isGM`/`ctx.isGM`. The GM still sees everything on the truth side (DC, relation, counter).
+- What PLAYERS still see (all deduction-safe): their own bonuses (support skill, bond ●, string grip, triad leaning), armed combos ◆ and open wounds ❤ (read off VISIBLE statuses), a live Defiant wall ⚡ (a visible status). Nature is learned from OUTCOMES (surprise Advantage dice, unexpected bounces, whispered tells), never off a pre-roll readout. The dice always follow the truth regardless.
+- Rationale: the user judged that even guess-relative weak/strong hints risked players reverse-engineering the archetype via the Codex matrix. GM-only closes it entirely.
+
 ### VTools Integration (hud-button.js)
 ```js
 Hooks.once("vtools.ready", () => {

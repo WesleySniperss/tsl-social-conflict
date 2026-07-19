@@ -367,10 +367,13 @@ class TSLConflictApp extends Application {
             (m.combos && Object.keys(m.combos).some(st => SocialArchetypeManager.getActiveCondition(tgtActor, st)))
             || (m.kickWhileDown && SOCIAL_CONDITION_ORDER.some(st => SocialArchetypeManager.getActiveCondition(tgtActor, st)))
             || !!findOpening(tgtActor, m));
-          const mark    = seeRel && rel === "immune" ? `<span class="tsl-chip-mark tsl-chip-mark--imm">⚡</span>`
-                        : seeRel && rel === "vulnerable" ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">✦</span>`
+          // Archetype weak/strong marks (✦/⚡/») are the GM's to see — players
+          // deduce nature from outcomes, not off the chips. ◆ (armed combo /
+          // open wound) stays for everyone: it reads off visible statuses.
+          const mark    = isGM && rel === "immune" ? `<span class="tsl-chip-mark tsl-chip-mark--imm">⚡</span>`
+                        : isGM && rel === "vulnerable" ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">✦</span>`
                         : comboReady ? `<span class="tsl-chip-mark tsl-chip-mark--combo">◆</span>`
-                        : counter ? `<span class="tsl-chip-mark tsl-chip-mark--counter">»</span>` : "";
+                        : isGM && counter ? `<span class="tsl-chip-mark tsl-chip-mark--counter">»</span>` : "";
           const mod  = srcActor ? SocialManeuverRoller.getSkillMod(srcActor, m) : 0;
           const ar = SocialArchetypeManager.getArchetypeRelationsFor(m);
           const counterShort = TRIAD_COUNTERS[m.group]
@@ -456,11 +459,14 @@ class TSLConflictApp extends Application {
       if (!srcActor || !tgtActor) return "";
       const dispArch = knownArchetypes?.[tgtActor.id] ?? null;   // GM: truth · player: guess
       const isGuess  = archIsGuess?.[tgtActor.id] ?? false;
+      // GM assesses on the truth; a PLAYER's bar carries no archetype analysis
+      // at all (override null) — only their own bonuses and visible statuses.
+      // The dice still follow the truth; nature is learned from outcomes.
       const a = SocialManeuverRoller.assess(srcActor, tgtActor, move, {
         leverage: this._pendingLeverage,
-        archetypeOverride: isGM ? undefined : dispArch,
+        archetypeOverride: isGM ? undefined : null,
       });
-      const seeRel  = !!dispArch;
+      const seeRel  = isGM;
       // String spend moved AFTER the roll (the gamble) — no pre-commit here
       const extra   = a.bonus;
 

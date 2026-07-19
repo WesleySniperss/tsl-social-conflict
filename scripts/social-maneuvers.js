@@ -737,17 +737,20 @@ class SocialManeuverRoller {
    * leaks the archetype name or the DC. Returns an array of short lines.
    */
   static describeVsTarget(sourceActor, targetActor, maneuver, dispArch, isGM) {
+    // The GM assesses on the TRUTH and sees everything; a player never sees
+    // the archetype weak/strong analysis at all — only what they themselves
+    // bring and what's plainly visible (statuses, wounds). Nature is deduced
+    // from OUTCOMES, not read off a tooltip.
     const a = SocialManeuverRoller.assess(sourceActor, targetActor, maneuver,
-      { archetypeOverride: isGM ? undefined : (dispArch ?? null) });
-    const known = isGM ? !!a.arch : !!dispArch;
+      { archetypeOverride: isGM ? undefined : null });
     const out = [];
 
-    // Relation — veiled (never names the nature)
-    if (a.relation === "blocked")                      out.push("⚡ Walled off right now — nothing gets through");
-    else if (known && a.relation === "immune")         out.push("⚡ Bounces off them — auto-fails, they turn Defiant");
-    else if (known && a.relation === "vulnerable")     out.push("✦ Cuts deep here — Advantage & +1 Resolve damage");
+    // Relation — GM only, EXCEPT a live Defiant wall (that's a visible status)
+    if (a.relation === "blocked")           out.push("⚡ Walled off right now — nothing gets through");
+    else if (isGM && a.relation === "immune")     out.push("⚡ Bounces off them — auto-fails, they turn Defiant");
+    else if (isGM && a.relation === "vulnerable") out.push("✦ Cuts deep here — Advantage & +1 Resolve damage");
 
-    // Combo armed on a set-up status
+    // Combo armed on a set-up status (observable — safe for players)
     if (a.combo) {
       const st  = SOCIAL_CONDITIONS[a.combo.status]?.label ?? a.combo.status;
       const pay = [a.combo.resolveDamage ? `+${a.combo.resolveDamage} damage` : null,
@@ -757,13 +760,16 @@ class SocialManeuverRoller {
     if (a.opening) out.push(`❤ Open wound — +2 (${a.opening.flavor})`);
     if (a.kick)    out.push("◆ Kicks them while down — +1 Resolve damage");
 
-    // Flat bonuses (own/observable) — veil only the archetype-counter one
+    // Flat bonuses. Archetype/defense-derived ones (counter, blind side) are
+    // GM-only; the player's OWN bonuses (skill, bond, grip, leaning) always show.
     for (const b of a.bonusReasons) {
-      if (b.kind === "counter") { if (known) out.push(`» Their kind bends to this school — +${b.value}`); continue; }
+      if (b.kind === "counter") { if (isGM) out.push(`» Their kind bends to this school — +${b.value}`); continue; }
+      if (/unguarded approach/i.test(b.label)) { if (isGM) out.push(`+${b.value} an unguarded approach`); continue; }
       const sign = b.value >= 0 ? "+" : "−";
       out.push(`${sign}${Math.abs(b.value)} ${b.label.split(" — ")[0]}`);
     }
-    // Advantage sources that aren't the (veiled) relation itself
+    // Advantage sources that aren't the (GM-only) relation itself — these are
+    // observable statuses/leverage, safe to show either way.
     for (const r of a.advantageReasons) {
       if (r === a.relationReason) continue;
       out.push(`ADV — ${r}`);
@@ -771,7 +777,7 @@ class SocialManeuverRoller {
     // The GM alone sees the difficulty math
     if (isGM) for (const m of a.dcMods) out.push(`DC ${m.value > 0 ? "+" : "−"}${Math.abs(m.value)} · ${m.label}`);
 
-    if (!out.length) out.push("No special interaction — a straight contest.");
+    if (!out.length) out.push("No special interaction you can see — read them by rolling.");
     return out;
   }
 
