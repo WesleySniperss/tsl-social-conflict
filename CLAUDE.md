@@ -302,6 +302,10 @@ TSL stats mapped to D&D abilities:
 - **The 12 pairings** (primary + support): Read Them Insight+Investigation · Mock Deception+Performance · Taunt Performance+Intimidation · Flatter Persuasion+Deception · Play Weak Deception+Performance · Humiliate Intimidation+Performance · Charm Performance+Persuasion · Stir Jealousy Performance+Deception · Guilt Trip Persuasion+Insight · Undermine Deception+Insight · Cross-Examine Investigation+Insight · Bargain Persuasion+Insight. Every support skill is distinct from its primary (harness-asserted).
 - Surfaced in the chip tooltips ("Insight + Investigation (support)") and the bonus breakdown ("+N Investigation (support skill)") — it's the actor's own skill, shown plainly, never veiled.
 
+### v1.22.0 — maneuver chips explain themselves against the chosen target
+- **`SocialManeuverRoller.describeVsTarget(src, tgt, maneuver, dispArch, isGM)`**: runs `assess` and returns plain-language, VEILED lines of what the maneuver does against THIS target right now — relation (✦ cuts deep / ⚡ bounces off, read-gated), ◆ combo armed (which status it cashes + payout), ❤ open wound (+2), ◆ kick, every flat bonus (support skill, bond ●, grip, leaning, blind side), ADV sources, and — GM only — the DC mods. Follows the viewer's read (truth for GM, guess for player); never leaks the archetype name or the DC (harness-asserted).
+- Wired into BOTH chip tooltips: once a target is picked, the conflict window's maneuver chips show a `Vs <name>:` block (falling back to the generic archetype matrix with no target); the Chronicle console always has a target so it always shows it. Answers "what combos with what and what gives which bonus" at a glance across all 12 chips, no clicking required.
+
 ### VTools Integration (hud-button.js)
 ```js
 Hooks.once("vtools.ready", () => {

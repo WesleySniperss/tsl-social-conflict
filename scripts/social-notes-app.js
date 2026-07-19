@@ -648,17 +648,13 @@ class SocialFencingApp extends Application {
           const mark  = known && rel === "immune" ? `<span class="tsl-chip-mark tsl-chip-mark--imm">⚡</span>`
                       : known && rel === "vulnerable" ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">✦</span>`
                       : comboReady ? `<span class="tsl-chip-mark tsl-chip-mark--combo">◆</span>` : "";
-          const comboLines = [
-            ...(m.combos ? Object.entries(m.combos).map(([st, c]) =>
-              `◆ Combo — consumes ${SOCIAL_CONDITIONS[st]?.label ?? st}: ${c.label}` +
-              `${c.resolveDamage ? ` (+${c.resolveDamage} Resolve damage)` : ""}${c.strings ? ` (+${c.strings} String)` : ""}`) : []),
-            ...(m.kickWhileDown ? ["◆ Kicks while down: +1 Resolve damage if they have any status (not consumed)"] : []),
-            ...Object.entries(CONDITION_OPENINGS[m.id] ?? {}).map(([c, f]) =>
-              `❤ Open wound (${c.charAt(0).toUpperCase() + c.slice(1)}): +2 — ${f} (never consumed)`),
-          ];
-          const comboTip = comboLines.length ? "<br>" + comboLines.join("<br>") : "";
+          // What this maneuver actually does against THIS target, right now
+          // (veiled, follows the viewer's read). The console always has a target.
+          const liveTip = "<br><b>Vs " + esc(tgt.name) + ":</b><br>" +
+            SocialManeuverRoller.describeVsTarget(src, tgt, m, arch ?? null, ctx.isGM)
+              .map(l => esc(l)).join("<br>");
           return `<button class="tsl-chip ${isSel ? "selected" : ""}" data-fence-maneuver="${m.id}"
-                    data-tooltip="<b>${esc(m.name)}</b> · ${esc(m.skill)}${m.skill2 ? ` + ${esc(m.skill2)}` : ""}<br>${esc(m.description)}${comboTip}">
+                    data-tooltip="<b>${esc(m.name)}</b> · ${esc(m.skill)}${m.skill2 ? ` + ${esc(m.skill2)}` : ""}<br>${esc(m.description)}${liveTip}">
                     <i class="fas ${m.icon}"></i><span class="tsl-chip-name">${esc(m.name)}</span>${mark}</button>`;
         }).join("");
         const schoolTip = SOCIAL_TRIADS[g.id]?.hint

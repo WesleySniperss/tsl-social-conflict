@@ -731,6 +731,51 @@ class SocialManeuverRoller {
   }
 
   /**
+   * Plain-language, VEILED breakdown of what a maneuver does against THIS
+   * target right now — for the chip tooltips once a target is picked. Follows
+   * the viewer's read (truth for the GM, the guess for a player) and never
+   * leaks the archetype name or the DC. Returns an array of short lines.
+   */
+  static describeVsTarget(sourceActor, targetActor, maneuver, dispArch, isGM) {
+    const a = SocialManeuverRoller.assess(sourceActor, targetActor, maneuver,
+      { archetypeOverride: isGM ? undefined : (dispArch ?? null) });
+    const known = isGM ? !!a.arch : !!dispArch;
+    const out = [];
+
+    // Relation — veiled (never names the nature)
+    if (a.relation === "blocked")                      out.push("⚡ Walled off right now — nothing gets through");
+    else if (known && a.relation === "immune")         out.push("⚡ Bounces off them — auto-fails, they turn Defiant");
+    else if (known && a.relation === "vulnerable")     out.push("✦ Cuts deep here — Advantage & +1 Resolve damage");
+
+    // Combo armed on a set-up status
+    if (a.combo) {
+      const st  = SOCIAL_CONDITIONS[a.combo.status]?.label ?? a.combo.status;
+      const pay = [a.combo.resolveDamage ? `+${a.combo.resolveDamage} damage` : null,
+                   a.combo.strings ? `+${a.combo.strings} String` : null].filter(Boolean).join(", ");
+      out.push(`◆ Combo armed — cashes ${st}${pay ? `: ${pay}` : ""}`);
+    }
+    if (a.opening) out.push(`❤ Open wound — +2 (${a.opening.flavor})`);
+    if (a.kick)    out.push("◆ Kicks them while down — +1 Resolve damage");
+
+    // Flat bonuses (own/observable) — veil only the archetype-counter one
+    for (const b of a.bonusReasons) {
+      if (b.kind === "counter") { if (known) out.push(`» Their kind bends to this school — +${b.value}`); continue; }
+      const sign = b.value >= 0 ? "+" : "−";
+      out.push(`${sign}${Math.abs(b.value)} ${b.label.split(" — ")[0]}`);
+    }
+    // Advantage sources that aren't the (veiled) relation itself
+    for (const r of a.advantageReasons) {
+      if (r === a.relationReason) continue;
+      out.push(`ADV — ${r}`);
+    }
+    // The GM alone sees the difficulty math
+    if (isGM) for (const m of a.dcMods) out.push(`DC ${m.value > 0 ? "+" : "−"}${Math.abs(m.value)} · ${m.label}`);
+
+    if (!out.length) out.push("No special interaction — a straight contest.");
+    return out;
+  }
+
+  /**
    * The post-roll gamble: the die is cast, the DC is hidden — burn a String
    * for +5 and hope it turns the exchange? Decided AFTER seeing the total.
    */

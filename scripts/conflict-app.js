@@ -383,13 +383,22 @@ class TSLConflictApp extends Application {
             ...Object.entries(CONDITION_OPENINGS[m.id] ?? {}).map(([c, f]) =>
               `❤ Open wound (${c.charAt(0).toUpperCase() + c.slice(1)}): +2 — ${f} (never consumed)`),
           ].join("<br>") || null;
+          // Once a target is chosen, the tooltip shows what this maneuver
+          // actually does against THEM right now (veiled, follows your read).
+          // With no target, it falls back to the generic archetype matrix.
+          const liveBlock = (tgtActor && srcActor)
+            ? `<b>Vs ${esc(tgtActor.name)}:</b><br>` +
+              SocialManeuverRoller.describeVsTarget(srcActor, tgtActor, m, tgtArch ?? null, isGM)
+                .map(l => esc(l)).join("<br>")
+            : null;
           const tip = [
             `<b>${esc(m.name)}</b> · ${esc(m.skill)} ${mod >= 0 ? "+" : ""}${mod}${m.skill2 ? ` + ${esc(m.skill2)} (support)` : ""}`,
             esc(m.description),
-            comboTip,
-            ar.vulnerable.length ? `✦ Cuts deep: ${esc(ar.vulnerable.map(x => x.label).join(", "))}` : null,
-            ar.immune.length     ? `⚡ Bounces off: ${esc(ar.immune.map(x => x.label).join(", "))}` : null,
-            counterShort         ? `» School counters ${esc(counterShort)} archetypes (+2)` : null,
+            liveBlock,
+            liveBlock ? null : comboTip,
+            liveBlock ? null : (ar.vulnerable.length ? `✦ Cuts deep: ${esc(ar.vulnerable.map(x => x.label).join(", "))}` : null),
+            liveBlock ? null : (ar.immune.length     ? `⚡ Bounces off: ${esc(ar.immune.map(x => x.label).join(", "))}` : null),
+            liveBlock ? null : (counterShort         ? `» School counters ${esc(counterShort)} archetypes (+2)` : null),
           ].filter(Boolean).join("<br>").replaceAll('"', "&quot;");
           return `
             <button class="tsl-chip ${isSel ? "selected" : ""}" data-maneuver="${m.id}" data-tooltip="${tip}">
