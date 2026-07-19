@@ -261,7 +261,7 @@ class SocialFencingApp extends Application {
 
       ${!this._actor.hasPlayerOwner ? "" : `
       <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title" data-tooltip="Your NATURE — it cuts both ways. ATTACK: +1 per dot to that school's maneuvers, −1 on a 0-dot triad (foreign ground); dots also sharpen everyday checks (Power → Intimidation, Emotion → Insight, Order → Deception). DEFENSE: a ruling triad (unique 2+●) is home ground — its school gets +2 DC against you, and YOUR Answer punishes bad misses in its language; but a 0-dot school is your blind side (+1 against you), and the school that counters your ruling triad reads you (+2). Split your ${TRIAD_POINT_POOL} points evenly and you have no ruling nature: unreadable — but answerless.">
+        <div class="tsl-notes-section-title" data-tooltip="Spend ${TRIAD_POINT_POOL} dots. They cut both ways.<br><b>Attack:</b> +1 per dot on that school's maneuvers (−1 on a 0-dot school), and they sharpen everyday checks (Power→Intimidation, Emotion→Insight, Order→Deception).<br><b>Defense:</b> your ruling triad (a clear 2+● lead) is home ground — hard to hit there, and your Answer bites bad misses. A 0-dot school is your blind side. Split evenly = unreadable, but no Answer.">
           Extended Triad · your nature
           <span class="tsl-chr-triad-budget ${remaining < 0 ? "over" : remaining === 0 ? "spent" : ""}">${
             remaining < 0 ? `${-remaining} over — lower a triad` : `${remaining} / ${TRIAD_POINT_POOL} left`
@@ -531,7 +531,7 @@ class SocialFencingApp extends Application {
             ${canEdit ? `<button class="tsl-chr-bond-remove" data-bond-id="${b.id}" data-tooltip="Remove bond">✕</button>` : ""}
           </div>
           <div class="tsl-chr-bond-line">
-            <span class="tsl-chr-bond-label" data-tooltip="How DEEP this bond runs, 0–3 ●. Strength scales everything the bond TYPE gives: your +● on its school of maneuvers against them, and THEIR guard when they sway ${esc(this._actor.name)} (a friend's door opens −●, an enemy grows wary +●). Swayed exchanges deepen bonds; walking away cools them.">Strength</span>
+            <span class="tsl-chr-bond-label" data-tooltip="How deep the bond runs, 0–3 ●. It scales everything the bond TYPE gives (your +● weapon, their DC guard). Swayed exchanges deepen it; walking away cools it.">Strength</span>
             <div class="tsl-chr-att-track">${attitudeDots(b)}</div>
           </div>
           <div class="tsl-chr-bond-line">
