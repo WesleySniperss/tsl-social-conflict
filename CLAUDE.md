@@ -320,6 +320,10 @@ TSL stats mapped to D&D abilities:
 - **"Open wound" explained everywhere it appears** (legend, Codex "Reading the chip corners"): a raw emotional TSL Condition on the target (Angry/Smitten/Guilty/Scared/Hopeless) that certain maneuvers press for +2, unconsumed until drama resolves it — folded under the same ⊕ opening mark as combos.
 - Stale player-facing prose ("the marks follow your guess") corrected to reflect v1.23: marks are GM-only; players deduce weak spots from OUTCOMES.
 
+### v1.27.0 — Codex combo cheat-sheet (data-generated)
+- **New Codex section "Combos & interactions — the cheat sheet"** (`_buildCodexTab`), built FROM the data so it can't drift: (1) **Set-ups** — each fencing status ← the maneuvers that apply it (from `applyOnSuccess`); (2) **Chains** — each combo finisher and its payout (from `maneuver.combos` + `kickWhileDown`); (3) **Wounds** — each emotional TSL Condition → the maneuvers that press it for +2 (from `CONDITION_OPENINGS`, inverted). Replaces the old prose "Statuses & combos" bullets. `.tsl-codex-combo` rows with dashed separators.
+- Clarifies the two sources of a ⊕ opening: cash a set-up (a status you applied this exchange) vs press a wound (a lasting Condition they carry), with a one-line note on where wounds come from (Hold the Line / Feelings moves / a bad fumble).
+
 ### VTools Integration (hud-button.js)
 ```js
 Hooks.once("vtools.ready", () => {

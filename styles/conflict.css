@@ -2135,6 +2135,19 @@
   line-height: 1.4;
 }
 
+/* Combo cheat-sheet rows — list-free, tight, arrows line up the two sides */
+.tsl-codex-combo {
+  list-style: none;
+  padding-left: 4px;
+  margin: 2px 0 4px;
+}
+.tsl-codex-combo li {
+  padding: 2px 0;
+  border-bottom: 1px dashed rgba(255,255,255,0.05);
+}
+.tsl-codex-combo li:last-child { border-bottom: none; }
+.tsl-codex-combo b { color: var(--tsl-notes-text); }
+
 .tsl-codex-triad-head {
   font-family: 'Cinzel', serif;
   font-size: 12px;

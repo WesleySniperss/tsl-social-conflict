@@ -376,6 +376,55 @@ class SocialFencingApp extends Application {
         <ul class="tsl-codex-how">${items.map(i => `<li>${i}</li>`).join("")}</ul>
       </div>`;
 
+    // ── Combo reference, generated from the data so it's always accurate ──
+    const mName = (id) => SOCIAL_MANEUVERS.find(m => m.id === id)?.name ?? id;
+    const capId = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+    const stName = (id) => SOCIAL_CONDITIONS[id]?.label ?? capId(id);
+
+    // Which maneuver applies which fencing status (the set-up)
+    const setupRows = SOCIAL_CONDITION_ORDER.map(st => {
+      const from = SOCIAL_MANEUVERS.filter(m => m.applyOnSuccess === st).map(m => m.name);
+      return from.length ? `<li><b>${stName(st)}</b> &nbsp;←&nbsp; ${from.join(", ")}</li>` : null;
+    }).filter(Boolean).join("");
+
+    // Finishers that CASH a set-up status (the ⊕ combo)
+    const chainRows = [];
+    for (const m of SOCIAL_MANEUVERS) {
+      for (const [st, c] of Object.entries(m.combos ?? {})) {
+        const pay = [c.resolveDamage ? `+${c.resolveDamage} dmg` : null, c.strings ? `+${c.strings} String` : null].filter(Boolean).join(", ");
+        chainRows.push(`<li>They're <b>${stName(st)}</b> &nbsp;→&nbsp; <b>${m.name}</b> cashes it (${pay})</li>`);
+      }
+    }
+    const kicker = SOCIAL_MANEUVERS.find(m => m.kickWhileDown);
+    if (kicker) chainRows.push(`<li>They have <b>any status</b> &nbsp;→&nbsp; <b>${kicker.name}</b> hits +1 dmg</li>`);
+
+    // Emotional WOUNDS (TSL Conditions) each maneuver presses for +2
+    const woundMap = {};
+    for (const [mid, conds] of Object.entries(CONDITION_OPENINGS)) {
+      for (const cond of Object.keys(conds)) (woundMap[cond] ??= new Set()).add(mName(mid));
+    }
+    const woundRows = Object.entries(woundMap)
+      .map(([cond, ms]) => `<li><b>${capId(cond)}</b> &nbsp;→&nbsp; ${[...ms].join(", ")} &nbsp;(+2)</li>`).join("");
+
+    const comboReference = `
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title">Combos & interactions — the cheat sheet</div>
+        <div class="tsl-codex-hint-sm">Two ways to earn a ⊕ opening: <b>cash a set-up</b> (a status you applied this exchange) or <b>press a wound</b> (a lasting emotional Condition they carry).</div>
+        <div class="tsl-codex-sub">
+          <div class="tsl-codex-sub-title">1 · Set-ups — the status each maneuver applies</div>
+          <ul class="tsl-codex-how tsl-codex-combo">${setupRows}</ul>
+        </div>
+        <div class="tsl-codex-sub">
+          <div class="tsl-codex-sub-title">2 · Chains — a finisher cashes a set-up (⊕)</div>
+          <ul class="tsl-codex-how tsl-codex-combo">${chainRows.join("")}</ul>
+        </div>
+        <div class="tsl-codex-sub">
+          <div class="tsl-codex-sub-title">3 · Wounds — press a lasting emotional Condition (⊕ +2)</div>
+          <ul class="tsl-codex-how tsl-codex-combo">${woundRows}</ul>
+          <div class="tsl-codex-hint-sm">Wounds come from Hold the Line, sincere Feelings moves, or a bad fumble — and last until the story heals them.</div>
+        </div>
+      </section>`;
+
     const quickStart = `
       <section class="tsl-notes-section">
         <div class="tsl-notes-section-title">Your turn, step by step</div>
@@ -403,11 +452,6 @@ class SocialFencingApp extends Application {
         ${sub("Reading the chip corners", [
           `<b>⊕</b> — a <b>+2 opening is live right now</b>: either a combo you've set up (a status like Provoked or Desperate ready to cash) OR an <b>open wound</b> — a raw emotional Condition on them (Angry, Smitten, Guilty, Scared, Hopeless) that this maneuver presses. Everyone sees ⊕; it reads off visible statuses.`,
           `<b>◎</b> weak spot (cuts deep) · <b>✕</b> bounces off / walled · <b>▲</b> their nature yields to this school — these are the <b>GM's</b> to see. Players deduce weak spots from outcomes, not the chips.`,
-        ])}
-        ${sub("Statuses & combos", [
-          `Maneuvers apply statuses — Provoked, Smitten, Desperate, Guilted, Rattled.`,
-          `Chains read like life: <b>heat them</b> (Taunt → Provoked) then Humiliate the gap; <b>make them chase</b> (Stir Jealousy → Desperate) then Charm or Bargain; a <b>Smitten</b> heart owes double (Charm → Guilt Trip).`,
-          `<b>Wounds open doors (⊕):</b> an emotional Condition (Angry, Smitten, Guilty, Scared, Hopeless) is a standing <b>+2</b> for the maneuvers that speak to it, until the story resolves it.`,
         ])}
         ${sub("Grades & the Answer", [
           `A <b>clean hit</b> (well over) cuts +1 deeper. A <b>bad miss</b> — or hitting an immunity — earns their <b>Answer</b>: Power leaves you Rattled · Emotion leaves you Guilty before the room · Reason takes a String on you.`,
@@ -447,7 +491,7 @@ class SocialFencingApp extends Application {
         ])}
       </section>`;
 
-    const how = quickStart + reference + gm;
+    const how = quickStart + comboReference + reference + gm;
 
     const triadBlocks = Object.values(SOCIAL_TRIADS).map(triad => {
       const cards = SOCIAL_ARCHETYPES
