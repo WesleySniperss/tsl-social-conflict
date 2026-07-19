@@ -297,6 +297,11 @@ TSL stats mapped to D&D abilities:
 - **`ARCHETYPE_TELLS` (social-archetypes.js)**: **40** whispered Read Them clues per archetype (9×40=360 as of v1.20.1) — the deepest pool, since Read Them is cast most. `whisperTell` now draws from `pickTell` (falls back to the old tells/craves/dreads for custom archetypes with no pool).
 - Both pools are strictly veiled (a harness test asserts no line contains an archetype label) and support the hidden-archetype deduction loop: you learn WHO someone is by how they break under pressure, refreshed every roll so it never goes stale.
 
+### v1.21.0 — every maneuver rolls two skills (primary + support)
+- **Each maneuver now has `skill2`/`skillKeys2`**: the PRIMARY skill rolls the d20; the SECONDARY skill's modifier rides on top as a flat bonus (`getSkillMod2` → a `bonusReason` in assess, added only when non-zero). `getSkillMod` refactored to share `_modForKeys(actor, keys)`. The support bonus flows through BOTH roll paths: module d20 (`mod = skillMod + bonus + …`) and the system dialog (folded into `situationalMods` via `a.bonus`, since the system already rolls the primary).
+- **The 12 pairings** (primary + support): Read Them Insight+Investigation · Mock Deception+Performance · Taunt Performance+Intimidation · Flatter Persuasion+Deception · Play Weak Deception+Performance · Humiliate Intimidation+Performance · Charm Performance+Persuasion · Stir Jealousy Performance+Deception · Guilt Trip Persuasion+Insight · Undermine Deception+Insight · Cross-Examine Investigation+Insight · Bargain Persuasion+Insight. Every support skill is distinct from its primary (harness-asserted).
+- Surfaced in the chip tooltips ("Insight + Investigation (support)") and the bonus breakdown ("+N Investigation (support skill)") — it's the actor's own skill, shown plainly, never veiled.
+
 ### VTools Integration (hud-button.js)
 ```js
 Hooks.once("vtools.ready", () => {

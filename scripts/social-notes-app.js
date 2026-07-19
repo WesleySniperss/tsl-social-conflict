@@ -658,7 +658,7 @@ class SocialFencingApp extends Application {
           ];
           const comboTip = comboLines.length ? "<br>" + comboLines.join("<br>") : "";
           return `<button class="tsl-chip ${isSel ? "selected" : ""}" data-fence-maneuver="${m.id}"
-                    data-tooltip="<b>${esc(m.name)}</b> · ${esc(m.skill)}<br>${esc(m.description)}${comboTip}">
+                    data-tooltip="<b>${esc(m.name)}</b> · ${esc(m.skill)}${m.skill2 ? ` + ${esc(m.skill2)}` : ""}<br>${esc(m.description)}${comboTip}">
                     <i class="fas ${m.icon}"></i><span class="tsl-chip-name">${esc(m.name)}</span>${mark}</button>`;
         }).join("");
         const schoolTip = SOCIAL_TRIADS[g.id]?.hint

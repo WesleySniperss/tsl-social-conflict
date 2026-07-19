@@ -45,6 +45,8 @@ const SOCIAL_MANEUVERS = [
     icon:  "fa-eye",
     group: "general",
     skillKeys:       { dnd5e: "ins", "a5e-for-dnd5e": "insight" },
+    skill2:          "Investigation",
+    skillKeys2:      { dnd5e: "inv", "a5e-for-dnd5e": "investigation" },
     vulnerabilityTags: [],
     immunityTags:      [],
     description:  "The scout. Watch the seams of their public face — no pressure, just attention.",
@@ -65,6 +67,8 @@ const SOCIAL_MANEUVERS = [
     icon:  "fa-theater-masks",
     group: "general",
     skillKeys:       { dnd5e: "dec", "a5e-for-dnd5e": "deception" },
+    skill2:          "Performance",
+    skillKeys2:      { dnd5e: "prf", "a5e-for-dnd5e": "performance" },
     vulnerabilityTags: [],
     immunityTags:      ["sow doubt", "criticism"],   // Exalted
     description:  "The jab. A joke with a razor in it — and it cuts twice as deep into someone already off balance. Kick them while they're down.",
@@ -84,6 +88,8 @@ const SOCIAL_MANEUVERS = [
     icon:  "fa-fire",
     group: "general",
     skillKeys:       { dnd5e: "prf", "a5e-for-dnd5e": "performance" },
+    skill2:          "Intimidation",
+    skillKeys2:      { dnd5e: "itm", "a5e-for-dnd5e": "intimidation" },
     vulnerabilityTags: [],
     immunityTags:      ["intimidate", "emotional intimidation"],  // Tyrant, Hermit
     description:  "The setup. Needle their temper until composure slips — then strike into the gap.",
@@ -104,6 +110,8 @@ const SOCIAL_MANEUVERS = [
     icon:  "fa-crown",
     group: "power",
     skillKeys:       { dnd5e: "per", "a5e-for-dnd5e": "persuasion" },
+    skill2:          "Deception",
+    skillKeys2:      { dnd5e: "dec", "a5e-for-dnd5e": "deception" },
     vulnerabilityTags: ["appease", "flattery"],       // Tyrant → Advantage
     immunityTags:      [],
     description:  "Hold up the reflection they wish were true. Power through worship — they kneel to their own image.",
@@ -122,6 +130,8 @@ const SOCIAL_MANEUVERS = [
     icon:  "fa-mask",
     group: "power",
     skillKeys:       { dnd5e: "dec", "a5e-for-dnd5e": "deception" },
+    skill2:          "Performance",
+    skillKeys2:      { dnd5e: "prf", "a5e-for-dnd5e": "performance" },
     vulnerabilityTags: ["deceive", "feigned weakness"],  // Machiavellian → Advantage
     immunityTags:      ["scorn for weakness"],            // Duelist
     description:  "The deep bait. Show them your throat and count what they reveal reaching for it.",
@@ -140,6 +150,8 @@ const SOCIAL_MANEUVERS = [
     icon:  "fa-khanda",
     group: "power",
     skillKeys:       { dnd5e: "itm", "a5e-for-dnd5e": "intimidation" },
+    skill2:          "Performance",
+    skillKeys2:      { dnd5e: "prf", "a5e-for-dnd5e": "performance" },
     vulnerabilityTags: ["challenge", "glory"],            // Duelist → Advantage
     immunityTags:      ["emotional intimidation"],        // Hermit
     description:  "The heavy blow. Dare them before witnesses — glorious if it lands, costly if it hangs in the air.",
@@ -162,6 +174,8 @@ const SOCIAL_MANEUVERS = [
     icon:  "fa-heart",
     group: "attention",
     skillKeys:       { dnd5e: "prf", "a5e-for-dnd5e": "performance" },
+    skill2:          "Persuasion",
+    skillKeys2:      { dnd5e: "per", "a5e-for-dnd5e": "persuasion" },
     vulnerabilityTags: ["love bombing"],              // Exalted → Advantage
     immunityTags:      ["persuade", "sympathy"],      // Martyr
     description:  "Lay siege with sweetness. Adoration as a weapon — they open the gates themselves.",
@@ -181,6 +195,8 @@ const SOCIAL_MANEUVERS = [
     icon:  "fa-heart-circle-exclamation",
     group: "attention",
     skillKeys:       { dnd5e: "prf", "a5e-for-dnd5e": "performance" },
+    skill2:          "Deception",
+    skillKeys2:      { dnd5e: "dec", "a5e-for-dnd5e": "deception" },
     vulnerabilityTags: ["stone-walling", "ignore"],   // Martyr → Advantage
     immunityTags:      ["selfless focus"],            // Caretaker
     description:  "Warmth, aimed anywhere but at them. Make it clear you're wanted elsewhere — praise a rival present OR conjure one who isn't ('others would leap at this'), hint you're spoiled for choice. The rival can be real or invented; what bites is the fear of losing you to someone. They chase what they think they're losing.",
@@ -199,6 +215,8 @@ const SOCIAL_MANEUVERS = [
     icon:  "fa-scale-unbalanced",
     group: "attention",
     skillKeys:       { dnd5e: "per", "a5e-for-dnd5e": "persuasion" },
+    skill2:          "Insight",
+    skillKeys2:      { dnd5e: "ins", "a5e-for-dnd5e": "insight" },
     vulnerabilityTags: ["guilt", "obligation"],       // Caretaker → Advantage
     immunityTags:      ["shameless"],                 // Machiavellian
     description:  "Present the ledger of everything owed in hurt and kindness — and let it crush.",
@@ -220,6 +238,8 @@ const SOCIAL_MANEUVERS = [
     icon:  "fa-brain",
     group: "order",
     skillKeys:       { dnd5e: "dec", "a5e-for-dnd5e": "deception" },
+    skill2:          "Insight",
+    skillKeys2:      { dnd5e: "ins", "a5e-for-dnd5e": "insight" },
     vulnerabilityTags: ["gaslighting", "exploiting dogma"],  // Dogmatic → Advantage
     immunityTags:      ["ledger mind"],                       // Broker
     description:  "Field control. Pull one thread of what they believe and let the whole cloth loosen.",
@@ -238,6 +258,8 @@ const SOCIAL_MANEUVERS = [
     icon:  "fa-puzzle-piece",
     group: "order",
     skillKeys:       { dnd5e: "inv", "a5e-for-dnd5e": "investigation" },
+    skill2:          "Insight",
+    skillKeys2:      { dnd5e: "ins", "a5e-for-dnd5e": "insight" },
     vulnerabilityTags: ["information deficit", "logic puzzles"],  // Hermit → Advantage
     immunityTags:      ["bribes", "emotions", "pure logic"],      // Dogmatic, Machiavellian
     description:  "The scholar's cut. Find the flaw in their reasoning and pry it open — it hurts AND it teaches.",
@@ -258,6 +280,8 @@ const SOCIAL_MANEUVERS = [
     icon:  "fa-coins",
     group: "order",
     skillKeys:       { dnd5e: "per", "a5e-for-dnd5e": "persuasion" },
+    skill2:          "Insight",
+    skillKeys2:      { dnd5e: "ins", "a5e-for-dnd5e": "insight" },
     vulnerabilityTags: ["deal", "greed"],             // Broker → Advantage
     immunityTags:      ["bribes"],                    // Dogmatic
     description:  "Every gift is a link. Put a concrete offer on the table and watch it close around their wrist.",
@@ -366,13 +390,15 @@ class SocialManeuverRoller {
     return prof;
   }
 
-  static getSkillMod(actor, maneuver) {
+  /** The modifier for a skillKeys map on this actor (0 if none resolves). */
+  static _modForKeys(actor, skillKeys) {
+    if (!skillKeys) return 0;
     // Try the system-native key first, then the other systems' keys —
     // and read whichever numeric field the system actually computes.
     const keys = [...new Set([
-      maneuver.skillKeys[game.system.id],
-      maneuver.skillKeys["a5e-for-dnd5e"],
-      maneuver.skillKeys["dnd5e"],
+      skillKeys[game.system.id],
+      skillKeys["a5e-for-dnd5e"],
+      skillKeys["dnd5e"],
     ].filter(Boolean))];
     for (const key of keys) {
       const entry = actor.system?.skills?.[key];
@@ -389,6 +415,16 @@ class SocialManeuverRoller {
       return v;
     }
     return 0;
+  }
+
+  /** The PRIMARY skill modifier (the d20 roll's own skill). */
+  static getSkillMod(actor, maneuver) {
+    return SocialManeuverRoller._modForKeys(actor, maneuver.skillKeys);
+  }
+
+  /** The SECONDARY skill modifier — added as a bonus on top (0 if none). */
+  static getSkillMod2(actor, maneuver) {
+    return SocialManeuverRoller._modForKeys(actor, maneuver.skillKeys2);
   }
 
   static getPassiveInsight(actor) {
@@ -540,6 +576,13 @@ class SocialManeuverRoller {
     if (advantage) advantageReasons.push(relationReason);
 
     if (relation !== "blocked" && relation !== "immune") {
+      // Two skills, always: the maneuver rolls its PRIMARY on the d20, and its
+      // SECONDARY skill's modifier rides on top as a flat bonus (Read Them is
+      // Insight + Investigation, etc). Shown plainly — it's the actor's own skill.
+      if (maneuver.skill2) {
+        const s2 = SocialManeuverRoller.getSkillMod2(sourceActor, maneuver);
+        if (s2) bonusReasons.push({ label: `${maneuver.skill2} (support skill)`, value: s2 });
+      }
       if (leverage === "desire" && !advantage) {
         advantage = true;
         advantageReasons.push("Dangling their Desire — the offer speaks for you");

@@ -384,7 +384,7 @@ class TSLConflictApp extends Application {
               `❤ Open wound (${c.charAt(0).toUpperCase() + c.slice(1)}): +2 — ${f} (never consumed)`),
           ].join("<br>") || null;
           const tip = [
-            `<b>${esc(m.name)}</b> · ${esc(m.skill)} ${mod >= 0 ? "+" : ""}${mod}`,
+            `<b>${esc(m.name)}</b> · ${esc(m.skill)} ${mod >= 0 ? "+" : ""}${mod}${m.skill2 ? ` + ${esc(m.skill2)} (support)` : ""}`,
             esc(m.description),
             comboTip,
             ar.vulnerable.length ? `✦ Cuts deep: ${esc(ar.vulnerable.map(x => x.label).join(", "))}` : null,
