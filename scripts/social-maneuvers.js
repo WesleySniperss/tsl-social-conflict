@@ -842,17 +842,15 @@ class SocialManeuverRoller {
       outcomeType === "botch"  ? `${maneuver.failText} The opening is yours no longer — they answer.` :
       success ? maneuver.successText : maneuver.failText;
 
-    await SocialManeuverRoller._postCard({
-      sourceActor, targetActor, maneuver, roll, rawDice, systemRoll,
-      stringBonus, situational, total, outcomeType, outcomeText, assessment: a,
-      advantage: wantAdv && !wantDis, disadvantage: wantDis && !wantAdv,
-    });
-
+    // The card is NOT posted here — it is posted by the GM in applyOutcome,
+    // AFTER the GM confirms the outcome (so the shared card always reflects
+    // the GM's final ruling, never a proposed result the GM then overrode).
+    // The acting client still gets its instant dice overlay from the payload.
     return {
       sourceActorId: sourceActor.id,
       targetActorId: targetActor.id,
       maneuverId:    maneuver.id,
-      outcomeType,
+      outcomeType,                               // the DICE's verdict — the GM may adjust
       relation:      a.relation,
       consumed:      isWalled ? [] : a.consumes,
       combo:         isWalled ? null : a.combo,
@@ -861,7 +859,46 @@ class SocialManeuverRoller {
       dc: a.dc,
       spentString: stringBonus > 0,
       spentStringPostRoll,
+      // ── card payload (rebuilt & posted on the GM client) ──
+      card: {
+        rawDice, systemRoll,
+        stringBonus, situational,
+        advantage: wantAdv && !wantDis,
+        disadvantage: wantDis && !wantAdv,
+        rollData: systemRoll ? null : roll.toJSON(),
+      },
     };
+  }
+
+  /**
+   * The GM's final word: after the dice, confirm the grade against the hidden
+   * DC (proposed result pre-selected). GM CLIENT ONLY; resolves to a grade
+   * ("crit"|"success"|"failure"|"botch"). Skipped (returns proposed) when the
+   * setting is off or the outcome is deterministic (walled).
+   */
+  static async promptOutcome(sourceActor, targetActor, maneuver, total, dc, proposed) {
+    let on = true;
+    try { on = game.settings.get("tsl-social-conflict", "gmDecidesOutcome") !== false; } catch {}
+    if (!on || proposed === "immune") return proposed;
+    const esc = foundry.utils.escapeHTML;
+    const margin = total - dc;
+    return new Promise(resolve => {
+      new Dialog({
+        title: `${sourceActor.name} → ${targetActor.name}: ${maneuver.name}`,
+        content: `<div class="tsl-rollmods">
+          <p>Total <b>${total}</b> vs DC <b>${dc}</b> — margin <b>${margin >= 0 ? "+" : ""}${margin}</b>.</p>
+          <p class="notes">You have the final word on whether it lands. The computed grade is pre-selected.</p>
+        </div>`,
+        buttons: {
+          crit:    { label: "◆ Clean hit", callback: () => resolve("crit") },
+          success: { label: "✓ Success",   callback: () => resolve("success") },
+          failure: { label: "✗ Failure",   callback: () => resolve("failure") },
+          botch:   { label: "⚔ They answer", callback: () => resolve("botch") },
+        },
+        default: proposed,
+        close: () => resolve(proposed),
+      }).render(true);
+    });
   }
 
   /**
@@ -896,7 +933,7 @@ class SocialManeuverRoller {
    */
   static async applyOutcome(payload) {
     if (!game.user.isGM) return;
-    const { sourceActorId, targetActorId, maneuverId, outcomeType, relation, consumed, combo, leverage, spentString } = payload;
+    const { sourceActorId, targetActorId, maneuverId, relation, consumed, combo, leverage, spentString } = payload;
     const sourceActor = game.actors.get(sourceActorId);
     const targetActor = game.actors.get(targetActorId);
     const maneuver    = SocialManeuverRoller.getManeuver(maneuverId);
@@ -906,6 +943,35 @@ class SocialManeuverRoller {
     // brings its Resolve/Patience tracks to life from sheet defaults.
     await SocialEncounterManager.ensureActive(targetActor);
     const encBefore = SocialEncounterManager.getEncounter(targetActor);
+
+    // The GM has the final word: confirm the grade against the hidden DC
+    // (the dice's verdict is pre-selected). Deterministic walls skip this.
+    let outcomeType = payload.outcomeType;
+    if (relation !== "immune" && relation !== "blocked") {
+      outcomeType = await SocialManeuverRoller.promptOutcome(
+        sourceActor, targetActor, maneuver, payload.total, payload.dc, payload.outcomeType);
+    }
+    payload.outcomeType = outcomeType;   // keep the shared log in sync
+
+    // Post the shared card NOW (GM side), reflecting the GM's final ruling —
+    // built from the truth-side assessment, before any one-shot burns away.
+    if (payload.card) {
+      const a = SocialManeuverRoller.assess(sourceActor, targetActor, maneuver, { leverage });
+      const outcomeText =
+        relation === "blocked" ? "They are Defiant — only Read Them gets through, and a successful read breaks the wall." :
+        relation === "immune"  ? (maneuver.immuneText ?? "Target becomes Defiant.") :
+        outcomeType === "crit"    ? `Clean through the guard. ${maneuver.successText}` :
+        outcomeType === "botch"   ? `${maneuver.failText} The opening is yours no longer — they answer.` :
+        (outcomeType === "success") ? maneuver.successText : maneuver.failText;
+      await SocialManeuverRoller._postCard({
+        sourceActor, targetActor, maneuver, assessment: a,
+        total: payload.total, outcomeType, outcomeText,
+        rawDice: payload.card.rawDice, systemRoll: payload.card.systemRoll,
+        stringBonus: payload.card.stringBonus, situational: payload.card.situational,
+        advantage: payload.card.advantage, disadvantage: payload.card.disadvantage,
+        roll: payload.card.rollData ? Roll.fromData(payload.card.rollData) : null,
+      });
+    }
 
     // Off-balance check BEFORE anything burns — Mock's kick counts the state
     // the target was actually in when the words landed

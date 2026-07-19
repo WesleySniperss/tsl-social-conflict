@@ -26,11 +26,20 @@ Hooks.once("init", () => {
 
   game.settings.register("tsl-social-conflict", "useSystemRollDialog", {
     name: "Use the system's roll dialog (A5E)",
-    hint: "Maneuver rolls open the system's own skill-check dialog — pick advantage, expertise dice and situational modifiers there. The module's fencing bonuses are pre-filled as a situational modifier; outcome, hidden DC and consequences still resolve through the module.",
+    hint: "Maneuver rolls open the system's OWN skill-check dialog — advantage, expertise dice and situational mods live there — instead of the module's slim prompt. The module's fencing bonuses ride along as a pre-filled situational modifier. On systems without a skill-check dialog the slim prompt is used. Outcome, hidden DC and consequences still resolve through the module.",
     scope: "world",
     config: true,
     type: Boolean,
-    default: false,
+    default: true,
+  });
+
+  game.settings.register("tsl-social-conflict", "gmDecidesOutcome", {
+    name: "GM adjudicates every maneuver",
+    hint: "After each maneuver roll the GM confirms whether it beat the hidden difficulty — clean hit, success, failure or a fumble — with the computed result pre-selected (one click). The GM always has the final word on success. Turn off to resolve automatically against the DC.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
   });
 
   game.settings.register("tsl-social-conflict", "enableHoldLine", {

@@ -79,7 +79,8 @@ tsl-social-conflict/
 - `conflictMode` (world, default **both**) — `both` = TSL moves + Social Fencing; `tsl` = pure TSL (no maneuvers/tracks/statuses/Fencing tab, Kiss always on, playbook shown as participant subtitle); `fencing` = classic D&D only (no 2d6 moves)
 - `enableKiss` (world, default **false**) — shows/hides the TSL "Finally Kiss" special move; ORed with `conflictMode === "tsl"`
 - `enableHoldLine` (world, default **true**) — the GM dialog offering to refuse a landed status by taking a TSL Condition
-- `useSystemRollDialog` (world, default **false**) — maneuvers roll through the SYSTEM's skill-check dialog (A5E: advantage, expertise dice, situational mods); the module's fencing extras ride along as a pre-filled situational modifier; outcome vs hidden DC, cards and consequences stay module-side (`usesSystemDialog`, system path in `rollManeuver`; dialog cancel → null payload, nothing spent)
+- `useSystemRollDialog` (world, default **true**) — maneuvers roll through the SYSTEM's skill-check dialog (A5E: advantage, expertise dice, situational mods) instead of the module's slim prompt; the module's fencing extras ride along as a pre-filled situational modifier; outcome vs hidden DC, cards and consequences stay module-side (`usesSystemDialog`, system path in `rollManeuver`; dialog cancel → null payload, nothing spent). Falls back to `promptRollMods` on systems without `rollSkillCheck`
+- `gmDecidesOutcome` (world, default **true**) — after each non-walled maneuver the GM confirms the grade vs the hidden DC (crit/success/failure/botch, dice verdict pre-selected); `promptOutcome` on the GM client, card posted post-adjudication in `applyOutcome`
 
 ### TSL Playbooks (tsl-playbooks.js)
 - 9 playbooks (Beast, Chosen, Devoted, Infamous, Nature Witch, Scoundrel, Seeker, Spooky Witch, Trickster), adapted under the Powered by Lesbians license
@@ -284,6 +285,12 @@ TSL stats mapped to D&D abilities:
 ### v1.16.0 — the system's own dice; Strings bite in combat
 - **`useSystemRollDialog`**: maneuver rolls go through `actor.rollSkillCheck(key, { situationalMods, rollMode })` — the A5E dialog with advantage/expertise dice. The module passes its assess extras (grip/combo/wound/dots…) as a pre-filled situational mod, reads `msg.rolls[0].total` back, and resolves outcome/gamble/cards itself. Our card shows `[dice] — system check` and attaches no roll (no double dice animation). Maneuver skills: Insight, Deception, Performance, Intimidation, Persuasion + Investigation (Cross-Examine) — a5e uses the same 3-letter keys as dnd5e.
 - **Pull the String (universal +5)**: a String is +5 to ANY roll against that person — even an attack. The 🎭+5 button in the Bonds row burns one and posts a public card ("+5 to this roll against them"); the table applies it to the roll just made. Codex gamble bullet teaches the universal rule.
+
+### v1.19.0 — the GM has the final word; the system dialog is the default
+- **`useSystemRollDialog` default flipped to `true`**: on A5E, maneuver rolls now open the SYSTEM's own skill-check dialog (advantage, expertise dice, situational mods) out of the box — the module's slim `promptRollMods` no longer appears there (it stays only as the fallback for systems without `rollSkillCheck`). Our fencing bonuses ride in pre-filled as the situational mod. The user's redundant-window complaint: resolved.
+- **`gmDecidesOutcome` (world, default `true`) + `promptOutcome`**: after every non-walled maneuver roll the GM confirms the grade (crit / success / failure / botch) against the hidden DC, with the dice's verdict pre-selected as the default button (one keypress). The GM's ruling — not the raw d20 vs DC — decides consequences. Walled (immune/blocked) outcomes stay deterministic (no prompt).
+- **Card posting moved to the GM client**: `rollManeuver` no longer posts the chat card; it returns a `card:{}` payload (rawDice, systemRoll, adv/dis, `rollData: roll.toJSON()`). `applyOutcome` (always GM) re-assesses on the truth side, posts the card AFTER adjudication (rebuilding the Roll via `Roll.fromData` for non-system rolls), so the shared card can never show a result the GM then overrode. The acting client still gets its instant dice overlay from the payload.
+- Skills audit (answer to "do all rolls use the five social skills?"): 11/12 do — Insight, Deception (Mock/Play Weak/Undermine), Performance (Taunt/Charm/Stir Jealousy), Intimidation (Humiliate), Persuasion (Flatter/Guilt Trip/Bargain); the lone exception is **Cross-Examine → Investigation**.
 
 ### VTools Integration (hud-button.js)
 ```js
