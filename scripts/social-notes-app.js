@@ -390,7 +390,7 @@ class SocialFencingApp extends Application {
       "swayed": "Resolve broken to 0: they concede the exchange, and the bond toward you deepens.",
       "walk away": "Patience emptied to 0: they leave on their terms, holding something over you.",
       "leverage": "A read dossier unlocks their Desire, Fear or Weakness — each playable once per exchange for a strong edge.",
-      "bond": "A relationship with TYPE and STRENGTH (0–3 ●). Yours toward them is a weapon (+● on its school); theirs toward you is their guard (DC up or down).",
+      "bond": "ONE shared relationship between two people, with a TYPE and a STRENGTH (0–3 ●). Record it on either side and it appears on both. It is your weapon (+● on its school) and their guard (DC up or down) at the same time.",
       "Advantage": "Roll two d20 and keep the higher.",
     };
     const term = (name, txt) => {
@@ -477,9 +477,15 @@ class SocialFencingApp extends Application {
           `You never see their weak spots or their difficulty — that's the GM's to know. You learn by watching what happens: an unexpected bounce, a surprise clean hit, a whispered tell.`,
         ])}
         ${sub("The relationship is the terrain", [
-          `A ${term("bond")} has a <b>TYPE</b> and a <b>STRENGTH</b> (0–3 ●). <b>Your</b> bond toward them is a weapon — its school gets <b>+●</b> (rivals feed Power, love feeds Emotion, debts feed Reason).`,
-          `<b>Their</b> bond toward you is their guard — a friend, lover or debtor opens up (easier); an enemy is wary (harder).`,
+          `A ${term("bond")} is <b>ONE shared relationship</b> — one TYPE, one STRENGTH (0–3 ●). Write it on either person and it appears on both; edit it anywhere and both update. (Directional pairs flip to fit: your <b>Mentor</b> is their <b>Protégé</b>, your <b>Creditor</b> is their <b>Debtor</b>.)`,
+          `That one bond works <b>both ways at once</b>: it is your <b>weapon</b> — its school gets <b>+●</b> (rivals feed Power, love feeds Emotion, debts feed Reason) — and their <b>guard</b>: a friend, lover or debtor opens up (easier), an enemy is wary (harder).`,
+          `Your own read of them (the archetype you guessed) and your notes stay <b>private</b> to you — only the relationship itself is shared.`,
           `Closeness costs: turn a <b>Power</b> play on someone you love and the <b>Guilt</b> is yours.`,
+        ])}
+        ${sub("Schools beat schools — rock, paper, scissors", [
+          `Every nature rules one triad, and the three schools cycle: <b>Power breaks Emotion · Emotion cracks Reason · Reason binds Power.</b>`,
+          `Press the school that <b>beats</b> their nature and you gain <b>+2</b>. Press the school their nature <b>beats</b> and you take <b>−2</b>. Press their <b>own</b> school and it is <b>even — 0</b>: no edge either way.`,
+          `You are never told which it was — you feel it in the results. Their nature is a riddle; the dice are the evidence.`,
         ])}
         ${sub("Reading the chip corners", [
           `<b>⊕</b> — an <b>${term("opening")} is live right now</b>: this maneuver gains a bonus because of a condition they carry. Everyone sees ⊕; it reads off visible statuses.`,

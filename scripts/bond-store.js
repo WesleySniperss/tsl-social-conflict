@@ -64,7 +64,7 @@ class TSLBondStore {
   }
 
   /** Add a bond toward targetActorId (no duplicates). Returns the entry. */
-  static async add(actorId, targetActorId, data = {}) {
+  static async add(actorId, targetActorId, data = {}, _mirrored = false) {
     if (actorId === targetActorId) return null;
     const list = TSLBondStore.getList(actorId);
     const existing = list.find(b => b.targetActorId === targetActorId);
@@ -83,20 +83,78 @@ class TSLBondStore {
     };
     list.push(entry);
     await TSLBondStore._saveList(actorId, list);
+    // A bond is ONE shared relationship — mirror the type + strength onto the
+    // other actor's record of you (personal read/notes are never mirrored).
+    if (!_mirrored) await TSLBondStore._mirror(actorId, targetActorId, { type: entry.type, attitude: entry.attitude });
     return entry;
   }
 
-  static async update(actorId, bondId, updates) {
+  static async update(actorId, bondId, updates, _mirrored = false) {
     const list  = TSLBondStore.getList(actorId);
     const entry = list.find(b => b.id === bondId);
     if (!entry) return;
     Object.assign(entry, updates);
     await TSLBondStore._saveList(actorId, list);
+    // Only the SHARED facets (type, strength) sync; a read/notes edit does not.
+    if (!_mirrored && ("type" in updates || "attitude" in updates)) {
+      await TSLBondStore._mirror(actorId, entry.targetActorId, {
+        type:     "type" in updates     ? entry.type     : undefined,
+        attitude: "attitude" in updates ? entry.attitude : undefined,
+      });
+    }
   }
 
-  static async remove(actorId, bondId) {
-    const list = TSLBondStore.getList(actorId).filter(b => b.id !== bondId);
+  static async remove(actorId, bondId, _mirrored = false) {
+    const entry = TSLBondStore.getList(actorId).find(b => b.id === bondId);
+    const list  = TSLBondStore.getList(actorId).filter(b => b.id !== bondId);
     await TSLBondStore._saveList(actorId, list);
+    // Ending a relationship ends it on both sides.
+    if (!_mirrored && entry && TSLBondStore._canWrite(entry.targetActorId)) {
+      const rev = TSLBondStore.find(entry.targetActorId, actorId);
+      if (rev) await TSLBondStore.remove(entry.targetActorId, rev.id, true);
+    }
+  }
+
+  /** Can the current user write flags on this actor? (GM always; owners of it.) */
+  static _canWrite(actorId) {
+    const a = game.actors.get(actorId);
+    return !!a && (game.user.isGM || a.isOwner);
+  }
+
+  /**
+   * Write the mirror of a bond onto the target actor's record of the source —
+   * same STRENGTH, the counterpart TYPE (mentor↔protégé, debtor↔creditor;
+   * everything else symmetric). Requires write access to the other actor (the
+   * GM always has it); a player editing a bond toward an actor they don't own
+   * simply won't push the mirror — the GM reconciles it on next load.
+   */
+  static async _mirror(actorId, targetActorId, { type, attitude } = {}) {
+    if (actorId === targetActorId || !TSLBondStore._canWrite(targetActorId)) return;
+    const patch = {};
+    if (type != null)     patch.type     = SocialArchetypeManager.getBondMirror(type);
+    if (attitude != null) patch.attitude = attitude;
+    if (!("type" in patch) && !("attitude" in patch)) return;
+    const rev = TSLBondStore.find(targetActorId, actorId);
+    if (rev) await TSLBondStore.update(targetActorId, rev.id, patch, true);
+    else     await TSLBondStore.add(targetActorId, actorId, patch, true);
+  }
+
+  /**
+   * GM-side: ensure every recorded bond has its mirror on the other actor.
+   * Non-destructive — only CREATES a missing counterpart (never overwrites an
+   * existing, possibly-different one), so it can't start an edit war with a
+   * legacy asymmetric bond. Editing either side afterwards re-syncs both.
+   */
+  static async reconcileAll() {
+    if (!game.user.isGM) return;
+    for (const a of (game.actors?.contents ?? [])) {
+      for (const b of TSLBondStore.getList(a.id)) {
+        if (!game.actors.get(b.targetActorId)) continue;
+        if (TSLBondStore.find(b.targetActorId, a.id)) continue;   // already mirrored
+        await TSLBondStore.add(b.targetActorId, a.id,
+          { type: SocialArchetypeManager.getBondMirror(b.type), attitude: b.attitude }, true);
+      }
+    }
   }
 
   /**

@@ -189,6 +189,9 @@ Hooks.once("ready", () => {
   // Then rescue pre-1.9.5 token-local chronicles into the shared world actor.
   syncExistingConditionEffects(game.actors?.contents ?? []);
   migrateTokenChronicles();
+  // A bond is one shared relationship — fill in any missing mirror so both
+  // sides show it (safe/idempotent; only creates gaps, never overwrites).
+  if (typeof TSLBondStore !== "undefined") TSLBondStore.reconcileAll?.();
   Hooks.on("canvasReady", () => {
     syncExistingConditionEffects(
       (canvas.tokens?.placeables ?? []).map(t => t.actor).filter(Boolean)

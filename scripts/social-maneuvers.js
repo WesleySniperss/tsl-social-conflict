@@ -549,11 +549,9 @@ class SocialManeuverRoller {
     const patienceThin = enc.active && enc.patience <= Math.floor(enc.maxPatience / 2);
     const lastExchange = enc.active && enc.patience === 1;
     if (patienceThin) dcMods.push({ label: "their patience wears thin", value: 1 });
-    // A dots-built defender knows their OWN school's tricks — home ground
-    if (defProfile && defProfile.total > 0 && maneuver.group !== "general"
-        && defProfile.ruling === maneuver.group) {
-      dcMods.push({ label: "they know this game — home ground", value: 2 });
-    }
+    // (No "home ground" DC bump: a school pressed against its OWN school is
+    //  even — 0. A defender's nature instead defends through the rock-paper-
+    //  scissors of schools below: +2 for you, −2, or nothing.)
     const dc = dcMods.reduce((sum, m) => sum + m.value, dcBase);
 
     // ── Hard walls: Defiant target / Smitten attacker ────────────────────────
@@ -646,13 +644,20 @@ class SocialManeuverRoller {
         const condLabel = { smitten: "Smitten", angry: "Angry", scared: "Scared", guilty: "Guilty", hopeless: "Hopeless" }[opening.cond] ?? opening.cond;
         bonusReasons.push({ label: `opening — they're ${condLabel} (${opening.flavor})`, value: 2 });
       }
-      // The triad counter cycle: the defender's ruling triad is soft against
-      // the school that counters it (Power→Emotion→Order→Power). Works on
-      // archetypes AND on dots-built defenders with a ruling triad.
-      if (defTriad && TRIAD_COUNTERS[maneuver.group] === defTriad) {
+      // Rock-paper-scissors of schools against the defender's ruling nature:
+      // the SAME school is even (0); the school that COUNTERS their nature gets
+      // +2; the school their nature COUNTERS takes −2. (Power breaks Emotion
+      // breaks Reason breaks Power.) Works on archetypes AND on dots-built
+      // defenders with a ruling triad; General tactics are always neutral.
+      if (defTriad && maneuver.group !== "general") {
         const atkShort = (SOCIAL_TRIADS[maneuver.group]?.label ?? "").replace("Triad of ", "");
         const defShort = (SOCIAL_TRIADS[defTriad]?.label ?? "").replace("Triad of ", "");
-        bonusReasons.push({ label: `${atkShort} counters ${defShort} — their kind bends to this school`, value: 2, kind: "counter" });
+        if (TRIAD_COUNTERS[maneuver.group] === defTriad) {
+          bonusReasons.push({ label: `${atkShort} counters ${defShort} — their nature bends to this school`, value: 2, kind: "counter" });
+        } else if (TRIAD_COUNTERS[defTriad] === maneuver.group) {
+          bonusReasons.push({ label: `${defShort} counters ${atkShort} — their nature resists this school`, value: -2, kind: "countered" });
+        }
+        // same school → nothing: even ground
       }
       // A dots-built defender's BLIND side: a school they never learned
       // (0 dots while invested elsewhere) finds nothing guarding the door
@@ -779,7 +784,8 @@ class SocialManeuverRoller {
     // Flat bonuses. Archetype/defense-derived ones (counter, blind side) are
     // GM-only; the player's OWN bonuses (skill, bond, leaning) always show.
     for (const b of a.bonusReasons) {
-      if (b.kind === "counter") { if (isGM) out.push(`▲ Their kind bends to this school — +${b.value}`); continue; }
+      if (b.kind === "counter")   { if (isGM) out.push(`▲ Their nature bends to this school — +${b.value}`); continue; }
+      if (b.kind === "countered") { if (isGM) out.push(`▽ Their nature resists this school — ${b.value}`); continue; }
       if (/unguarded approach/i.test(b.label)) { if (isGM) out.push(`+${b.value} an unguarded approach`); continue; }
       const sign = b.value >= 0 ? "+" : "−";
       out.push(`${sign}${Math.abs(b.value)} ${b.label.split(" — ")[0]}`);
@@ -1327,8 +1333,8 @@ class SocialManeuverRoller {
                     + a.bonusReasons.map(b => {
                         // Don't solve the riddle in public: veil archetype-derived
                         // labels, and keep card labels SHORT (no parentheticals)
-                        const label = b.kind === "counter"
-                          ? "a hidden yielding"
+                        const label = b.kind === "counter"   ? "a hidden yielding"
+                          : b.kind === "countered" ? "a hidden resistance"
                           : b.label.split(" — ")[0].replace(/\s*\(.+\)\s*$/, "");
                         return ` ${b.value >= 0 ? "+" : "−"}${Math.abs(b.value)} ${label}`;
                       }).join("");

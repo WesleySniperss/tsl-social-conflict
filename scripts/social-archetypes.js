@@ -844,12 +844,12 @@ const BOND_TYPES = [
   { id: "family",   label: "Family",    icon: "fa-house-chimney",   school: "attention", guardDc: -1, guilt: true,  hint: "Blood or chosen. Weapon: +● Emotion. Guard: DC −●. Guilt: raising a hand against your own leaves YOU Guilty." },
   { id: "crush",    label: "Crush",     icon: "fa-heart-circle-exclamation", school: "attention", guardDc: -1, guilt: false, hint: "One-sided longing. Weapon: +● Emotion. Guard: DC −● (their crush opens them)." },
   { id: "lover",    label: "Lover",     icon: "fa-heart",           school: "attention", guardDc: -1, guilt: true,  hint: "Hearts entangled. Weapon: +● Emotion. Guard: DC −● (no guard left). Guilt: a Power play on a lover leaves YOU Guilty." },
-  { id: "mentor",   label: "Mentor",    icon: "fa-graduation-cap",  school: "attention", guardDc: -1, guilt: false, hint: "They shaped you. Weapon: +● Emotion. Guard: DC −● (they heed the old voice)." },
-  { id: "protege",  label: "Protégé",   icon: "fa-seedling",        school: "attention", guardDc: -1, guilt: true,  hint: "You shaped them. Weapon: +● Emotion. Guard: DC −● (they look up to you). Guilt: turning Power on your ward leaves YOU Guilty." },
+  { id: "mentor",   label: "Mentor",    icon: "fa-graduation-cap",  school: "attention", guardDc: -1, guilt: false, mirror: "protege",  hint: "They shaped you. Weapon: +● Emotion. Guard: DC −● (they heed the old voice)." },
+  { id: "protege",  label: "Protégé",   icon: "fa-seedling",        school: "attention", guardDc: -1, guilt: true,  mirror: "mentor",   hint: "You shaped them. Weapon: +● Emotion. Guard: DC −● (they look up to you). Guilt: turning Power on your ward leaves YOU Guilty." },
   { id: "rival",    label: "Rival",     icon: "fa-khanda",          school: "power",     guardDc: 0,  guilt: false, hint: "A respected opponent. Weapon: +● Power (they rise to your bait)." },
   { id: "enemy",    label: "Enemy",     icon: "fa-skull",           school: "power",     guardDc: 1,  guilt: false, hint: "Open hostility. Weapon: +● Power. Guard: DC +● vs sweet talk — you can't charm hatred, only lean on it." },
-  { id: "indebted", label: "Indebted",  icon: "fa-scale-unbalanced", school: "order",    guardDc: -1, guilt: false, hint: "You owe them. Weapon: +● Reason. Guard: DC −● (your debt bares your neck to them)." },
-  { id: "creditor", label: "Creditor",  icon: "fa-scale-unbalanced-flip", school: "order", guardDc: 0, guilt: false, hint: "They owe you. Weapon: +● Reason (the ledger speaks with your voice)." },
+  { id: "indebted", label: "Indebted",  icon: "fa-scale-unbalanced", school: "order",    guardDc: -1, guilt: false, mirror: "creditor", hint: "You owe them. Weapon: +● Reason. Guard: DC −● (your debt bares your neck to them)." },
+  { id: "creditor", label: "Creditor",  icon: "fa-scale-unbalanced-flip", school: "order", guardDc: 0, guilt: false, mirror: "indebted", hint: "They owe you. Weapon: +● Reason (the ledger speaks with your voice)." },
 ];
 
 /**
@@ -1075,6 +1075,16 @@ class SocialArchetypeManager {
 
   static getBondType(id) {
     return BOND_TYPES.find(t => t.id === id) ?? BOND_TYPES[0];
+  }
+
+  /**
+   * The counterpart type from the OTHER side of the same relationship. Most
+   * bonds are symmetric (friend↔friend, enemy↔enemy); the directional pairs
+   * flip (mentor↔protégé, indebted↔creditor). Used to keep a single shared
+   * bond synced on both actors' records.
+   */
+  static getBondMirror(id) {
+    return SocialArchetypeManager.getBondType(id).mirror ?? id;
   }
 
   /** A random veiled reaction line for how this archetype cracks (or null). */
