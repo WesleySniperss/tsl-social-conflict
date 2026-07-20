@@ -2158,6 +2158,42 @@
 .tsl-codex-combo b { color: var(--tsl-notes-text); }
 .tsl-codex-gain { color: var(--tsl-accent, #d98a9b); font-size: 0.9em; white-space: nowrap; }
 
+/* Codex category picker — keeps the reference from being one endless scroll */
+.tsl-codex-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.tsl-codex-nav .tsl-codex-cat {
+  width: auto;                       /* v13 gives buttons a stretchy base */
+  flex: 0 0 auto;
+  line-height: 1.1;
+  padding: 4px 9px;
+  font-family: "Cinzel", serif;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  color: var(--tsl-notes-dim, #a89a92);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: color .12s, background .12s, border-color .12s;
+}
+.tsl-codex-nav .tsl-codex-cat i { margin-right: 4px; opacity: 0.75; }
+.tsl-codex-nav .tsl-codex-cat:hover {
+  color: var(--tsl-notes-text, #e8ddd6);
+  background: rgba(255,255,255,0.07);
+}
+.tsl-codex-nav .tsl-codex-cat.active {
+  color: #fff;
+  background: rgba(232,85,122,0.16);
+  border-color: rgba(232,85,122,0.5);
+}
+.tsl-codex-nav .tsl-codex-cat.active i { opacity: 1; }
+
 .tsl-codex-triad-head {
   font-family: 'Cinzel', serif;
   font-size: 12px;

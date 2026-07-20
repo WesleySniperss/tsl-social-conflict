@@ -542,6 +542,22 @@ class SocialFencingApp extends Application {
         ])}
       </section>`;
 
+    // A worked example: the abstract rules above are hard to hold in the head,
+    // so walk one exchange end to end and name every part as it happens.
+    const walkthrough = `
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title">One exchange, step by step</div>
+        <div class="tsl-codex-hint-sm">Lyra wants the captain to open the gate. He refuses. Blades out — words, not swords.</div>
+        <ol class="tsl-codex-how tsl-codex-quick">
+          <li><b>She sizes him up.</b> <b>Read Them</b> (Insight + Investigation). It lands: a <b>tell</b> is whispered to her — <i>“he keeps counting the guards behind you.”</i> She writes her guess into her Bond: <i>read as Broker</i>. She also gains a String.</li>
+          <li><b>She puts a condition on him.</b> <b>Taunt</b> — a jeer played for the room. It lands, so he is now <b>${SOCIAL_CONDITIONS.provoked?.label ?? "Provoked"}</b>. On its own that is worth little: <i>no damage at all.</i> It is a <b>set-up</b>.</li>
+          <li><b>Now the chips change.</b> Because he carries that condition, <b>Humiliate</b> shows a <b>⊕</b> in its corner — an ${term("opening")}. Hovering it says what it pays: the condition is <i>cashed</i> for extra Resolve damage.</li>
+          <li><b>She presses it.</b> Humiliate (Intimidation + Performance) lands: normal damage <b>plus</b> the opening's bonus. His <b>${term("Resolve")}</b> drops hard, and the <b>${SOCIAL_CONDITIONS.provoked?.label ?? "Provoked"}</b> condition is <b>spent</b> — the ⊕ goes away. Breaking through his guard also hands her a String.</li>
+          <li><b>He answers.</b> Later she overreaches and fumbles badly. His nature strikes back — she walks away <b>Rattled</b> herself. Conditions cut both ways.</li>
+        </ol>
+        <div class="tsl-codex-hint-sm"><b>The two kinds of ⊕, in one line:</b> a <b>status you applied</b> (like ${SOCIAL_CONDITIONS.provoked?.label ?? "Provoked"}) is <i>spent</i> when a finisher cashes it — one shot. A <b>lasting wound</b> they carry (Angry, Smitten, Guilty, Scared, Hopeless, from Hold the Line or a Feelings move) is <i>never</i> spent: it keeps giving +2 until the story heals it. Both look the same on the chip, and you never need to tell them apart to play — press ⊕ when you see it.</div>
+      </section>`;
+
     const how = quickStart + comboReference + reference + gm;
 
     const triadBlocks = Object.values(SOCIAL_TRIADS).map(triad => {
@@ -572,17 +588,39 @@ class SocialFencingApp extends Application {
         </div>`;
     }).join("");
 
-    return `
-      ${how}
+    const natures = `
       <section class="tsl-notes-section">
         <div class="tsl-notes-section-title">The nine natures</div>
         <div class="tsl-codex-hint-sm">Never shown to players — deduce them. Each has at least one ◎ weak spot and one ✕ wall, and the traps sit INSIDE a triad, so knowing the school isn't enough.</div>
       </section>
-      ${triadBlocks}
+      ${triadBlocks}`;
+
+    const statuses = `
       <section class="tsl-notes-section">
         <div class="tsl-notes-section-title">Statuses</div>
+        <div class="tsl-codex-hint-sm">These are the conditions you put ON someone during an exchange. Each one is a <b>set-up</b>: on its own it does little, but it arms a ⊕ opening for the maneuvers listed in the cheat sheet. A status is <b>spent</b> the moment a finisher cashes it. <b>Defiant</b> is the odd one out — it is a wall, not an opening, and only a successful <b>Read Them</b> brings it down.</div>
         <div class="tsl-codex-statuses">${statusRows}</div>
       </section>`;
+
+    // One long scroll was too much — split it into pickable categories.
+    const cats = [
+      { id: "start",    label: "Start",    icon: "fa-play",         html: quickStart + walkthrough },
+      { id: "openings", label: "Openings", icon: "fa-plus",         html: comboReference },
+      { id: "statuses", label: "Statuses", icon: "fa-bolt",         html: statuses },
+      { id: "details",  label: "Details",  icon: "fa-book",         html: reference },
+      { id: "natures",  label: "Natures",  icon: "fa-masks-theater", html: natures },
+      { id: "gm",       label: "GM",       icon: "fa-crown",        html: gm, gmOnly: true },
+    ].filter(c => !c.gmOnly || game.user.isGM);
+
+    if (!cats.some(c => c.id === this._codexCat)) this._codexCat = cats[0].id;
+    const nav = cats.map(c =>
+      `<button type="button" class="tsl-codex-cat ${this._codexCat === c.id ? "active" : ""}" data-codex-cat="${c.id}">
+         <i class="fas ${c.icon}"></i> ${c.label}
+       </button>`).join("");
+
+    return `
+      <div class="tsl-codex-nav">${nav}</div>
+      ${cats.find(c => c.id === this._codexCat).html}`;
   }
 
   // ── Bonds tab ───────────────────────────────────────────────────────────────
@@ -1075,6 +1113,14 @@ class SocialFencingApp extends Application {
     el.querySelectorAll(".tsl-chr-tab").forEach(btn => {
       btn.addEventListener("click", () => {
         this._tab = btn.dataset.tab;
+        this.render(true);
+      });
+    });
+
+    // Codex categories — one long scroll split into pickable sections
+    el.querySelectorAll("[data-codex-cat]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        this._codexCat = btn.dataset.codexCat;
         this.render(true);
       });
     });
