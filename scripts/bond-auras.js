@@ -72,14 +72,23 @@ class TSLBondAuras {
     };
   }
 
-  /** Distance between two tokens in scene units (grid-aware, v13 measurePath). */
+  /**
+   * Distance between two tokens in scene units. Tries the grid-aware
+   * measurePath first, but NEVER lets an API surprise silently disable the
+   * whole feature — anything unexpected falls through to pixel math, and only
+   * a genuinely unusable canvas returns Infinity.
+   */
   static _distance(a, b) {
+    const A = a.center ?? { x: a.x, y: a.y };
+    const B = b.center ?? { x: b.x, y: b.y };
     try {
-      const p = [{ x: a.center.x, y: a.center.y }, { x: b.center.x, y: b.center.y }];
-      if (canvas.grid?.measurePath) return canvas.grid.measurePath(p).distance;
-      const px = Math.hypot(a.center.x - b.center.x, a.center.y - b.center.y);
-      return (px / canvas.dimensions.size) * canvas.dimensions.distance;
-    } catch { return Infinity; }
+      const r = canvas.grid?.measurePath?.([{ x: A.x, y: A.y }, { x: B.x, y: B.y }]);
+      const d = typeof r === "number" ? r : r?.distance;
+      if (Number.isFinite(d)) return d;
+    } catch { /* fall through to pixel math */ }
+    const size = canvas.dimensions?.size, unit = canvas.dimensions?.distance;
+    if (!size || !unit) return Infinity;
+    return (Math.hypot(A.x - B.x, A.y - B.y) / size) * unit;
   }
 
   /**
@@ -205,8 +214,38 @@ class TSLBondAuras {
     Hooks.on("createToken",  go);
     Hooks.on("deleteToken",  go);
     Hooks.on("updateToken",  (doc, chg) => { if ("x" in chg || "y" in chg) go(); });
-    // Editing a bond re-arms the aura without anyone having to move.
-    Hooks.on("updateActor",  (a, chg) => { if (chg?.flags?.[BOND_AURA_FLAG]?.bonds) go(); });
+    // Editing a bond (type, strength — anything of ours) re-arms the aura
+    // without anyone having to move a token.
+    Hooks.on("updateActor",  (a, chg) => { if (chg?.flags?.[BOND_AURA_FLAG]) go(); });
+
+    // `ready` fires AFTER `canvasReady` on world load, so the hook above will
+    // not fire again on its own — do the first pass now or nothing appears
+    // until someone happens to drag a token.
+    go();
     console.log("TSL | Bond auras registered");
+  }
+
+  /**
+   * Why is there no aura? Answers it in the console instead of leaving the GM
+   * guessing: `TSLBondAuras.explain()` (or explain(token)).
+   */
+  static explain(token = canvas.tokens?.controlled?.[0]) {
+    if (!token?.actor) return console.log("TSL auras | select a token first");
+    const range  = TSLBondAuras.range();
+    const tokens = (canvas.tokens?.placeables ?? []).filter(t => t.actor);
+    console.log(`TSL auras | ${token.actor.name} — reach ${range} ft${range ? "" : " (DISABLED: set bondAuraRange above 0)"}`);
+    const bonds = TSLBondStore.getList(token.actor.id);
+    if (!bonds.length) return console.log("TSL auras | this actor has no bonds recorded");
+    for (const b of bonds) {
+      const meta = SocialArchetypeManager.getBondType(b.type);
+      const str  = TSLBondStore.getStrength(token.actor.id, b.targetActorId);
+      const other = tokens.filter(o => o !== token && o.actor?.id === b.targetActorId);
+      const dist = other.length ? Math.min(...other.map(o => TSLBondAuras._distance(token, o))) : null;
+      console.log(`TSL auras | ${game.actors.get(b.targetActorId)?.name ?? b.targetActorId}:`,
+        `type=${b.type}${meta?.combatAura ? "" : " (NO AURA — Stranger has none)"}`,
+        `strength=${str}${str ? "" : " (0 ● — no effect)"}`,
+        other.length ? `nearest token ${Math.round(dist)} ft ${dist <= range ? "IN REACH" : "out of reach"}`
+                     : "no token of theirs on this scene");
+    }
   }
 }
