@@ -492,6 +492,7 @@ class SocialFencingApp extends Application {
               .map(([k, v]) => `<b>${v > 0 ? "+" : "−"}${Math.abs(v)}</b> ${nm[k]}`).join(", ");
             return `<b>${t.label}</b> — “${a.label}”: ${bits}`;
           }),
+          `While any of this is live you carry a <b>Bonds in reach</b> mark on your token. It comes and goes on its own as people move — it is not in the status list and nobody can switch it on or off by hand.`,
           `The GM can change the reach or switch it off entirely in the module settings.`,
         ])}
         ${sub("Schools beat schools — rock, paper, scissors", [
