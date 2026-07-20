@@ -368,6 +368,15 @@ class SocialFencingApp extends Application {
   _buildCodexTab() {
     const esc = foundry.utils.escapeHTML;
 
+    // The Codex must describe THIS world, not the module's full feature list.
+    // A "Social Fencing only" table has no 2d6 Feelings moves; a "TSL only"
+    // table has no maneuvers, tracks, statuses or openings at all. Documenting
+    // switched-off layers is what makes the reference read like another game's.
+    let mode = "both";
+    try { mode = game.settings.get("tsl-social-conflict", "conflictMode") ?? "both"; } catch { /* defaults */ }
+    const tslOn     = mode !== "fencing";   // the 2d6 Feelings layer
+    const fencingOn = mode !== "tsl";       // d20 maneuvers, tracks, statuses
+
     // A titled block of short bullets — scannable, not a wall of prose.
     const sub = (title, items) => `
       <div class="tsl-codex-sub">
@@ -518,8 +527,11 @@ class SocialFencingApp extends Application {
         ])}
         ${sub("Win, lose, or be sincere", [
           `Break their ${term("Resolve")} to 0 → ${term("swayed")}. Empty their ${term("Patience")} → they ${term("walk away")}.`,
-          `Or win honestly: the 2d6 <b>Feelings</b> moves (Speak from the Heart, Read the Room) chip Resolve and reveal nature <b>without</b> manipulation.`,
-          `${term("leverage", GLOSSARY.leverage)} (once each): a read dossier unlocks their Desire (Advantage, +1 damage), Fear (+3, but a failed threat costs them Patience), Weakness (a plain approach counts as a weak spot).`,
+          // Only true where the 2d6 layer actually exists — in "Social Fencing
+          // only" worlds there are no Feelings moves, and promising them reads
+          // like documentation from a different game.
+          ...(tslOn ? [`Or win honestly: the 2d6 <b>Feelings</b> moves (Speak from the Heart, Read the Room) chip Resolve and reveal nature <b>without</b> manipulation.`] : []),
+          `${term("leverage", GLOSSARY.leverage)} (once each per exchange): once you've filled a point of their dossier, you may play it — <b>Desire</b> (Advantage, +1 damage), <b>Fear</b> (+3, but a failed threat burns their Patience), <b>Weakness</b> (an ordinary approach lands like a weak spot). The buttons sit under the roll bar.`,
         ])}
       </section>`;
 
@@ -604,13 +616,16 @@ class SocialFencingApp extends Application {
 
     // One long scroll was too much — split it into pickable categories.
     const cats = [
-      { id: "start",    label: "Start",    icon: "fa-play",         html: quickStart + walkthrough },
-      { id: "openings", label: "Openings", icon: "fa-plus",         html: comboReference },
-      { id: "statuses", label: "Statuses", icon: "fa-bolt",         html: statuses },
+      // The walkthrough is one maneuver exchange — meaningless without them.
+      { id: "start",    label: "Start",    icon: "fa-play",         html: quickStart + (fencingOn ? walkthrough : "") },
+      // Openings, statuses and the nine natures are all parts of the d20
+      // fencing layer — in a pure-TSL world they simply do not exist.
+      { id: "openings", label: "Openings", icon: "fa-plus",         html: comboReference, needs: "fencing" },
+      { id: "statuses", label: "Statuses", icon: "fa-bolt",         html: statuses,       needs: "fencing" },
       { id: "details",  label: "Details",  icon: "fa-book",         html: reference },
-      { id: "natures",  label: "Natures",  icon: "fa-masks-theater", html: natures },
+      { id: "natures",  label: "Natures",  icon: "fa-masks-theater", html: natures,       needs: "fencing" },
       { id: "gm",       label: "GM",       icon: "fa-crown",        html: gm, gmOnly: true },
-    ].filter(c => !c.gmOnly || game.user.isGM);
+    ].filter(c => (!c.gmOnly || game.user.isGM) && (c.needs !== "fencing" || fencingOn));
 
     if (!cats.some(c => c.id === this._codexCat)) this._codexCat = cats[0].id;
     const nav = cats.map(c =>
