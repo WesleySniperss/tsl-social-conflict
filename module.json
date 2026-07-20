@@ -2,7 +2,7 @@
   "id": "tsl-social-conflict",
   "title": "TSL: Social Conflict",
   "description": "Social Fencing: a Foundry module blending A5E-style social tactics with Thirsty Sword Lesbians narrative conflict.",
-  "version": "1.33.0",
+  "version": "1.34.0",
   "compatibility": {
     "minimum": "13",
     "verified": "13",
@@ -26,6 +26,7 @@
     "scripts/condition-effects.js",
     "scripts/string-store.js",
     "scripts/bond-store.js",
+    "scripts/bond-auras.js",
     "scripts/social-archetypes.js",
     "scripts/tsl-playbooks.js",
     "scripts/social-encounter.js",

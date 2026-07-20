@@ -483,6 +483,12 @@ class SocialFencingApp extends Application {
           `Your own read of them (the archetype you guessed) and your notes stay <b>private</b> to you — only the relationship itself is shared.`,
           `Closeness costs: turn a <b>Power</b> play on someone you love and the <b>Guilt</b> is yours.`,
         ])}
+        ${sub("Bonds reach into a real fight", [
+          `Standing within <b>30 ft</b> of someone you're bonded to changes how you <b>fight</b> — automatically, as tokens move.`,
+          `<b>At their side</b> (ally, friend, family, crush, lover, mentor, protégé, debtor, creditor): <b>+1 to saving throws</b>, <b>+2</b> if the bond is ●●●. Someone you care for is watching, and you hold.`,
+          `<b>Blood up</b> (rival, enemy): <b>−1 AC</b> and <b>+1 to weapon attacks</b> (+2 at ●●●). You reach for them and leave yourself open. <em>On A5E the attack bonus is applied by hand — the system has no numeric attack-bonus key.</em>`,
+          `The GM can change the reach or switch it off entirely in the module settings.`,
+        ])}
         ${sub("Schools beat schools — rock, paper, scissors", [
           `Every nature rules one triad, and the three schools cycle: <b>Power breaks Emotion · Emotion cracks Reason · Reason binds Power.</b>`,
           `Press the school that <b>beats</b> their nature and you gain <b>+2</b>. Press the school their nature <b>beats</b> and you take <b>−2</b>. Press their <b>own</b> school and it is <b>even — 0</b>: no edge either way.`,

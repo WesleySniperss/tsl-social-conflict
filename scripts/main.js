@@ -33,6 +33,15 @@ Hooks.once("init", () => {
     default: true,
   });
 
+  game.settings.register("tsl-social-conflict", "bondAuraRange", {
+    name: "Bond aura reach (combat)",
+    hint: "Bonds reach into a real fight. While a bonded person stands within this many feet: a bond that steadies you (ally, friend, family, crush, lover, mentor, protégé, debtor, creditor) gives +1 to saving throws (+2 at ●●●); a bond that pulls you in (rival, enemy) gives −1 AC and +1 to weapon attacks (+2 at ●●●). Set 0 to switch bond combat auras off entirely.",
+    scope: "world",
+    config: true,
+    type: Number,
+    default: 30,
+  });
+
   game.settings.register("tsl-social-conflict", "gmDecidesOutcome", {
     name: "GM adjudicates every maneuver",
     hint: "After each maneuver roll the GM confirms whether it beat the hidden difficulty — clean hit, success, failure or a fumble — with the computed result pre-selected (one click). The GM always has the final word on success. Turn off to resolve automatically against the DC.",
@@ -192,6 +201,8 @@ Hooks.once("ready", () => {
   // A bond is one shared relationship — fill in any missing mirror so both
   // sides show it (safe/idempotent; only creates gaps, never overwrites).
   if (typeof TSLBondStore !== "undefined") TSLBondStore.reconcileAll?.();
+  // Bonds reach into combat: recompute proximity auras as people move.
+  if (typeof TSLBondAuras !== "undefined") TSLBondAuras.register();
   Hooks.on("canvasReady", () => {
     syncExistingConditionEffects(
       (canvas.tokens?.placeables ?? []).map(t => t.actor).filter(Boolean)
