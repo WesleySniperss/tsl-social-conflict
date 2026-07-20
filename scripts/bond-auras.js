@@ -24,8 +24,12 @@
 
 console.log("TSL | Loading bond-auras.js...");
 
-const BOND_AURA_FLAG = "tsl-social-conflict";
-const BOND_AURA_KEY  = "bondAura";
+const BOND_AURA_FLAG   = "tsl-social-conflict";
+const BOND_AURA_KEY    = "bondAura";
+// Shown on the token as a status icon, but never registered in
+// CONFIG.statusEffects — so it can't be toggled by hand from the token HUD.
+const BOND_AURA_STATUS = "tsl-bond-aura";
+const BOND_AURA_IMG    = "icons/svg/aura.svg";
 
 class TSLBondAuras {
 
@@ -191,16 +195,26 @@ class TSLBondAuras {
     if (!existing) {
       await actor.createEmbeddedDocuments("ActiveEffect", [{
         name: "Bonds in reach (Social)",
-        img: "icons/svg/aura.svg",
+        img: BOND_AURA_IMG,
         description, changes,
+        // Carrying a status id makes the effect TEMPORARY, so Foundry paints
+        // its icon on the token. The id is deliberately NOT registered in
+        // CONFIG.statusEffects, so it never shows in the token HUD's palette:
+        // this is a state the world puts you in, not a toggle anyone flips.
+        statuses: [BOND_AURA_STATUS],
         flags: { [BOND_AURA_FLAG]: { [BOND_AURA_KEY]: true } },
       }]);
       return;
     }
     // Only write when something actually changed — token drags fire a lot.
+    // (An effect from before the icon existed gets the status added here.)
+    const hasStatus = existing.statuses?.has?.(BOND_AURA_STATUS)
+      ?? (existing.statuses ?? []).includes?.(BOND_AURA_STATUS);
     if (JSON.stringify(existing.changes ?? []) !== JSON.stringify(changes)
-        || (existing.description ?? "") !== description) {
-      await existing.update({ changes, description });
+        || (existing.description ?? "") !== description || !hasStatus) {
+      const patch = { changes, description };
+      if (!hasStatus) { patch.statuses = [BOND_AURA_STATUS]; patch.img = BOND_AURA_IMG; }
+      await existing.update(patch);
     }
   }
 
