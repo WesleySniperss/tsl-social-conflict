@@ -31,12 +31,46 @@ class TSLBondAuras {
 
   /** Aura reach in scene distance units. 0 disables the whole feature. */
   static range() {
-    try { return Number(game.settings.get("tsl-social-conflict", "bondAuraRange") ?? 30); }
-    catch { return 30; }
+    try { return Number(game.settings.get("tsl-social-conflict", "bondAuraRange") ?? 15); }
+    catch { return 15; }
   }
 
   /** A bond that runs all the way (●●●) hits harder than a passing one. */
   static _magnitude(strength) { return strength >= 3 ? 2 : 1; }
+
+  /** The four attack types a5e wants listed explicitly (empty ≠ "all"). */
+  static get A5E_ATTACK_TYPES() {
+    return ["meleeWeaponAttack", "rangedWeaponAttack", "meleeSpellAttack", "rangedSpellAttack"];
+  }
+
+  /**
+   * a5e carries attack/damage/initiative bonuses as records under
+   * `system.bonuses.*`, not as plain numbers — but the system registers
+   * `flags.a5e.effects.bonuses.<kind>` as a CUSTOM-mode effect key whose value
+   * is the bonus object as JSON, and rewrites it into a record entry itself.
+   * That is how a5e's own content does it (e.g. Inspiring Charge), so our
+   * bonus lands in the system's real formulas and its roll dialog.
+   */
+  static _a5eBonus(kind, label, n) {
+    const body = {
+      label,
+      formula: `${n}`,
+      context: { attackTypes: TSLBondAuras.A5E_ATTACK_TYPES, spellLevels: [], requiresProficiency: false },
+      default: true,
+      img: "icons/svg/aura.svg",
+    };
+    if (kind === "damage") {
+      body.damageType = "";
+      body.context = { attackTypes: TSLBondAuras.A5E_ATTACK_TYPES, damageTypes: [], isCritBonus: false, spellLevels: [] };
+    }
+    if (kind === "initiative") body.context = { spellLevels: [], requiresProficiency: false };
+    return {
+      key: `flags.a5e.effects.bonuses.${kind === "attack" ? "attacks" : kind}`,
+      mode: 0,                       // CUSTOM — a5e parses the JSON itself
+      value: JSON.stringify(body),
+      priority: 20,
+    };
+  }
 
   /** Distance between two tokens in scene units (grid-aware, v13 measurePath). */
   static _distance(a, b) {
@@ -48,22 +82,47 @@ class TSLBondAuras {
     } catch { return Infinity; }
   }
 
-  /** Per-system AE changes for one aura kind at magnitude n. */
-  static _changes(kind, n) {
+  /**
+   * Turn a summed aura tally { attack, damage, save, check, ac, init } into
+   * real AE changes for the current system. Saves, checks and AC are plain
+   * numbers on both systems; attack/damage/initiative are numbers on dnd5e
+   * and JSON bonus records on a5e.
+   */
+  static _changes(tally, label) {
     const isA5e = game.system.id === "a5e";
-    if (kind === "guard") {
-      // Numeric save bonus — this key exists on dnd5e AND a5e.
-      return [{ key: "system.bonuses.abilities.save", mode: 2, value: `+${n}`, priority: 20 }];
+    const out   = [];
+    const num   = (key, v) => out.push({ key, mode: 2, value: `${v > 0 ? "+" : ""}${v}`, priority: 20 });
+
+    if (tally.save)  num("system.bonuses.abilities.save",  tally.save);
+    if (tally.check) num("system.bonuses.abilities.check", tally.check);
+    if (tally.ac)    num(isA5e ? "system.attributes.ac.changes.bonuses.value" : "system.attributes.ac.bonus", tally.ac);
+
+    if (tally.attack) {
+      if (isA5e) out.push(TSLBondAuras._a5eBonus("attack", label, tally.attack));
+      else { num("system.bonuses.mwak.attack", tally.attack); num("system.bonuses.rwak.attack", tally.attack); }
     }
-    // press: you overextend reaching for them
-    const out = [isA5e
-      ? { key: "system.attributes.ac.changes.bonuses.value", mode: 2, value: "-1", priority: 20 }
-      : { key: "system.attributes.ac.bonus",                 mode: 2, value: "-1", priority: 20 }];
-    if (!isA5e) {
-      out.push({ key: "system.bonuses.mwak.attack", mode: 2, value: `+${n}`, priority: 20 });
-      out.push({ key: "system.bonuses.rwak.attack", mode: 2, value: `+${n}`, priority: 20 });
+    if (tally.damage) {
+      if (isA5e) out.push(TSLBondAuras._a5eBonus("damage", label, tally.damage));
+      else { num("system.bonuses.mwak.damage", tally.damage); num("system.bonuses.rwak.damage", tally.damage); }
+    }
+    if (tally.init) {
+      if (isA5e) out.push(TSLBondAuras._a5eBonus("initiative", label, tally.init));
+      else num("system.attributes.init.bonus", tally.init);
     }
     return out;
+  }
+
+  /** Plain-language line per lever, for the effect description. */
+  static _describe(tally) {
+    const bits = [];
+    const sign = (v) => `${v > 0 ? "+" : ""}${v}`;
+    if (tally.attack) bits.push(`${sign(tally.attack)} to attack rolls`);
+    if (tally.damage) bits.push(`${sign(tally.damage)} to weapon damage`);
+    if (tally.save)   bits.push(`${sign(tally.save)} to saving throws`);
+    if (tally.check)  bits.push(`${sign(tally.check)} to ability checks`);
+    if (tally.ac)     bits.push(`${sign(tally.ac)} AC`);
+    if (tally.init)   bits.push(`${sign(tally.init)} to initiative`);
+    return bits.join(" · ");
   }
 
   /**
@@ -77,13 +136,13 @@ class TSLBondAuras {
 
     for (const tok of tokens) {
       const actor = tok.actor;
-      let guard = 0, press = 0;
-      const who = { guard: [], press: [] };
+      const tally = { attack: 0, damage: 0, save: 0, check: 0, ac: 0, init: 0 };
+      const lines = [];
 
       if (range > 0) {
         for (const bond of TSLBondStore.getList(actor.id)) {
-          const kind = SocialArchetypeManager.getBondType(bond.type)?.combatAura;
-          if (!kind) continue;
+          const aura = SocialArchetypeManager.getBondType(bond.type)?.combatAura;
+          if (!aura) continue;
           const str = TSLBondStore.getStrength(actor.id, bond.targetActorId);
           if (str <= 0) continue;
           // Any token of that person within reach counts.
@@ -91,34 +150,34 @@ class TSLBondAuras {
             && TSLBondAuras._distance(tok, o) <= range);
           if (!near) continue;
 
-          const n = TSLBondAuras._magnitude(str);
-          if (kind === "guard" && n > guard) guard = n;
-          if (kind === "press" && n > press) press = n;
-          who[kind].push(game.actors.get(bond.targetActorId)?.name ?? "someone");
+          const n    = TSLBondAuras._magnitude(str);
+          const each = {};
+          for (const [lever, mult] of Object.entries(aura)) {
+            if (lever === "label") continue;
+            each[lever] = mult * n;
+            tally[lever] = (tally[lever] ?? 0) + mult * n;
+          }
+          const name = game.actors.get(bond.targetActorId)?.name ?? "someone";
+          lines.push(`<b>${aura.label}</b> — ${name} (${"●".repeat(str)}): ${TSLBondAuras._describe(each)}`);
         }
       }
-      await TSLBondAuras._apply(actor, guard, press, who);
+      // Several bonds in reach can pile up; keep any one lever sane.
+      for (const k of Object.keys(tally)) tally[k] = Math.max(-2, Math.min(2, tally[k]));
+      await TSLBondAuras._apply(actor, tally, lines);
     }
   }
 
   /** Create / update / remove the single module-managed aura effect. */
-  static async _apply(actor, guard, press, who) {
+  static async _apply(actor, tally, lines) {
     const existing = actor.effects.find(e => e.flags?.[BOND_AURA_FLAG]?.[BOND_AURA_KEY]);
 
-    if (!guard && !press) {
+    if (!Object.values(tally).some(v => v)) {
       if (existing) await existing.delete();
       return;
     }
 
-    const changes = [];
-    if (guard) changes.push(...TSLBondAuras._changes("guard", guard));
-    if (press) changes.push(...TSLBondAuras._changes("press", press));
-
-    const isA5e = game.system.id === "a5e";
-    const lines = [];
-    if (guard) lines.push(`<b>At their side</b> (${who.guard.join(", ")}): <b>+${guard}</b> to saving throws — someone you care for is watching, and you hold.`);
-    if (press) lines.push(`<b>Blood up</b> (${who.press.join(", ")}): <b>−1 AC</b> — you reach for them and leave yourself open.${isA5e ? ` <em>GM: +${press} to their weapon attacks (a5e has no numeric attack-bonus key — apply by hand).</em>` : ` <b>+${press}</b> to weapon attacks.`}`);
-    const description = lines.join("<br>");
+    const changes = TSLBondAuras._changes(tally, "Bonds in reach (Social)");
+    const description = `${lines.join("<br>")}<br><b>In total:</b> ${TSLBondAuras._describe(tally)}`;
 
     if (!existing) {
       await actor.createEmbeddedDocuments("ActiveEffect", [{

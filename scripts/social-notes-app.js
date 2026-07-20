@@ -484,9 +484,14 @@ class SocialFencingApp extends Application {
           `Closeness costs: turn a <b>Power</b> play on someone you love and the <b>Guilt</b> is yours.`,
         ])}
         ${sub("Bonds reach into a real fight", [
-          `Standing within <b>30 ft</b> of someone you're bonded to changes how you <b>fight</b> — automatically, as tokens move.`,
-          `<b>At their side</b> (ally, friend, family, crush, lover, mentor, protégé, debtor, creditor): <b>+1 to saving throws</b>, <b>+2</b> if the bond is ●●●. Someone you care for is watching, and you hold.`,
-          `<b>Blood up</b> (rival, enemy): <b>−1 AC</b> and <b>+1 to weapon attacks</b> (+2 at ●●●). You reach for them and leave yourself open. <em>On A5E the attack bonus is applied by hand — the system has no numeric attack-bonus key.</em>`,
+          `Standing within <b>${(() => { try { return game.settings.get("tsl-social-conflict", "bondAuraRange"); } catch { return 15; } })()} ft</b> of someone you're bonded to changes how you <b>fight</b> — automatically, as tokens move. <b>Every relationship does something different</b>, and it doubles at ●●● (any one line caps at ±2).`,
+          ...BOND_TYPES.filter(t => t.combatAura).map(t => {
+            const a = t.combatAura;
+            const nm = { attack: "attack rolls", damage: "weapon damage", save: "saving throws", check: "ability checks", ac: "AC", init: "initiative" };
+            const bits = Object.entries(a).filter(([k]) => k !== "label")
+              .map(([k, v]) => `<b>${v > 0 ? "+" : "−"}${Math.abs(v)}</b> ${nm[k]}`).join(", ");
+            return `<b>${t.label}</b> — “${a.label}”: ${bits}`;
+          }),
           `The GM can change the reach or switch it off entirely in the module settings.`,
         ])}
         ${sub("Schools beat schools — rock, paper, scissors", [

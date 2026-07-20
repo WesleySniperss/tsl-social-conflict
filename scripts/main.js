@@ -35,11 +35,11 @@ Hooks.once("init", () => {
 
   game.settings.register("tsl-social-conflict", "bondAuraRange", {
     name: "Bond aura reach (combat)",
-    hint: "Bonds reach into a real fight. While a bonded person stands within this many feet: a bond that steadies you (ally, friend, family, crush, lover, mentor, protégé, debtor, creditor) gives +1 to saving throws (+2 at ●●●); a bond that pulls you in (rival, enemy) gives −1 AC and +1 to weapon attacks (+2 at ●●●). Set 0 to switch bond combat auras off entirely.",
+    hint: "Bonds reach into a real fight. While a bonded person stands within this many feet, each relationship type gives its own effect — an ally sharpens your attacks, a friend steadies your saves, family covers your guard, a lover makes you fight to protect rather than press, a rival gets your blood up. Doubles at ●●●, and any one lever caps at ±2. Set 0 to switch bond combat auras off entirely.",
     scope: "world",
     config: true,
     type: Number,
-    default: 30,
+    default: 15,
   });
 
   game.settings.register("tsl-social-conflict", "gmDecidesOutcome", {
