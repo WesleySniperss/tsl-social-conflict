@@ -6,20 +6,24 @@
  * you hate pull you out of position.
  *
  * Foundry's Active Effects are flat and global: there is no native "while
- * within 30 ft of X" key. So proximity is resolved here — the GM client
+ * within X ft of Y" key. So proximity is resolved here — the GM client
  * recomputes who is in reach and rebuilds ONE module-managed effect per actor.
  *
- * Two auras, scaled by the bond's strength (+1, or +2 at ●●●):
- *   guard — a bond that steadies you (ally/friend/family/crush/lover/mentor/
- *           protégé/debtor/creditor): +N to saving throws.
- *   press — a bond that pulls you in (rival/enemy): +N to weapon attacks and
- *           −1 AC. You reach for them and leave yourself open.
+ * Every bond TYPE has its own aura (`BOND_TYPES[*].combatAura`) across six
+ * levers — attack, damage, save, check, ac, init — at ±1, doubled at ●●●.
+ * Auras from several bonds in reach sum, then each lever clamps to ±2.
  *
- * System coverage: saves and AC are numeric on BOTH dnd5e and a5e. dnd5e also
- * takes a numeric weapon-attack bonus; a5e has no actor-level numeric attack
- * key (`system.bonuses.attacks` is a collection of formula objects, not a
- * number), so on a5e the attack line is rules text — the same compromise the
- * module already makes for Desperate's crit range.
+ * System coverage: saves, checks and AC are plain numbers on BOTH dnd5e and
+ * a5e. Attack/damage/initiative are numbers on dnd5e; on a5e they live in
+ * RecordFields that a flat change cannot fill, so we go through the system's
+ * own CUSTOM-mode keys (`flags.a5e.effects.bonuses.*`) with the bonus encoded
+ * as JSON — see _a5eBonus(). That lands in a5e's real formulas and dialog.
+ *
+ * The effect carries `statuses: ["tsl-bond-aura"]` so Foundry paints an icon
+ * on the token, but that id is NOT in CONFIG.statusEffects, so it can never be
+ * toggled by hand from the token HUD.
+ *
+ * If nothing appears: TSLBondAuras.selfTest() in the console explains why.
  */
 
 console.log("TSL | Loading bond-auras.js...");
@@ -143,6 +147,16 @@ class TSLBondAuras {
    * effects are shared state, so exactly one client may write them.
    */
   static async refresh() {
+    try { return await TSLBondAuras._refresh(); }
+    catch (err) {
+      // Never fail silently again: an unhandled rejection here is invisible,
+      // which is exactly how this feature looked "not implemented" for days.
+      console.error("TSL | Bond auras failed to apply:", err);
+      ui.notifications?.error("TSL: bond auras failed — see the console (F12).");
+    }
+  }
+
+  static async _refresh() {
     if (!game.user?.isGM || !canvas?.ready) return;
     const range  = TSLBondAuras.range();
     const tokens = (canvas.tokens?.placeables ?? []).filter(t => t.actor);
@@ -176,8 +190,54 @@ class TSLBondAuras {
       }
       // Several bonds in reach can pile up; keep any one lever sane.
       for (const k of Object.keys(tally)) tally[k] = Math.max(-2, Math.min(2, tally[k]));
-      await TSLBondAuras._apply(actor, tally, lines);
+      // One bad actor must not abort the sweep for everyone else.
+      try { await TSLBondAuras._apply(actor, tally, lines); }
+      catch (err) { console.error(`TSL | Bond aura failed on ${actor.name}:`, err); }
     }
+  }
+
+  /**
+   * One command that answers "why is nothing happening": prints the whole
+   * chain — version, system, GM, canvas, reach, every bond with its type,
+   * strength and distance, then runs a refresh and reports what landed.
+   */
+  static async selfTest() {
+    const L = [];
+    const add = (k, v) => L.push(`${k}: ${v}`);
+    add("module", game.modules?.get("tsl-social-conflict")?.version ?? "?");
+    add("system", `${game.system?.id} ${game.system?.version ?? ""}`.trim());
+    add("isGM", !!game.user?.isGM);
+    add("canvas.ready", !!canvas?.ready);
+    add("register() ran", TSLBondAuras._registered === true);
+    add("reach", `${TSLBondAuras.range()} ft${TSLBondAuras.range() ? "" : "  <-- DISABLED (bondAuraRange is 0)"}`);
+
+    const tokens = (canvas.tokens?.placeables ?? []).filter(t => t.actor);
+    add("tokens with actors on scene", tokens.length);
+    for (const t of tokens) {
+      const bonds = TSLBondStore.getList(t.actor.id);
+      add(`* ${t.actor.name}`, bonds.length ? `${bonds.length} bond(s)` : "NO BONDS RECORDED");
+      for (const b of bonds) {
+        const meta   = SocialArchetypeManager.getBondType(b.type);
+        const str    = TSLBondStore.getStrength(t.actor.id, b.targetActorId);
+        const others = tokens.filter(o => o !== t && o.actor?.id === b.targetActorId);
+        const d      = others.length ? Math.min(...others.map(o => TSLBondAuras._distance(t, o))) : null;
+        add(`    -> ${game.actors.get(b.targetActorId)?.name ?? b.targetActorId}`,
+          `type=${b.type}${meta?.combatAura ? "" : "  <-- NO AURA (Stranger has none)"}`
+          + ` strength=${str}${str ? "" : "  <-- 0 dots, no effect"}`
+          + (others.length ? ` distance=${Math.round(d)}ft ${d <= TSLBondAuras.range() ? "IN REACH" : "OUT OF REACH"}`
+                           : "  <-- they have no token on this scene"));
+      }
+    }
+    try { await TSLBondAuras._refresh(); add("refresh()", "completed without error"); }
+    catch (err) { add("refresh() THREW", err.message); console.error(err); }
+
+    for (const t of tokens) {
+      const a = t.actor.effects.find(e => e.flags?.[BOND_AURA_FLAG]?.[BOND_AURA_KEY]);
+      add(`aura on ${t.actor.name}`, a ? JSON.stringify(a.changes) : "none");
+    }
+    const report = L.join("\n");
+    console.log("=== TSL bond aura self-test ===\n" + report);
+    return report;
   }
 
   /** Create / update / remove the single module-managed aura effect. */
@@ -236,7 +296,9 @@ class TSLBondAuras {
     // not fire again on its own — do the first pass now or nothing appears
     // until someone happens to drag a token.
     go();
-    console.log("TSL | Bond auras registered");
+    TSLBondAuras._registered = true;
+    console.log(`TSL | Bond auras registered — reach ${TSLBondAuras.range()} ft. `
+      + `Run TSLBondAuras.selfTest() if nothing appears.`);
   }
 
   /**
@@ -263,3 +325,6 @@ class TSLBondAuras {
     }
   }
 }
+
+// Reachable from the console for diagnostics regardless of script scoping.
+globalThis.TSLBondAuras = TSLBondAuras;
