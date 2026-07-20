@@ -388,10 +388,10 @@ class SocialManeuverRoller {
           "<b>◎</b> their weak spot — cuts deep (Advantage, +1 damage)",
           "<b>✕</b> bounces off / they're walled",
           "<b>▲</b> their nature yields to this school (+2)",
-          "<b>⊕</b> a +2 opening is live — either a combo you've set up, or an open wound (a raw emotional Condition this maneuver presses)",
+          "<b>⊕</b> an opening is live — a condition on them makes this maneuver stronger (a status you set up, or a lasting emotional wound they carry)",
         ]
       : [
-          "<b>⊕</b> a +2 opening is live — a combo you've set up, or an open wound (a raw emotional Condition on them this maneuver presses)",
+          "<b>⊕</b> an opening is live — a condition on them makes this maneuver stronger (a status you set up, or a lasting emotional wound they carry)",
         ];
     return `<div class="tsl-chip-legend">${items.join("<br>")}</div>`;
   }
@@ -646,7 +646,7 @@ class SocialManeuverRoller {
       opening = findOpening(targetActor, maneuver);
       if (opening) {
         const condLabel = { smitten: "Smitten", angry: "Angry", scared: "Scared", guilty: "Guilty", hopeless: "Hopeless" }[opening.cond] ?? opening.cond;
-        bonusReasons.push({ label: `open wound (${condLabel}) — ${opening.flavor}`, value: 2 });
+        bonusReasons.push({ label: `opening — they're ${condLabel} (${opening.flavor})`, value: 2 });
       }
       // The triad counter cycle: the defender's ruling triad is soft against
       // the school that counters it (Power→Emotion→Order→Power). Works on
@@ -771,15 +771,15 @@ class SocialManeuverRoller {
     else if (isGM && a.relation === "immune")     out.push("✕ Bounces off them — auto-fails, they turn Defiant");
     else if (isGM && a.relation === "vulnerable") out.push("◎ Cuts deep here — Advantage & +1 Resolve damage");
 
-    // Combo armed on a set-up status (observable — safe for players)
+    // Opening from a set-up status (observable — safe for players)
     if (a.combo) {
       const st  = SOCIAL_CONDITIONS[a.combo.status]?.label ?? a.combo.status;
       const pay = [a.combo.resolveDamage ? `+${a.combo.resolveDamage} damage` : null,
                    a.combo.strings ? `+${a.combo.strings} String` : null].filter(Boolean).join(", ");
-      out.push(`⊕ Combo armed — cashes ${st}${pay ? `: ${pay}` : ""}`);
+      out.push(`⊕ Opening — they're ${st}${pay ? `: ${pay}` : ""}`);
     }
-    if (a.opening) out.push(`⊕ Open wound — +2 (${a.opening.flavor})`);
-    if (a.kick)    out.push("⊕ Kicks them while down — +1 Resolve damage");
+    if (a.opening) out.push(`⊕ Opening — +2 (${a.opening.flavor})`);
+    if (a.kick)    out.push("⊕ Opening — they have a status: +1 Resolve damage");
 
     // Flat bonuses. Archetype/defense-derived ones (counter, blind side) are
     // GM-only; the player's OWN bonuses (skill, bond, grip, leaning) always show.
@@ -1365,7 +1365,7 @@ class SocialManeuverRoller {
   <div class="tsl-mv-target">↳ ${esc(d.targetActor.name)}</div>
   ${archHtml}
   ${reasons}
-  ${a.combo ? `<div class="tsl-mv-reason">⊕ Combo — ${esc(a.combo.label)}</div>` : ""}
+  ${a.combo ? `<div class="tsl-mv-reason">⊕ Opening — ${esc(a.combo.label)}</div>` : ""}
   <div class="tsl-mv-roll">
     <span class="tsl-mv-dice">${diceText}</span>
     <span class="tsl-mv-vs" data-tooltip="The difficulty stays with the GM — the card never shows it.">vs DC ?</span>

@@ -139,15 +139,14 @@ class SocialFencingApp extends Application {
     const bonded = new Set(TSLBondStore.getList(this._actor.id).map(b => b.targetActorId));
     bonded.add(this._actor.id);
 
+    // Only people actually on the battlemap — never the whole actor directory.
+    // (Players see visible tokens; the GM sees hidden ones too.) To relate to
+    // someone off-scene, drop a token or use the canvas Pick button.
     const map = new Map();
     for (const t of (canvas.tokens?.placeables ?? [])) {
-      if (!t.actor || t.document.hidden || !t.visible) continue;
-      if (!bonded.has(t.actor.id)) map.set(t.actor.id, t.actor);
-    }
-    for (const a of game.actors.contents) {
-      if (bonded.has(a.id) || map.has(a.id)) continue;
-      const hasChronicle = !!a.flags?.["tsl-social-conflict"];
-      if (a.hasPlayerOwner || (game.user.isGM && hasChronicle)) map.set(a.id, a);
+      if (!t.actor || bonded.has(t.actor.id) || map.has(t.actor.id)) continue;
+      if (!game.user.isGM && (t.document.hidden || !t.visible)) continue;
+      map.set(t.actor.id, t.actor);
     }
     return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
   }
@@ -383,8 +382,7 @@ class SocialFencingApp extends Application {
       "Patience": "Their tolerance for the whole exchange. Failures burn it; at 0 they walk away. Starts at 4 + their CHA mod (3–8).",
       "social DC": "The hidden difficulty you roll against: 10 + WIS + INT + proficiency, or their passive Insight if higher. Only the GM ever sees the number.",
       "support skill": "A SECOND skill whose modifier is added on top of the maneuver's main d20 roll (e.g. Read Them = Insight + Investigation).",
-      "combo": "A status you set up THIS exchange (Provoked, Desperate…) that a specific finisher cashes for an extra payout. Shows ⊕ when live.",
-      "open wound": "A lasting emotional Condition they carry (Angry, Smitten, Guilty, Scared, Hopeless) that matching maneuvers press for +2, until the story heals it. Shows ⊕.",
+      "opening": "A condition on your target that makes a matching maneuver stronger. Two kinds, same ⊕ mark: a status you set up this exchange (Provoked, Desperate…) that a finisher cashes, or a lasting emotional wound they carry (Angry, Smitten, Guilty, Scared, Hopeless) that certain maneuvers press for +2.",
       "String": "An emotional thread on a person — earned by opening up in character, held as +1 grip, spent for +5 on ANY roll against them (even an attack).",
       "the Answer": "On a bad fumble OR hitting an immunity, the archetype strikes back in its triad's language: Power → you're Rattled · Emotion → you're Guilty · Reason → they take a String on you.",
       "Hold the Line": "When a maneuver lands on YOU, refuse its effect by taking a fitting emotional Condition instead. The words still cut; only their power is refused.",
@@ -405,47 +403,57 @@ class SocialFencingApp extends Application {
     const capId = (s) => s.charAt(0).toUpperCase() + s.slice(1);
     const stName = (id) => SOCIAL_CONDITIONS[id]?.label ?? capId(id);
 
-    // Which maneuver applies which fencing status (the set-up)
+    // ── ONE idea: a condition on the target opens a matching maneuver (⊕). ──
+    // We generate a single condition → maneuvers table from every source, so
+    // there is exactly one word to learn ("opening") and one place to look.
+
+    // Half 1 — how you CREATE conditions (which maneuver applies which status).
     const setupRows = SOCIAL_CONDITION_ORDER.map(st => {
       const from = SOCIAL_MANEUVERS.filter(m => m.applyOnSuccess === st).map(m => m.name);
-      return from.length ? `<li><b>${stName(st)}</b> &nbsp;←&nbsp; ${from.join(", ")}</li>` : null;
+      return from.length ? `<li><b>${from.join(", ")}</b> &nbsp;→&nbsp; makes them <b>${stName(st)}</b></li>` : null;
     }).filter(Boolean).join("");
 
-    // Finishers that CASH a set-up status (the ⊕ combo)
-    const chainRows = [];
+    // Half 2 — every opening, merged by the condition that triggers it.
+    // A condition maps to a list of { name, gain } entries, whatever the source.
+    const openings = {}; // condLabel → [{ name, gain }]
+    const push = (cond, name, gain) => (openings[cond] ??= []).push({ name, gain });
+
+    // fencing statuses cashed by a finisher (from maneuver.combos)
     for (const m of SOCIAL_MANEUVERS) {
       for (const [st, c] of Object.entries(m.combos ?? {})) {
-        const pay = [c.resolveDamage ? `+${c.resolveDamage} dmg` : null, c.strings ? `+${c.strings} String` : null].filter(Boolean).join(", ");
-        chainRows.push(`<li>They're <b>${stName(st)}</b> &nbsp;→&nbsp; <b>${m.name}</b> cashes it (${pay})</li>`);
+        const gain = [c.resolveDamage ? `+${c.resolveDamage} dmg` : null, c.strings ? `+${c.strings} String` : null].filter(Boolean).join(", ");
+        push(stName(st), m.name, gain);
       }
     }
+    // Mock kicks anyone who already carries any status
     const kicker = SOCIAL_MANEUVERS.find(m => m.kickWhileDown);
-    if (kicker) chainRows.push(`<li>They have <b>any status</b> &nbsp;→&nbsp; <b>${kicker.name}</b> hits +1 dmg</li>`);
-
-    // Emotional WOUNDS (TSL Conditions) each maneuver presses for +2
+    if (kicker) push("Any status", kicker.name, "+1 dmg");
+    // emotional Conditions they carry (from CONDITION_OPENINGS)
     const woundMap = {};
     for (const [mid, conds] of Object.entries(CONDITION_OPENINGS)) {
       for (const cond of Object.keys(conds)) (woundMap[cond] ??= new Set()).add(mName(mid));
     }
-    const woundRows = Object.entries(woundMap)
-      .map(([cond, ms]) => `<li><b>${capId(cond)}</b> &nbsp;→&nbsp; ${[...ms].join(", ")} &nbsp;(+2)</li>`).join("");
+    for (const [cond, ms] of Object.entries(woundMap)) {
+      for (const name of ms) push(capId(cond), name, "+2");
+    }
+
+    const openingRows = Object.entries(openings).map(([cond, list]) => {
+      const parts = list.map(e => `${e.name} <span class="tsl-codex-gain">(${e.gain})</span>`).join(", ");
+      return `<li>They're <b>${cond}</b> &nbsp;→&nbsp; ${parts}</li>`;
+    }).join("");
 
     const comboReference = `
       <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title">Combos & interactions — the cheat sheet</div>
-        <div class="tsl-codex-hint-sm">Two ways to earn a ⊕ opening: <b>cash a set-up</b> (a status you applied this exchange) or <b>press a wound</b> (a lasting emotional Condition they carry).</div>
+        <div class="tsl-notes-section-title">Openings (⊕) — the cheat sheet</div>
+        <div class="tsl-codex-hint-sm">One rule, no jargon: <b>a condition on your target makes a matching maneuver stronger.</b> When one is live, that chip shows a ⊕. First you put a condition on them; then you press it.</div>
         <div class="tsl-codex-sub">
-          <div class="tsl-codex-sub-title">1 · Set-ups — the status each maneuver applies</div>
+          <div class="tsl-codex-sub-title">Step 1 · Put a condition on them</div>
           <ul class="tsl-codex-how tsl-codex-combo">${setupRows}</ul>
+          <div class="tsl-codex-hint-sm">Lasting emotional wounds (Angry / Smitten / Guilty / Scared / Hopeless) also come from Hold the Line, sincere Feelings moves, or a bad fumble — and stay until the story heals them.</div>
         </div>
         <div class="tsl-codex-sub">
-          <div class="tsl-codex-sub-title">2 · Chains — a finisher cashes a set-up (⊕)</div>
-          <ul class="tsl-codex-how tsl-codex-combo">${chainRows.join("")}</ul>
-        </div>
-        <div class="tsl-codex-sub">
-          <div class="tsl-codex-sub-title">3 · Wounds — press a lasting emotional Condition (⊕ +2)</div>
-          <ul class="tsl-codex-how tsl-codex-combo">${woundRows}</ul>
-          <div class="tsl-codex-hint-sm">Wounds come from Hold the Line, sincere Feelings moves, or a bad fumble — and last until the story heals them.</div>
+          <div class="tsl-codex-sub-title">Step 2 · Press it — when they're X, these gain ⊕</div>
+          <ul class="tsl-codex-how tsl-codex-combo">${openingRows}</ul>
         </div>
       </section>`;
 
@@ -474,7 +482,7 @@ class SocialFencingApp extends Application {
           `Closeness costs: turn a <b>Power</b> play on someone you love and the <b>Guilt</b> is yours.`,
         ])}
         ${sub("Reading the chip corners", [
-          `<b>⊕</b> — a <b>+2 opening is live right now</b>: either a ${term("combo")} you've set up, OR an ${term("open wound")} this maneuver presses. Everyone sees ⊕; it reads off visible statuses.`,
+          `<b>⊕</b> — an <b>${term("opening")} is live right now</b>: this maneuver gains a bonus because of a condition they carry. Everyone sees ⊕; it reads off visible statuses.`,
           `<b>◎</b> weak spot (cuts deep) · <b>✕</b> bounces off / walled · <b>▲</b> their nature yields to this school — these are the <b>GM's</b> to see. Players deduce weak spots from outcomes, not the chips.`,
         ])}
         ${sub("Grades & the Answer", [
@@ -881,8 +889,8 @@ class SocialFencingApp extends Application {
     if (a.relation === "blocked")        { hint = a.relationReason; hintCls = "imm"; }
     else if (known && a.relation === "immune")     { hint = `${readPrefix}${a.relationReason} — ${isGuess ? "if you're right, it fails and they turn Defiant." : "it fails, they turn Defiant."}`; hintCls = "imm"; }
     else if (known && a.relation === "vulnerable") { hint = `${readPrefix}this should cut deep — Advantage & +1 Resolve damage${isGuess ? " (if your read is right)" : ""}.`; hintCls = "vuln"; }
-    else if (a.combo)                    { hint = `⊕ Combo armed — ${a.combo.label}.`; hintCls = "vuln"; }
-    else if (a.opening)                  { hint = `⊕ Open wound — ${a.opening.flavor} (+2).`; hintCls = "vuln"; }
+    else if (a.combo)                    { hint = `⊕ Opening — ${a.combo.label}.`; hintCls = "vuln"; }
+    else if (a.opening)                  { hint = `⊕ Opening — ${a.opening.flavor} (+2).`; hintCls = "vuln"; }
     else if (a.lastExchange)             { hint = "⚠ Their patience is at its end — one more misstep ends this."; hintCls = "imm"; }
     else if (known && a.answerRisk)      { hint = `${readPrefix}fumble badly here and their answer comes — ${a.answerRisk}${isGuess ? " (if your read is right)" : ""}.`; hintCls = "imm"; }
     else if (a.patienceThin)             { hint = "⏳ Their patience wears thin — they're getting harder to reach."; }

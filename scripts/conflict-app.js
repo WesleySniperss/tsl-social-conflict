@@ -380,11 +380,11 @@ class TSLConflictApp extends Application {
             ? (SOCIAL_TRIADS[TRIAD_COUNTERS[m.group]]?.label ?? "").replace("Triad of ", "") : null;
           const comboTip = [
             ...(m.combos ? Object.entries(m.combos).map(([st, c]) =>
-              `⊕ Combo — consumes ${SOCIAL_CONDITIONS[st]?.label ?? st}: ${c.label}` +
+              `⊕ Opening — when they're ${SOCIAL_CONDITIONS[st]?.label ?? st}: ${c.label}` +
               `${c.resolveDamage ? ` (+${c.resolveDamage} Resolve damage)` : ""}${c.strings ? ` (+${c.strings} String)` : ""}`) : []),
-            ...(m.kickWhileDown ? ["⊕ Kicks while down: +1 Resolve damage if they have any status (not consumed)"] : []),
+            ...(m.kickWhileDown ? ["⊕ Opening — when they have any status: +1 Resolve damage"] : []),
             ...Object.entries(CONDITION_OPENINGS[m.id] ?? {}).map(([c, f]) =>
-              `⊕ Open wound (${c.charAt(0).toUpperCase() + c.slice(1)}): +2 — ${f} (never consumed)`),
+              `⊕ Opening — when they're ${c.charAt(0).toUpperCase() + c.slice(1)}: +2 (${f})`),
           ].join("<br>") || null;
           // Once a target is chosen, the tooltip shows what this maneuver
           // actually does against THEM right now (veiled, follows your read).
@@ -494,8 +494,8 @@ class TSLConflictApp extends Application {
       if (a.relation === "blocked")        { hint = a.relationReason; hintCls = "imm"; }
       else if (seeRel && a.relation === "immune")     { hint = `${readPrefix}${a.relationReason} — ${isGuess ? "if you're right, it fails and they turn Defiant." : "it fails, they turn Defiant."}`; hintCls = "imm"; }
       else if (seeRel && a.relation === "vulnerable") { hint = `${readPrefix}this should cut deep — Advantage & +1 Resolve damage${isGuess ? " (if your read is right)" : ""}.`; hintCls = "vuln"; }
-      else if (a.combo)                    { hint = `⊕ Combo armed — ${a.combo.label}.`; hintCls = "vuln"; }
-      else if (a.opening)                  { hint = `⊕ Open wound — ${a.opening.flavor} (+2).`; hintCls = "vuln"; }
+      else if (a.combo)                    { hint = `⊕ Opening — ${a.combo.label}.`; hintCls = "vuln"; }
+      else if (a.opening)                  { hint = `⊕ Opening — ${a.opening.flavor} (+2).`; hintCls = "vuln"; }
       else if (a.lastExchange)             { hint = "⚠ Their patience is at its end — one more misstep ends this."; hintCls = "imm"; }
       else if (seeRel && a.answerRisk)     { hint = `${readPrefix}fumble badly here and their answer comes — ${a.answerRisk}${isGuess ? " (if your read is right)" : ""}.`; hintCls = "imm"; }
       else if (a.patienceThin)             { hint = "⏳ Their patience wears thin — they're getting harder to reach."; }

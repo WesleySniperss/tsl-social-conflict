@@ -2156,6 +2156,7 @@
 }
 .tsl-codex-combo li:last-child { border-bottom: none; }
 .tsl-codex-combo b { color: var(--tsl-notes-text); }
+.tsl-codex-gain { color: var(--tsl-accent, #d98a9b); font-size: 0.9em; white-space: nowrap; }
 
 .tsl-codex-triad-head {
   font-family: 'Cinzel', serif;
