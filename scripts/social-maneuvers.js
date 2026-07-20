@@ -676,6 +676,17 @@ class SocialManeuverRoller {
       if (bondMeta?.school && bondMeta.school === maneuver.group && myStr > 0) {
         bonusReasons.push({ label: `Bond: ${bondMeta.label} ${"●".repeat(myStr)} — this approach runs deep between you`, value: myStr });
       }
+      // What this KIND of relationship does to the SKILL you're rolling — the
+      // reason the type matters and isn't just its school. Every type gives an
+      // edge and a cost: you can't threaten a friend, can't lie to your own
+      // blood, can't sweet-talk hatred. Scales with the bond's strength.
+      const skillFx = (bondMeta?.skills ?? {})[maneuver.skill] ?? 0;
+      if (skillFx && myStr > 0) {
+        bonusReasons.push({
+          label: `${bondMeta.label} ${"●".repeat(myStr)} — ${skillFx > 0 ? "your bond sharpens" : "your bond blunts"} ${maneuver.skill}`,
+          value: skillFx * myStr,
+        });
+      }
       // The attacker's Extended Triad leanings shape their own attack style:
       // +1 per dot in the maneuver's triad; a triad with NO dots (while the
       // profile has some elsewhere) is foreign ground — −1. General tactics

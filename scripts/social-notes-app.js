@@ -390,7 +390,7 @@ class SocialFencingApp extends Application {
       "swayed": "Resolve broken to 0: they concede the exchange, and the bond toward you deepens.",
       "walk away": "Patience emptied to 0: they leave on their terms, holding something over you.",
       "leverage": "A read dossier unlocks their Desire, Fear or Weakness — each playable once per exchange for a strong edge.",
-      "bond": "ONE shared relationship between two people, with a TYPE and a STRENGTH (0–3 ●). Record it on either side and it appears on both. It is your weapon (+● on its school) and their guard (DC up or down) at the same time.",
+      "bond": "ONE shared relationship between two people, with a TYPE and a STRENGTH (0–3 ●). Record it on either side and it appears on both. It is your weapon (+● on its school), their guard (DC up or down), and a set of skill edges and costs (±● — you can't threaten a friend, can't lie to family, can't charm an enemy).",
       "Advantage": "Roll two d20 and keep the higher.",
     };
     const term = (name, txt) => {
@@ -479,6 +479,7 @@ class SocialFencingApp extends Application {
         ${sub("The relationship is the terrain", [
           `A ${term("bond")} is <b>ONE shared relationship</b> — one TYPE, one STRENGTH (0–3 ●). Write it on either person and it appears on both; edit it anywhere and both update. (Directional pairs flip to fit: your <b>Mentor</b> is their <b>Protégé</b>, your <b>Creditor</b> is their <b>Debtor</b>.)`,
           `That one bond works <b>both ways at once</b>: it is your <b>weapon</b> — its school gets <b>+●</b> (rivals feed Power, love feeds Emotion, debts feed Reason) — and their <b>guard</b>: a friend, lover or debtor opens up (easier), an enemy is wary (harder).`,
+          `<b>Every type also bends specific skills, ±● — an edge AND a cost.</b> You can't threaten a friend (−● Intimidation), can't lie to your own blood (−● Deception), can't sweet-talk hatred (−● Persuasion vs an enemy, though +● Intimidation). That's why the <i>kind</i> of relationship matters, not just its school — an Enemy ●● gives Humiliate +2 school <i>and</i> +2 Intimidation, but Flatter's +2 school is cancelled by −2 Persuasion. Hover any bond type to see its exact edges.`,
           `Your own read of them (the archetype you guessed) and your notes stay <b>private</b> to you — only the relationship itself is shared.`,
           `Closeness costs: turn a <b>Power</b> play on someone you love and the <b>Guilt</b> is yours.`,
         ])}
@@ -618,7 +619,7 @@ class SocialFencingApp extends Application {
             ${canEdit ? `<button class="tsl-chr-bond-remove" data-bond-id="${b.id}" data-tooltip="Remove bond">✕</button>` : ""}
           </div>
           <div class="tsl-chr-bond-line">
-            <span class="tsl-chr-bond-label" data-tooltip="How deep the bond runs, 0–3 ●. It scales everything the bond TYPE gives (your +● weapon, their DC guard). Swayed exchanges deepen it; walking away cools it.">Strength</span>
+            <span class="tsl-chr-bond-label" data-tooltip="How deep the bond runs, 0–3 ●. It scales everything the bond TYPE gives — your +● weapon school, their DC guard, and the type's skill edges and costs (±●). Swayed exchanges deepen it; walking away cools it.">Strength</span>
             <div class="tsl-chr-att-track">${attitudeDots(b)}</div>
           </div>
           <div class="tsl-chr-bond-line">
