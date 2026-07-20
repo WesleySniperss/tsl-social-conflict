@@ -34,6 +34,7 @@ const BOND_AURA_KEY    = "bondAura";
 // CONFIG.statusEffects — so it can't be toggled by hand from the token HUD.
 const BOND_AURA_STATUS = "tsl-bond-aura";
 const BOND_AURA_IMG    = "icons/svg/aura.svg";
+const A5E_ABILITIES    = ["str", "dex", "con", "int", "wis", "cha"];
 
 class TSLBondAuras {
 
@@ -59,21 +60,27 @@ class TSLBondAuras {
    * That is how a5e's own content does it (e.g. Inspiring Charge), so our
    * bonus lands in the system's real formulas and its roll dialog.
    */
-  static _a5eBonus(kind, label, n) {
-    const body = {
-      label,
-      formula: `${n}`,
-      context: { attackTypes: TSLBondAuras.A5E_ATTACK_TYPES, spellLevels: [], requiresProficiency: false },
-      default: true,
-      img: "icons/svg/aura.svg",
-    };
-    if (kind === "damage") {
-      body.damageType = "";
-      body.context = { attackTypes: TSLBondAuras.A5E_ATTACK_TYPES, damageTypes: [], isCritBonus: false, spellLevels: [] };
+  static _a5eBonus(kind, label, n, opts = {}) {
+    const body = { label, formula: `${n}`, default: true, img: BOND_AURA_IMG, context: {} };
+    switch (kind) {
+      case "attacks":
+        body.context = { attackTypes: TSLBondAuras.A5E_ATTACK_TYPES, spellLevels: [], requiresProficiency: false };
+        break;
+      case "damage":
+        body.damageType = "";
+        body.context = { attackTypes: TSLBondAuras.A5E_ATTACK_TYPES, damageTypes: [], isCritBonus: false, spellLevels: [] };
+        break;
+      case "initiative":
+        body.context = { spellLevels: [], requiresProficiency: false };
+        break;
+      case "abilities":
+        // types picks saves vs checks; listing the abilities explicitly, since
+        // an empty array is not reliably read as "all" (see attackTypes).
+        body.context = { types: opts.types ?? ["check", "save"], abilities: A5E_ABILITIES, requiresProficiency: false };
+        break;
     }
-    if (kind === "initiative") body.context = { spellLevels: [], requiresProficiency: false };
     return {
-      key: `flags.a5e.effects.bonuses.${kind === "attack" ? "attacks" : kind}`,
+      key: `flags.a5e.effects.bonuses.${kind}`,
       mode: 0,                       // CUSTOM — a5e parses the JSON itself
       value: JSON.stringify(body),
       priority: 20,
@@ -110,12 +117,22 @@ class TSLBondAuras {
     const out   = [];
     const num   = (key, v) => out.push({ key, mode: 2, value: `${v > 0 ? "+" : ""}${v}`, priority: 20 });
 
-    if (tally.save)  num("system.bonuses.abilities.save",  tally.save);
-    if (tally.check) num("system.bonuses.abilities.check", tally.check);
-    if (tally.ac)    num(isA5e ? "system.attributes.ac.changes.bonuses.value" : "system.attributes.ac.bonus", tally.ac);
+    // Saves/checks: dnd5e has real formula fields, but a5e's
+    // `system.bonuses.abilities` is a RecordField — writing `.save` to it does
+    // NOTHING. On a5e they go through the system's own CUSTOM key, like attacks.
+    if (tally.save) {
+      if (isA5e) out.push(TSLBondAuras._a5eBonus("abilities", `${label} (saves)`, tally.save, { types: ["save"] }));
+      else num("system.bonuses.abilities.save", tally.save);
+    }
+    if (tally.check) {
+      if (isA5e) out.push(TSLBondAuras._a5eBonus("abilities", `${label} (checks)`, tally.check, { types: ["check"] }));
+      else num("system.bonuses.abilities.check", tally.check);
+    }
+    // AC is genuinely numeric on both (a5e registers it with the default modes).
+    if (tally.ac) num(isA5e ? "system.attributes.ac.changes.bonuses.value" : "system.attributes.ac.bonus", tally.ac);
 
     if (tally.attack) {
-      if (isA5e) out.push(TSLBondAuras._a5eBonus("attack", label, tally.attack));
+      if (isA5e) out.push(TSLBondAuras._a5eBonus("attacks", label, tally.attack));
       else { num("system.bonuses.mwak.attack", tally.attack); num("system.bonuses.rwak.attack", tally.attack); }
     }
     if (tally.damage) {
