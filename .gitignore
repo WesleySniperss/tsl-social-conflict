@@ -19,3 +19,6 @@ package-lock.json
 *.log
 tmp/
 temp/
+
+# Release artifact (built by git archive, never tracked)
+module.zip
