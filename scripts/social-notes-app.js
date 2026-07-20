@@ -383,7 +383,7 @@ class SocialFencingApp extends Application {
       "social DC": "The hidden difficulty you roll against: 10 + WIS + INT + proficiency, or their passive Insight if higher. Only the GM ever sees the number.",
       "support skill": "A SECOND skill whose modifier is added on top of the maneuver's main d20 roll (e.g. Read Them = Insight + Investigation).",
       "opening": "A condition on your target that makes a matching maneuver stronger. Two kinds, same ⊕ mark: a status you set up this exchange (Provoked, Desperate…) that a finisher cashes, or a lasting emotional wound they carry (Angry, Smitten, Guilty, Scared, Hopeless) that certain maneuvers press for +2.",
-      "String": "An emotional thread on a person — earned by opening up in character, held as +1 grip, spent for +5 on ANY roll against them (even an attack).",
+      "String": "A hold on a person — earned by opening up in character or by breaking through their Resolve. No passive effect; it is only ever spent, for +5 on ANY roll against them (even an attack).",
       "the Answer": "On a bad fumble OR hitting an immunity, the archetype strikes back in its triad's language: Power → you're Rattled · Emotion → you're Guilty · Reason → they take a String on you.",
       "Hold the Line": "When a maneuver lands on YOU, refuse its effect by taking a fitting emotional Condition instead. The words still cut; only their power is refused.",
       "Overwhelmed": "Carrying four emotional Conditions — you must yield or flee.",
@@ -489,9 +489,9 @@ class SocialFencingApp extends Application {
           `A <b>clean hit</b> (well over) cuts +1 deeper. A <b>bad miss</b> — or hitting an immunity — earns ${term("the Answer")}.`,
           `Fumble that badly as a player and you gain <b>Inspiration</b> — losing spectacularly is worth something.`,
         ])}
-        ${sub("Strings — earned with your heart", [
-          `The surest way to earn a ${term("String")} is to <b>open up</b> in character — a true fear, a confession, the story behind the scar. The GM grants you one on the person you opened up to.`,
-          `Spend a String for <b>+5 to ANY roll against that person — even an attack</b> (the 🎭+5 button), decided after you see the die. Holding one is also a quiet +1 on maneuvers against them.`,
+        ${sub("Strings — a thread you earn, then spend", [
+          `A ${term("String")} is a hold on a person. You earn one two ways: <b>open up</b> in character (a true fear, a confession — the GM grants it on the person you bared yourself to), or <b>break through their Resolve</b> (any maneuver that chips their social health hands you a thread).`,
+          `A String is <b>only ever spent</b> — it gives no passive bonus. Burn one for <b>+5 to ANY roll against that person, even an attack</b> (the 🎭+5 button), decided after you see the die.`,
         ])}
         ${sub("Hold the line — when it lands on YOU", [
           `The words can't be unsaid, but you may ${term("Hold the Line")}: take a fitting emotional <b>Condition</b> instead of the status and the Resolve hit. Only the effect is refused, never the words.`,
@@ -864,7 +864,7 @@ class SocialFencingApp extends Application {
     // Held Strings show as the gamble reserve — spendable AFTER a miss
     const held = TSLStringStore.getList(src.id).filter(e => e.targetActorId === tgt.id);
     const strBtn = held.length
-      ? `<span class="tsl-fc-string" data-tooltip="You hold ${held.length} String${held.length > 1 ? "s" : ""} on them (+1 grip already counted). On a MISS you'll be offered to burn one for +${STRING_SPEND_BONUS} — the gamble."><i class="fas fa-masks-theater"></i> ${held.length}</span>`
+      ? `<span class="tsl-fc-string" data-tooltip="You hold ${held.length} String${held.length > 1 ? "s" : ""} on them. Strings give no passive bonus — on a MISS you'll be offered to burn one for +${STRING_SPEND_BONUS} (the gamble), or spend one anytime for +${STRING_SPEND_BONUS} on any roll against them."><i class="fas fa-masks-theater"></i> ${held.length}</span>`
       : "";
 
     // Leverage toggles

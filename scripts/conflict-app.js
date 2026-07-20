@@ -239,7 +239,7 @@ class TSLConflictApp extends Application {
             held ? `holds ${held}` : null,
             inc ? `${inc} on them` : null,
           ].filter(Boolean).join(" · ");
-          strChip = `<span class="tsl-str-chip" data-tooltip="Strings — ${parts}. Holding a String grips them: +1 on your maneuvers against them. On a missed maneuver you may burn one for +${STRING_SPEND_BONUS} — the gamble. Earned above all by OPENING UP in play.">
+          strChip = `<span class="tsl-str-chip" data-tooltip="Strings — ${parts}. No passive bonus: a String is only ever SPENT — burn one for +${STRING_SPEND_BONUS} on any roll against them (the gamble on a miss, or the 🎭+5 anytime). Earned by OPENING UP in play or by breaking through their Resolve.">
             <i class="fas fa-masks-theater"></i>${held || inc}</span>`;
         }
       }

@@ -298,8 +298,9 @@ const SOCIAL_MANEUVERS = [
 // ─── Roller ────────────────────────────────────────────────────────────────────
 
 // A String is a TRUMP CARD: burning one is +5 — it almost always turns a
-// near miss. Earned rarely (baits, deep reads, and above all: OPENING UP at
-// the table), held as a +1 grip, spent as the gamble after the die falls.
+// near miss. Earned by OPENING UP at the table and by breaking through a
+// target's Resolve. It gives NO passive edge — it is only ever SPENT (the
+// post-miss gamble, or the anytime 🎭+5 on any roll against that person).
 const STRING_SPEND_BONUS = 5;
 
 /** Maneuvers that feed on the Desperate status. */
@@ -542,10 +543,7 @@ class SocialManeuverRoller {
       }
     }
     if (cond("rattled")) dcMods.push({ label: "Rattled", value: -5 });
-    // Strings are leverage even unspent — THEIRS on you stiffen their guard
-    const theirGrip = TSLStringStore.getList(targetActor.id)
-      .filter(e => e.targetActorId === sourceActor.id).length;
-    if (theirGrip) dcMods.push({ label: `they hold ${theirGrip} String${theirGrip > 1 ? "s" : ""} on you`, value: 1 });
+    // (Strings give no passive DC change — they are only ever spent, never held for an edge.)
     // A wearing conversation hardens people: past half Patience the door is closing
     const enc = SocialEncounterManager.getEncounter(targetActor);
     const patienceThin = enc.active && enc.patience <= Math.floor(enc.maxPatience / 2);
@@ -662,12 +660,9 @@ class SocialManeuverRoller {
           && (defProfile.dots[maneuver.group] ?? 0) === 0) {
         bonusReasons.push({ label: "an unguarded approach — nothing in them answers this school", value: 1 });
       }
-      // Held Strings are a standing grip on them — +1 even before you spend one
-      const myGrip = TSLStringStore.getList(sourceActor.id)
-        .filter(e => e.targetActorId === targetActor.id).length;
-      if (myGrip) {
-        bonusReasons.push({ label: `String grip (${myGrip} held) — you know which threads to pull`, value: 1 });
-      }
+      // Strings give NO passive edge — they are a resource you SPEND (+5 on any
+      // roll against this person), never a standing buff. See applyOutcome for
+      // how they're earned: breaking through someone's Resolve wins you a thread.
       // YOUR bond toward them is your weapon: its school gets +STRENGTH
       // (hearts respond to hearts, rivalries to power plays, debts to bargains)
       const myBond = TSLBondStore.find(sourceActor.id, targetActor.id);
@@ -782,7 +777,7 @@ class SocialManeuverRoller {
     if (a.kick)    out.push("⊕ Opening — they have a status: +1 Resolve damage");
 
     // Flat bonuses. Archetype/defense-derived ones (counter, blind side) are
-    // GM-only; the player's OWN bonuses (skill, bond, grip, leaning) always show.
+    // GM-only; the player's OWN bonuses (skill, bond, leaning) always show.
     for (const b of a.bonusReasons) {
       if (b.kind === "counter") { if (isGM) out.push(`▲ Their kind bends to this school — +${b.value}`); continue; }
       if (/unguarded approach/i.test(b.label)) { if (isGM) out.push(`+${b.value} an unguarded approach`); continue; }
@@ -1183,6 +1178,19 @@ class SocialManeuverRoller {
       }
       if (damage > 0)
         await SocialEncounterManager.adjustResolve(targetActor, -damage, sourceActorId);
+      // Breaking through their social health (Resolve) wins you a thread — a
+      // String. This is the fencing earn, alongside baring your heart in play.
+      // It does NOT stack with a maneuver whose own fiction already hands you a
+      // String (Play Weak, Charm, reads, cashed combos) — those keep their grant.
+      const earnedByDesign = (maneuver.grantStrings ?? 0) + (combo?.strings ?? 0);
+      if (damage > 0 && earnedByDesign === 0) {
+        await TSLStringStore.add(sourceActorId, targetActorId, 1);
+        const escS = foundry.utils.escapeHTML;
+        await ChatMessage.create({
+          speaker: ChatMessage.getSpeaker({ actor: sourceActor }),
+          content: `<div class="tsl-maneuver-card tsl-mv--success"><div class="tsl-mv-outcome tsl-mv-outcome--success">🧵 Through their guard — <b>${escS(sourceActor.name)}</b> gains a String on ${escS(targetActor.name)}.</div></div>`,
+        });
+      }
       // The cost of closeness: turning POWER on someone you love wounds YOU.
       // Your own bond type decides — and the Guilt opens doors against you.
       const myBond2 = TSLBondStore.find(sourceActorId, targetActorId);
