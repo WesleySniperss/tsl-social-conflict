@@ -2158,6 +2158,24 @@
 .tsl-codex-combo b { color: var(--tsl-notes-text); }
 .tsl-codex-gain { color: var(--tsl-accent, #d98a9b); font-size: 0.9em; white-space: nowrap; }
 
+/* GM toggle: open a target's true nature to the players */
+.tsl-reveal-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 5px 7px;
+  font-family: "EB Garamond", serif;
+  font-size: 0.85rem;
+  color: var(--tsl-notes-dim, #a89a92);
+  background: rgba(232,200,85,0.06);
+  border: 1px solid rgba(232,200,85,0.25);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.tsl-reveal-toggle input { width: auto; margin: 0; flex: 0 0 auto; cursor: pointer; }
+.tsl-reveal-toggle b { color: #e8c855; }
+
 /* Codex category picker — keeps the reference from being one endless scroll */
 .tsl-codex-nav {
   display: flex;

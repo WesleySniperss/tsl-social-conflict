@@ -256,6 +256,11 @@ class SocialFencingApp extends Application {
           ${archetypeOpts}
         </select>
         ${archDesc}
+        ${!notes.archetypeId ? "" : `
+        <label class="tsl-reveal-toggle" data-tooltip="Open this nature to the whole table — players then see the archetype and its ◎/✕/▲ marks, the payoff for a read well earned. The difficulty number stays yours.">
+          <input type="checkbox" name="archetypeRevealed" ${SocialArchetypeManager.isRevealed(this._actor) ? "checked" : ""} ${disabled}>
+          <span>Reveal this nature to players ${SocialArchetypeManager.isRevealed(this._actor) ? "<b>(open)</b>" : ""}</span>
+        </label>`}
       </section>`}
 
       ${!this._actor.hasPlayerOwner ? "" : `
@@ -1154,7 +1159,15 @@ class SocialFencingApp extends Application {
 
     // ── Profile: instant-save fields ─────────────────────────────────────────
     el.querySelector("select[name='archetypeId']")?.addEventListener("change", (e) => {
-      SocialArchetypeManager.setActorData(this._actor, { archetypeId: e.target.value || null });
+      // Changing the nature retracts any earlier reveal — it's a new secret.
+      SocialArchetypeManager.setActorData(this._actor, { archetypeId: e.target.value || null, revealed: false });
+      this.render(true);
+    });
+
+    // GM opens (or re-hides) the true nature to the whole table.
+    el.querySelector("input[name='archetypeRevealed']")?.addEventListener("change", async (e) => {
+      await SocialArchetypeManager.setRevealed(this._actor, e.target.checked);
+      this.render(true);
     });
 
     el.querySelector("select[name='playbookId']")?.addEventListener("change", (e) => {

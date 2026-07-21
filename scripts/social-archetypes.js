@@ -903,6 +903,7 @@ const SOCIAL_CONDITIONS = {
     icon: "icons/svg/daze.svg",
     color: "#9b6ee8",
     seconds: 3600,
+    rounds: 1,
     oneShot: false,
     description: "Composure cracked: the DC to sway them is reduced by 5. No reactions or expertise dice.",
     combat: "Shaken: −2 on saving throws (disadvantage on A5E), no expertise dice, no reactions (standard A5E Rattled).",
@@ -921,6 +922,7 @@ const SOCIAL_CONDITIONS = {
     icon: "icons/svg/regen.svg",
     color: "#e8557a",
     seconds: 3600,
+    rounds: 1,
     oneShot: false,
     description: "Charmed: cannot act against the charmer, and the charmer's Persuasion maneuvers roll with Advantage.",
     combat: "Cannot attack or knowingly harm the charmer (A5E Charmed). Once while smitten, the charmer may press ONE plausible demand — WIS save or comply. GM: if the charmer's side harms them, love curdles — Smitten breaks into Provoked against the charmer.",
@@ -932,6 +934,7 @@ const SOCIAL_CONDITIONS = {
     icon: "icons/svg/fire.svg",
     color: "#e8a855",
     seconds: 600,
+    rounds: 1,
     oneShot: true,
     description: "Off balance with anger: the next maneuver against them gains +2, then this fades.",
     combat: "Red mist — fixated on the provoker (A5E Fixated: they must move toward them, and can barely notice anyone else). GM: advantage / +2 attacking the PROVOKER, disadvantage / −2 attacking anyone else. Their guard drops: −2 AC (automatic).",
@@ -945,6 +948,7 @@ const SOCIAL_CONDITIONS = {
     icon: "icons/svg/net.svg",
     color: "#c07ce8",
     seconds: 600,
+    rounds: 3,
     oneShot: true,
     description: "Weighed down by obligation: the guilter's next maneuver rolls with Advantage, then this fades.",
     combat: "The weight drags every swing: −2 on their weapon attacks (disadvantage on A5E). GM: no reactions against the one they owe; if that one draws blood, Guilted collapses into Rattled.",
@@ -960,9 +964,10 @@ const SOCIAL_CONDITIONS = {
     icon: "icons/svg/falling.svg",
     color: "#5588e8",
     seconds: 600,
+    rounds: 3,
     oneShot: true,
     description: "Starved and grasping: the next Flatter or Charm against them rolls with Advantage, and a Bargain cashes it for an extra String. Fades once used.",
-    combat: "All-in: +2 on their weapon attacks (advantage on A5E) and they CRIT on a 19–20 (auto on dnd5e; on A5E lower their weapon's crit threshold to 19). But they've thrown away defense — −2 AC, and attacks against them have advantage too (A5E). A drowning swing that lands, lands hard.",
+    combat: "All-in: +2 on their weapon attacks (advantage on A5E) and they CRIT on a 19–20 (auto on dnd5e; on A5E lower their weapon's crit threshold to 19). They fight recklessly — −2 AC. A drowning swing that lands, lands hard.",
     dnd5eChanges: [
       { key: "system.bonuses.mwak.attack", mode: 2, value: "+2" },
       { key: "system.bonuses.rwak.attack", mode: 2, value: "+2" },
@@ -971,7 +976,6 @@ const SOCIAL_CONDITIONS = {
     ],
     a5eChanges: [
       { key: "flags.a5e.effects.rollMode.attack.all", mode: 5, value: 1, priority: 50 },
-      { key: "flags.a5e.effects.grants.rollMode.attack.all", mode: 5, value: 1, priority: 50 },
       { key: "system.attributes.ac.changes.bonuses.value", mode: 2, value: "-2" },
     ],
   },
@@ -981,6 +985,7 @@ const SOCIAL_CONDITIONS = {
     icon: "icons/svg/holy-shield.svg",
     color: "#e8c855",
     seconds: 600,
+    rounds: 3,
     oneShot: false,
     description: "Walls up: immune to social maneuvers (only Read Them slips through — and a successful read breaks the wall). Triggered by striking an archetype's immunity.",
     combat: "Dug in: +2 on their saving throws (advantage on A5E) — charm and fear break against the wall — but they cannot willingly retreat, disengage, or be talked out of the confrontation.",
@@ -1032,6 +1037,20 @@ class SocialArchetypeManager {
     if (!actor || !archetype) return;
     await SocialArchetypeManager.setActorData(actor, { archetypeId: archetype.id });
     return archetype;
+  }
+
+  /**
+   * The GM can OPEN a target's true archetype to the whole table once the
+   * players have earned the read — the payoff for guessing right. Stored on the
+   * target actor; when set, players assess and see it on the truth side.
+   */
+  static isRevealed(actor) {
+    return !!SocialArchetypeManager.getActorData(actor).revealed;
+  }
+
+  static async setRevealed(actor, revealed) {
+    if (!actor) return;
+    await SocialArchetypeManager.setActorData(actor, { revealed: !!revealed });
   }
 
   static getCharacterNotes(actor) {
@@ -1141,7 +1160,10 @@ class SocialArchetypeManager {
       icon:  meta.icon,
       origin: `module.${SocialArchetypeManager.getFlagScope()}`,
       disabled: false,
-      duration: { seconds: meta.seconds ?? 3600 },
+      // In a combat encounter the status ticks down by ROUNDS (1 by default,
+      // 3 for the heavier Guilted / Desperate / Defiant); out of combat the
+      // seconds keep it around for the scene. Whichever runs out first wins.
+      duration: { seconds: meta.seconds ?? 3600, ...(meta.rounds ? { rounds: meta.rounds } : {}) },
       statuses: [`tsl-${conditionId}`, ...(meta.links ?? [])],
       flags: {
         [SocialArchetypeManager.getFlagScope()]: {

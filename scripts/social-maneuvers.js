@@ -776,14 +776,17 @@ class SocialManeuverRoller {
     // the archetype weak/strong analysis at all — only what they themselves
     // bring and what's plainly visible (statuses, wounds). Nature is deduced
     // from OUTCOMES, not read off a tooltip.
+    // ...unless the GM has OPENED this nature to the table — then the read is
+    // public and everyone sees the analysis (the DC number still stays GM-only).
+    const seeArch = isGM || SocialArchetypeManager.isRevealed(targetActor);
     const a = SocialManeuverRoller.assess(sourceActor, targetActor, maneuver,
-      { archetypeOverride: isGM ? undefined : null });
+      { archetypeOverride: seeArch ? undefined : null });
     const out = [];
 
-    // Relation — GM only, EXCEPT a live Defiant wall (that's a visible status)
+    // Relation — hidden, EXCEPT a live Defiant wall (that's a visible status)
     if (a.relation === "blocked")           out.push("✕ Walled off right now — nothing gets through");
-    else if (isGM && a.relation === "immune")     out.push("✕ Bounces off them — auto-fails, they turn Defiant");
-    else if (isGM && a.relation === "vulnerable") out.push("◎ Cuts deep here — Advantage & +1 Resolve damage");
+    else if (seeArch && a.relation === "immune")     out.push("✕ Bounces off them — auto-fails, they turn Defiant");
+    else if (seeArch && a.relation === "vulnerable") out.push("◎ Cuts deep here — Advantage & +1 Resolve damage");
 
     // Opening from a set-up status (observable — safe for players)
     if (a.combo) {
@@ -798,9 +801,9 @@ class SocialManeuverRoller {
     // Flat bonuses. Archetype/defense-derived ones (counter, blind side) are
     // GM-only; the player's OWN bonuses (skill, bond, leaning) always show.
     for (const b of a.bonusReasons) {
-      if (b.kind === "counter")   { if (isGM) out.push(`▲ Their nature bends to this school — +${b.value}`); continue; }
-      if (b.kind === "countered") { if (isGM) out.push(`▽ Their nature resists this school — ${b.value}`); continue; }
-      if (/unguarded approach/i.test(b.label)) { if (isGM) out.push(`+${b.value} an unguarded approach`); continue; }
+      if (b.kind === "counter")   { if (seeArch) out.push(`▲ Their nature bends to this school — +${b.value}`); continue; }
+      if (b.kind === "countered") { if (seeArch) out.push(`▽ Their nature resists this school — ${b.value}`); continue; }
+      if (/unguarded approach/i.test(b.label)) { if (seeArch) out.push(`+${b.value} an unguarded approach`); continue; }
       const sign = b.value >= 0 ? "+" : "−";
       out.push(`${sign}${Math.abs(b.value)} ${b.label.split(" — ")[0]}`);
     }

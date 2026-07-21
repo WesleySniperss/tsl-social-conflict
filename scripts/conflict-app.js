@@ -127,7 +127,8 @@ class TSLConflictApp extends Application {
       strings[p.actorId] = TSLStringStore.forParticipant(p, state.participants);
       const actor = game.actors.get(p.actorId);
       encounters[p.actorId] = actor ? SocialEncounterManager.getEncounter(actor) : null;
-      if (game.user.isGM || actor?.isOwner) {
+      if (game.user.isGM || actor?.isOwner || SocialArchetypeManager.isRevealed(actor)) {
+        // GM, the owner, or a target the GM has OPENED to the table: the true nature.
         knownArchetypes[p.actorId] = actor ? SocialArchetypeManager.getArchetype(actor) : null;
         archIsGuess[p.actorId] = false;
       } else {
@@ -353,6 +354,9 @@ class TSLConflictApp extends Application {
       // Marks follow what THIS VIEWER believes: the GM's truth, or the
       // player's own guess from their Bond — which may be wrong.
       const tgtArch  = tgtActor ? knownArchetypes?.[tgtActor.id] : null;
+      // The GM always sees the weak/strong marks; a player sees them once the
+      // GM has OPENED this target's nature (their guess alone never shows them).
+      const seeArchChip = !!tgtActor && (isGM || SocialArchetypeManager.isRevealed(tgtActor));
       const seeRel   = !!tgtArch;
 
       return MANEUVER_GROUPS.map(g => {
@@ -361,7 +365,7 @@ class TSLConflictApp extends Application {
         const short = (SOCIAL_TRIADS[g.id]?.label ?? g.label).replace("Triad of ", "");
         const chips = mvs.map(m => {
           const isSel   = move?.id === m.id;
-          const rel     = tgtActor ? SocialManeuverRoller.getRelation(tgtActor, m, isGM ? undefined : (tgtArch ?? null)) : "neutral";
+          const rel     = tgtActor ? SocialManeuverRoller.getRelation(tgtActor, m, seeArchChip ? undefined : (tgtArch ?? null)) : "neutral";
           const counter = seeRel && TRIAD_COUNTERS[m.group] === tgtArch.triad;
           const comboReady = tgtActor && (
             (m.combos && Object.keys(m.combos).some(st => SocialArchetypeManager.getActiveCondition(tgtActor, st)))
@@ -370,10 +374,10 @@ class TSLConflictApp extends Application {
           // Archetype weak/strong marks (◎/✕/▲) are the GM's to see — players
           // deduce nature from outcomes, not off the chips. ⊕ (armed combo /
           // open wound) stays for everyone: it reads off visible statuses.
-          const mark    = isGM && rel === "immune" ? `<span class="tsl-chip-mark tsl-chip-mark--imm">✕</span>`
-                        : isGM && rel === "vulnerable" ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">◎</span>`
+          const mark    = seeArchChip && rel === "immune" ? `<span class="tsl-chip-mark tsl-chip-mark--imm">✕</span>`
+                        : seeArchChip && rel === "vulnerable" ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">◎</span>`
                         : comboReady ? `<span class="tsl-chip-mark tsl-chip-mark--combo">⊕</span>`
-                        : isGM && counter ? `<span class="tsl-chip-mark tsl-chip-mark--counter">▲</span>` : "";
+                        : seeArchChip && counter ? `<span class="tsl-chip-mark tsl-chip-mark--counter">▲</span>` : "";
           const mod  = srcActor ? SocialManeuverRoller.getSkillMod(srcActor, m) : 0;
           const ar = SocialArchetypeManager.getArchetypeRelationsFor(m);
           const counterShort = TRIAD_COUNTERS[m.group]
@@ -461,12 +465,15 @@ class TSLConflictApp extends Application {
       const isGuess  = archIsGuess?.[tgtActor.id] ?? false;
       // GM assesses on the truth; a PLAYER's bar carries no archetype analysis
       // at all (override null) — only their own bonuses and visible statuses.
-      // The dice still follow the truth; nature is learned from outcomes.
+      // The dice still follow the truth; nature is learned from outcomes. EXCEPT
+      // once the GM has OPENED this target's nature to the table — then everyone
+      // reads it on the truth side (the number to beat still stays GM-only).
+      const seeArch = isGM || SocialArchetypeManager.isRevealed(tgtActor);
       const a = SocialManeuverRoller.assess(srcActor, tgtActor, move, {
         leverage: this._pendingLeverage,
-        archetypeOverride: isGM ? undefined : null,
+        archetypeOverride: seeArch ? undefined : null,
       });
-      const seeRel  = isGM;
+      const seeRel  = seeArch;
       // String spend moved AFTER the roll (the gamble) — no pre-commit here
       const extra   = a.bonus;
 
