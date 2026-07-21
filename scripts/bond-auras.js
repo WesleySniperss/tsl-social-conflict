@@ -131,6 +131,12 @@ class TSLBondAuras {
     // AC is genuinely numeric on both (a5e registers it with the default modes).
     if (tally.ac) num(isA5e ? "system.attributes.ac.changes.bonuses.value" : "system.attributes.ac.bonus", tally.ac);
 
+    // Spell / maneuver save DC. a5e registers both as numeric attribute fields;
+    // dnd5e has no reliable flat key (and no "maneuver DC" at all), so there it
+    // stays rules text in the description only.
+    if (tally.spellDC && isA5e)    num("system.attributes.spellDC", tally.spellDC);
+    if (tally.maneuverDC && isA5e) num("system.attributes.maneuverDC", tally.maneuverDC);
+
     if (tally.attack) {
       if (isA5e) out.push(TSLBondAuras._a5eBonus("attacks", label, tally.attack));
       else { num("system.bonuses.mwak.attack", tally.attack); num("system.bonuses.rwak.attack", tally.attack); }
@@ -152,10 +158,12 @@ class TSLBondAuras {
     const sign = (v) => `${v > 0 ? "+" : ""}${v}`;
     if (tally.attack) bits.push(`${sign(tally.attack)} to attack rolls`);
     if (tally.damage) bits.push(`${sign(tally.damage)} to weapon damage`);
-    if (tally.save)   bits.push(`${sign(tally.save)} to saving throws`);
-    if (tally.check)  bits.push(`${sign(tally.check)} to ability checks`);
-    if (tally.ac)     bits.push(`${sign(tally.ac)} AC`);
-    if (tally.init)   bits.push(`${sign(tally.init)} to initiative`);
+    if (tally.save)       bits.push(`${sign(tally.save)} to saving throws`);
+    if (tally.check)      bits.push(`${sign(tally.check)} to ability checks`);
+    if (tally.ac)         bits.push(`${sign(tally.ac)} AC`);
+    if (tally.init)       bits.push(`${sign(tally.init)} to initiative`);
+    if (tally.spellDC)    bits.push(`${sign(tally.spellDC)} to your spell save DC`);
+    if (tally.maneuverDC) bits.push(`${sign(tally.maneuverDC)} to your maneuver DC`);
     return bits.join(" · ");
   }
 
@@ -180,7 +188,7 @@ class TSLBondAuras {
 
     for (const tok of tokens) {
       const actor = tok.actor;
-      const tally = { attack: 0, damage: 0, save: 0, check: 0, ac: 0, init: 0 };
+      const tally = { attack: 0, damage: 0, save: 0, check: 0, ac: 0, init: 0, spellDC: 0, maneuverDC: 0 };
       const lines = [];
 
       if (range > 0) {

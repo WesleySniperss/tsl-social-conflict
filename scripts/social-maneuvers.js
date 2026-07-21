@@ -682,9 +682,12 @@ class SocialManeuverRoller {
       // blood, can't sweet-talk hatred. Scales with the bond's strength.
       const skillFx = (bondMeta?.skills ?? {})[maneuver.skill] ?? 0;
       if (skillFx && myStr > 0) {
+        // Scales with the bond's strength, but capped at ±3 so a strong bond
+        // with a −2 skill can't reach an absurd −6.
+        const val = Math.max(-3, Math.min(3, skillFx * myStr));
         bonusReasons.push({
-          label: `${bondMeta.label} ${"●".repeat(myStr)} — ${skillFx > 0 ? "your bond sharpens" : "your bond blunts"} ${maneuver.skill}`,
-          value: skillFx * myStr,
+          label: `${bondMeta.label} ${"●".repeat(myStr)} — ${val > 0 ? "your bond sharpens" : "your bond blunts"} ${maneuver.skill}`,
+          value: val,
         });
       }
       // The attacker's Extended Triad leanings shape their own attack style:

@@ -496,7 +496,7 @@ class SocialFencingApp extends Application {
           `Standing within <b>${(() => { try { return game.settings.get("tsl-social-conflict", "bondAuraRange"); } catch { return 15; } })()} ft</b> of someone you're bonded to changes how you <b>fight</b> — automatically, as tokens move. <b>Every relationship does something different</b>, and it doubles at ●●● (any one line caps at ±2).`,
           ...BOND_TYPES.filter(t => t.combatAura).map(t => {
             const a = t.combatAura;
-            const nm = { attack: "attack rolls", damage: "weapon damage", save: "saving throws", check: "ability checks", ac: "AC", init: "initiative" };
+            const nm = { attack: "attack rolls", damage: "weapon damage", save: "saving throws", check: "ability checks", ac: "AC", init: "initiative", spellDC: "spell save DC", maneuverDC: "maneuver DC" };
             const bits = Object.entries(a).filter(([k]) => k !== "label")
               .map(([k, v]) => `<b>${v > 0 ? "+" : "−"}${Math.abs(v)}</b> ${nm[k]}`).join(", ");
             return `<b>${t.label}</b> — “${a.label}”: ${bits}`;
