@@ -115,7 +115,7 @@ const SOCIAL_MANEUVERS = [
     vulnerabilityTags: ["appease", "flattery"],       // Tyrant → Advantage
     immunityTags:      [],
     description:  "Hold up the reflection they wish were true. Power through worship — they kneel to their own image.",
-    successText:  "They fall for their own reflection — Smitten (cannot act against you; your Persuasion maneuvers gain Advantage). Resolve −1.",
+    successText:  "They fall for their own reflection — Enthralled (cannot act against you; your Persuasion maneuvers gain Advantage). Resolve −1.",
     failText:     "The mirror shows the flattery for what it is. Patience −1.",
     immuneText:   null,
     applyOnSuccess: "smitten",
@@ -179,7 +179,7 @@ const SOCIAL_MANEUVERS = [
     vulnerabilityTags: ["love bombing"],              // Exalted → Advantage
     immunityTags:      ["persuade", "sympathy"],      // Martyr
     description:  "Lay siege with sweetness. Adoration as a weapon — they open the gates themselves.",
-    successText:  "The gates open — Smitten (cannot act against you; your Persuasion maneuvers gain Advantage). They confide: you gain 1 String.",
+    successText:  "The gates open — Enthralled (cannot act against you; your Persuasion maneuvers gain Advantage). They confide: you gain 1 String.",
     failText:     "The display leaves them cold.",
     immuneText:   "Your sweetness deepens their contempt. Target becomes Defiant.",
     applyOnSuccess: "smitten",
@@ -566,7 +566,7 @@ class SocialManeuverRoller {
       relationReason = "Defiant — walled off from maneuvers. A successful Read Them breaks the wall.";
     } else if (smittenBy) {
       relation = "blocked";
-      relationReason = "You are Smitten with them — you cannot bring yourself to move against them";
+      relationReason = "You are Enthralled by them — you cannot bring yourself to move against them";
     } else if (arch && maneuver.immunityTags.some(t => arch.immunities.includes(t))) {
       relation = "immune";
       relationReason = `${arch.label}: this approach slides right off them`;
@@ -609,7 +609,7 @@ class SocialManeuverRoller {
       }
       if (!advantage && maneuver.skill === "Persuasion" && condBy("smitten")) {
         advantage = true;
-        advantageReasons.push("Smitten by you — Persuasion flows easy");
+        advantageReasons.push("Enthralled by you — Persuasion flows easy");
       }
       if (!advantage && condBy("guilted")) {
         advantage = true;

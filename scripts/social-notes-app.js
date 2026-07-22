@@ -615,7 +615,8 @@ class SocialFencingApp extends Application {
     const statuses = `
       <section class="tsl-notes-section">
         <div class="tsl-notes-section-title">Statuses</div>
-        <div class="tsl-codex-hint-sm">These are the conditions you put ON someone during an exchange. Each one is a <b>set-up</b>: on its own it does little, but it arms a ⊕ opening for the maneuvers listed in the cheat sheet. A status is <b>spent</b> the moment a finisher cashes it. <b>Defiant</b> is the odd one out — it is a wall, not an opening, and only a successful <b>Read Them</b> brings it down.</div>
+        <div class="tsl-codex-hint-sm"><b>There are two kinds of condition, and the card keeps them apart.</b> These <b>States</b> (below) are the <b>fleeting</b> layer — a maneuver sets one up, it lasts a round or two, and a finisher <b>spends</b> it. The other kind, the lasting emotional <b>Wounds</b> (❤ — Angry, Smitten, Guilty, Scared, Hopeless), come from Hold the Line or betrayal and stay until the story heals them; they live in their own row on the card and are covered on the Openings page. Never worry which is which mid-roll — both just show ⊕.</div>
+        <div class="tsl-codex-hint-sm">Each State is a <b>set-up</b>: on its own it does little, but it arms a ⊕ opening for the maneuvers in the cheat sheet, and is <b>spent</b> the moment a finisher cashes it. <b>Defiant</b> is the odd one out — a wall, not an opening, broken only by a successful <b>Read Them</b>.</div>
         <div class="tsl-codex-statuses">${statusRows}</div>
       </section>`;
 

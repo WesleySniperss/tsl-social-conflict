@@ -918,14 +918,14 @@ const SOCIAL_CONDITIONS = {
   },
   smitten: {
     id: "smitten",
-    label: "Smitten",
+    label: "Enthralled",
     icon: "icons/svg/regen.svg",
     color: "#e8557a",
     seconds: 3600,
     rounds: 1,
     oneShot: false,
     description: "Charmed: cannot act against the charmer, and the charmer's Persuasion maneuvers roll with Advantage.",
-    combat: "Cannot attack or knowingly harm the charmer (A5E Charmed). Once while smitten, the charmer may press ONE plausible demand — WIS save or comply. GM: if the charmer's side harms them, love curdles — Smitten breaks into Provoked against the charmer.",
+    combat: "Cannot attack or knowingly harm the charmer (A5E Charmed). Once while enthralled, the charmer may press ONE plausible demand — WIS save or comply. GM: if the charmer's side harms them, the spell curdles — Enthralled breaks into Provoked against the charmer.",
     links: ["charmed"],
   },
   provoked: {

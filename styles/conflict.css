@@ -2176,6 +2176,39 @@
 .tsl-reveal-toggle input { width: auto; margin: 0; flex: 0 0 auto; cursor: pointer; }
 .tsl-reveal-toggle b { color: #e8c855; }
 
+/* Two clearly-separate condition layers on a card: fleeting States vs lasting Wounds */
+.tsl-row-label {
+  flex: 0 0 auto;
+  font-family: "Cinzel", serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 2px;
+  align-self: center;
+  opacity: 0.9;
+}
+.tsl-row-label--state { color: #cdbfe8; background: rgba(155,110,232,0.14); border: 1px solid rgba(155,110,232,0.35); }
+.tsl-row-label--wound { color: #f0a9bd; background: rgba(232,85,122,0.14); border: 1px solid rgba(232,85,122,0.4); }
+.tsl-status-row--states { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.tsl-wounds-row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.tsl-footer-meta { display: flex; gap: 6px; align-items: center; margin-left: auto; }
+/* An active Wound shows its name (not just a dot) so it reads at a glance */
+.tsl-cond-pip .tsl-cond-pip-name {
+  font-family: "EB Garamond", serif;
+  font-size: 0.72rem;
+  padding: 0 2px;
+  color: #f4e6ea;
+}
+.tsl-cond-pip.active {
+  width: auto;
+  min-width: 0;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--cond-color, #e8557a) 30%, transparent);
+  border-color: var(--cond-color, #e8557a);
+}
+
 /* Codex category picker — keeps the reference from being one endless scroll */
 .tsl-codex-nav {
   display: flex;

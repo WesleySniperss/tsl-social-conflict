@@ -224,11 +224,22 @@ class TSLConflictApp extends Application {
     // ── Participant cards ──────────────────────────────────────────────────────
     // TSL Conditions + Strings share one quiet footer row; names live in tooltips.
     const renderFooter = (p, idx) => {
-      const pips = CONDITIONS.map(c => `
+      // The LASTING emotional Wounds (Angry, Smitten, Guilty, Scared, Hopeless).
+      // A whole layer apart from the fleeting fencing States: from Hold the Line,
+      // sincere moves or betrayal, they open doors until the story heals them.
+      const pip = (c) => `
         <button class="tsl-cond-pip ${p.conditions[c.id] ? "active" : ""}"
           data-participant="${idx}" data-condition="${c.id}"
           style="--cond-color:${c.color}" ${!isGM ? "disabled" : ""}
-          data-tooltip="<b>${c.label}</b>${p.conditions[c.id] ? " — active" : ""}<br>Clears when: ${c.clears}. Not by short rests — feelings are lived out, not slept off."></button>`).join("");
+          data-tooltip="<b>${c.label}</b> — a lasting Wound${p.conditions[c.id] ? " (active)" : ""}<br>Clears when: ${c.clears}. Not by short rests — feelings are lived out, not slept off.">${p.conditions[c.id] ? `<span class="tsl-cond-pip-name">${c.label}</span>` : ""}</button>`;
+      const activeConds = CONDITIONS.filter(c => p.conditions[c.id]);
+      // GM sees all five as toggles; a player sees only the Wounds actually carried.
+      const woundBtns = (isGM ? CONDITIONS : activeConds).map(pip).join("");
+      const woundsRow = (isGM || activeConds.length)
+        ? `<div class="tsl-wounds-row" data-tooltip="Lasting emotional Wounds — from Hold the Line, sincere moves or betrayal. They open doors (+2) until the story heals them. Four = Overwhelmed. NOT the fleeting States above.">
+             <span class="tsl-row-label tsl-row-label--wound">❤ Wounds</span>${woundBtns}
+           </div>`
+        : "";
 
       const data = strings[p.actorId];
       let strChip = "";
@@ -251,8 +262,8 @@ class TSLConflictApp extends Application {
              <i class="fas fa-hand-holding-heart"></i></button>`
         : "";
 
-      return `<div class="tsl-card-footer" data-tooltip="Conditions — 4+ = Overwhelmed">
-        <div class="tsl-cond-pips">${pips}</div>${strChip}${awardBtn}
+      return `<div class="tsl-card-footer">
+        ${woundsRow}<div class="tsl-footer-meta">${strChip}${awardBtn}</div>
       </div>`;
     };
 
@@ -280,12 +291,16 @@ class TSLConflictApp extends Application {
       </div>`;
     };
 
-    // Active fencing statuses (Rattled, Smitten, Provoked…) — icon dots, names in tooltip
+    // Active fencing statuses (Rattled, Enthralled, Provoked…) — the FLEETING,
+    // tactical layer applied by maneuvers this exchange. Labeled "States" so
+    // they never blur with the lasting emotional Wounds below.
     const renderStatuses = (p) => {
       if (!showFencing) return "";
       const conds = SocialArchetypeManager.getActiveConditions(game.actors.get(p.actorId));
       if (!conds.length) return "";
-      return `<div class="tsl-status-row">${conds.map(c => `
+      return `<div class="tsl-status-row tsl-status-row--states">
+        <span class="tsl-row-label tsl-row-label--state" data-tooltip="Fleeting fencing states — set up by maneuvers, gone in a round or two. Different from the lasting Wounds (❤).">States</span>
+        ${conds.map(c => `
         <span class="tsl-status-tag" style="--st-color:${c.meta.color ?? "#806858"}" data-tooltip="<b>${c.meta.label}</b><br>${foundry.utils.escapeHTML(c.meta.description)}${c.meta.combat ? `<br><b>Combat:</b> ${foundry.utils.escapeHTML(c.meta.combat)}` : ""}">${foundry.utils.escapeHTML(c.meta.label)}</span>`).join("")}</div>`;
     };
 
