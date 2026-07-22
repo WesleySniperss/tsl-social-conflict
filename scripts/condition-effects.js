@@ -10,39 +10,63 @@ console.log("TSL | Loading condition-effects.js...");
 
 const TSL_EFFECT_FLAG = "tsl-social-conflict";
 
-// Icons are core Foundry status icons (icons/svg/*) — present in every install.
-// `clears` — the DRAMATIC action that lifts the condition (TSL-style): feelings
-// are not cured by a nap, they're cured by living them out. A long rest still
-// works as the slow fallback; short rests do NOT touch them.
+// Wounds are the lasting emotional layer, and — VtM-style — they PUSH the one
+// who carries them. Each has:
+//   `urge`   — the Compulsion: what it drives you to do (the roleplay prompt).
+//   `resist` — the Willpower tax: acting AGAINST the urge is at disadvantage
+//              unless you spend a String to steel yourself (like exerting
+//              Willpower to override the Beast).
+//   `leanIn` — the refuel: give in to the urge at real cost and you gain a
+//              thread (a String on the person it ties you to) — playing your
+//              nature pays, exactly as acting on Convictions restores Willpower.
+//   `frenzy` — the breaking point: carry it and get pushed again (or hit
+//              Overwhelmed) and you lose the leash for one beat; the GM plays it.
+//   `clears` — the DRAMATIC action that lifts it (feelings are lived out, not
+//              slept off). A long rest is the slow fallback; short rests don't.
 const CONDITION_META = {
   smitten: {
     label:  "Smitten",
     icon:   "icons/svg/regen.svg",
-    hint:   "Disadvantage on attacks against {source}. Their Persuasion checks against you have advantage.",
+    urge:   "Please {source}. Be near them. Earn the look you ache for.",
+    resist: "Any roll to oppose, leave, deny, or harm {source} is at disadvantage — spend a String to break the spell for one beat.",
+    leanIn: "Bend your plans to be near {source} or win their favour, at real cost → take a String on them.",
+    frenzy: "Pushed again while Smitten (or Overwhelmed): you obey — take one reasonable wish of {source}'s as if it were your own.",
     clears: "Confess it — to them, or out loud to someone else — or let them break your heart.",
   },
   angry: {
     label:  "Angry",
     icon:   "icons/svg/fire.svg",
-    hint:   "Disadvantage on Wisdom checks. Must target {source} when attacking if possible.",
+    urge:   "Escalate. Strike. Make them feel what you feel — cold words won't do.",
+    resist: "Any roll to stay measured, de-escalate, or show restraint is at disadvantage — spend a String to bite your tongue.",
+    leanIn: "Let the anger drive you into something rash or cruel → take a String on whoever lit the fuse.",
+    frenzy: "Pushed again while Angry (or Overwhelmed): the leash slips — you lash out, and the GM plays the moment.",
     clears: "Vent it: break something, start the fight, or finally say the words you've been swallowing.",
   },
   scared: {
     label:  "Scared",
     icon:   "icons/svg/terror.svg",
-    hint:   "Frightened of {source}. Disadvantage on checks while they are visible.",
+    urge:   "Get away. Give ground. Anything to make the threat stop.",
+    resist: "Any roll to hold your ground, advance, or face {source} is at disadvantage — spend a String to steel yourself.",
+    leanIn: "Let fear pull you into flight or a bad concession → take a String on the source of your fear.",
+    frenzy: "Pushed again while Scared (or Overwhelmed): you break — you flee or freeze, and the GM plays it.",
     clears: "Flee the source and catch your breath somewhere safe — or face it with an ally at your side.",
   },
   guilty: {
     label:  "Guilty",
     icon:   "icons/svg/net.svg",
-    hint:   "Disadvantage on Insight against {source}. Cannot use Help to assist them.",
+    urge:   "Make it right. You owe {source}, and it shows in every word.",
+    resist: "Any roll to deceive, deny, or press {source} is at disadvantage — spend a String to look them in the eye and lie.",
+    leanIn: "Let the guilt move you to confess or over-give to {source}, at cost → take a String on them.",
+    frenzy: "Pushed again while Guilty (or Overwhelmed): it spills — you admit the thing you've been hiding.",
     clears: "Confess, or make real amends to the one you wronged.",
   },
   hopeless: {
     label:  "Hopeless",
     icon:   "icons/svg/degen.svg",
-    hint:   "Disadvantage on death saving throws. Cannot benefit from Inspiration.",
+    urge:   "Why bother. Let it go. Nothing you do will matter now.",
+    resist: "Any roll driven by hope, ambition, or standing up for yourself is at disadvantage — spend a String to find one reason to try.",
+    leanIn: "Let despair make you give up or accept the worst, at cost → gain Inspiration (a fumble of the soul that feeds the story).",
+    frenzy: "Pushed again while Hopeless (or Overwhelmed): you stop — you yield, sink, or walk away from what mattered.",
     clears: "You cannot clear this alone — someone must rekindle you: comfort, an embrace, a speech that lands.",
   },
 };
@@ -56,6 +80,11 @@ const CLEARING_SPELLS = {
 };
 
 class TSLConditionEffects {
+
+  /** The VtM-style dossier for a wound (urge / resist / leanIn / frenzy / clears). */
+  static getMeta(condId) {
+    return CONDITION_META[condId] ?? null;
+  }
 
   /**
    * Called when a conflict resolves.
@@ -142,13 +171,23 @@ class TSLConditionEffects {
 
   static _buildEffect(condId, sourceName, _actorId) {
     const meta = CONDITION_META[condId];
-    const hint = meta.hint.replace("{source}", sourceName);
+    const sub  = (s) => (s ?? "").replace("{source}", sourceName);
+
+    // A VtM-style dossier the carrier actually feels: the urge, the price of
+    // fighting it, the reward for giving in, and the point it takes the wheel.
+    const description = [
+      `<b>Urge:</b> ${sub(meta.urge)}`,
+      `<b>Fight it:</b> ${sub(meta.resist)}`,
+      `<b>Give in:</b> ${sub(meta.leanIn)}`,
+      `<b>Breaking point:</b> ${sub(meta.frenzy)}`,
+      `<b>Clears when:</b> ${meta.clears} (Or a long rest — time dulls everything.)`,
+    ].join("<br>");
 
     return {
       name:   `${meta.label} (by ${sourceName})`,
       icon:   meta.icon,
       origin: "tsl-social-conflict",
-      description: `${hint}<br><b>Clears when:</b> ${meta.clears} (Or a long rest — time dulls everything.)`,
+      description,
       flags: {
         [TSL_EFFECT_FLAG]: {
           condition: condId,

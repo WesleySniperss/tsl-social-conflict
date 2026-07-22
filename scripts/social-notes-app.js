@@ -612,12 +612,35 @@ class SocialFencingApp extends Application {
       </section>
       ${triadBlocks}`;
 
+    // Wound dossiers, generated from the data — the VtM-style push each one
+    // exerts on the character who carries it.
+    const woundDossier = ["angry", "smitten", "guilty", "scared", "hopeless"].map(id => {
+      const m = TSLConditionEffects.getMeta?.(id);
+      if (!m) return "";
+      const s = (t) => esc((t ?? "").replace("{source}", "them"));
+      return `<div class="tsl-codex-combo">
+        <b>${esc(m.label)}</b> — <i>${s(m.urge)}</i><br>
+        <span class="tsl-codex-gain">Give in →</span> ${s(m.leanIn)}<br>
+        <span class="tsl-codex-gain">Fight it →</span> ${s(m.resist)}<br>
+        <span class="tsl-codex-gain">Breaks →</span> ${s(m.frenzy)}<br>
+        <span class="tsl-codex-gain">Heals →</span> ${esc(m.clears)}
+      </div>`;
+    }).join("");
+
     const statuses = `
       <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title">Statuses</div>
-        <div class="tsl-codex-hint-sm"><b>There are two kinds of condition, and the card keeps them apart.</b> These <b>States</b> (below) are the <b>fleeting</b> layer — a maneuver sets one up, it lasts a round or two, and a finisher <b>spends</b> it. The other kind, the lasting emotional <b>Wounds</b> (❤ — Angry, Smitten, Guilty, Scared, Hopeless), come from Hold the Line or betrayal and stay until the story heals them; they live in their own row on the card and are covered on the Openings page. Never worry which is which mid-roll — both just show ⊕.</div>
-        <div class="tsl-codex-hint-sm">Each State is a <b>set-up</b>: on its own it does little, but it arms a ⊕ opening for the maneuvers in the cheat sheet, and is <b>spent</b> the moment a finisher cashes it. <b>Defiant</b> is the odd one out — a wall, not an opening, broken only by a successful <b>Read Them</b>.</div>
-        <div class="tsl-codex-statuses">${statusRows}</div>
+        <div class="tsl-notes-section-title">Statuses & wounds</div>
+        <div class="tsl-codex-hint-sm"><b>Two kinds of condition, and the card keeps them apart.</b> <b>States</b> (below) are the <b>fleeting</b> layer — a maneuver sets one up, it lasts a round or two, and a finisher <b>spends</b> it. <b>Wounds</b> (❤ — Angry, Smitten, Guilty, Scared, Hopeless) are the <b>lasting</b> layer — they come from Hold the Line or betrayal, and they don't just sit there: they <b>push the one who carries them</b>. Never worry which is which mid-roll — both show ⊕.</div>
+        <div class="tsl-codex-sub">
+          <div class="tsl-codex-sub-title">States — fleeting set-ups (this fight)</div>
+          <div class="tsl-codex-hint-sm">Each arms a ⊕ opening and is <b>spent</b> when a finisher cashes it. <b>Defiant</b> is the odd one — a wall, not an opening, broken only by a successful <b>Read Them</b>.</div>
+          <div class="tsl-codex-statuses">${statusRows}</div>
+        </div>
+        <div class="tsl-codex-sub">
+          <div class="tsl-codex-sub-title">Wounds — they push you (VtM-style)</div>
+          <div class="tsl-codex-hint-sm">A Wound is an <b>urge</b> with teeth. <b>Give in</b> to it at a cost and you refuel (a String, or Inspiration). <b>Fight it</b> — act against the urge — and you roll at <b>disadvantage unless you spend a String</b> to steel yourself (your Willpower). Pushed too far, it takes the wheel for a beat. Four Wounds = <b>Overwhelmed</b> (yield or flee).</div>
+          <div class="tsl-codex-combo-list">${woundDossier}</div>
+        </div>
       </section>`;
 
     // One long scroll was too much — split it into pickable categories.

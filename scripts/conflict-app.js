@@ -227,11 +227,18 @@ class TSLConflictApp extends Application {
       // The LASTING emotional Wounds (Angry, Smitten, Guilty, Scared, Hopeless).
       // A whole layer apart from the fleeting fencing States: from Hold the Line,
       // sincere moves or betrayal, they open doors until the story heals them.
-      const pip = (c) => `
+      const pip = (c) => {
+        const m = TSLConditionEffects.getMeta?.(c.id);
+        const sub = (s) => (s ?? "").replace("{source}", "them");
+        const tip = m
+          ? `<b>${c.label}</b> — a lasting Wound${p.conditions[c.id] ? " (active)" : ""}<br><b>Urge:</b> ${sub(m.urge)}<br><b>Fight it:</b> ${sub(m.resist)}<br><b>Give in:</b> ${sub(m.leanIn)}<br><b>Breaks:</b> ${sub(m.frenzy)}<br><b>Clears:</b> ${m.clears}`
+          : `<b>${c.label}</b> — a lasting Wound<br>Clears: ${c.clears}`;
+        return `
         <button class="tsl-cond-pip ${p.conditions[c.id] ? "active" : ""}"
           data-participant="${idx}" data-condition="${c.id}"
           style="--cond-color:${c.color}" ${!isGM ? "disabled" : ""}
-          data-tooltip="<b>${c.label}</b> — a lasting Wound${p.conditions[c.id] ? " (active)" : ""}<br>Clears when: ${c.clears}. Not by short rests — feelings are lived out, not slept off.">${p.conditions[c.id] ? `<span class="tsl-cond-pip-name">${c.label}</span>` : ""}</button>`;
+          data-tooltip="${tip}">${p.conditions[c.id] ? `<span class="tsl-cond-pip-name">${c.label}</span>` : ""}</button>`;
+      };
       const activeConds = CONDITIONS.filter(c => p.conditions[c.id]);
       // GM sees all five as toggles; a player sees only the Wounds actually carried.
       const woundBtns = (isGM ? CONDITIONS : activeConds).map(pip).join("");
