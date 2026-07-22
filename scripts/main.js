@@ -8,16 +8,16 @@ Hooks.once("init", () => {
 
   game.settings.register("tsl-social-conflict", "conflictMode", {
     name: "Conflict mode",
-    hint: "Which layers the conflict window shows. Full: TSL emotional moves + Social Fencing maneuvers. TSL only: pure Thirsty Sword Lesbians (moves, Conditions, Strings, playbooks — no d20 maneuvers or tracks). Fencing only: classic D&D social combat without the 2d6 layer.",
+    hint: "Which layers the conflict window shows. Social Fencing only (the DEFAULT): classic D&D social combat — d20 maneuvers, Resolve/Patience tracks, statuses, no 2d6 layer. Full: also adds the TSL 2d6 emotional moves (Speak from the Heart…). TSL only: pure Thirsty Sword Lesbians (2d6 moves, Conditions, Strings, playbooks — no d20 maneuvers or tracks).",
     scope: "world",
     config: true,
     type: String,
     choices: {
-      both:    "Full — TSL moves + Social Fencing",
-      tsl:     "TSL only (pure Thirsty Sword Lesbians)",
       fencing: "Social Fencing only (classic D&D)",
+      both:    "Full — Social Fencing + TSL 2d6 moves",
+      tsl:     "TSL only (pure Thirsty Sword Lesbians)",
     },
-    default: "both",
+    default: "fencing",
     onChange: () => {
       TSLConflictApp?.instance?.render(true);
       SocialFencingDialog?._instances?.forEach(app => app.render(true));

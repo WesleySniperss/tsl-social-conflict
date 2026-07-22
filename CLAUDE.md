@@ -76,7 +76,7 @@ tsl-social-conflict/
 - **`assess()` is the single source of truth** (`social-maneuvers.js`): archetype relation, status combos, DC breakdown, advantage/bonuses, consumed one-shots — used by BOTH the pre-roll Duel Panel and the actual roll, so the preview always matches the dice
 
 ### Settings
-- `conflictMode` (world, default **both**) — `both` = TSL moves + Social Fencing; `tsl` = pure TSL (no maneuvers/tracks/statuses/Fencing tab, Kiss always on, playbook shown as participant subtitle); `fencing` = classic D&D only (no 2d6 moves)
+- `conflictMode` (world, default **fencing** since v1.42 — this is a D&D-run module) — `fencing` = classic D&D only (d20 maneuvers/tracks/statuses/wounds, NO 2d6 moves); `both` = also adds the TSL 2d6 moves; `tsl` = pure TSL (no maneuvers/tracks/statuses/Fencing tab, Kiss always on, playbook shown as participant subtitle). NOTE: the default only applies to worlds that never explicitly set it — an existing world keeps its stored value, so flip it in Settings.
 - `enableKiss` (world, default **false**) — shows/hides the TSL "Finally Kiss" special move; ORed with `conflictMode === "tsl"`
 - `enableHoldLine` (world, default **true**) — the GM dialog offering to refuse a landed status by taking a TSL Condition
 - `useSystemRollDialog` (world, default **true**) — maneuvers roll through the SYSTEM's skill-check dialog (A5E: advantage, expertise dice, situational mods) instead of the module's slim prompt; the module's fencing extras ride along as a pre-filled situational modifier; outcome vs hidden DC, cards and consequences stay module-side (`usesSystemDialog`, system path in `rollManeuver`; dialog cancel → null payload, nothing spent). Falls back to `promptRollMods` on systems without `rollSkillCheck`
