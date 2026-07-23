@@ -188,7 +188,18 @@ Hooks.once("ready", () => {
         flags: fx.flags,
       });
     }
-    console.log("TSL | Fencing statuses registered in CONFIG.statusEffects");
+    // The lasting emotional WOUNDS join the SAME palette, right after the
+    // fencing States — one contiguous block so ours aren't scattered through
+    // the system's list. Without this the wounds were invisible: applied only
+    // by Hold the Line / the card pips, never findable in the token HUD.
+    if (typeof TSLConditionEffects !== "undefined") {
+      for (const id of TSLConditionEffects.ORDER) {
+        if (CONFIG.statusEffects.some(s => s.id === `tsl-wound-${id}`)) continue;
+        const w = TSLConditionEffects.buildHudStatus(id);
+        if (w) CONFIG.statusEffects.push(w);
+      }
+    }
+    console.log("TSL | Social States + Wounds registered in CONFIG.statusEffects (one block)");
   } catch (err) {
     console.error("TSL | Error registering status effects:", err);
   }

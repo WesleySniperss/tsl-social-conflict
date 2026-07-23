@@ -86,6 +86,30 @@ class TSLConditionEffects {
     return CONDITION_META[condId] ?? null;
   }
 
+  /** Every wound id, in a stable order — for the token HUD registration. */
+  static get ORDER() {
+    return ["angry", "scared", "guilty", "hopeless", "smitten"];
+  }
+
+  /**
+   * A CONFIG.statusEffects entry for a wound, so it shows in the token HUD's
+   * status palette (findable, with the full dossier) and can be toggled by
+   * hand. The `condition` flag makes a HUD-toggled wound count exactly like one
+   * the module applies (hasCondition / countConditions / openings all match).
+   */
+  static buildHudStatus(condId) {
+    const meta = CONDITION_META[condId];
+    if (!meta) return null;
+    const built = TSLConditionEffects._buildEffect(condId, "someone", null);
+    return {
+      id:          `tsl-wound-${condId}`,
+      name:        `${meta.label} (Wound)`,
+      img:         meta.icon,
+      description: built.description,
+      flags:       built.flags,     // carries tsl-social-conflict.condition = condId
+    };
+  }
+
   /**
    * Called when a conflict resolves.
    * For each participant, applies their active conditions as Active Effects
@@ -152,10 +176,20 @@ class TSLConditionEffects {
     return TSLConditionEffects.countConditions(actor);
   }
 
+  /** The wound id an effect represents — via our flag OR the HUD status id. */
+  static _condOf(e) {
+    const flagged = e.flags?.[TSL_EFFECT_FLAG]?.condition;
+    if (flagged) return flagged;
+    // A HUD-toggled wound carries the status id tsl-wound-<id> (statuses is a Set).
+    for (const s of (e.statuses ?? [])) {
+      if (typeof s === "string" && s.startsWith("tsl-wound-")) return s.slice("tsl-wound-".length);
+    }
+    return null;
+  }
+
   /** Does this actor carry a given TSL condition (actor-level effect)? */
   static hasCondition(actor, condId) {
-    return !!actor?.effects?.some?.(e =>
-      !e.disabled && e.flags?.[TSL_EFFECT_FLAG]?.condition === condId);
+    return !!actor?.effects?.some?.(e => !e.disabled && TSLConditionEffects._condOf(e) === condId);
   }
 
   /** How many TSL conditions this actor carries (Overwhelmed at 4+). */
@@ -163,7 +197,8 @@ class TSLConditionEffects {
     if (!actor) return 0;
     const seen = new Set();
     for (const e of actor.effects) {
-      const c = e.flags?.[TSL_EFFECT_FLAG]?.condition;
+      if (e.disabled) continue;
+      const c = TSLConditionEffects._condOf(e);
       if (c && CONDITION_META[c]) seen.add(c);
     }
     return seen.size;
