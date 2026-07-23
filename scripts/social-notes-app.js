@@ -643,17 +643,56 @@ class SocialFencingApp extends Application {
         </div>
       </section>`;
 
+    // The twelve moves, by school, each tagged with the real persuasion tactic
+    // it models — so the fiction reads as something people actually do.
+    const REAL_TACTIC = {
+      cold_reading:     "Cold reading — you watch their face for tells",
+      sow_doubt:        "Belittling — a jab that shrinks them",
+      instigate:        "Goading — needle them into a rash move",
+      flatter:          "Flattery — feed the ego till the guard drops",
+      feigned_weakness: "Disarming vulnerability — play weak so they let you close",
+      throw_gauntlet:   "Public shaming — break their face in front of others",
+      love_bombing:     "Love bombing — drown them in sudden warmth",
+      cold_shoulder:    "Triangulation — praise a rival to starve them for your attention",
+      guilt_trip:       "Guilt-tripping — make your hurt their fault",
+      gaslight:         "Gaslighting — make them doubt their own read",
+      logic_exploit:    "Cross-examination — corner them on their contradictions",
+      sweeten_deal:     "Quid pro quo — trade for what you want",
+    };
+    const SCHOOL_LABEL = {
+      general:   "General — safe basics (no weak spot, no wall)",
+      power:     "Power — domination: hit harder, risk harder",
+      attention: "Emotion — the heart: warmth and its absence",
+      order:     "Reason — the ledger: doubt, proof, deals",
+    };
+    const movesRef = ["general", "power", "attention", "order"].map(g => {
+      const rows = SOCIAL_MANEUVERS.filter(m => m.group === g).map(m => {
+        const dmg = m.resolveDamage ? `<b>−${m.resolveDamage}</b> Resolve` : (m.reveals ? "a tell + a String" : "<b>0 damage — a set-up</b>");
+        const st  = m.applyOnSuccess ? ` · makes them <b>${esc(SOCIAL_CONDITIONS[m.applyOnSuccess]?.label ?? m.applyOnSuccess)}</b>` : "";
+        const str = (m.grantStrings && !m.reveals) ? ` · +${m.grantStrings} String${m.grantStrings > 1 ? "s" : ""}` : "";
+        return `<div class="tsl-codex-combo"><b>${esc(m.name)}</b> <span class="tsl-codex-gain">(${esc(m.skill)})</span> — ${dmg}${st}${str}<br><i>${esc(REAL_TACTIC[m.id] ?? "")}</i></div>`;
+      }).join("");
+      return `<div class="tsl-codex-sub"><div class="tsl-codex-sub-title">${SCHOOL_LABEL[g]}</div>${rows}</div>`;
+    }).join("");
+    const moves = `
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title">The twelve moves</div>
+        <div class="tsl-codex-hint-sm">Four schools of three. Some chip <b>Resolve</b>; some deal <b>0</b> — those are <b>set-ups</b> that arm a ⊕ opening for a bigger hit next turn. Each rolls its own skill. Under each is the <b>real tactic</b> it models — none of this is invented, it's what people actually do to each other.</div>
+        ${movesRef}
+      </section>`;
+
     // One long scroll was too much — split it into pickable categories.
     const cats = [
       // The walkthrough is one maneuver exchange — meaningless without them.
-      { id: "start",    label: "Start",    icon: "fa-play",         html: quickStart + (fencingOn ? walkthrough : "") },
+      { id: "start",    label: "Start",    icon: "fa-play",          html: quickStart + (fencingOn ? walkthrough : "") },
+      { id: "moves",    label: "Moves",    icon: "fa-hand-fist",     html: moves,          needs: "fencing" },
       // Openings, statuses and the nine natures are all parts of the d20
       // fencing layer — in a pure-TSL world they simply do not exist.
-      { id: "openings", label: "Openings", icon: "fa-plus",         html: comboReference, needs: "fencing" },
-      { id: "statuses", label: "Statuses", icon: "fa-bolt",         html: statuses,       needs: "fencing" },
-      { id: "details",  label: "Details",  icon: "fa-book",         html: reference },
-      { id: "natures",  label: "Natures",  icon: "fa-masks-theater", html: natures,       needs: "fencing" },
-      { id: "gm",       label: "GM",       icon: "fa-crown",        html: gm, gmOnly: true },
+      { id: "openings", label: "Openings", icon: "fa-plus",          html: comboReference, needs: "fencing" },
+      { id: "statuses", label: "Statuses", icon: "fa-bolt",          html: statuses,       needs: "fencing" },
+      { id: "details",  label: "Details",  icon: "fa-book",          html: reference },
+      { id: "natures",  label: "Natures",  icon: "fa-masks-theater", html: natures,        needs: "fencing" },
+      { id: "gm",       label: "GM",       icon: "fa-crown",         html: gm, gmOnly: true },
     ].filter(c => (!c.gmOnly || game.user.isGM) && (c.needs !== "fencing" || fencingOn));
 
     if (!cats.some(c => c.id === this._codexCat)) this._codexCat = cats[0].id;

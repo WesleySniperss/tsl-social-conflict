@@ -2215,8 +2215,13 @@
   flex-wrap: wrap;
   gap: 4px;
   margin: 0 0 8px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  padding: 8px 0 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+  /* Always in reach: pin the category buttons to the top as the page scrolls. */
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--tsl-notes-bg, #17110e);
 }
 .tsl-codex-nav .tsl-codex-cat {
   width: auto;                       /* v13 gives buttons a stretchy base */
