@@ -88,7 +88,7 @@ tsl-social-conflict/
 - Move effects share the fx schema handled generically in `ConflictStore.recordRoll`: `onStrong`/`onWeak: { strings, stringsOnYou, reveal, resolve }` — basic moves (read/speak/provoke) use the same fields
 
 ### Track defaults + auto-start (no ceremony)
-- Resolve = 3 + WIS mod, Patience = 4 + CHA mod, clamped 3–8 (`suggestTracks`)
+- Resolve = 3 + WIS mod (clamp **3–6** since v1.43 — so TWO cashed damage-combos, e.g. Taunt→Humiliate = 3 each, break even the toughest), Patience = 4 + CHA mod (clamp **3–7**) (`suggestTracks`)
 - **No "Start Encounter" step** — `SocialEncounterManager.ensureActive()` lazily starts tracks from these defaults on the FIRST maneuver against a target (called at the top of `applyOutcome`), unless a prior exchange already resolved. The GM only nudges/resets tracks in Chronicle→Fencing.
 - **Fencing tab = a GM status board**: this actor's tracks (adjust/Reset only) + status toggles + a scene-wide "who has what" overview (`_buildStatusBoard` walks canvas tokens; portrait · name · status dots · R/P or outcome).
 - Player ownership resolves via token fallback (`_participantActor`/`_ownsParticipant`) so unlinked-token participants can still act & target (fixes players unable to pick targets).

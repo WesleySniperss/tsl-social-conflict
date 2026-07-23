@@ -37,10 +37,11 @@ class SocialEncounterManager {
 
   /**
    * Suggested track values derived from the actor's sheet (dnd5e/a5e):
-   *   Resolve  = 3 + WIS mod — in 5e resisting persuasion IS a Wisdom thing
-   *   Patience = 4 + CHA mod — force of personality keeps composure in talk
-   * Both clamped 3..8. Used for the automatic start on the first maneuver
-   * against a target; the GM can still nudge them in the Chronicle.
+   *   Resolve  = 3 + WIS mod — in 5e resisting persuasion IS a Wisdom thing.
+   *              Clamped 3..6 so TWO strong combos break even the toughest:
+   *              a cashed damage combo (e.g. Taunt→Humiliate = 3) twice = 6.
+   *   Patience = 4 + CHA mod — force of personality keeps composure. 3..7.
+   * Used for the automatic start on the first maneuver; the GM can still nudge.
    */
   static suggestTracks(actor) {
     const abilities = actor?.system?.abilities ?? {};
@@ -48,11 +49,12 @@ class SocialEncounterManager {
       const v = abilities[k]?.mod;
       return typeof v === "number" ? v : 0;
     };
-    const clamp = (v) => Math.max(3, Math.min(8, v));
+    const clampR = (v) => Math.max(3, Math.min(6, v));
+    const clampP = (v) => Math.max(3, Math.min(7, v));
     return {
-      resolve:  clamp(3 + mod("wis")),
-      patience: clamp(4 + mod("cha")),
-      hint: `Resolve 3 + WIS (${mod("wis") >= 0 ? "+" : ""}${mod("wis")}), Patience 4 + CHA (${mod("cha") >= 0 ? "+" : ""}${mod("cha")}), clamped 3–8`,
+      resolve:  clampR(3 + mod("wis")),
+      patience: clampP(4 + mod("cha")),
+      hint: `Resolve 3 + WIS (${mod("wis") >= 0 ? "+" : ""}${mod("wis")}, cap 6 → 2 combos break it), Patience 4 + CHA (${mod("cha") >= 0 ? "+" : ""}${mod("cha")}, cap 7)`,
     };
   }
 

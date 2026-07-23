@@ -392,8 +392,8 @@ class SocialFencingApp extends Application {
     // A key term: dotted underline + a hover definition. `term("Resolve")`
     // looks the name up in GLOSSARY; a second arg overrides the tip.
     const GLOSSARY = {
-      "Resolve": "Their will to hold their ground. Successful maneuvers chip it; break it to 0 and they're swayed. Starts at 3 + their WIS mod (3–8).",
-      "Patience": "Their tolerance for the whole exchange. Failures burn it; at 0 they walk away. Starts at 4 + their CHA mod (3–8).",
+      "Resolve": "Their will to hold their ground. Successful maneuvers chip it; break it to 0 and they're swayed. Starts at 3 + their WIS mod (3–6) — two strong combos break even the toughest.",
+      "Patience": "Their tolerance for the whole exchange. Failures burn it; at 0 they walk away. Starts at 4 + their CHA mod (3–7).",
       "social DC": "The hidden difficulty you roll against: 10 + WIS + INT + proficiency, or their passive Insight if higher. Only the GM ever sees the number.",
       "support skill": "A SECOND skill whose modifier is added on top of the maneuver's main d20 roll (e.g. Read Them = Insight + Investigation).",
       "opening": "A condition on your target that makes a matching maneuver stronger. Two kinds, same ⊕ mark: a status you set up this exchange (Provoked, Desperate…) that a finisher cashes, or a lasting emotional wound they carry (Angry, Smitten, Guilty, Scared, Hopeless) that certain maneuvers press for +2.",
@@ -851,8 +851,8 @@ class SocialFencingApp extends Application {
         `<span class="tsl-notes-pip tsl-notes-pip--${cls} ${i < val ? "filled" : ""}"></span>`).join("");
       const tracks = enc.active
         ? `<div class="tsl-fc-tracks">
-             <span class="tsl-fc-tk" data-tooltip="Resolve = 3 + their WIS mod (3–8). Successful maneuvers chip it; break it (0) to sway them."><b>RES</b>${pips(enc.resolve, enc.maxResolve, "resolve")}</span>
-             <span class="tsl-fc-tk" data-tooltip="Patience = 4 + their CHA mod (3–8). Failures burn it; at 0 they walk away."><b>PAT</b>${pips(enc.patience, enc.maxPatience, "patience")}</span>
+             <span class="tsl-fc-tk" data-tooltip="Resolve = 3 + their WIS mod (3–6). Successful maneuvers chip it; break it (0) to sway them — two strong combos are enough."><b>RES</b>${pips(enc.resolve, enc.maxResolve, "resolve")}</span>
+             <span class="tsl-fc-tk" data-tooltip="Patience = 4 + their CHA mod (3–7). Failures burn it; at 0 they walk away."><b>PAT</b>${pips(enc.patience, enc.maxPatience, "patience")}</span>
            </div>`
         : enc.outcome
           ? `<div class="tsl-chr-outcome tsl-chr-outcome--${enc.outcome}">${enc.outcome === "swayed" ? "💔 Swayed" : "🚪 Walked away"}</div>`
