@@ -38,10 +38,10 @@ class SocialEncounterManager {
   /**
    * Suggested track values derived from the actor's sheet (dnd5e/a5e):
    *   Resolve  = 3 + WIS mod — in 5e resisting persuasion IS a Wisdom thing.
-   *              Clamped 3..6 so TWO strong combos break even the toughest:
-   *              a cashed damage combo (e.g. Taunt→Humiliate = 3) twice = 6.
-   *   Patience = 4 + CHA mod — force of personality keeps composure. 3..7.
-   * Used for the automatic start on the first maneuver; the GM can still nudge.
+   *   Patience = 4 + CHA mod — force of personality keeps composure in talk.
+   * NO upper cap (floor 3 only): an average target (low WIS) folds in ~2 cashed
+   * combos as intended, but a genuinely iron-willed NPC scales up and is meant
+   * to be harder. GM can still nudge either track in the Chronicle.
    */
   static suggestTracks(actor) {
     const abilities = actor?.system?.abilities ?? {};
@@ -49,12 +49,11 @@ class SocialEncounterManager {
       const v = abilities[k]?.mod;
       return typeof v === "number" ? v : 0;
     };
-    const clampR = (v) => Math.max(3, Math.min(6, v));
-    const clampP = (v) => Math.max(3, Math.min(7, v));
+    const floor = (v) => Math.max(3, v);
     return {
-      resolve:  clampR(3 + mod("wis")),
-      patience: clampP(4 + mod("cha")),
-      hint: `Resolve 3 + WIS (${mod("wis") >= 0 ? "+" : ""}${mod("wis")}, cap 6 → 2 combos break it), Patience 4 + CHA (${mod("cha") >= 0 ? "+" : ""}${mod("cha")}, cap 7)`,
+      resolve:  floor(3 + mod("wis")),
+      patience: floor(4 + mod("cha")),
+      hint: `Resolve 3 + WIS (${mod("wis") >= 0 ? "+" : ""}${mod("wis")}), Patience 4 + CHA (${mod("cha") >= 0 ? "+" : ""}${mod("cha")}), floor 3, no cap`,
     };
   }
 
