@@ -417,7 +417,7 @@ class TSLConflictApp extends Application {
           // With no target, it falls back to the generic archetype matrix.
           const liveBlock = (tgtActor && srcActor)
             ? `<b>Vs ${esc(tgtActor.name)}:</b><br>` +
-              SocialManeuverRoller.describeVsTarget(srcActor, tgtActor, m, tgtArch ?? null, isGM)
+              SocialManeuverRoller.describeVsTarget(srcActor, tgtActor, m, isGM)
                 .map(l => esc(l)).join("<br>")
             : null;
           const tip = [

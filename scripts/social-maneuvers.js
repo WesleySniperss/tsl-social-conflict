@@ -220,13 +220,13 @@ const SOCIAL_MANEUVERS = [
     vulnerabilityTags: ["guilt", "obligation"],       // Caretaker → Advantage
     immunityTags:      ["shameless"],                 // Machiavellian
     description:  "Present the ledger of everything owed in hurt and kindness — and let it crush.",
-    successText:  "The weight settles on their shoulders — Guilted (your next maneuver against them gains Advantage). Resolve −1.",
+    successText:  "The weight settles on their shoulders — Beholden (your next maneuver against them gains Advantage). Resolve −1.",
     failText:     "They shrug the weight off. Patience −1.",
     immuneText:   "Shame needs a conscience. Target becomes Defiant.",
     applyOnSuccess: "guilted",
     grantStrings: 0,
     resolveDamage: 1,
-    combos: { smitten: { label: "A smitten heart weighs every debt double", strings: 1 } },
+    combos: { smitten: { label: "An enthralled heart weighs every debt double", strings: 1 } },
   },
 
   // ── Triad of Reason — ledgers: economy, information, field control ──────────
@@ -270,7 +270,7 @@ const SOCIAL_MANEUVERS = [
     grantStrings: 1,
     reveals: true,
     resolveDamage: 1,
-    combos: { guilted: { label: "Guilt makes them over-explain — every excuse is a loose thread", strings: 1 } },
+    combos: { guilted: { label: "Beholden, they over-explain — every excuse is a loose thread", strings: 1 } },
   },
 
   {
@@ -321,7 +321,7 @@ const TRIAD_COUNTERS = { power: "attention", attention: "order", order: "power" 
  * by 5+) or hit their immunity outright, the archetype answers in its
  * triad's own language, and the debuff lands on YOU:
  *   Power   — they tower over the misstep: YOU are Rattled.
- *   Emotion — they make your fumble about THEIR hurt: YOU are Guilted.
+ *   Emotion — they make your fumble about THEIR hurt: YOU are Beholden.
  *   Reason  — they file it away: a String on you.
  * Predictable if you know their nature; evidence for deduction if you don't.
  */
@@ -330,8 +330,8 @@ const TRIAD_ANSWER = {
                risk: "you'll be Rattled",
                line: (src, tgt) => `${tgt} answers the misstep with sheer presence — <b>${src} is Rattled</b>.` },
   attention: { status: "guilted",
-               risk: "you'll be Guilted",
-               line: (src, tgt) => `${tgt} turns the fumble into THEIR wound, and the room feels it — <b>${src} is Guilted</b>.` },
+               risk: "you'll be Beholden",
+               line: (src, tgt) => `${tgt} turns the fumble into THEIR wound, and the room feels it — <b>${src} is Beholden</b>.` },
   order:     { strings: 1,
                risk: "they'll gain a String on you",
                line: (src, tgt) => `${tgt} quietly files the fumble away — <b>a String on ${src}</b>.` },
@@ -554,7 +554,7 @@ class SocialManeuverRoller {
     //  scissors of schools below: +2 for you, −2, or nothing.)
     const dc = dcMods.reduce((sum, m) => sum + m.value, dcBase);
 
-    // ── Hard walls: Defiant target / Smitten attacker ────────────────────────
+    // ── Hard walls: Defiant target / Enthralled attacker ────────────────────────
     // Cold Reading slips through Defiant (observing is not influencing) —
     // the wall turn stays playable: you study them while they fume.
     let relation = "neutral";
@@ -582,7 +582,7 @@ class SocialManeuverRoller {
     }
 
     // ── Status combos — a one-shot is consumed ONLY if it is what grants ─────
-    // the advantage; a free source (vulnerability, Smitten) is used first.
+    // the advantage; a free source (vulnerability, Enthralled) is used first.
     const advantageReasons = [];
     const bonusReasons     = [];
     const consumes         = [];
@@ -613,7 +613,7 @@ class SocialManeuverRoller {
       }
       if (!advantage && condBy("guilted")) {
         advantage = true;
-        advantageReasons.push("Guilted by you — they owe you an answer");
+        advantageReasons.push("Beholden to you — they owe you an answer");
         consumes.push("guilted");
       }
       if (!advantage && ATTENTION_MANEUVERS.includes(maneuver.id) && cond("desperate")) {
@@ -771,7 +771,7 @@ class SocialManeuverRoller {
    * the viewer's read (truth for the GM, the guess for a player) and never
    * leaks the archetype name or the DC. Returns an array of short lines.
    */
-  static describeVsTarget(sourceActor, targetActor, maneuver, dispArch, isGM) {
+  static describeVsTarget(sourceActor, targetActor, maneuver, isGM) {
     // The GM assesses on the TRUTH and sees everything; a player never sees
     // the archetype weak/strong analysis at all — only what they themselves
     // bring and what's plainly visible (statuses, wounds). Nature is deduced

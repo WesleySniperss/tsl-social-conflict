@@ -944,14 +944,14 @@ const SOCIAL_CONDITIONS = {
   },
   guilted: {
     id: "guilted",
-    label: "Guilted",
+    label: "Beholden",
     icon: "icons/svg/net.svg",
     color: "#c07ce8",
     seconds: 600,
     rounds: 3,
     oneShot: true,
-    description: "Weighed down by obligation: the guilter's next maneuver rolls with Advantage, then this fades.",
-    combat: "The weight drags every swing: −2 on their weapon attacks (disadvantage on A5E). GM: no reactions against the one they owe; if that one draws blood, Guilted collapses into Rattled.",
+    description: "Weighed down by obligation: the one they owe gets Advantage on their next maneuver, then this fades.",
+    combat: "The weight drags every swing: −2 on their weapon attacks (disadvantage on A5E). GM: no reactions against the one they owe; if that one draws blood, Beholden collapses into Rattled.",
     dnd5eChanges: [
       { key: "system.bonuses.mwak.attack", mode: 2, value: "-2" },
       { key: "system.bonuses.rwak.attack", mode: 2, value: "-2" },
@@ -1161,7 +1161,7 @@ class SocialArchetypeManager {
       origin: `module.${SocialArchetypeManager.getFlagScope()}`,
       disabled: false,
       // In a combat encounter the status ticks down by ROUNDS (1 by default,
-      // 3 for the heavier Guilted / Desperate / Defiant); out of combat the
+      // 3 for the heavier Beholden / Desperate / Defiant); out of combat the
       // seconds keep it around for the scene. Whichever runs out first wins.
       duration: { seconds: meta.seconds ?? 3600, ...(meta.rounds ? { rounds: meta.rounds } : {}) },
       statuses: [`tsl-${conditionId}`, ...(meta.links ?? [])],

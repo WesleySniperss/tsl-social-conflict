@@ -877,12 +877,14 @@ class SocialFencingApp extends Application {
       body = `<div class="tsl-fc-note">Choose a target above to fence them.</div>`;
     } else {
       const enc   = SocialEncounterManager.getEncounter(tgt);
-      // GM sees the truth; a player sees THEIR OWN GUESS from the Bond ("Read as")
+      // GM sees the truth; a player sees THEIR OWN GUESS from the Bond ("Read
+      // as") — UNLESS the GM has opened this nature, then everyone reads truth.
+      const seeArch = ctx.isGM || SocialArchetypeManager.isRevealed(tgt);
       const guessId = TSLBondStore.find(src.id, tgt.id)?.perceivedArchetypeId ?? null;
-      const arch  = ctx.isGM
+      const arch  = seeArch
         ? SocialArchetypeManager.getArchetype(tgt)
         : (guessId ? SocialArchetypeManager.getArchetypeById(guessId) : null);
-      const isGuess = !ctx.isGM;
+      const isGuess = !seeArch;
       const known = !!arch;
       const triad = arch ? SOCIAL_TRIADS[arch.triad] : null;
 
@@ -908,20 +910,20 @@ class SocialFencingApp extends Application {
         const short = (SOCIAL_TRIADS[g.id]?.label ?? g.label).replace("Triad of ", "");
         const cs = mvs.map(m => {
           const isSel = this._fenceManeuverId === m.id;
-          const rel   = SocialManeuverRoller.getRelation(tgt, m, ctx.isGM ? undefined : (arch ?? null));
+          const rel   = SocialManeuverRoller.getRelation(tgt, m, seeArch ? undefined : (arch ?? null));
           const comboReady =
             (m.combos && Object.keys(m.combos).some(st => SocialArchetypeManager.getActiveCondition(tgt, st)))
             || (m.kickWhileDown && SOCIAL_CONDITION_ORDER.some(st => SocialArchetypeManager.getActiveCondition(tgt, st)))
             || !!findOpening(tgt, m);
-          // Archetype weak/strong marks are the GM's; ⊕ (armed combo / wound)
-          // stays for everyone — it reads off visible statuses, not the nature.
-          const mark  = ctx.isGM && rel === "immune" ? `<span class="tsl-chip-mark tsl-chip-mark--imm">✕</span>`
-                      : ctx.isGM && rel === "vulnerable" ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">◎</span>`
+          // Weak/strong marks show to the GM, or to everyone once the nature is
+          // opened; ⊕ (a live opening) stays for all — it reads off statuses.
+          const mark  = seeArch && rel === "immune" ? `<span class="tsl-chip-mark tsl-chip-mark--imm">✕</span>`
+                      : seeArch && rel === "vulnerable" ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">◎</span>`
                       : comboReady ? `<span class="tsl-chip-mark tsl-chip-mark--combo">⊕</span>` : "";
           // What this maneuver actually does against THIS target, right now
           // (veiled, follows the viewer's read). The console always has a target.
           const liveTip = "<br><b>Vs " + esc(tgt.name) + ":</b><br>" +
-            SocialManeuverRoller.describeVsTarget(src, tgt, m, arch ?? null, ctx.isGM)
+            SocialManeuverRoller.describeVsTarget(src, tgt, m, ctx.isGM)
               .map(l => esc(l)).join("<br>");
           return `<button class="tsl-chip ${isSel ? "selected" : ""}" data-fence-maneuver="${m.id}"
                     data-tooltip="<b>${esc(m.name)}</b> · ${esc(m.skill)}${m.skill2 ? ` + ${esc(m.skill2)}` : ""}<br>${esc(m.description)}${liveTip}">
