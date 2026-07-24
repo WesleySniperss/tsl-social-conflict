@@ -49,7 +49,11 @@ const SocialNotesDialog = SocialFencingDialog;
 
 // ─── Application ──────────────────────────────────────────────────────────────
 
-class SocialFencingApp extends Application {
+// ApplicationV1 base — still shipped (deprecated) in v13/v14. Reference it
+// defensively so a build that moves V1 under foundry.appv1 still loads.
+const _SocialAppBase = globalThis.Application ?? foundry?.appv1?.api?.Application;
+
+class SocialFencingApp extends _SocialAppBase {
   constructor(actor, options = {}) {
     super(options);
     this._actor   = actor;

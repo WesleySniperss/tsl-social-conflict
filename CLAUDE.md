@@ -9,7 +9,7 @@ Foundry VTT module — social conflict minigame inspired by **Thirsty Sword Lesb
 - Thirsty Sword Lesbians™ is a trademark of April Kit Walsh, published by Evil Hat Productions
 
 ## Target Platform
-- **Foundry VTT v13** (minimum), future v14 support
+- **Foundry VTT v13** (minimum), **v14 verified** (v1.48 — runs on v14 Build 365; ApplicationV1/Dialog are deprecated-but-functional there, targeted for removal ~v16)
 - Primary systems: `dnd5e` (classic 5e), `dnd5e` v4+ (2024 / 5.5e), `a5e-for-dnd5e` (Level Up: Advanced 5th Edition)
 - System-agnostic fallback for PbtA and any other system
 - No React — vanilla JS + Foundry API only
@@ -351,6 +351,12 @@ TSL stats mapped to D&D abilities:
 - `_buildEffect` now renders the full dossier (Urge / Fight it / Give in / Breaking point / Clears), with `{source}` filled to the wound's cause. `TSLConditionEffects.getMeta(id)` exposes it; the conflict card's Wound-pip tooltip and a data-generated Codex "Wounds — they push you" block both read from it.
 - These are GM-adjudicated rules text (no fragile automation) with ONE concrete mechanical hook — the String economy: Wounds now BANK Strings when you play them and SPEND Strings when you fight them, a self-fuelling loop that ties the emotional layer into the module's existing resource. Balance watch: leaning into wounds is another String faucet; if it farms, gate lean-in to once per scene per wound.
 
+### v1.48.0 — Foundry v14 compatibility audit
+- **Static audit against v14 (Build 365) removals — clean.** Grepped for every API Foundry actually removed by v14: `CHAT_MESSAGE_TYPES`, `.data.data`, `.entity`, the global `mergeObject/duplicate/getProperty/…` shims, the global `TextEditor`/`ContextMenu`. **None are used** — the module already routes utilities through `foundry.utils.*` and never sets a ChatMessage `type`. Canvas calls (`grid.measurePath`, `dimensions`, `tokens.placeables`, `.document`) are all current.
+- **Only deprecations remain, not breakage:** the two windows extend **ApplicationV1** and 5 prompts use **Dialog** V1 — both still ship (deprecated) in v14, removal targeted ~v16. So the module loads and runs, with console deprecation warnings.
+- **Defensive hardening applied** (can't hurt on v13/v14, saves a namespace-move): `TSLConflictApp`/`SocialFencingApp` now extend `globalThis.Application ?? foundry?.appv1?.api?.Application`; `module.json` `verified: "14"`; the Token HUD button falls back through `.col.left → .col-left → .col → root` (v14 may reshuffle the HUD markup) and guards against a duplicate on re-render.
+- **Could NOT live-test** — the v14 client bundle isn't inspectable from here and no world was loaded, so this is a static pass. The real confirmation is whether the Chronicle and Conflict windows OPEN in v14; if ApplicationV1 turns out removed in this build, the V2 migration (TODO) becomes required rather than eventual.
+
 ### v1.47.0 — wounds join the token HUD; our statuses grouped in one block
 - **Emotional Wounds now register into `CONFIG.statusEffects`** (`TSLConditionEffects.buildHudStatus(id)`, ids `tsl-wound-<id>`, registered in the ready hook right after the fencing States). Before this they were invisible in the token HUD — only appliable via Hold the Line / the card pips — so a GM couldn't find them or see what they do. The HUD entry carries the full VtM dossier as its description and bakes the `tsl-social-conflict.condition` flag, so a HUD-toggled wound counts exactly like a module-applied one (openings, Overwhelmed, dramatic clears all match). `changes: []` — wounds stay GM-adjudicated.
 - **`_condOf(effect)`**: `hasCondition`/`countConditions` now recognise a wound via the flag OR the `tsl-wound-<id>` status id (Set), so a hand-toggled wound with no module flag still registers.
@@ -487,7 +493,7 @@ Fencing statuses: see the SOCIAL_CONDITIONS table below — six statuses, all wi
 
 ## Known Issues / TODO
 - [ ] Test socket sync with multiple players (GM_ACTION relay is new)
-- [ ] Migrate Application V1 → ApplicationV2 before Foundry v14
+- [ ] Migrate ApplicationV1 → ApplicationV2 and Dialog → DialogV2 before their removal (~v16). Both still function in v14 with deprecation warnings; the two windows (`TSLConflictApp`, `SocialFencingApp`) extend V1 and 5 prompts use `new Dialog`. Base class is referenced defensively (`globalThis.Application ?? foundry.appv1?.api?.Application`) so a namespace move alone won't break loading, but the V1-specific lifecycle (defaultOptions/activateListeners/raw `_renderHTML` string) needs a real V2 rewrite eventually.
 - [ ] Manual stat override UI (when auto-detect fails)
 - [ ] Animated transitions between states
 - [ ] Sound effects on rolls and resolution

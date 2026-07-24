@@ -7,7 +7,12 @@
 
 console.log("TSL | Loading conflict-app.js...");
 
-class TSLConflictApp extends Application {
+// ApplicationV1 base. Still shipped (deprecated) in v13/v14; Foundry targets
+// its removal for a later generation. Reference it defensively so a build that
+// moves V1 under the foundry.appv1 namespace (instead of the global) still loads.
+const _TSLAppBase = globalThis.Application ?? foundry?.appv1?.api?.Application;
+
+class TSLConflictApp extends _TSLAppBase {
   constructor(options = {}) {
     super(options);
     // Re-render when participant actors change (encounter tracks, strings, effects)

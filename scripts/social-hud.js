@@ -22,8 +22,16 @@ class SocialHUD {
     const actor = app.document?.actor;
     if (!actor) return;
 
-    const leftCol = html.querySelector(".col.left");
-    if (!leftCol) return;
+    // v13/v14 pass an HTMLElement. The palette column has been `.col.left`, but
+    // guard against a v14 markup change: fall back through likely containers,
+    // and finally the HUD root, so the button degrades instead of vanishing.
+    const root = html instanceof HTMLElement ? html : html?.[0];
+    if (!root) return;
+    const col = root.querySelector(".col.left")
+      ?? root.querySelector(".col-left")
+      ?? root.querySelector(".col")
+      ?? root;
+    if (root.querySelector(".tsl-hud-fencing")) return;   // no duplicate on re-render
 
     const btn = document.createElement("button");
     btn.type = "button";
@@ -38,7 +46,7 @@ class SocialHUD {
       SocialFencingDialog.open(actor);
     });
 
-    leftCol.appendChild(btn);
+    col.appendChild(btn);
   }
 
   static onGetActorContextOptions(app, menuItems) {
