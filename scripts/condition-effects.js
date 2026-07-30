@@ -103,10 +103,11 @@ class TSLConditionEffects {
     const built = TSLConditionEffects._buildEffect(condId, "someone", null);
     return {
       id:          `tsl-wound-${condId}`,
-      name:        `${meta.label} (Wound)`,
+      name:        `❤ ${meta.label}`,   // ❤ groups Wounds together in the sorted palette
       img:         meta.icon,
       description: built.description,
-      flags:       built.flags,     // carries tsl-social-conflict.condition = condId
+      statuses:    [],                  // the entry id is the single status
+      flags:       built.flags,         // carries tsl-social-conflict.condition = condId
     };
   }
 

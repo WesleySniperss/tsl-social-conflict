@@ -1164,7 +1164,10 @@ class SocialArchetypeManager {
       // 3 for the heavier Beholden / Desperate / Defiant); out of combat the
       // seconds keep it around for the scene. Whichever runs out first wins.
       duration: { seconds: meta.seconds ?? 3600, ...(meta.rounds ? { rounds: meta.rounds } : {}) },
-      statuses: [`tsl-${conditionId}`, ...(meta.links ?? [])],
+      // SINGLE status only (no native links) — a5e's HUD needs exactly one
+      // status id to recognise the effect as active and let you remove it by
+      // clicking. The native-condition behaviour lives in the combat text now.
+      statuses: [`tsl-${conditionId}`],
       flags: {
         [SocialArchetypeManager.getFlagScope()]: {
           condition: conditionId,

@@ -97,12 +97,19 @@ async function syncExistingConditionEffects(actors) {
       const eff = SocialArchetypeManager.getActiveCondition(actor, id);
       if (!eff?.update) continue;
       const fx = SocialArchetypeManager.buildConditionEffect(id);
+      // Old versions folded native links (charmed/fixated/rattled) into the
+      // status set, making the effect un-removable from a5e's HUD. Normalise
+      // any such effect back to a single status id.
+      const curStatuses = [...(eff.statuses ?? [])];
+      const badStatuses = curStatuses.length !== 1 || curStatuses[0] !== `tsl-${id}`;
       const stale = JSON.stringify(eff.changes ?? []) !== JSON.stringify(fx.changes)
         || (eff.description ?? "") !== fx.description;
-      if (!stale) continue;
+      if (!stale && !badStatuses) continue;
       try {
-        await eff.update({ changes: fx.changes, description: fx.description });
-        console.log(`TSL | Refreshed ${id} on ${actor.name} to current combat automation`);
+        const patch = { changes: fx.changes, description: fx.description };
+        if (badStatuses) patch.statuses = [`tsl-${id}`];
+        await eff.update(patch);
+        console.log(`TSL | Refreshed ${id} on ${actor.name}${badStatuses ? " (fixed status set)" : ""}`);
       } catch (err) {
         console.warn(`TSL | Could not refresh ${id} on ${actor.name}:`, err);
       }
@@ -156,42 +163,35 @@ async function migrateTokenChronicles() {
 Hooks.once("ready", () => {
   console.log("TSL | Social Conflict ready hook firing");
 
-  // Fencing statuses join the token HUD's main status list — toggling them
-  // there is equivalent to the module applying them (matched via `tsl-<id>`).
-  // Register the FULL effect data, not just the icon: a status toggled from
-  // the HUD must carry the same combat changes, description, duration and
-  // native-condition links as one the module applies itself.
+  // Register our statuses into the token HUD's palette. Two rules learned the
+  // hard way on a5e:
+  //   1) SINGLE status per effect. a5e only treats an effect as "active"
+  //      (and therefore removable by clicking it in the HUD) when it carries
+  //      exactly ONE status id — so we do NOT fold native-condition links into
+  //      the status set (that made Rattled/Enthralled/Provoked un-removable).
+  //      The mechanical bite still rides along via dnd5e/a5eChanges.
+  //   2) a5e SORTS the palette alphabetically by name, so a common prefix is
+  //      the only way to group ours: fencing States get "⚔ ", Wounds get "❤ "
+  //      — both sort to the top, States before Wounds, instead of scattering.
   try {
     for (const id of SOCIAL_CONDITION_ORDER) {
       const meta = SOCIAL_CONDITIONS[id];
       if (!meta || CONFIG.statusEffects.some(s => s.id === `tsl-${id}`)) continue;
-      // If the SYSTEM already ships a same-named condition we link to (A5E's
-      // own Rattled), don't add a duplicate entry to the HUD — remember the
-      // native id as an alias instead, so toggling the system's condition
-      // counts as the social status too (getActiveCondition matches it).
-      const twin = (meta.links ?? []).find(l => CONFIG.statusEffects.some(s =>
-        s.id === l && game.i18n.localize(s.name ?? "") === meta.label));
-      if (twin) {
-        meta.nativeAlias = twin;
-        console.log(`TSL | ${meta.label}: using the system's native "${twin}" status (no duplicate entry)`);
-        continue;
-      }
       const fx = SocialArchetypeManager.buildConditionEffect(id);
       CONFIG.statusEffects.push({
         id: `tsl-${id}`,
-        name: `${meta.label} (Social)`,
+        name: `⚔ ${meta.label}`,
         img: meta.icon,
         description: fx.description,
         changes: fx.changes,
         duration: fx.duration,
-        statuses: meta.links ?? [],
+        statuses: [],                 // the entry id IS the single status
         flags: fx.flags,
       });
     }
-    // The lasting emotional WOUNDS join the SAME palette, right after the
-    // fencing States — one contiguous block so ours aren't scattered through
-    // the system's list. Without this the wounds were invisible: applied only
-    // by Hold the Line / the card pips, never findable in the token HUD.
+    // The lasting emotional WOUNDS join the SAME palette (❤ prefix) — findable
+    // and grouped right below the States. Without this they were invisible in
+    // the token HUD, only appliable via Hold the Line / the card pips.
     if (typeof TSLConditionEffects !== "undefined") {
       for (const id of TSLConditionEffects.ORDER) {
         if (CONFIG.statusEffects.some(s => s.id === `tsl-wound-${id}`)) continue;
@@ -199,7 +199,7 @@ Hooks.once("ready", () => {
         if (w) CONFIG.statusEffects.push(w);
       }
     }
-    console.log("TSL | Social States + Wounds registered in CONFIG.statusEffects (one block)");
+    console.log("TSL | Social States (⚔) + Wounds (❤) registered — single-status, grouped");
   } catch (err) {
     console.error("TSL | Error registering status effects:", err);
   }
