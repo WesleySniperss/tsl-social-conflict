@@ -241,19 +241,19 @@ class TSLConditionEffects {
   static registerRestHooks() {
     // TSL-style: feelings do not clear on a SHORT rest — they clear when
     // lived out (the "Clears when" line) or, slowly, over a long rest.
+    // A long rest also refreshes each ●●● bond's once-per-rest signature perk.
+    const onLongRest = (actor) => {
+      TSLConditionEffects._clearFromActor(actor);
+      if (typeof TSLBondStore !== "undefined") TSLBondStore.clearSignatures?.(actor.id);
+    };
     // dnd5e
     Hooks.on("dnd5e.restCompleted", (actor, result) => {
-      if (result.longRest) {
-        TSLConditionEffects._clearFromActor(actor);
-      }
+      if (result.longRest) onLongRest(actor);
     });
-
     // A5E
     Hooks.on("a5e.actorRest", (actor, result) => {
-      if (result?.restType === "long") {
-        TSLConditionEffects._clearFromActor(actor);
-        // A5E handles strife reduction itself on rest — no extra work needed
-      }
+      if (result?.restType === "long") onLongRest(actor);
+      // A5E handles strife reduction itself on rest — no extra work needed
     });
   }
 

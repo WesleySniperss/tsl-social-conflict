@@ -115,6 +115,22 @@ class TSLBondStore {
     }
   }
 
+  /**
+   * The ●●● signature perk is once per long rest. `sigUsed` lives on the bond
+   * entry (personal — never mirrored, since `update` only mirrors type/attitude).
+   */
+  static async markSignatureUsed(actorId, bondId) {
+    await TSLBondStore.update(actorId, bondId, { sigUsed: true });
+  }
+
+  /** Refresh every signature on this actor — called on a long rest. */
+  static async clearSignatures(actorId) {
+    const list = TSLBondStore.getList(actorId);
+    let changed = false;
+    for (const b of list) if (b.sigUsed) { b.sigUsed = false; changed = true; }
+    if (changed) await TSLBondStore._saveList(actorId, list);
+  }
+
   /** Can the current user write flags on this actor? (GM always; owners of it.) */
   static _canWrite(actorId) {
     const a = game.actors.get(actorId);

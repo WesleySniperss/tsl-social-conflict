@@ -2176,6 +2176,42 @@
 .tsl-reveal-toggle input { width: auto; margin: 0; flex: 0 0 auto; cursor: pointer; }
 .tsl-reveal-toggle b { color: #e8c855; }
 
+/* ●●● bond signature perk — the payoff of a fully-realized relationship */
+.tsl-chr-signature {
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(232,200,85,0.12), rgba(232,200,85,0.04));
+  border: 1px solid rgba(232,200,85,0.4);
+}
+.tsl-chr-signature.used { opacity: 0.55; filter: grayscale(0.4); }
+.tsl-chr-sig-head {
+  font-family: "Cinzel", serif;
+  font-size: 0.8rem;
+  color: #f0d98a;
+}
+.tsl-chr-sig-head i { margin-right: 4px; color: #e8c855; }
+.tsl-chr-sig-head b { color: #fff; }
+.tsl-chr-sig-text {
+  font-family: "EB Garamond", serif;
+  font-size: 0.86rem;
+  color: var(--tsl-notes-text, #f0dfc8);
+  margin: 3px 0 5px;
+}
+.tsl-chr-sig-use {
+  width: auto;
+  padding: 3px 12px;
+  font-family: "Cinzel", serif;
+  font-size: 0.76rem;
+  color: #1a1206;
+  background: #e8c855;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.tsl-chr-sig-use:hover { background: #f0d98a; }
+.tsl-chr-sig-used { font-size: 0.76rem; color: #a89a92; font-style: italic; }
+
 /* Two clearly-separate condition layers on a card: fleeting States vs lasting Wounds */
 .tsl-row-label {
   flex: 0 0 auto;

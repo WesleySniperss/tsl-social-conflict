@@ -870,6 +870,26 @@ const BOND_TYPES = [
 ];
 
 /**
+ * Signature perk of a fully-realized relationship (bond STRENGTH ●●●). Once per
+ * LONG REST you may invoke it — GM-adjudicated rules text with one tracked gate.
+ * This makes deepening a bond a real long-term reward, the active twin of the
+ * passive combat aura. Keyed by bond type; Stranger has none.
+ */
+const BOND_SIGNATURES = {
+  ally:     { label: "Shoulder to shoulder", text: "Reroll one failed check made toward your shared cause while an ally stands with you." },
+  friend:   { label: "I've got you",         text: "Grant a friend (or take from them) advantage on one save or check — a word at the right moment, from anywhere." },
+  family:   { label: "Blood shields blood",  text: "Take one hit or effect aimed at family (or they for you), halved." },
+  crush:    { label: "For their eyes",       text: "In your crush's presence: turn one ordinary success into a critical, or one failure into a bare success." },
+  lover:    { label: "Something to lose",    text: "When your lover falls or is endangered, act at once — an extra reaction, with advantage." },
+  mentor:   { label: "The old lessons",      text: "Reroll any one d20 by recalling their teaching." },
+  protege:  { label: "Someone is watching",  text: "When your protégé can see you, one action inspires them: advantage on their next roll, and on yours." },
+  rival:    { label: "Prove it",             text: "Once, when directly contesting your rival, treat one d20 as a 15." },
+  enemy:    { label: "Personal",             text: "Against this specific enemy, one strike or maneuver lands twice as hard — hatred makes it count." },
+  indebted: { label: "We're even",           text: "Cancel one demand or attack from your creditor by invoking the debt between you." },
+  creditor: { label: "The ledger",           text: "Call in the debt: a concrete favour off-screen, or +5 to one social roll pressing them." },
+};
+
+/**
  * Social Fencing statuses. Applied as Active Effects; every one of them
  * has a real mechanical bite that assess()/rollManeuver() reads:
  *
@@ -1121,6 +1141,11 @@ class SocialArchetypeManager {
    */
   static getBondMirror(id) {
     return SocialArchetypeManager.getBondType(id).mirror ?? id;
+  }
+
+  /** The ●●● signature perk for a bond type, or null (Stranger / unknown). */
+  static getBondSignature(typeId) {
+    return BOND_SIGNATURES[typeId] ?? null;
   }
 
   /** A random veiled reaction line for how this archetype cracks (or null). */
