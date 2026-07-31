@@ -94,6 +94,10 @@ async function syncExistingConditionEffects(actors) {
   for (const actor of actors) {
     if (!actor?.effects) continue;
     for (const id of SOCIAL_CONDITION_ORDER) {
+      // A native-aliased condition (A5E's own Rattled) is the system's to
+      // manage — never normalise it. Everything else (including a flagless
+      // HUD-toggled tsl-status) is ours to keep current.
+      if (SOCIAL_CONDITIONS[id]?.nativeAlias) continue;
       const eff = SocialArchetypeManager.getActiveCondition(actor, id);
       if (!eff?.update) continue;
       const fx = SocialArchetypeManager.buildConditionEffect(id);
@@ -177,6 +181,17 @@ Hooks.once("ready", () => {
     for (const id of SOCIAL_CONDITION_ORDER) {
       const meta = SOCIAL_CONDITIONS[id];
       if (!meta || CONFIG.statusEffects.some(s => s.id === `tsl-${id}`)) continue;
+      // If the SYSTEM already ships a same-named condition (A5E's own Rattled),
+      // DON'T add a duplicate — remember it as an alias. The module then applies
+      // that native single-status condition directly (so it's removable), and
+      // getActiveCondition/removeCondition match it. No "⚔ Rattled" twin.
+      const twin = (meta.links ?? []).find(l => CONFIG.statusEffects.some(s =>
+        s.id === l && game.i18n.localize(s.name ?? "") === meta.label));
+      if (twin) {
+        meta.nativeAlias = twin;
+        console.log(`TSL | ${meta.label}: reusing the system's native "${twin}" (no duplicate)`);
+        continue;
+      }
       const fx = SocialArchetypeManager.buildConditionEffect(id);
       CONFIG.statusEffects.push({
         id: `tsl-${id}`,

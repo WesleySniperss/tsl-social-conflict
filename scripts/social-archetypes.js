@@ -1194,6 +1194,14 @@ class SocialArchetypeManager {
       }
       return existing;
     }
+    // A condition the SYSTEM already owns (A5E Rattled) is applied as its OWN
+    // native status — single-status, natively removable, and NOT a duplicate of
+    // a "⚔ Rattled" entry. getActiveCondition matches it via the alias.
+    const alias = SOCIAL_CONDITIONS[conditionId]?.nativeAlias;
+    if (alias && actor.toggleStatusEffect) {
+      await actor.toggleStatusEffect(alias, { active: true });
+      return SocialArchetypeManager.getActiveCondition(actor, conditionId);
+    }
     const effectData = SocialArchetypeManager.buildConditionEffect(conditionId, sourceActor);
     if (!effectData) return;
     await actor.createEmbeddedDocuments("ActiveEffect", [effectData]);
@@ -1205,6 +1213,12 @@ class SocialArchetypeManager {
     // Match flag OR statuses set, like getActiveCondition — a status toggled
     // from the token HUD must be consumable/removable exactly like ours.
     const alias = SOCIAL_CONDITIONS[conditionId]?.nativeAlias;
+    // Native-owned condition (A5E Rattled): toggle it off the system's own way.
+    if (alias && actor.toggleStatusEffect
+        && actor.effects.some(e => e.statuses?.has?.(alias)
+            && !e.flags?.[SocialArchetypeManager.getFlagScope()])) {
+      await actor.toggleStatusEffect(alias, { active: false });
+    }
     const toRemove = actor.effects.filter((effect) =>
       effect.flags?.[SocialArchetypeManager.getFlagScope()]?.condition === conditionId
       || effect.statuses?.has?.(`tsl-${conditionId}`)
