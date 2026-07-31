@@ -21,7 +21,18 @@ class TSLHudButton {
         icon:    "fas fa-heart-crack",
         onClick: () => TSLHudButton._handleClick(),
       });
-      console.log("TSL | VTools button registered");
+      // The Social Scene — a live relationship map + effect visualiser for
+      // EVERYONE (not GM-only). Where the conflict window is headed long-term.
+      VTools.register({
+        name:    "tsl-social-scene",
+        title:   "Social Scene",
+        icon:    "fas fa-people-arrows",
+        onClick: () => {
+          if (typeof TSLSceneVisualizer !== "undefined") TSLSceneVisualizer.toggle();
+          else ui.notifications.warn("Social Scene visualizer not loaded.");
+        },
+      });
+      console.log("TSL | VTools buttons registered");
     } catch (err) {
       console.error("TSL | Error registering VTools button:", err);
     }

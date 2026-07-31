@@ -1314,6 +1314,22 @@ class SocialManeuverRoller {
     const targetActor = game.actors.get(targetActorId);
     const maneuver    = SocialManeuverRoller.getManeuver(maneuverId);
 
+    // Broadcast a "social pulse" to every client's Scene Visualizer: who acted
+    // on whom, the school, the grade, and how much Resolve fell (the flash).
+    // Fires for EVERY maneuver — Chronicle console or conflict window — because
+    // it runs before the conflict-window gate below.
+    try {
+      if (typeof TSLSocket !== "undefined") {
+        const encNow = SocialEncounterManager.getEncounter(targetActor);
+        const resolveDrop = Math.max(0, (encBefore?.resolve ?? 0) - (encNow?.resolve ?? 0));
+        TSLSocket.broadcastPulse({
+          srcId: sourceActorId, tgtId: targetActorId,
+          group: maneuver?.group ?? "general",
+          outcome: outcomeType, damage: resolveDrop,
+        });
+      }
+    } catch (err) { console.warn("TSL | pulse broadcast failed:", err); }
+
     // ── Shared conflict integration: log + advance turn ──────────────────────
     const state = ConflictStore.state;
     if (!state?.active || state.resolved) return;

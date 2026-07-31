@@ -27,6 +27,16 @@ class TSLSocket {
     game.socket.emit(SOCKET_NAME, { type, data, senderId: game.user.id });
   }
 
+  /**
+   * A "social pulse" — a resolved maneuver — for the Scene Visualizer on EVERY
+   * client. Dispatch locally (the sender sees it too, since _handleMessage
+   * drops own messages) and emit to everyone else.
+   */
+  static broadcastPulse(data) {
+    if (typeof TSLSceneVisualizer !== "undefined") TSLSceneVisualizer.pulse(data);
+    TSLSocket.emit("SOCIAL_PULSE", data);
+  }
+
   static _handleMessage({ type, data, senderId }) {
     // Ignore own messages
     if (senderId === game.user.id) return;
@@ -45,6 +55,11 @@ class TSLSocket {
       case "CONFLICT_CLOSE":
         // GM ended the conflict
         TSLConflictApp.receiveClose();
+        break;
+
+      case "SOCIAL_PULSE":
+        // A maneuver resolved somewhere — animate it on the Scene Visualizer
+        if (typeof TSLSceneVisualizer !== "undefined") TSLSceneVisualizer.pulse(data);
         break;
 
       case "GM_ACTION":
