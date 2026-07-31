@@ -903,18 +903,18 @@ const BOND_SIGNATURES = {
  * GM-adjudicated (no hard tracking); the ●●● signature sits on top of it.
  */
 const BOND_ABILITIES = {
-  ally:     { label: "Watch each other's backs", text: "When you Help an ally (or they help you), the aid grants +2 instead of advantage." },
-  friend:   { label: "A shoulder to lean on",    text: "Once per scene, a quiet word with a friend lets one of you shed a level of Frightened, or reroll a save against a fear or charm effect." },
-  family:   { label: "Blood answers",            text: "When family is bloodied or downed within sight, you may move your speed toward them at once — whoever's turn it is." },
-  crush:    { label: "Butterflies",              text: "In your crush's presence you shine (advantage on Performance and first impressions) — but you can't play it cool (disadvantage to be subtle or hide your feelings)." },
-  lover:    { label: "Wordless",                 text: "You always sense when your lover lies to you, or is in danger — no roll. A glance carries a whole sentence between you." },
-  mentor:   { label: "What would they do?",      text: "Once per scene, pause and ask the GM what your mentor would counsel here — a true hint, in their voice." },
-  protege:  { label: "Lead by example",          text: "When your protégé watches you succeed at something, they gain advantage the next time they try the same kind of thing." },
-  rival:    { label: "I know your tricks",       text: "You've studied your rival — advantage to read their intentions or recall their capabilities, and they can't take you by surprise." },
-  enemy:    { label: "Know your foe",            text: "Against this specific enemy you fight forewarned — advantage on Insight and initiative against them, and they gain nothing from surprising you." },
-  sworn:    { label: "The oath holds",           text: "You cannot be magically compelled to act against your liege — advantage on saves vs charm or fear that would turn you on them." },
-  liege:    { label: "By your leave",            text: "Once per scene, your sworn carries out one reasonable command without needing to be convinced — the bond does the persuading." },
-  confidant:{ label: "Unburden",                 text: "Once per long rest, confiding in them eases the heart — clear one emotional Wound, or soften its grip, by talking it through." },
+  ally:     { label: "In sync",         text: "You fight coordinated: once per turn you can take the Help action for an ally as a bonus action." },
+  friend:   { label: "Steady me",       text: "Once per scene, a friend's word lets one of you reroll a failed save against Frightened or Charmed — or end Frightened on one of you." },
+  family:   { label: "Blood answers",   text: "When family is downed or bloodied within your sight, you may move up to your speed toward them at once, even on another creature's turn." },
+  crush:    { label: "Transparent",     text: "Your crush always senses how you truly feel — you can't hide it from them. But when you act to impress or shield your crush, that action rolls with advantage." },
+  lover:    { label: "Wordless",        text: "You always know when your lover lies to you, or is in danger — no roll. A glance carries a whole sentence between you." },
+  mentor:   { label: "Their voice",     text: "Once per scene, ask the GM what your mentor would counsel here — a true hint, spoken in their words." },
+  protege:  { label: "They emulate you",text: "When your protégé watches you succeed at something, they gain advantage the next time they attempt the same kind of thing this scene." },
+  rival:    { label: "Measure of you",  text: "You've studied each other — advantage to read your rival's intentions or predict their move, and they can't feint or bluff you." },
+  enemy:    { label: "Forewarned",      text: "This enemy gains nothing from surprising you, and you have advantage on Insight and Perception concerning them." },
+  sworn:    { label: "The oath holds",  text: "You can't be magically compelled to act against your liege — advantage on saves vs charm or fear that would turn you on them." },
+  liege:    { label: "By your leave",   text: "Once per scene, your sworn carries out one reasonable command from you with no check needed — the bond does the persuading." },
+  confidant:{ label: "Unburden",        text: "Once per long rest, confiding in them clears one emotional Wound (or softens its grip) by talking it through." },
 };
 
 /**
