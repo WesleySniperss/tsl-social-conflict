@@ -223,6 +223,32 @@ class TSLConditionEffects {
     return TSLConditionEffects.countConditions(actor);
   }
 
+  /**
+   * Remove ONE wound from an actor. Matches our flag OR a HUD-toggled status id
+   * (via _condOf), so a wound applied any way is removable here.
+   */
+  static async removeOne(actor, condId) {
+    if (!actor) return;
+    const toDelete = actor.effects
+      .filter(e => TSLConditionEffects._condOf(e) === condId)
+      .map(e => e.id);
+    if (toDelete.length) await actor.deleteEmbeddedDocuments("ActiveEffect", toDelete);
+  }
+
+  /**
+   * Toggle a wound on/off directly on the actor — used by the Chronicle's
+   * ❤ Wounds menu (a player on their own character, the GM on anyone). Whoever
+   * calls it owns the actor, so no socket relay is needed.
+   */
+  static async toggleOne(actor, condId, sourceName = "Social Fencing") {
+    if (!actor || !CONDITION_META[condId]) return;
+    if (TSLConditionEffects.hasCondition(actor, condId)) {
+      await TSLConditionEffects.removeOne(actor, condId);
+    } else {
+      await TSLConditionEffects.applyOne(actor, condId, sourceName);
+    }
+  }
+
   /** The wound id an effect represents — via our flag OR the HUD status id. */
   static _condOf(e) {
     const flagged = e.flags?.[TSL_EFFECT_FLAG]?.condition;

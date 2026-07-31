@@ -110,9 +110,14 @@ class SocialFencingApp extends _SocialAppBase {
     const activeConditions = Object.fromEntries(
       SOCIAL_CONDITION_ORDER.map(id => [id, !!SocialArchetypeManager.getActiveCondition(this._actor, id)])
     );
+    // This character's lasting emotional Wounds — toggled in the Fencing tab.
+    const activeWounds = (typeof TSLConditionEffects !== "undefined")
+      ? Object.fromEntries(TSLConditionEffects.ORDER.map(id =>
+          [id, TSLConditionEffects.hasCondition(this._actor, id)]))
+      : {};
 
     return {
-      isGM, canEdit, notes, archetype, encounter, activeConditions,
+      isGM, canEdit, notes, archetype, encounter, activeConditions, activeWounds,
       bonds: this._buildBondData(),
       candidates: this._buildCandidates(),
     };
@@ -871,9 +876,48 @@ class SocialFencingApp extends _SocialAppBase {
 
   _buildFencingTab(ctx) {
     const consoleHtml = this._buildManeuverConsole(ctx);
-    // Players get just the console; the GM also gets track control + the board.
-    if (!ctx.isGM) return consoleHtml;
-    return consoleHtml + this._buildGMFencing(ctx);
+    // THIS character's own emotional Wounds — a player sets/clears their own,
+    // the GM anyone's. Lives here (the token-opened Chronicle) so wounds are
+    // managed in our menu, not only via the token HUD.
+    const woundsHtml = this._buildWoundToggles(ctx);
+    // Players get the console + their wounds; the GM also gets tracks + board.
+    if (!ctx.isGM) return consoleHtml + woundsHtml;
+    return consoleHtml + woundsHtml + this._buildGMFencing(ctx);
+  }
+
+  /**
+   * The five lasting emotional Wounds as on/off toggles for THIS character.
+   * The same wounds shown on the conflict card and the token HUD, here in the
+   * Chronicle so they're managed from the token-opened window. Reuses the
+   * fencing-State toggle styling (.tsl-cond-*); handler keys on [data-wound].
+   */
+  _buildWoundToggles(ctx) {
+    if (typeof TSLConditionEffects === "undefined") return "";
+    const esc = foundry.utils.escapeHTML;
+    const sub = (s) => (s ?? "").replace("{source}", "them");
+    const btns = TSLConditionEffects.ORDER.map(id => {
+      const m = TSLConditionEffects.getMeta(id);
+      if (!m) return "";
+      const on  = !!ctx.activeWounds[id];
+      const tip = `<b>${esc(m.label)}</b> — a lasting Wound<br><b>Urge:</b> ${esc(sub(m.urge))}`
+        + `<br><b>Fight it:</b> ${esc(sub(m.resist))}<br><b>Give in:</b> ${esc(sub(m.leanIn))}`
+        + `<br><b>Breaks:</b> ${esc(sub(m.frenzy))}<br><b>Clears:</b> ${esc(m.clears)}`;
+      return `<button class="tsl-cond-toggle tsl-wound-toggle ${on ? "active" : ""}" data-wound="${id}"
+                      data-tooltip="${tip}">
+                <img src="${m.icon}" alt=""><span>${esc(m.label)}</span>
+              </button>`;
+    }).join("");
+    const active = Object.values(ctx.activeWounds).filter(Boolean).length;
+    const overwhelmed = active >= 4
+      ? `<div class="tsl-overwhelmed" data-tooltip="Four or more Wounds — Overwhelmed: this character must yield or flee.">⚠ Overwhelmed — ${active} Wounds</div>`
+      : "";
+    return `
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title" data-tooltip="Lasting emotional Wounds on ${esc(this._actor.name)} (Angry / Scared / Guilty / Hopeless / Smitten). From Hold the Line, sincere Feelings moves or betrayal — they open doors (+2) until the story heals them. Four = Overwhelmed. A whole layer apart from the fleeting fencing States.">❤ Wounds</div>
+        <div class="tsl-cond-grid">${btns}</div>
+        ${overwhelmed}
+        ${active ? `<button class="tsl-cond-clear tsl-wound-clear" data-tooltip="Remove all Wounds from ${esc(this._actor.name)}.">Clear all wounds</button>` : ""}
+      </section>`;
   }
 
   /**
@@ -1433,9 +1477,24 @@ class SocialFencingApp extends _SocialAppBase {
       });
     });
 
-    el.querySelector(".tsl-cond-clear")?.addEventListener("click", async () => {
+    el.querySelector(".tsl-cond-clear:not(.tsl-wound-clear)")?.addEventListener("click", async () => {
       for (const id of SOCIAL_CONDITION_ORDER) {
         await SocialArchetypeManager.removeCondition(this._actor, id);
+      }
+      this.render(true);
+    });
+
+    // ❤ Wounds toggles — this character's own lasting emotional Wounds. Whoever
+    // sees this tab owns the actor (owner or GM), so we apply/remove directly.
+    el.querySelectorAll(".tsl-wound-toggle[data-wound]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        await TSLConditionEffects.toggleOne(this._actor, btn.dataset.wound);
+        this.render(true);
+      });
+    });
+    el.querySelector(".tsl-wound-clear")?.addEventListener("click", async () => {
+      for (const id of TSLConditionEffects.ORDER) {
+        await TSLConditionEffects.removeOne(this._actor, id);
       }
       this.render(true);
     });
