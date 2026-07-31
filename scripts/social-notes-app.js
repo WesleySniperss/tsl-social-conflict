@@ -495,8 +495,8 @@ class SocialFencingApp extends _SocialAppBase {
           `You never see their weak spots or their difficulty — that's the GM's to know. You learn by watching what happens: an unexpected bounce, a surprise clean hit, a whispered tell.`,
         ])}
         ${sub("The relationship is the terrain", [
-          `A ${term("bond")} is <b>ONE shared relationship</b> — one TYPE, one STRENGTH (0–3 ●). Write it on either person and it appears on both; edit it anywhere and both update. (Directional pairs flip to fit: your <b>Mentor</b> is their <b>Protégé</b>, your <b>Creditor</b> is their <b>Debtor</b>.)`,
-          `That one bond works <b>both ways at once</b>: it is your <b>weapon</b> — its school gets <b>+●</b> (rivals feed Power, love feeds Emotion, debts feed Reason) — and their <b>guard</b>: a friend, lover or debtor opens up (easier), an enemy is wary (harder).`,
+          `A ${term("bond")} is <b>ONE shared relationship</b> — one TYPE, one STRENGTH (0–3 ●). Write it on either person and it appears on both; edit it anywhere and both update. (Directional pairs flip to fit: your <b>Mentor</b> is their <b>Protégé</b>, and if you're <b>Sworn</b> to someone, they are your <b>Liege</b>.)`,
+          `That one bond works <b>both ways at once</b>: it is your <b>weapon</b> — its school gets <b>+●</b> (rivals feed Power, love feeds Emotion, oaths and trust feed Reason) — and their <b>guard</b>: a friend, lover or the one who's sworn to you opens up (easier), an enemy is wary (harder).`,
           `<b>Every type also bends specific skills, ±● — an edge AND a cost.</b> You can't threaten a friend (−● Intimidation), can't lie to your own blood (−● Deception), can't sweet-talk hatred (−● Persuasion vs an enemy, though +● Intimidation). That's why the <i>kind</i> of relationship matters, not just its school — an Enemy ●● gives Humiliate +2 school <i>and</i> +2 Intimidation, but Flatter's +2 school is cancelled by −2 Persuasion. Hover any bond type to see its exact edges.`,
           `Your own read of them (the archetype you guessed) and your notes stay <b>private</b> to you — only the relationship itself is shared.`,
           `<b>A ●●● bond is a signature.</b> When a relationship is fully realized (strength ●●●) it grants a <b>signature perk</b> you may invoke <b>once per long rest</b> — a mentor's reroll, a lover's rescue, a rival's edge. Deepening a bond is real, lasting progression, not just a bigger number. It lives on the Bond, golden, with an <b>Invoke</b> button.`,
@@ -668,7 +668,7 @@ class SocialFencingApp extends _SocialAppBase {
       general:   "General — safe basics (no weak spot, no wall)",
       power:     "Power — domination: hit harder, risk harder",
       attention: "Emotion — the heart: warmth and its absence",
-      order:     "Reason — the ledger: doubt, proof, deals",
+      order:     "Reason — the cold mind: doubt, proof, leverage",
     };
     const movesRef = ["general", "power", "attention", "order"].map(g => {
       const rows = SOCIAL_MANEUVERS.filter(m => m.group === g).map(m => {

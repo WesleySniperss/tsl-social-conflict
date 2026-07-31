@@ -863,11 +863,17 @@ const BOND_TYPES = [
     hint: "A respected opponent. Weapon: +● Power. Skills: −● Persuasion (pride will not be talked down)." },
   { id: "enemy",    label: "Enemy",     icon: "fa-skull",           school: "power",     guardDc: 1,  guilt: false, combatAura: { label: "Tunnel vision", init: 2, attack: 2, save: -1 }, skills: { Persuasion: -2, Insight: -2 },
     hint: "Open hostility. Weapon: +● Power. Skills: −● Persuasion (you can't charm hatred) & −● Insight (they give you nothing to read). Guard: DC +●." },
-  { id: "indebted", label: "Indebted",  icon: "fa-scale-unbalanced", school: "order",    guardDc: -1, guilt: false, combatAura: { label: "Under their eye", ac: 1 }, mirror: "creditor", skills: { Deception: 1 },
-    hint: "You owe them. Weapon: +● Reason. Skills: +● Deception (you dodge and deflect what you owe). Guard: DC −●." },
-  { id: "creditor", label: "Creditor",  icon: "fa-scale-unbalanced-flip", school: "order", guardDc: 0, guilt: false, combatAura: { label: "The ledger is yours", attack: 1, spellDC: 2 }, mirror: "indebted", skills: { Persuasion: 1 },
-    hint: "They owe you. Weapon: +● Reason. Skills: +● Persuasion (the ledger speaks with your voice)." },
+  { id: "sworn",    label: "Sworn",     icon: "fa-hand-fist",       school: "order",     guardDc: -1, guilt: true,  combatAura: { label: "For the oath", save: 1, attack: -1 }, mirror: "liege",   skills: { Persuasion: 1, Intimidation: -1 },
+    hint: "You gave them your word. Weapon: +● Reason. Skills: +● Persuasion (you appeal to the bond), −● Intimidation (you don't threaten the one you serve). Guard: DC −● (you defer to them). Guilt: raising a hand against the one you swore to leaves YOU Guilty." },
+  { id: "liege",    label: "Liege",     icon: "fa-chess-king",      school: "order",     guardDc: 0,  guilt: false, combatAura: { label: "The oath answers", init: 1 }, mirror: "sworn",   skills: { Intimidation: 1, Deception: -1 },
+    hint: "They swore to you. Weapon: +● Reason. Skills: +● Intimidation (your word carries weight), −● Deception (they watch you closely)." },
+  { id: "confidant", label: "Confidant", icon: "fa-comment-dots",   school: "order",     guardDc: -1, guilt: true,  combatAura: { label: "Shared counsel", check: 1 }, skills: { Insight: 1, Deception: -1 },
+    hint: "They trust you with what they hide. Weapon: +● Reason. Skills: +● Insight (you know their mind), −● Deception (they'd catch your lie). Guard: DC −● (they open to you). Guilt: turning on someone who confided in you leaves YOU Guilty." },
 ];
+
+// Legacy bond ids → their replacement, so saved data from before the debt
+// types were retired still resolves (Indebted → Sworn, Creditor → Liege).
+const BOND_TYPE_ALIASES = { indebted: "sworn", creditor: "liege" };
 
 /**
  * Signature perk of a fully-realized relationship (bond STRENGTH ●●●). Once per
@@ -885,8 +891,9 @@ const BOND_SIGNATURES = {
   protege:  { label: "Someone is watching",  text: "When your protégé can see you, one action inspires them: advantage on their next roll, and on yours." },
   rival:    { label: "Prove it",             text: "Once, when directly contesting your rival, treat one d20 as a 15." },
   enemy:    { label: "Personal",             text: "Against this specific enemy, one strike or maneuver lands twice as hard — hatred makes it count." },
-  indebted: { label: "We're even",           text: "Cancel one demand or attack from your creditor by invoking the debt between you." },
-  creditor: { label: "The ledger",           text: "Call in the debt: a concrete favour off-screen, or +5 to one social roll pressing them." },
+  sworn:    { label: "For the oath",         text: "Once, act to protect or fulfil your oath to your liege — that action rolls with advantage." },
+  liege:    { label: "By my word",           text: "Once, call your sworn to act on your behalf: they gain advantage on the deed, or you press them with +5." },
+  confidant:{ label: "A word in the dark",   text: "Once, their counsel gives you advantage on a check where their knowledge bears — or you turn a shared secret into a strike (+5 to press an enemy)." },
 };
 
 /**
@@ -1130,7 +1137,8 @@ class SocialArchetypeManager {
   }
 
   static getBondType(id) {
-    return BOND_TYPES.find(t => t.id === id) ?? BOND_TYPES[0];
+    const resolved = BOND_TYPE_ALIASES[id] ?? id;   // legacy debt ids → oath ids
+    return BOND_TYPES.find(t => t.id === resolved) ?? BOND_TYPES[0];
   }
 
   /**

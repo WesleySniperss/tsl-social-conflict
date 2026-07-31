@@ -139,7 +139,7 @@ class TSLBondStore {
 
   /**
    * Write the mirror of a bond onto the target actor's record of the source —
-   * same STRENGTH, the counterpart TYPE (mentor↔protégé, debtor↔creditor;
+   * same STRENGTH, the counterpart TYPE (mentor↔protégé, sworn↔liege;
    * everything else symmetric). Requires write access to the other actor (the
    * GM always has it); a player editing a bond toward an actor they don't own
    * simply won't push the mirror — the GM reconciles it on next load.

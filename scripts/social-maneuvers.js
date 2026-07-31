@@ -219,7 +219,7 @@ const SOCIAL_MANEUVERS = [
     skillKeys2:      { dnd5e: "ins", "a5e-for-dnd5e": "insight" },
     vulnerabilityTags: ["guilt", "obligation"],       // Caretaker → Advantage
     immunityTags:      ["shameless"],                 // Machiavellian
-    description:  "Present the ledger of everything owed in hurt and kindness — and let it crush.",
+    description:  "Lay out everything you gave and everything they cost you — and let the weight of it crush.",
     successText:  "The weight settles on their shoulders — Beholden (your next maneuver against them gains Advantage). Resolve −1.",
     failText:     "They shrug the weight off. Patience −1.",
     immuneText:   "Shame needs a conscience. Target becomes Defiant.",
