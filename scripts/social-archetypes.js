@@ -911,7 +911,7 @@ const BOND_ABILITIES = {
   mentor:   { label: "Their voice",     text: "Once per scene, ask the GM what your mentor would counsel here — a true hint, spoken in their words." },
   protege:  { label: "They emulate you",text: "When your protégé watches you succeed at something, they gain advantage the next time they attempt the same kind of thing this scene." },
   rival:    { label: "Measure of you",  text: "You've studied each other — advantage to read your rival's intentions or predict their move, and they can't feint or bluff you." },
-  enemy:    { label: "Forewarned",      text: "This enemy gains nothing from surprising you, and you have advantage on Insight and Perception concerning them." },
+  enemy:    { label: "Forewarned",      text: "You're forever on edge for this enemy — advantage on initiative, and they gain nothing from surprising you. You also have advantage on Insight and Perception concerning them." },
   sworn:    { label: "The oath holds",  text: "You can't be magically compelled to act against your liege — advantage on saves vs charm or fear that would turn you on them." },
   liege:    { label: "By your leave",   text: "Once per scene, your sworn carries out one reasonable command from you with no check needed — the bond does the persuading." },
   confidant:{ label: "Unburden",        text: "Once per long rest, confiding in them clears one emotional Wound (or softens its grip) by talking it through." },

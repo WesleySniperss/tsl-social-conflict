@@ -230,6 +230,12 @@ Hooks.once("ready", () => {
   // Bonds reach into combat: recompute proximity auras as people move.
   if (typeof TSLBondAuras !== "undefined") TSLBondAuras.register();
   Hooks.on("canvasReady", () => {
+    // Defensive: if another module rebuilt the status palette after our ready
+    // hook, re-add any missing Wounds so they stay selectable on the token HUD.
+    if (typeof TSLConditionEffects !== "undefined") {
+      const n = TSLConditionEffects.ensureRegistered?.() ?? 0;
+      if (n) console.log(`TSL | Re-registered ${n} missing Wound status(es) on canvasReady`);
+    }
     syncExistingConditionEffects(
       (canvas.tokens?.placeables ?? []).map(t => t.actor).filter(Boolean)
     );

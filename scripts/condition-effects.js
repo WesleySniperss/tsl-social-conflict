@@ -92,6 +92,45 @@ class TSLConditionEffects {
   }
 
   /**
+   * Console diagnostic: `TSLConditionEffects.explainHud()`.
+   * Prints whether each Wound (❤) and State (⚔) actually landed in the token
+   * HUD palette (`CONFIG.statusEffects`) this session. If a wound is missing,
+   * the `ready` hook didn't run or another module rebuilt the palette after us
+   * — re-register with `TSLConditionEffects.ensureRegistered()`.
+   */
+  static explainHud() {
+    const rows = [];
+    for (const id of TSLConditionEffects.ORDER) {
+      const hit = CONFIG.statusEffects?.find(s => s.id === `tsl-wound-${id}`);
+      rows.push(`  ❤ ${id.padEnd(9)} ${hit ? "IN palette" : "MISSING"}${hit ? ` (name="${hit.name}")` : ""}`);
+    }
+    if (typeof SOCIAL_CONDITION_ORDER !== "undefined") {
+      for (const id of SOCIAL_CONDITION_ORDER) {
+        const alias = SOCIAL_CONDITIONS?.[id]?.nativeAlias;
+        const hit = CONFIG.statusEffects?.find(s => s.id === `tsl-${id}`);
+        rows.push(`  ⚔ ${id.padEnd(9)} ${alias ? `native alias → "${alias}"` : hit ? "IN palette" : "MISSING"}`);
+      }
+    }
+    console.log(`TSL | HUD status palette (system: ${game.system?.id}):\n${rows.join("\n")}`);
+    return rows;
+  }
+
+  /**
+   * Idempotently (re)push any missing Wound entries into CONFIG.statusEffects.
+   * Safe to call any time — skips ids already present. Returns how many it added.
+   */
+  static ensureRegistered() {
+    if (!Array.isArray(CONFIG.statusEffects)) return 0;
+    let added = 0;
+    for (const id of TSLConditionEffects.ORDER) {
+      if (CONFIG.statusEffects.some(s => s.id === `tsl-wound-${id}`)) continue;
+      const w = TSLConditionEffects.buildHudStatus(id);
+      if (w) { CONFIG.statusEffects.push(w); added++; }
+    }
+    return added;
+  }
+
+  /**
    * A CONFIG.statusEffects entry for a wound, so it shows in the token HUD's
    * status palette (findable, with the full dossier) and can be toggled by
    * hand. The `condition` flag makes a HUD-toggled wound count exactly like one
@@ -101,11 +140,18 @@ class TSLConditionEffects {
     const meta = CONDITION_META[condId];
     if (!meta) return null;
     const built = TSLConditionEffects._buildEffect(condId, "someone", null);
+    // Mirror the fencing-State entry shape EXACTLY (changes/duration/origin) —
+    // that was the only structural difference from the States that DO toggle in
+    // the a5e HUD, so we remove it as a variable. Wounds carry no mechanics
+    // (GM-adjudicated), hence changes: [].
     return {
       id:          `tsl-wound-${condId}`,
       name:        `❤ ${meta.label}`,   // ❤ groups Wounds together in the sorted palette
       img:         meta.icon,
       description: built.description,
+      changes:     [],                  // no automation — the dossier is the rules
+      duration:    { seconds: 3600 },   // scene-length, like the States (a "temporary" effect)
+      origin:      "tsl-social-conflict",
       statuses:    [],                  // the entry id is the single status
       flags:       built.flags,         // carries tsl-social-conflict.condition = condId
     };
