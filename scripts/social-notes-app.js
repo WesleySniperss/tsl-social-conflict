@@ -499,7 +499,7 @@ class SocialFencingApp extends _SocialAppBase {
           `That one bond works <b>both ways at once</b>: it is your <b>weapon</b> — its school gets <b>+●</b> (rivals feed Power, love feeds Emotion, oaths and trust feed Reason) — and their <b>guard</b>: a friend, lover or the one who's sworn to you opens up (easier), an enemy is wary (harder).`,
           `<b>Every type also bends specific skills, ±● — an edge AND a cost.</b> You can't threaten a friend (−● Intimidation), can't lie to your own blood (−● Deception), can't sweet-talk hatred (−● Persuasion vs an enemy, though +● Intimidation). That's why the <i>kind</i> of relationship matters, not just its school — an Enemy ●● gives Humiliate +2 school <i>and</i> +2 Intimidation, but Flatter's +2 school is cancelled by −2 Persuasion. Hover any bond type to see its exact edges.`,
           `Your own read of them (the archetype you guessed) and your notes stay <b>private</b> to you — only the relationship itself is shared.`,
-          `<b>A ●●● bond is a signature.</b> When a relationship is fully realized (strength ●●●) it grants a <b>signature perk</b> you may invoke <b>once per long rest</b> — a mentor's reroll, a lover's rescue, a rival's edge. Deepening a bond is real, lasting progression, not just a bigger number. It lives on the Bond, golden, with an <b>Invoke</b> button.`,
+          `<b>Deep bonds grant abilities, not just bigger numbers.</b> At <b>●●</b> a relationship unlocks a <b>distinctive ability</b> — a lover's wordless warning, an enemy you fight forewarned, a confidant who can ease a Wound. At <b>●●●</b> it adds a <b>signature</b> you invoke <b>once per long rest</b> (a mentor's reroll, a lover's rescue). Both live on the Bond in the Chronicle; the signature has an <b>Invoke</b> button.`,
           `Closeness costs: turn a <b>Power</b> play on someone you love and the <b>Guilt</b> is yours.`,
         ])}
         ${sub("Bonds reach into a real fight", [
@@ -772,12 +772,22 @@ class SocialFencingApp extends _SocialAppBase {
           <input type="text" class="tsl-chr-bond-notes" data-bond-id="${b.id}" value="${esc(b.notes)}"
                  placeholder="History, debts, secrets between you…" ${disabled} />
           ${(() => {
+            if (bStr < 2) return "";
+            const ab = SocialArchetypeManager.getBondAbility(b.type);
+            if (!ab) return "";
+            return `
+              <div class="tsl-chr-ability" data-tooltip="A close (●●) bond grants a distinctive ability — passive or situational, the GM adjudicates when it fits.">
+                <div class="tsl-chr-ab-head"><i class="fas fa-link"></i> Ability (●●) — <b>${esc(ab.label)}</b></div>
+                <div class="tsl-chr-ab-text">${esc(ab.text)}</div>
+              </div>`;
+          })()}
+          ${(() => {
             if (bStr !== 3) return "";
             const sig = SocialArchetypeManager.getBondSignature(b.type);
             if (!sig) return "";
             return `
               <div class="tsl-chr-signature ${b.sigUsed ? "used" : ""}" data-tooltip="A fully-realized (●●●) bond grants a signature you may invoke once per long rest. GM-adjudicated.">
-                <div class="tsl-chr-sig-head"><i class="fas fa-star"></i> Signature — <b>${esc(sig.label)}</b></div>
+                <div class="tsl-chr-sig-head"><i class="fas fa-star"></i> Signature (●●●) — <b>${esc(sig.label)}</b></div>
                 <div class="tsl-chr-sig-text">${esc(sig.text)}</div>
                 ${canEdit ? (b.sigUsed
                   ? `<div class="tsl-chr-sig-used">Spent — refreshes on a long rest.</div>`

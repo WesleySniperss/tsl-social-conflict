@@ -897,6 +897,27 @@ const BOND_SIGNATURES = {
 };
 
 /**
+ * A distinctive ABILITY unlocked at bond STRENGTH ●● — deliberately NOT another
+ * flat ±N modifier: each is its own kind of thing (reactive, informational,
+ * social, or healing), so relationships stop feeling samey. Passive/situational,
+ * GM-adjudicated (no hard tracking); the ●●● signature sits on top of it.
+ */
+const BOND_ABILITIES = {
+  ally:     { label: "Watch each other's backs", text: "When you Help an ally (or they help you), the aid grants +2 instead of advantage." },
+  friend:   { label: "A shoulder to lean on",    text: "Once per scene, a quiet word with a friend lets one of you shed a level of Frightened, or reroll a save against a fear or charm effect." },
+  family:   { label: "Blood answers",            text: "When family is bloodied or downed within sight, you may move your speed toward them at once — whoever's turn it is." },
+  crush:    { label: "Butterflies",              text: "In your crush's presence you shine (advantage on Performance and first impressions) — but you can't play it cool (disadvantage to be subtle or hide your feelings)." },
+  lover:    { label: "Wordless",                 text: "You always sense when your lover lies to you, or is in danger — no roll. A glance carries a whole sentence between you." },
+  mentor:   { label: "What would they do?",      text: "Once per scene, pause and ask the GM what your mentor would counsel here — a true hint, in their voice." },
+  protege:  { label: "Lead by example",          text: "When your protégé watches you succeed at something, they gain advantage the next time they try the same kind of thing." },
+  rival:    { label: "I know your tricks",       text: "You've studied your rival — advantage to read their intentions or recall their capabilities, and they can't take you by surprise." },
+  enemy:    { label: "Know your foe",            text: "Against this specific enemy you fight forewarned — advantage on Insight and initiative against them, and they gain nothing from surprising you." },
+  sworn:    { label: "The oath holds",           text: "You cannot be magically compelled to act against your liege — advantage on saves vs charm or fear that would turn you on them." },
+  liege:    { label: "By your leave",            text: "Once per scene, your sworn carries out one reasonable command without needing to be convinced — the bond does the persuading." },
+  confidant:{ label: "Unburden",                 text: "Once per long rest, confiding in them eases the heart — clear one emotional Wound, or soften its grip, by talking it through." },
+};
+
+/**
  * Social Fencing statuses. Applied as Active Effects; every one of them
  * has a real mechanical bite that assess()/rollManeuver() reads:
  *
@@ -1153,7 +1174,12 @@ class SocialArchetypeManager {
 
   /** The ●●● signature perk for a bond type, or null (Stranger / unknown). */
   static getBondSignature(typeId) {
-    return BOND_SIGNATURES[typeId] ?? null;
+    return BOND_SIGNATURES[BOND_TYPE_ALIASES[typeId] ?? typeId] ?? null;
+  }
+
+  /** The ●● distinctive ability for a bond type, or null. */
+  static getBondAbility(typeId) {
+    return BOND_ABILITIES[BOND_TYPE_ALIASES[typeId] ?? typeId] ?? null;
   }
 
   /** A random veiled reaction line for how this archetype cracks (or null). */

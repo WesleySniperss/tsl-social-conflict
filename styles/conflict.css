@@ -2212,6 +2212,28 @@
 .tsl-chr-sig-use:hover { background: #f0d98a; }
 .tsl-chr-sig-used { font-size: 0.76rem; color: #a89a92; font-style: italic; }
 
+/* ●● bond ability — a distinctive perk (silver, below the golden signature) */
+.tsl-chr-ability {
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: rgba(180,196,220,0.07);
+  border: 1px solid rgba(180,196,220,0.3);
+}
+.tsl-chr-ab-head {
+  font-family: "Cinzel", serif;
+  font-size: 0.78rem;
+  color: #c8d4e6;
+}
+.tsl-chr-ab-head i { margin-right: 4px; color: #9fb3d0; }
+.tsl-chr-ab-head b { color: #fff; }
+.tsl-chr-ab-text {
+  font-family: "EB Garamond", serif;
+  font-size: 0.85rem;
+  color: var(--tsl-notes-text, #f0dfc8);
+  margin-top: 3px;
+}
+
 /* Two clearly-separate condition layers on a card: fleeting States vs lasting Wounds */
 .tsl-row-label {
   flex: 0 0 auto;
