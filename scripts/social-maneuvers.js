@@ -96,8 +96,8 @@ const SOCIAL_MANEUVERS = [
     skillKeys2:      { dnd5e: "itm", "a5e-for-dnd5e": "intimidation" },
     vulnerabilityTags: [],
     immunityTags:      ["intimidate", "emotional intimidation"],  // Tyrant, Hermit
-    description:  "The setup. Needle their temper until composure slips — then strike into the gap.",
-    howto:        "Poke a nerve — their pride, their cause — until they snap and stop thinking clearly, then follow up hard.",
+    description:  "The bait. Needle their self-control until they lash out and commit to something rash — leaving themselves wide open. You WANT them to take the swing; the value is the mistake, not the words.",
+    howto:        "Jab a nerve so they REACT instead of think — you're not trying to wound them, you're trying to make them do something stupid you can punish.",
     example:      "\"You're shaking. Good. Go on — say the thing you've been swallowing all night. I dare you.\"",
     successText:  "They lose their cool — Provoked: the next maneuver against them gains +2.",
     failText:     "They remain unmoved. Patience −1.",
@@ -164,8 +164,8 @@ const SOCIAL_MANEUVERS = [
     skillKeys2:      { dnd5e: "prf", "a5e-for-dnd5e": "performance" },
     vulnerabilityTags: ["challenge", "glory"],            // Duelist → Advantage
     immunityTags:      ["emotional intimidation"],        // Hermit
-    description:  "The heavy blow. Dare them before witnesses — glorious if it lands, costly if it hangs in the air.",
-    howto:        "Call them out in front of others — dare them to prove you wrong where everyone can see them fail.",
+    description:  "The public unmaking. Shame them before the people whose respect holds them up — strip that away and their will caves. Not a bait like Taunt: here the DAMAGE is the point, and it's heavy.",
+    howto:        "Break their STANDING in front of witnesses — make the whole room watch them fall, and their confidence falls with it.",
     example:      "\"Tell them. Tell this whole room what you did at the river while your men drowned. Say it aloud — every one of us is waiting.\"",
     successText:  "The dare shatters their footing. Resolve −2.",
     failText:     "The gauntlet lies ignored, and the room saw you drop it. Patience −2.",
