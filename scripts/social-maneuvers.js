@@ -51,7 +51,7 @@ const SOCIAL_MANEUVERS = [
     immunityTags:      [],
     description:  "The scout. Watch the seams of their public face — no pressure, just attention.",
     howto:        "Say little, ask something easy, and watch HOW they answer, not what they say — the flicker before the words.",
-    example:      "\"Lovely day for it,\" she offers lightly — and catches the flinch when she lets his brother's name slip into the sentence.",
+    example:      "\"You're not really here about the tariffs, are you? No — it's older than that. Someone, not something. A name you'd rather not say aloud.\"",
     successText:  "A tell of their nature is whispered to you — deduce the archetype and note your guess in your Bond. You gain 1 String.",
     failText:     "The mask holds. Patience −1.",
     immuneText:   null,
@@ -75,7 +75,7 @@ const SOCIAL_MANEUVERS = [
     immunityTags:      ["sow doubt", "criticism"],   // Exalted
     description:  "The jab. A joke with a razor in it — and it cuts twice as deep into someone already off balance. Kick them while they're down.",
     howto:        "Land a joke at their expense for the room to hear — sharpest right after they've already stumbled.",
-    example:      "\"A stirring speech about courage,\" she says — then, to the room — \"from the man who ran first at Redford.\"",
+    example:      "\"Forgive me — I forgot you were our expert on courage. Remind the table which way you rode at Redford?\"",
     successText:  "The barb lands where it hurts. Resolve −1 (−2 if they were off balance).",
     failText:     "The joke dies in the air. Patience −1.",
     immuneText:   "They cannot imagine being the punchline. Target becomes Defiant.",
@@ -98,7 +98,7 @@ const SOCIAL_MANEUVERS = [
     immunityTags:      ["intimidate", "emotional intimidation"],  // Tyrant, Hermit
     description:  "The setup. Needle their temper until composure slips — then strike into the gap.",
     howto:        "Poke a nerve — their pride, their cause — until they snap and stop thinking clearly, then follow up hard.",
-    example:      "\"Go on, Captain. The whole hall is waiting to watch you lose your temper. Don't keep them waiting.\"",
+    example:      "\"Go on, Captain — hit me. Every soul in this hall already expects it of you. Why not give them the show?\"",
     successText:  "They lose their cool — Provoked: the next maneuver against them gains +2.",
     failText:     "They remain unmoved. Patience −1.",
     immuneText:   "They answer with cold control. Target becomes Defiant.",
@@ -122,7 +122,7 @@ const SOCIAL_MANEUVERS = [
     immunityTags:      [],
     description:  "Hold up the reflection they wish were true. Power through worship — they kneel to their own image.",
     howto:        "Praise the person they most wish they were — specific, and just believable enough that they want it to be true.",
-    example:      "\"A crueler man would have burned the village to the ground. You spared them. That's not softness — that's the kind of strength people follow.\"",
+    example:      "\"A weaker man would have burned the village and called it justice. You didn't. That's not mercy — that's the kind of strength people follow into fire.\"",
     successText:  "They fall for their own reflection — Enthralled (cannot act against you; your Persuasion maneuvers gain Advantage). Resolve −1.",
     failText:     "The mirror shows the flattery for what it is. Patience −1.",
     immuneText:   null,
@@ -144,7 +144,7 @@ const SOCIAL_MANEUVERS = [
     immunityTags:      ["scorn for weakness"],            // Duelist
     description:  "The deep bait. Show them your throat and count what they reveal reaching for it.",
     howto:        "Play small, cornered, harmless — let them lower their guard to help or to gloat, and note what they let slip.",
-    example:      "\"I— I shouldn't even be here. You've clearly already worked out what I came to ask, haven't you?\" — and she lets him explain her own plan back to her.",
+    example:      "\"I'm well out of my depth here, truly. You've already seen straight through me, haven't you? So tell me — how badly have I misjudged all this?\"",
     successText:  "They lunge at the opening and show you everything. You gain 3 Strings on them.",
     failText:     "They circle the bait, unconvinced. Patience −1.",
     immuneText:   "Weakness earns only their contempt. Target becomes Defiant.",
@@ -166,7 +166,7 @@ const SOCIAL_MANEUVERS = [
     immunityTags:      ["emotional intimidation"],        // Hermit
     description:  "The heavy blow. Dare them before witnesses — glorious if it lands, costly if it hangs in the air.",
     howto:        "Call them out in front of others — dare them to prove you wrong where everyone can see them fail.",
-    example:      "She turns from him to the whole table: \"He swore the bridge would be held by dawn. Go on — ask him where the bridge is now.\"",
+    example:      "\"He swore to this hall the bridge would hold by dawn. Well? Tell them all where the bridge is now. Go on — we're waiting.\"",
     successText:  "The dare shatters their footing. Resolve −2.",
     failText:     "The gauntlet lies ignored, and the room saw you drop it. Patience −2.",
     immuneText:   "They walk away from the theatrics. Target becomes Defiant.",
@@ -192,7 +192,7 @@ const SOCIAL_MANEUVERS = [
     immunityTags:      ["persuade", "sympathy"],      // Martyr
     description:  "Lay siege with sweetness. Adoration as a weapon — they open the gates themselves.",
     howto:        "Pour warm, undivided attention on them until being near you feels like the best thing in the room.",
-    example:      "\"Forget the rest of it — the council, the war, all of it. Right now there's just you, and me, hanging on every word. Go on. I'm listening.\"",
+    example:      "\"Forget the council, forget the war — none of it is in this room. Right now there's only you, and I could listen to you all night. So talk to me.\"",
     successText:  "The gates open — Enthralled (cannot act against you; your Persuasion maneuvers gain Advantage). They confide: you gain 1 String.",
     failText:     "The display leaves them cold.",
     immuneText:   "Your sweetness deepens their contempt. Target becomes Defiant.",
@@ -215,7 +215,7 @@ const SOCIAL_MANEUVERS = [
     immunityTags:      ["selfless focus"],            // Caretaker
     description:  "Warmth, aimed anywhere but at them. Make it clear you're wanted elsewhere — praise a rival present OR conjure one who isn't ('others would leap at this'), hint you're spoiled for choice. The rival can be real or invented; what bites is the fear of losing you to someone. They chase what they think they're losing.",
     howto:        "Turn your warmth toward someone else — real or invented — so they scramble to win your attention back.",
-    example:      "\"Kaelen offered to see me home himself. Such an attentive man.\" She lets the name hang in the air. \"But you're busy tonight, I'm sure.\"",
+    example:      "\"Kaelen offered to see me home tonight — so attentive, that one. But don't trouble yourself; I know you've weightier things than me to attend to.\"",
     successText:  "The thought of someone else in your favor gnaws at them. They talk faster, lean closer, work to win you back — Desperate (the next Flatter or Charm against them gains Advantage). Resolve −1.",
     failText:     "They call the bluff — they don't believe in your other admirers. Patience −1.",
     immuneText:   "They'd rather you gave the attention to someone who needs it. Target becomes Defiant.",
@@ -237,7 +237,7 @@ const SOCIAL_MANEUVERS = [
     immunityTags:      ["shameless"],                 // Machiavellian
     description:  "Lay out everything you gave and everything they cost you — and let the weight of it crush.",
     howto:        "Quietly recount what you gave and what it cost you, until carrying that debt becomes their problem.",
-    example:      "\"I sat with your mother the night she died. I've never once asked you for anything.\" A long pause. \"Until now.\"",
+    example:      "\"I sat with your mother the night she died so that you would not have to. I have never once asked you for anything. Until now.\"",
     successText:  "The weight settles on their shoulders — Beholden (your next maneuver against them gains Advantage). Resolve −1.",
     failText:     "They shrug the weight off. Patience −1.",
     immuneText:   "Shame needs a conscience. Target becomes Defiant.",
@@ -262,7 +262,7 @@ const SOCIAL_MANEUVERS = [
     immunityTags:      ["ledger mind"],                       // Broker
     description:  "Field control. Pull one thread of what they believe and let the whole cloth loosen.",
     howto:        "Pick one thing they're sure of and calmly make them doubt it — 'are you certain that's how it went?'",
-    example:      "\"You're certain the order carried the duke's seal? ...No, no. You'd remember a thing like that better than I would. Surely you would.\"",
+    example:      "\"You're certain it was the duke's seal on that order? Quite certain? …No. No, you'd remember a thing like that better than I would. Forget I said anything.\"",
     successText:  "Their certainty frays — Rattled: the DC to sway them drops by 5 for the scene.",
     failText:     "The weave holds firm. Patience −1.",
     immuneText:   "Feelings aren't entries in their books. Target becomes Defiant.",
@@ -284,7 +284,7 @@ const SOCIAL_MANEUVERS = [
     immunityTags:      ["bribes", "emotions", "pure logic"],      // Dogmatic, Machiavellian
     description:  "The scholar's cut. Find the flaw in their reasoning and pry it open — it hurts AND it teaches.",
     howto:        "Ask precise, patient questions until a contradiction shows — then press on that exact crack.",
-    example:      "\"You said you were at the docks all night. And yet you knew the fire began in the west quarter. So which is it?\"",
+    example:      "\"You were at the docks all night, you said. And yet you knew the fire began in the west quarter — before the bells even rang. Help me understand how.\"",
     successText:  "The flaw betrays them — a tell of their nature is whispered to you, you gain 1 String, and their certainty bleeds. Resolve −1.",
     failText:     "Your argument doesn't land. Patience −1.",
     immuneText:   "They dismiss the reasoning outright. Target becomes Defiant.",
