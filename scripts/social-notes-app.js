@@ -111,9 +111,10 @@ class SocialFencingApp extends _SocialAppBase {
       SOCIAL_CONDITION_ORDER.map(id => [id, !!SocialArchetypeManager.getActiveCondition(this._actor, id)])
     );
     // This character's lasting emotional Wounds — toggled in the Fencing tab.
+    // Value is the TIER (0 = not carried, 1 Light · 2 Deep · 3 Breaking point).
     const activeWounds = (typeof TSLConditionEffects !== "undefined")
       ? Object.fromEntries(TSLConditionEffects.ORDER.map(id =>
-          [id, TSLConditionEffects.hasCondition(this._actor, id)]))
+          [id, TSLConditionEffects.getTier(this._actor, id)]))
       : {};
 
     return {
@@ -622,17 +623,19 @@ class SocialFencingApp extends _SocialAppBase {
       </section>
       ${triadBlocks}`;
 
-    // Wound dossiers, generated from the data — the VtM-style push each one
-    // exerts on the character who carries it.
+    // Wound dossiers, generated from the data — each wound is now a DISTINCT
+    // mechanic that ESCALATES through three tiers (Light ● → Deep ●● → ●●●).
     const woundDossier = ["angry", "smitten", "guilty", "scared", "hopeless"].map(id => {
       const m = TSLConditionEffects.getMeta?.(id);
       if (!m) return "";
-      const s = (t) => esc((t ?? "").replace("{source}", "them"));
+      const s = (t) => esc((t ?? "").replace(/\{source\}/g, "them"));
+      const tiers = (m.tiers ?? []).map((td, i) =>
+        `<span class="tsl-codex-gain">${"●".repeat(i + 1)}${"○".repeat(2 - i)} ${esc(td.label)} →</span> ${s(td.text)}`
+      ).join("<br>");
       return `<div class="tsl-codex-combo">
-        <b>${esc(m.label)}</b> — <i>${s(m.urge)}</i><br>
+        <b>${esc(m.label)}</b> — <i>${s(m.signature ?? m.urge)}</i><br>
+        ${tiers}<br>
         <span class="tsl-codex-gain">Give in →</span> ${s(m.leanIn)}<br>
-        <span class="tsl-codex-gain">Fight it →</span> ${s(m.resist)}<br>
-        <span class="tsl-codex-gain">Breaks →</span> ${s(m.frenzy)}<br>
         <span class="tsl-codex-gain">Heals →</span> ${esc(m.clears)}
       </div>`;
     }).join("");
@@ -648,7 +651,7 @@ class SocialFencingApp extends _SocialAppBase {
         </div>
         <div class="tsl-codex-sub">
           <div class="tsl-codex-sub-title">Wounds — they push you (VtM-style)</div>
-          <div class="tsl-codex-hint-sm">A Wound is an <b>urge</b> with teeth. <b>Give in</b> to it at a cost and you refuel (a String, or Inspiration). <b>Fight it</b> — act against the urge — and you roll at <b>disadvantage unless you spend a String</b> to steel yourself (your Willpower). Pushed too far, it takes the wheel for a beat. Four Wounds = <b>Overwhelmed</b> (yield or flee).</div>
+          <div class="tsl-codex-hint-sm">Each Wound is a <b>different kind of thing</b> — a charm (Smitten), a rage trade (Angry), a fright (Scared), a debt (Guilty), a grey weight (Hopeless) — and it <b>escalates</b> through three tiers: <b>● Light → ●● Deep → ●●● Breaking point</b>. Pressed again, it <b>deepens</b> rather than stacking a new one; at the top tier it takes the wheel for a beat. <b>Give in</b> at a cost and you refuel (a String, or Inspiration). Four Wounds = <b>Overwhelmed</b> (yield or flee). Set the tier on your own character in the <b>Fencing</b> tab (▲/▼).</div>
           <div class="tsl-codex-combo-list">${woundDossier}</div>
         </div>
       </section>`;
@@ -894,18 +897,22 @@ class SocialFencingApp extends _SocialAppBase {
   _buildWoundToggles(ctx) {
     if (typeof TSLConditionEffects === "undefined") return "";
     const esc = foundry.utils.escapeHTML;
-    const sub = (s) => (s ?? "").replace("{source}", "them");
     const btns = TSLConditionEffects.ORDER.map(id => {
       const m = TSLConditionEffects.getMeta(id);
       if (!m) return "";
-      const on  = !!ctx.activeWounds[id];
-      const tip = `<b>${esc(m.label)}</b> — a lasting Wound<br><b>Urge:</b> ${esc(sub(m.urge))}`
-        + `<br><b>Fight it:</b> ${esc(sub(m.resist))}<br><b>Give in:</b> ${esc(sub(m.leanIn))}`
-        + `<br><b>Breaks:</b> ${esc(sub(m.frenzy))}<br><b>Clears:</b> ${esc(m.clears)}`;
-      return `<button class="tsl-cond-toggle tsl-wound-toggle ${on ? "active" : ""}" data-wound="${id}"
-                      data-tooltip="${tip}">
-                <img src="${m.icon}" alt=""><span>${esc(m.label)}</span>
-              </button>`;
+      const tier = Number(ctx.activeWounds[id]) || 0;
+      const on   = tier > 0;
+      const tip  = TSLConditionEffects.dossier(id, tier || 1, "them");   // raw HTML dossier
+      const dots = on ? `<span class="tsl-wound-tier">${"●".repeat(tier)}${"○".repeat(3 - tier)}</span>` : "";
+      const steps = on ? `<span class="tsl-wound-steps">
+          <button class="tsl-wound-ease" data-wound-ease="${id}" data-tooltip="Ease one tier — below Light it heals">▼</button>
+          <button class="tsl-wound-deepen" data-wound-deepen="${id}" data-tooltip="Press deeper — up to the breaking point" ${tier >= 3 ? "disabled" : ""}>▲</button>
+        </span>` : "";
+      return `<div class="tsl-wound-row ${on ? "on" : ""}">
+        <button class="tsl-cond-toggle tsl-wound-toggle ${on ? "active" : ""}" data-wound="${id}" data-tooltip="${tip}">
+          <img src="${m.icon}" alt=""><span>${esc(m.label)}</span>${dots}
+        </button>${steps}
+      </div>`;
     }).join("");
     const active = Object.values(ctx.activeWounds).filter(Boolean).length;
     const overwhelmed = active >= 4
@@ -1489,6 +1496,21 @@ class SocialFencingApp extends _SocialAppBase {
     el.querySelectorAll(".tsl-wound-toggle[data-wound]").forEach(btn => {
       btn.addEventListener("click", async () => {
         await TSLConditionEffects.toggleOne(this._actor, btn.dataset.wound);
+        this.render(true);
+      });
+    });
+    // ▲ deepen / ▼ ease a wound's tier (Light ● → Deep ●● → Breaking point ●●●)
+    el.querySelectorAll("[data-wound-deepen]").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        await TSLConditionEffects.deepen(this._actor, btn.dataset.woundDeepen);
+        this.render(true);
+      });
+    });
+    el.querySelectorAll("[data-wound-ease]").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        await TSLConditionEffects.ease(this._actor, btn.dataset.woundEase);
         this.render(true);
       });
     });

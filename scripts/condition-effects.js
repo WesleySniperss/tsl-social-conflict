@@ -10,63 +10,110 @@ console.log("TSL | Loading condition-effects.js...");
 
 const TSL_EFFECT_FLAG = "tsl-social-conflict";
 
+// Per-system change builders — keep the automation honest across dnd5e & a5e
+// (verified keys; a5e RecordFields need flags.a5e.effects.*, plain numbers use
+// system.* keys). ADD = 2, CUSTOM = 0, OVERRIDE = 5.
+const _acMalusDnd  = (n) => ({ key: "system.attributes.ac.bonus", mode: 2, value: String(n) });
+const _acMalusA5e  = (n) => ({ key: "system.attributes.ac.changes.bonuses.value", mode: 2, value: String(n) });
+const _atkMalusDnd = (n) => ([
+  { key: "system.bonuses.mwak.attack", mode: 2, value: String(n) },
+  { key: "system.bonuses.rwak.attack", mode: 2, value: String(n) },
+]);
+const _chkMalusDnd = (n) => ({ key: "system.bonuses.abilities.check", mode: 2, value: String(n) });
+const _disA5e      = (what) => ({ key: `flags.a5e.effects.rollMode.${what}.all`, mode: 5, value: -1, priority: 50 });
+const _grantAtkA5e = ()     => ({ key: "flags.a5e.effects.grants.rollMode.attack.all", mode: 5, value: 1, priority: 50 });
+const _noExpertA5e = ()     => ({ key: "flags.a5e.effects.expertiseDice.all", mode: 5, value: 0, priority: 50 });
+const _midiDisAtk  = ()     => ({ key: "flags.midi-qol.disadvantage.attack.all", mode: 0, value: "1" });
+const _midiDisChk  = ()     => ({ key: "flags.midi-qol.disadvantage.ability.check.all", mode: 0, value: "1" });
+
 // Wounds are the lasting emotional layer, and — VtM-style — they PUSH the one
-// who carries them. Each has:
-//   `urge`   — the Compulsion: what it drives you to do (the roleplay prompt).
-//   `resist` — the Willpower tax: acting AGAINST the urge is at disadvantage
-//              unless you spend a String to steel yourself (like exerting
-//              Willpower to override the Beast).
-//   `leanIn` — the refuel: give in to the urge at real cost and you gain a
-//              thread (a String on the person it ties you to) — playing your
-//              nature pays, exactly as acting on Convictions restores Willpower.
-//   `frenzy` — the breaking point: carry it and get pushed again (or hit
-//              Overwhelmed) and you lose the leash for one beat; the GM plays it.
-//   `clears` — the DRAMATIC action that lifts it (feelings are lived out, not
-//              slept off). A long rest is the slow fallback; short rests don't.
+// who carries them. Redesigned (v1.55) so each is a DISTINCT KIND of thing, not
+// the same "disadvantage-unless-String" template, and each ESCALATES through
+// three tiers as it is pressed again. Schema:
+//   `urge`      — the Compulsion (constant): what it drives you to do (RP prompt).
+//   `signature` — the one-line mechanical identity that sets this Wound apart.
+//   `tiers[0..2]` — Light → Deep → Breaking point (frenzy). Each: { label, text,
+//                 dnd5e[], a5e[] } — the effect at that depth + its automation.
+//                 Pressing a Wound already carried DEEPENS it (up a tier), it
+//                 doesn't just stack a second one.
+//   `leanIn`    — the refuel: give in to the urge at cost → a String (Inspiration
+//                 for Hopeless). Playing your nature pays, VtM-style.
+//   `clears`    — the DRAMATIC action that lifts it. Long rest is the slow
+//                 fallback; short rests don't touch it.
 const CONDITION_META = {
   smitten: {
     label:  "Smitten",
     icon:   "icons/svg/regen.svg",
     urge:   "Please {source}. Be near them. Earn the look you ache for.",
-    resist: "Any roll to oppose, leave, deny, or harm {source} is at disadvantage — spend a String to break the spell for one beat.",
+    signature: "You orbit {source} — you can't willingly act against them, and they sway you with ease.",
+    // A social LOCK on one person. No clean numeric hook (it's all target-
+    // conditional), so it stays honest rules text — its bite is relational.
+    tiers: [
+      { label: "Fond",     text: "You give {source} the benefit of every doubt — disadvantage to see through their lies or to refuse a small request from them.", dnd5e: [], a5e: [] },
+      { label: "Devoted",  text: "You cannot willingly harm or work against {source}; pushing yourself to do so costs a String. They roll with advantage to persuade or command you.", dnd5e: [], a5e: [] },
+      { label: "Obsessed", text: "The breaking point: you take one reasonable wish of {source}'s as your own, and you'll shield them even from your own allies. The GM plays the beat.", dnd5e: [], a5e: [] },
+    ],
     leanIn: "Bend your plans to be near {source} or win their favour, at real cost → take a String on them.",
-    frenzy: "Pushed again while Smitten (or Overwhelmed): you obey — take one reasonable wish of {source}'s as if it were your own.",
     clears: "Confess it — to them, or out loud to someone else — or let them break your heart.",
   },
   angry: {
     label:  "Angry",
     icon:   "icons/svg/fire.svg",
     urge:   "Escalate. Strike. Make them feel what you feel — cold words won't do.",
-    resist: "Any roll to stay measured, de-escalate, or show restraint is at disadvantage — spend a String to bite your tongue.",
+    signature: "The red mist — a rage trade: you hit harder and guard less.",
+    tiers: [
+      { label: "Simmering", text: "Disadvantage on any roll to stay measured, de-escalate, or show restraint.", dnd5e: [], a5e: [] },
+      { label: "Burning",   text: "You attack the problem: advantage on forceful, aggressive actions against the source (attacks, Intimidation, Power maneuvers), disadvantage on careful or subtle ones — and your guard drops (−1 AC).",
+        dnd5e: [ _acMalusDnd(-1) ], a5e: [ _acMalusA5e(-1) ] },
+      { label: "Seeing red", text: "The leash slips — you lash out at whoever is nearest, ally or not. Your guard is wide open: −2 AC, and attackers press their advantage. The GM plays the moment.",
+        dnd5e: [ _acMalusDnd(-2) ], a5e: [ _acMalusA5e(-2), _grantAtkA5e() ] },
+    ],
     leanIn: "Let the anger drive you into something rash or cruel → take a String on whoever lit the fuse.",
-    frenzy: "Pushed again while Angry (or Overwhelmed): the leash slips — you lash out, and the GM plays the moment.",
     clears: "Vent it: break something, start the fight, or finally say the words you've been swallowing.",
   },
   scared: {
     label:  "Scared",
     icon:   "icons/svg/terror.svg",
     urge:   "Get away. Give ground. Anything to make the threat stop.",
-    resist: "Any roll to hold your ground, advance, or face {source} is at disadvantage — spend a String to steel yourself.",
+    signature: "Frightened of {source} — you flinch at everything and can't close the distance.",
+    tiers: [
+      { label: "Uneasy", text: "Disadvantage on rolls to hold your ground or call {source}'s bluff.", dnd5e: [], a5e: [] },
+      { label: "Frightened", text: "While {source} is in sight, disadvantage on your attacks and checks, and you cannot willingly move toward them.",
+        dnd5e: [ _midiDisAtk(), _midiDisChk() ], a5e: [ _disA5e("attack"), _disA5e("abilityCheck"), _disA5e("skillCheck") ] },
+      { label: "Panicked", text: "You break — flee or freeze, drop what you're holding, take the nearest exit. The GM plays it.",
+        dnd5e: [ _midiDisAtk(), _midiDisChk() ], a5e: [ _disA5e("attack"), _disA5e("abilityCheck"), _disA5e("skillCheck") ] },
+    ],
     leanIn: "Let fear pull you into flight or a bad concession → take a String on the source of your fear.",
-    frenzy: "Pushed again while Scared (or Overwhelmed): you break — you flee or freeze, and the GM plays it.",
     clears: "Flee the source and catch your breath somewhere safe — or face it with an ally at your side.",
   },
   guilty: {
     label:  "Guilty",
     icon:   "icons/svg/net.svg",
     urge:   "Make it right. You owe {source}, and it shows in every word.",
-    resist: "Any roll to deceive, deny, or press {source} is at disadvantage — spend a String to look them in the eye and lie.",
+    signature: "The debt — you can't lie to or refuse the one you wronged, and you can't spend Strings against them.",
+    tiers: [
+      { label: "Sheepish", text: "Disadvantage to deceive, deny, or press {source}; any String you hold on them can't be spent against them.", dnd5e: [], a5e: [] },
+      { label: "Indebted", text: "You can't refuse a reasonable request from {source} without spending a String, and you can't fully strike them — disadvantage on attacks against them.",
+        dnd5e: [ ..._atkMalusDnd(-1) ], a5e: [ _disA5e("attack") ] },
+      { label: "Confessing", text: "It spills — you admit the thing you've been hiding, or over-give to make amends. The GM plays it.",
+        dnd5e: [ ..._atkMalusDnd(-2) ], a5e: [ _disA5e("attack") ] },
+    ],
     leanIn: "Let the guilt move you to confess or over-give to {source}, at cost → take a String on them.",
-    frenzy: "Pushed again while Guilty (or Overwhelmed): it spills — you admit the thing you've been hiding.",
     clears: "Confess, or make real amends to the one you wronged.",
   },
   hopeless: {
     label:  "Hopeless",
     icon:   "icons/svg/degen.svg",
     urge:   "Why bother. Let it go. Nothing you do will matter now.",
-    resist: "Any roll driven by hope, ambition, or standing up for yourself is at disadvantage — spend a String to find one reason to try.",
+    signature: "The weight — your ceiling is gone: no spark, no luck, nothing extra.",
+    tiers: [
+      { label: "Weary", text: "Disadvantage on any roll driven by hope, ambition, or standing up for yourself.", dnd5e: [], a5e: [] },
+      { label: "Sinking", text: "The weight settles: −1 to all your ability and skill checks, you gain no benefit from Inspiration, and you roll no expertise dice — nothing extra comes.",
+        dnd5e: [ _chkMalusDnd(-1) ], a5e: [ _noExpertA5e() ] },
+      { label: "Given up", text: "You stop — yield, sink, or walk away from what mattered. −2 to checks, you roll no expertise dice, and nothing you do can crit. The GM plays it.",
+        dnd5e: [ _chkMalusDnd(-2) ], a5e: [ _noExpertA5e(), _disA5e("abilityCheck"), _disA5e("skillCheck") ] },
+    ],
     leanIn: "Let despair make you give up or accept the worst, at cost → gain Inspiration (a fumble of the soul that feeds the story).",
-    frenzy: "Pushed again while Hopeless (or Overwhelmed): you stop — you yield, sink, or walk away from what mattered.",
     clears: "You cannot clear this alone — someone must rekindle you: comfort, an embrace, a speech that lands.",
   },
 };
@@ -139,17 +186,16 @@ class TSLConditionEffects {
   static buildHudStatus(condId) {
     const meta = CONDITION_META[condId];
     if (!meta) return null;
-    const built = TSLConditionEffects._buildEffect(condId, "someone", null);
-    // Mirror the fencing-State entry shape EXACTLY (changes/duration/origin) —
-    // that was the only structural difference from the States that DO toggle in
-    // the a5e HUD, so we remove it as a variable. Wounds carry no mechanics
-    // (GM-adjudicated), hence changes: [].
+    // A HUD toggle applies the wound at tier 1 (Light) — deepening happens in
+    // play or via the Chronicle. Tier 1 carries no automation, so the palette
+    // entry stays mechanic-light like the fencing-State shape it mirrors.
+    const built = TSLConditionEffects._buildEffect(condId, "someone", null, 1);
     return {
       id:          `tsl-wound-${condId}`,
       name:        `❤ ${meta.label}`,   // ❤ groups Wounds together in the sorted palette
       img:         meta.icon,
       description: built.description,
-      changes:     [],                  // no automation — the dossier is the rules
+      changes:     built.changes,       // tier 1 = [] for every wound
       duration:    { seconds: 3600 },   // scene-length, like the States (a "temporary" effect)
       origin:      "tsl-social-conflict",
       statuses:    [],                  // the entry id is the single status
@@ -214,10 +260,15 @@ class TSLConditionEffects {
    */
   static async applyOne(actor, condId, sourceName = "Social Fencing") {
     if (!actor || !CONDITION_META[condId]) return 0;
-    const has = actor.effects.some(e => e.flags?.[TSL_EFFECT_FLAG]?.condition === condId);
-    if (!has) {
+    const existing = actor.effects.find(e => TSLConditionEffects._condOf(e) === condId);
+    if (existing) {
+      // Pressed again → the wound DEEPENS (up to the breaking point) rather than
+      // stacking a duplicate; refresh the source it ties you to.
+      const cur = TSLConditionEffects._clampTier(existing.flags?.[TSL_EFFECT_FLAG]?.tier ?? 1);
+      if (cur < 3) await TSLConditionEffects.setTier(actor, condId, cur + 1, sourceName);
+    } else {
       await actor.createEmbeddedDocuments("ActiveEffect", [
-        TSLConditionEffects._buildEffect(condId, sourceName, actor.id),
+        TSLConditionEffects._buildEffect(condId, sourceName, actor.id, 1),
       ]);
     }
     return TSLConditionEffects.countConditions(actor);
@@ -277,34 +328,112 @@ class TSLConditionEffects {
     return seen.size;
   }
 
-  static _buildEffect(condId, sourceName, _actorId) {
-    const meta = CONDITION_META[condId];
-    const sub  = (s) => (s ?? "").replace("{source}", sourceName);
+  // ── Tiers (Light ● / Deep ●● / Breaking point ●●●) ──────────────────────────
 
-    // A VtM-style dossier the carrier actually feels: the urge, the price of
-    // fighting it, the reward for giving in, and the point it takes the wheel.
-    const description = [
+  static _clampTier(t) { return Math.max(1, Math.min(3, (t | 0) || 1)); }
+
+  /** Per-system Active-Effect changes for a tier's data. */
+  static _changesFor(tierData) {
+    const sys  = game.system?.id;
+    const list = sys === "dnd5e" ? (tierData.dnd5e ?? [])
+               : sys === "a5e"   ? (tierData.a5e ?? [])
+               : [];
+    return foundry.utils.deepClone(list);
+  }
+
+  /**
+   * The full dossier for a wound at a given tier — ONE source of truth for
+   * every tooltip and the effect description, marking the CURRENT tier (▶).
+   */
+  static dossier(condId, tier = 1, sourceName = "them") {
+    const meta = CONDITION_META[condId];
+    if (!meta) return "";
+    const sub = (s) => (s ?? "").replace(/\{source\}/g, sourceName);
+    const t = TSLConditionEffects._clampTier(tier);
+    const lines = [
       `<b>Urge:</b> ${sub(meta.urge)}`,
-      `<b>Fight it:</b> ${sub(meta.resist)}`,
-      `<b>Give in:</b> ${sub(meta.leanIn)}`,
-      `<b>Breaking point:</b> ${sub(meta.frenzy)}`,
-      `<b>Clears when:</b> ${meta.clears} (Or a long rest — time dulls everything.)`,
-    ].join("<br>");
+      meta.signature ? `<i>${sub(meta.signature)}</i>` : "",
+    ];
+    (meta.tiers ?? []).forEach((td, i) => {
+      const n = i + 1;
+      const dots = "●".repeat(n) + "○".repeat(3 - n);
+      lines.push(`${n === t ? "▶ " : ""}<b>${dots} ${td.label}:</b> ${sub(td.text)}`);
+    });
+    lines.push(`<b>Give in:</b> ${sub(meta.leanIn)}`);
+    lines.push(`<b>Clears:</b> ${meta.clears} (Or a long rest.)`);
+    return lines.filter(Boolean).join("<br>");
+  }
+
+  /** The tier (1..3) of a wound this actor carries, or 0 if not carried. */
+  static getTier(actor, condId) {
+    const e = actor?.effects?.find(x => !x.disabled && TSLConditionEffects._condOf(x) === condId);
+    return e ? TSLConditionEffects._clampTier(e.flags?.[TSL_EFFECT_FLAG]?.tier ?? 1) : 0;
+  }
+
+  /**
+   * Set a wound to an exact tier — creating it if absent, updating name /
+   * dossier / automation / tier flag if present.
+   */
+  static async setTier(actor, condId, tier, sourceName) {
+    if (!actor || !CONDITION_META[condId]) return;
+    const t = TSLConditionEffects._clampTier(tier);
+    const existing = actor.effects.find(x => TSLConditionEffects._condOf(x) === condId);
+    if (!existing) {
+      await actor.createEmbeddedDocuments("ActiveEffect", [
+        TSLConditionEffects._buildEffect(condId, sourceName ?? "Social Fencing", actor.id, t),
+      ]);
+      return;
+    }
+    const f    = existing.flags?.[TSL_EFFECT_FLAG] ?? {};
+    const data = TSLConditionEffects._buildEffect(condId, sourceName ?? f.source ?? "them", f.sourceActorId ?? actor.id, t);
+    await existing.update({
+      name: data.name, description: data.description, changes: data.changes,
+      [`flags.${TSL_EFFECT_FLAG}.tier`]: t,
+    });
+  }
+
+  /** Press a wound deeper (create at Light if absent, up to Breaking point). */
+  static async deepen(actor, condId, sourceName) {
+    const cur = TSLConditionEffects.getTier(actor, condId);
+    if (!cur)      return TSLConditionEffects.applyOne(actor, condId, sourceName);
+    if (cur >= 3)  return;
+    await TSLConditionEffects.setTier(actor, condId, cur + 1, sourceName);
+  }
+
+  /** Ease a wound one tier — below Light it heals (removed entirely). */
+  static async ease(actor, condId) {
+    const cur = TSLConditionEffects.getTier(actor, condId);
+    if (!cur)     return;
+    if (cur <= 1) return TSLConditionEffects.removeOne(actor, condId);
+    await TSLConditionEffects.setTier(actor, condId, cur - 1);
+  }
+
+  static _buildEffect(condId, sourceName, actorId, tier = 1) {
+    const meta = CONDITION_META[condId];
+    const t    = TSLConditionEffects._clampTier(tier);
+    const td   = meta.tiers[t - 1];
 
     return {
-      name:   `${meta.label} (by ${sourceName})`,
+      name:   `${meta.label} · ${td.label} (${sourceName})`,
       icon:   meta.icon,
+      img:    meta.icon,
       origin: "tsl-social-conflict",
-      description,
+      description: TSLConditionEffects.dossier(condId, t, sourceName),
+      duration: { seconds: 3600 },
+      // SINGLE status (a5e needs exactly one to treat it as active/removable);
+      // the entry id doubles as the status, matching a HUD-toggled wound.
+      statuses: [`tsl-wound-${condId}`],
       flags: {
         [TSL_EFFECT_FLAG]: {
-          condition: condId,
-          source:    sourceName,
-          restType:  "short",
+          condition:     condId,
+          source:        sourceName,
+          sourceActorId: actorId ?? null,
+          tier:          t,
+          restType:      "short",
         }
       },
-      // No changes array — purely informational, player applies disadvantage manually
-      changes: [],
+      // Automation scales with the tier (empty at Light) — per system.
+      changes: TSLConditionEffects._changesFor(td),
     };
   }
 

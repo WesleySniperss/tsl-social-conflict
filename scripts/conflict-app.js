@@ -234,9 +234,11 @@ class TSLConflictApp extends _TSLAppBase {
       // sincere moves or betrayal, they open doors until the story heals them.
       const pip = (c) => {
         const m = TSLConditionEffects.getMeta?.(c.id);
-        const sub = (s) => (s ?? "").replace("{source}", "them");
+        // One source of truth for the dossier (urge · signature · tiers · give
+        // in · clears), marking the tier this actor actually carries.
+        const tier = TSLConditionEffects.getTier?.(this._participantActor(p), c.id) || 1;
         const tip = m
-          ? `<b>${c.label}</b> — a lasting Wound${p.conditions[c.id] ? " (active)" : ""}<br><b>Urge:</b> ${sub(m.urge)}<br><b>Fight it:</b> ${sub(m.resist)}<br><b>Give in:</b> ${sub(m.leanIn)}<br><b>Breaks:</b> ${sub(m.frenzy)}<br><b>Clears:</b> ${m.clears}`
+          ? `<b>${c.label}</b> — a lasting Wound${p.conditions[c.id] ? " (active)" : ""}<br>${TSLConditionEffects.dossier(c.id, tier, "them")}`
           : `<b>${c.label}</b> — a lasting Wound<br>Clears: ${c.clears}`;
         return `
         <button class="tsl-cond-pip ${p.conditions[c.id] ? "active" : ""}"

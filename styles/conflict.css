@@ -3693,3 +3693,16 @@
 }
 .tsl-viz-legend i { font-style: normal; font-weight: 600; }
 .tsl-viz-legend-note { font-style: italic; }
+
+/* ─── Wound tiers in the Chronicle (❤ Light ● / Deep ●● / Breaking ●●●) ── */
+.tsl-cond-grid .tsl-wound-row { display: flex; align-items: stretch; gap: 3px; min-width: 0; }
+.tsl-cond-grid .tsl-wound-row .tsl-wound-toggle { flex: 1; min-width: 0; }
+.tsl-wound-tier { margin-left: auto; padding-left: 5px; font-size: 9px; letter-spacing: 1px; color: #f0a9bd; opacity: 0.9; }
+.tsl-wound-steps { display: flex; flex-direction: column; gap: 2px; }
+.tsl-wound-steps button {
+  width: 20px; flex: 1; padding: 0; line-height: 1; font-size: 10px;
+  background: rgba(232,85,122,0.10); color: #f0a9bd;
+  border: 1px solid rgba(232,85,122,0.35); border-radius: 4px; cursor: pointer;
+}
+.tsl-wound-steps button:hover:not(:disabled) { background: rgba(232,85,122,0.22); color: #fff; }
+.tsl-wound-steps button:disabled { opacity: 0.3; cursor: default; }
