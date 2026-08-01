@@ -680,19 +680,44 @@ class SocialFencingApp extends _SocialAppBase {
     };
     const movesRef = ["general", "power", "attention", "order"].map(g => {
       const rows = SOCIAL_MANEUVERS.filter(m => m.group === g).map(m => {
-        const dmg = m.resolveDamage ? `<b>−${m.resolveDamage}</b> Resolve` : (m.reveals ? "a tell + a String" : "<b>0 damage — a set-up</b>");
-        const st  = m.applyOnSuccess ? ` · makes them <b>${esc(SOCIAL_CONDITIONS[m.applyOnSuccess]?.label ?? m.applyOnSuccess)}</b>` : "";
+        const skills = `${esc(m.skill)}${m.skill2 ? ` + ${esc(m.skill2)}` : ""}`;
+        // What a HIT gives (built from the data): damage / set-up status /
+        // lasting wound / Strings / a whispered tell.
+        const dmg = m.resolveDamage ? `<b>−${m.resolveDamage}</b> Resolve` : (m.reveals ? "a whispered tell + a String" : "<b>nothing yet — a set-up</b>");
+        const st  = m.applyOnSuccess ? ` · they become <b>${esc(SOCIAL_CONDITIONS[m.applyOnSuccess]?.label ?? m.applyOnSuccess)}</b>` : "";
+        const wnd = m.woundOnSuccess ? ` · a lasting <b>${esc(TSLConditionEffects.getMeta?.(m.woundOnSuccess)?.label ?? m.woundOnSuccess)}</b> wound` : "";
         const str = (m.grantStrings && !m.reveals) ? ` · +${m.grantStrings} String${m.grantStrings > 1 ? "s" : ""}` : "";
+        const combo = m.combos ? ` · cashes ${Object.keys(m.combos).map(c => `<b>${esc(SOCIAL_CONDITIONS[c]?.label ?? c)}</b>`).join("/")} for more` : "";
+        const hit  = `${dmg}${st}${wnd}${str}${combo}`;
+        const miss = `<b>−${m.failPatience ?? 1}</b> Patience`;
         const how = m.howto   ? `<div class="tsl-codex-howto">▸ ${esc(m.howto)}</div>` : "";
         const ex  = m.example ? `<div class="tsl-codex-example">${esc(m.example)}</div>` : "";
-        return `<div class="tsl-codex-combo"><b>${esc(m.name)}</b> <span class="tsl-codex-gain">(${esc(m.skill)})</span> — ${dmg}${st}${str}${how}${ex}<div class="tsl-codex-tactic"><i>${esc(REAL_TACTIC[m.id] ?? "")}</i></div></div>`;
+        return `<div class="tsl-codex-combo">
+          <b>${esc(m.name)}</b> <span class="tsl-codex-gain">rolls ${skills}</span>
+          <div class="tsl-codex-outcome tsl-codex-outcome--hit"><b>✓ Hit:</b> ${hit}</div>
+          <div class="tsl-codex-outcome tsl-codex-outcome--miss"><b>✗ Miss:</b> ${miss}</div>
+          ${how}${ex}
+          <div class="tsl-codex-tactic"><i>${esc(REAL_TACTIC[m.id] ?? "")}</i></div>
+        </div>`;
       }).join("");
       return `<div class="tsl-codex-sub"><div class="tsl-codex-sub-title">${SCHOOL_LABEL[g]}</div>${rows}</div>`;
     }).join("");
+    // Where every number a player sees actually comes from.
+    const numbers = `
+      <div class="tsl-codex-sub">
+        <div class="tsl-codex-sub-title">Where the numbers come from</div>
+        <div class="tsl-codex-combo"><b>Your roll</b> — a d20 + the move's <b>main skill</b>, with its <b>support skill's</b> modifier added on top (plus any situation bonus). On A5E this opens the system's own check dialog.</div>
+        <div class="tsl-codex-combo"><b>Resolve</b> <span class="tsl-codex-gain">their will to hold their ground</span> — <b>3 + WIS</b> modifier (never below 3). Break it to 0 and they are <b>swayed</b>.</div>
+        <div class="tsl-codex-combo"><b>Patience</b> <span class="tsl-codex-gain">how long they'll suffer the talk</span> — <b>4 + CHA</b> modifier (never below 3). Empty it and they <b>walk away</b>.</div>
+        <div class="tsl-codex-combo"><b>Social DC</b> <span class="tsl-codex-gain">how hard they are to move</span> — the higher of their passive Insight, or <b>10 + WIS + INT + proficiency</b> (two mental defences). ${game.user.isGM ? "You set/see it; players don't." : "You never see the number — difficulty is learned by trying."}</div>
+        <div class="tsl-codex-combo"><b>Strings</b> <span class="tsl-codex-gain">trump cards</span> — spend one for <b>+5</b> on any roll against that person. Earned by opening your heart in play, or by breaking their Resolve.</div>
+        <div class="tsl-codex-hint-sm">Press a move their <b>nature is immune</b> to and it backfires — no effect, and they turn <b>Defiant</b> (maneuver-proof until a successful <b>Read Them</b> cracks it).</div>
+      </div>`;
     const moves = `
       <section class="tsl-notes-section">
         <div class="tsl-notes-section-title">The twelve moves</div>
-        <div class="tsl-codex-hint-sm">Four schools of three. Some chip <b>Resolve</b>; some deal <b>0</b> — those are <b>set-ups</b> that arm a ⊕ opening for a bigger hit next turn. Each rolls its own skill. The <b>▸ line</b> is how you play it; the <b>quote</b> under it is a line you might actually <b>say in the scene</b>; the small <i>italic</i> is the <b>real tactic</b> it models.</div>
+        <div class="tsl-codex-hint-sm">Four schools of three. Each line shows what it <b>rolls</b>, what a <b>✓ Hit</b> does and what a <b>✗ Miss</b> costs; the <b>▸ line</b> is how you play it; the <b>quote</b> is something you might actually <b>say in the scene</b>; the small <i>italic</i> is the <b>real tactic</b> it models.</div>
+        ${numbers}
         ${movesRef}
       </section>`;
 
@@ -1187,9 +1212,9 @@ class SocialFencingApp extends _SocialAppBase {
     // the GM can only nudge or reset them (no "Start" — that's automatic now).
     const selfTracks = act
       ? `${track("Resolve", encounter.resolve, encounter.maxResolve, "resolve",
-            "Their will. Maneuver successes reduce it — 2 on a vulnerability. At 0 they are swayed.")}
+            "Their will — starts at 3 + WIS modifier (floor 3, no cap). Maneuver successes reduce it — 2 on a vulnerability. At 0 they are swayed.")}
          ${track("Patience", encounter.patience, encounter.maxPatience, "patience",
-            "Their tolerance. Failures and triggered immunities reduce it. At 0 they walk away.")}
+            "Their tolerance — starts at 4 + CHA modifier (floor 3, no cap). Failures and triggered immunities reduce it. At 0 they walk away.")}
          <button class="tsl-notes-enc-btn tsl-notes-enc-btn--end" data-enc-action="end" data-tooltip="Clear the tracks. The next maneuver will start fresh ones.">Reset tracks</button>`
       : encounter.outcome
         ? `<div class="tsl-chr-outcome tsl-chr-outcome--${encounter.outcome}">

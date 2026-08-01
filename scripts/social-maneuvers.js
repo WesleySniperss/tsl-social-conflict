@@ -167,13 +167,16 @@ const SOCIAL_MANEUVERS = [
     description:  "The public unmaking. Shame them before the people whose respect holds them up — strip that away and their will caves. Not a bait like Taunt: here the DAMAGE is the point, and it's heavy.",
     howto:        "Break their STANDING in front of witnesses — make the whole room watch them fall, and their confidence falls with it.",
     example:      "\"Tell them. Tell this whole room what you did at the river while your men drowned. Say it aloud — every one of us is waiting.\"",
-    successText:  "The dare shatters their footing. Resolve −2.",
+    successText:  "The room turns on them. Resolve −2 — and the shame doesn't wash off: they carry an Angry wound (it deepens if you shame them again).",
     failText:     "The gauntlet lies ignored, and the room saw you drop it. Patience −2.",
     immuneText:   "They walk away from the theatrics. Target becomes Defiant.",
     applyOnSuccess: null,
     grantStrings: 0,
     resolveDamage: 2,
     failPatience: 2,
+    // The heavy blow leaves a lasting scar, not just a dent — a public
+    // humiliation plants (and, on repeat, deepens) an Angry Wound.
+    woundOnSuccess: "angry",
     combos: { provoked: { label: "They lash out into your trap — the fall is twice as public", resolveDamage: 1 } },
   },
 
@@ -1236,6 +1239,22 @@ class SocialManeuverRoller {
         await ChatMessage.create({
           speaker: ChatMessage.getSpeaker({ actor: sourceActor }),
           content: `<div class="tsl-maneuver-card tsl-mv--success"><div class="tsl-mv-outcome tsl-mv-outcome--success">🧵 Through their guard — <b>${escS(sourceActor.name)}</b> gains a String on ${escS(targetActor.name)}.</div></div>`,
+        });
+      }
+      // Some blows leave a SCAR, not just a dent: a maneuver with
+      // `woundOnSuccess` plants a lasting emotional Wound on the target
+      // (Humiliate → Angry). It DEEPENS on repeat (applyOne escalates the
+      // tier), so a campaign of shaming grows the wound — and an Angry wound
+      // opens the door for more Taunt/Humiliate. The GM can ease/swap it in
+      // the Chronicle if the fiction wants despair (Hopeless) over rage.
+      if (maneuver.woundOnSuccess && typeof TSLConditionEffects !== "undefined") {
+        const hadTier = TSLConditionEffects.getTier(targetActor, maneuver.woundOnSuccess);
+        await TSLConditionEffects.applyOne(targetActor, maneuver.woundOnSuccess, sourceActor.name);
+        const escW  = foundry.utils.escapeHTML;
+        const wLbl  = TSLConditionEffects.getMeta(maneuver.woundOnSuccess)?.label ?? maneuver.woundOnSuccess;
+        await ChatMessage.create({
+          speaker: ChatMessage.getSpeaker({ actor: targetActor }),
+          content: `<div class="tsl-maneuver-card tsl-mv--immune"><div class="tsl-mv-outcome tsl-mv-outcome--immune">❤ The shame sticks — <b>${escW(targetActor.name)}</b> carries ${hadTier ? "a <b>deepening</b>" : "a lasting"} <b>${escW(wLbl)}</b> wound.</div></div>`,
         });
       }
       // The cost of closeness: turning POWER on someone you love wounds YOU.

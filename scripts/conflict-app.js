@@ -296,10 +296,10 @@ class TSLConflictApp extends _TSLAppBase {
       const pips = (val, max, cls) => Array.from({ length: max }, (_, i) =>
         `<span class="tsl-enc-pip tsl-enc-pip--${cls} ${i < val ? "filled" : ""}"></span>`).join("");
       return `<div class="tsl-enc-tracks">
-        <div class="tsl-enc-track" data-tooltip="Resolve — break it to sway them (0 = swayed). Successful maneuvers reduce it, 2 on a vulnerability.">
+        <div class="tsl-enc-track" data-tooltip="Resolve — their will. Starts at 3 + WIS modifier (floor 3, no cap). Successful maneuvers chip it, 2 on a vulnerability; break it to 0 → swayed.">
           <span class="tsl-enc-track-label">RES</span>${pips(enc.resolve, enc.maxResolve, "resolve")}
         </div>
-        <div class="tsl-enc-track" data-tooltip="Patience — failures and triggered immunities burn it. At 0 they walk away.">
+        <div class="tsl-enc-track" data-tooltip="Patience — their tolerance. Starts at 4 + CHA modifier (floor 3, no cap). Failures and triggered immunities burn it; at 0 they walk away.">
           <span class="tsl-enc-track-label">PAT</span>${pips(enc.patience, enc.maxPatience, "patience")}
         </div>
       </div>`;
