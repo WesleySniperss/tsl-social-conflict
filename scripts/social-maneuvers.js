@@ -686,12 +686,14 @@ class SocialManeuverRoller {
     if (advantage) advantageReasons.push(relationReason);
 
     if (relation !== "blocked" && relation !== "immune") {
-      // Two skills, always: the maneuver rolls its PRIMARY on the d20, and its
-      // SECONDARY skill's modifier rides on top as a flat bonus (Read Them is
-      // Insight + Investigation, etc). Shown plainly — it's the actor's own skill.
+      // Two skills, always: the maneuver rolls its PRIMARY on the d20; the
+      // SECONDARY skill only ASSISTS — it does NOT double your bonus. It lends
+      // HALF its modifier, capped at +3, and never a penalty (a weak support
+      // skill simply doesn't help). Without this a +10/+10 face rolled at +20.
       if (maneuver.skill2) {
-        const s2 = SocialManeuverRoller.getSkillMod2(sourceActor, maneuver);
-        if (s2) bonusReasons.push({ label: `${maneuver.skill2} (support skill)`, value: s2 });
+        const raw = SocialManeuverRoller.getSkillMod2(sourceActor, maneuver);
+        const s2  = Math.max(0, Math.min(3, Math.floor(raw / 2)));
+        if (s2) bonusReasons.push({ label: `${maneuver.skill2} (support, +½ up to 3)`, value: s2 });
       }
       if (leverage === "desire" && !advantage) {
         advantage = true;
