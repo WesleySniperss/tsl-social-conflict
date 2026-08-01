@@ -236,6 +236,19 @@ Hooks.once("ready", () => {
       const n = TSLConditionEffects.ensureRegistered?.() ?? 0;
       if (n) console.log(`TSL | Re-registered ${n} missing Wound status(es) on canvasReady`);
     }
+    // Same belt-and-suspenders for the fencing States (⚔): re-assert each
+    // entry's id-KEY so core's ActiveEffect.fromStatusEffect (keyed lookup)
+    // can always resolve it — a HUD click throws "Invalid status ID" otherwise.
+    try {
+      const se = CONFIG.statusEffects;
+      if (se && typeof se.find === "function") {
+        for (const id of SOCIAL_CONDITION_ORDER) {
+          if (SOCIAL_CONDITIONS[id]?.nativeAlias) continue;   // system owns Rattled
+          const entry = se.find(s => s.id === `tsl-${id}`);
+          if (entry && se[`tsl-${id}`] !== entry) se[`tsl-${id}`] = entry;
+        }
+      }
+    } catch (err) { console.warn("TSL | state key re-assert failed:", err); }
     syncExistingConditionEffects(
       (canvas.tokens?.placeables ?? []).map(t => t.actor).filter(Boolean)
     );

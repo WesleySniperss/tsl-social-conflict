@@ -281,6 +281,12 @@ class TSLSceneVisualizer extends _TSLVizBase {
     el.querySelector(".tsl-viz-refresh")?.addEventListener("click", () => this.render(true));
 
     // Click a node → open that character's Chronicle (GM anyone, owner own).
+    // The Chronicle opens via SocialFencingDialog.open (NOT SocialFencingApp —
+    // that's the window class and has no static open()).
+    const openChronicle = (actor) =>
+      (typeof SocialFencingDialog !== "undefined") ? SocialFencingDialog.open(actor)
+      : (typeof SocialNotesDialog  !== "undefined") ? SocialNotesDialog.open(actor)
+      : null;
     el.querySelectorAll(".tsl-viz-node[data-actor-id]").forEach(node => {
       node.addEventListener("click", () => {
         const actor = game.actors.get(node.dataset.actorId);
@@ -289,7 +295,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
           ui.notifications.info(`${actor.name}: you can only open a Chronicle you own.`);
           return;
         }
-        if (typeof SocialFencingApp !== "undefined") SocialFencingApp.open(actor);
+        openChronicle(actor);
       });
     });
   }

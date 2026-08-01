@@ -167,12 +167,23 @@ class TSLConditionEffects {
    * Safe to call any time — skips ids already present. Returns how many it added.
    */
   static ensureRegistered() {
-    if (!Array.isArray(CONFIG.statusEffects)) return 0;
+    const se = CONFIG.statusEffects;
+    if (!se || typeof se.some !== "function") return 0;
     let added = 0;
     for (const id of TSLConditionEffects.ORDER) {
-      if (CONFIG.statusEffects.some(s => s.id === `tsl-wound-${id}`)) continue;
-      const w = TSLConditionEffects.buildHudStatus(id);
-      if (w) { CONFIG.statusEffects.push(w); added++; }
+      const sid = `tsl-wound-${id}`;
+      if (!se.some(s => s.id === sid)) {
+        const w = TSLConditionEffects.buildHudStatus(id);
+        if (w) { se.push(w); added++; }
+      }
+      // Belt-and-suspenders: core's ActiveEffect.fromStatusEffect looks the
+      // status up by KEY (`CONFIG.statusEffects[<id>]`), not by array search.
+      // The status-effects Proxy registers that key on push — but if another
+      // module rebuilt the array as a plain one, the key goes missing and a
+      // HUD click throws "Invalid status ID" (icon shows, nothing happens).
+      // Re-assert the key so toggling always resolves.
+      const entry = se.find(s => s.id === sid);
+      if (entry && se[sid] !== entry) se[sid] = entry;
     }
     return added;
   }
