@@ -402,8 +402,8 @@ class SocialFencingApp extends _SocialAppBase {
     // A key term: dotted underline + a hover definition. `term("Resolve")`
     // looks the name up in GLOSSARY; a second arg overrides the tip.
     const GLOSSARY = {
-      "Resolve": "Their will to hold their ground. Successful maneuvers chip it; break it to 0 and they're swayed. Starts at 3 + their WIS mod (floor 3, no cap) — an average target folds in ~2 cashed combos; the iron-willed take more.",
-      "Patience": "Their tolerance for the whole exchange. Failures burn it; at 0 they walk away. Starts at 4 + their CHA mod (floor 3, no cap).",
+      "Resolve": "Their will to hold their ground. Successful maneuvers chip it; break it to 0 and they're swayed. Starts at 3 + their CHA mod (floor 3, no cap) — force of personality holds the line; an average target folds in ~2 cashed combos, the strong-willed take more.",
+      "Patience": "Their tolerance for the whole exchange. Failures burn it; at 0 they walk away. Starts at 4 + their WIS mod (floor 3, no cap) — patience is a Wisdom thing.",
       "social DC": "The hidden difficulty you roll against: 10 + WIS + INT + proficiency, or their passive Insight if higher. Only the GM ever sees the number.",
       "support skill": "A SECOND skill whose modifier is added on top of the maneuver's main d20 roll (e.g. Read Them = Insight + Investigation).",
       "opening": "A condition on your target that makes a matching maneuver stronger. Two kinds, same ⊕ mark: a status you set up this exchange (Provoked, Desperate…) that a finisher cashes, or a lasting emotional wound they carry (Angry, Smitten, Guilty, Scared, Hopeless) that certain maneuvers press for +2.",
@@ -660,6 +660,9 @@ class SocialFencingApp extends _SocialAppBase {
     // it models — so the fiction reads as something people actually do.
     const REAL_TACTIC = {
       cold_reading:     "Cold reading — you watch their face for tells",
+      persuade:         "Persuasion — an honest appeal to what they want",
+      intimidate:       "Coercion — a plain threat of consequences",
+      lie:              "Deception — a bald bluff to gain the upper hand",
       sow_doubt:        "Belittling — a jab that shrinks them",
       instigate:        "Goading — needle them into a rash move",
       flatter:          "Flattery — feed the ego till the guard drops",
@@ -707,16 +710,16 @@ class SocialFencingApp extends _SocialAppBase {
       <div class="tsl-codex-sub">
         <div class="tsl-codex-sub-title">Where the numbers come from</div>
         <div class="tsl-codex-combo"><b>Your roll</b> — a d20 + the move's <b>main skill</b>, with its <b>support skill's</b> modifier added on top (plus any situation bonus). On A5E this opens the system's own check dialog.</div>
-        <div class="tsl-codex-combo"><b>Resolve</b> <span class="tsl-codex-gain">their will to hold their ground</span> — <b>3 + WIS</b> modifier (never below 3). Break it to 0 and they are <b>swayed</b>.</div>
-        <div class="tsl-codex-combo"><b>Patience</b> <span class="tsl-codex-gain">how long they'll suffer the talk</span> — <b>4 + CHA</b> modifier (never below 3). Empty it and they <b>walk away</b>.</div>
+        <div class="tsl-codex-combo"><b>Resolve</b> <span class="tsl-codex-gain">their will to hold their ground</span> — <b>3 + CHA</b> modifier (never below 3): force of personality holds the line. Break it to 0 and they are <b>swayed</b>.</div>
+        <div class="tsl-codex-combo"><b>Patience</b> <span class="tsl-codex-gain">how long they'll suffer the talk</span> — <b>4 + WIS</b> modifier (never below 3): patience is temperance. Empty it and they <b>walk away</b>.</div>
         <div class="tsl-codex-combo"><b>Social DC</b> <span class="tsl-codex-gain">how hard they are to move</span> — the higher of their passive Insight, or <b>10 + WIS + INT + proficiency</b> (two mental defences). ${game.user.isGM ? "You set/see it; players don't." : "You never see the number — difficulty is learned by trying."}</div>
         <div class="tsl-codex-combo"><b>Strings</b> <span class="tsl-codex-gain">trump cards</span> — spend one for <b>+5</b> on any roll against that person. Earned by opening your heart in play, or by breaking their Resolve.</div>
         <div class="tsl-codex-hint-sm">Press a move their <b>nature is immune</b> to and it backfires — no effect, and they turn <b>Defiant</b> (maneuver-proof until a successful <b>Read Them</b> cracks it).</div>
       </div>`;
     const moves = `
       <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title">The twelve moves</div>
-        <div class="tsl-codex-hint-sm">Four schools of three. Each line shows what it <b>rolls</b>, what a <b>✓ Hit</b> does and what a <b>✗ Miss</b> costs; the <b>▸ line</b> is how you play it; the <b>quote</b> is something you might actually <b>say in the scene</b>; the small <i>italic</i> is the <b>real tactic</b> it models.</div>
+        <div class="tsl-notes-section-title">The moves</div>
+        <div class="tsl-codex-hint-sm"><b>General</b> holds the basics anyone reaches for (persuade · threaten · lie · read · mock · goad — no archetype traps); the other three schools are the archetype game. Each line shows what it <b>rolls</b>, what a <b>✓ Hit</b> does and what a <b>✗ Miss</b> costs; the <b>▸ line</b> is how you play it; the <b>quote</b> is something you might actually <b>say in the scene</b>; the small <i>italic</i> is the <b>real tactic</b> it models.</div>
         ${numbers}
         ${movesRef}
       </section>`;
@@ -998,8 +1001,8 @@ class SocialFencingApp extends _SocialAppBase {
         `<span class="tsl-notes-pip tsl-notes-pip--${cls} ${i < val ? "filled" : ""}"></span>`).join("");
       const tracks = enc.active
         ? `<div class="tsl-fc-tracks">
-             <span class="tsl-fc-tk" data-tooltip="Resolve = 3 + their WIS mod (floor 3, no cap). Successful maneuvers chip it; break it (0) to sway them — an average target folds in ~2 combos."><b>RES</b>${pips(enc.resolve, enc.maxResolve, "resolve")}</span>
-             <span class="tsl-fc-tk" data-tooltip="Patience = 4 + their CHA mod (floor 3, no cap). Failures burn it; at 0 they walk away."><b>PAT</b>${pips(enc.patience, enc.maxPatience, "patience")}</span>
+             <span class="tsl-fc-tk" data-tooltip="Resolve = 3 + their CHA mod (floor 3, no cap) — conviction holds the line. Successful maneuvers chip it; break it (0) to sway them."><b>RES</b>${pips(enc.resolve, enc.maxResolve, "resolve")}</span>
+             <span class="tsl-fc-tk" data-tooltip="Patience = 4 + their WIS mod (floor 3, no cap) — patience is a Wisdom thing. Failures burn it; at 0 they walk away."><b>PAT</b>${pips(enc.patience, enc.maxPatience, "patience")}</span>
            </div>`
         : enc.outcome
           ? `<div class="tsl-chr-outcome tsl-chr-outcome--${enc.outcome}">${enc.outcome === "swayed" ? "💔 Swayed" : "🚪 Walked away"}</div>`
@@ -1212,9 +1215,9 @@ class SocialFencingApp extends _SocialAppBase {
     // the GM can only nudge or reset them (no "Start" — that's automatic now).
     const selfTracks = act
       ? `${track("Resolve", encounter.resolve, encounter.maxResolve, "resolve",
-            "Their will — starts at 3 + WIS modifier (floor 3, no cap). Maneuver successes reduce it — 2 on a vulnerability. At 0 they are swayed.")}
+            "Their will — starts at 3 + CHA modifier (floor 3, no cap), conviction holding the line. Maneuver successes reduce it — 2 on a vulnerability. At 0 they are swayed.")}
          ${track("Patience", encounter.patience, encounter.maxPatience, "patience",
-            "Their tolerance — starts at 4 + CHA modifier (floor 3, no cap). Failures and triggered immunities reduce it. At 0 they walk away.")}
+            "Their tolerance — starts at 4 + WIS modifier (floor 3, no cap), patience being a Wisdom thing. Failures and triggered immunities reduce it. At 0 they walk away.")}
          <button class="tsl-notes-enc-btn tsl-notes-enc-btn--end" data-enc-action="end" data-tooltip="Clear the tracks. The next maneuver will start fresh ones.">Reset tracks</button>`
       : encounter.outcome
         ? `<div class="tsl-chr-outcome tsl-chr-outcome--${encounter.outcome}">

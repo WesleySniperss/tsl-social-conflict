@@ -37,11 +37,15 @@ class SocialEncounterManager {
 
   /**
    * Suggested track values derived from the actor's sheet (dnd5e/a5e):
-   *   Resolve  = 3 + WIS mod — in 5e resisting persuasion IS a Wisdom thing.
-   *   Patience = 4 + CHA mod — force of personality keeps composure in talk.
-   * NO upper cap (floor 3 only): an average target (low WIS) folds in ~2 cashed
-   * combos as intended, but a genuinely iron-willed NPC scales up and is meant
-   * to be harder. GM can still nudge either track in the Chronicle.
+   *   Resolve  = 3 + CHA mod — force of personality: conviction holds your
+   *              ground and won't be talked out of its position.
+   *   Patience = 4 + WIS mod — temperance and self-possession: patience is a
+   *              Wisdom thing, and it's how long they'll suffer the exchange.
+   *   (The Social DC already leans on WIS+INT, so every mental stat now
+   *    defends: WIS → DC & Patience, INT → DC, CHA → Resolve.)
+   * NO upper cap (floor 3 only): an average target folds in ~2 cashed combos
+   * as intended, but a genuinely strong-willed NPC scales up and is meant to
+   * be harder. GM can still nudge either track in the Chronicle.
    */
   static suggestTracks(actor) {
     const abilities = actor?.system?.abilities ?? {};
@@ -51,9 +55,9 @@ class SocialEncounterManager {
     };
     const floor = (v) => Math.max(3, v);
     return {
-      resolve:  floor(3 + mod("wis")),
-      patience: floor(4 + mod("cha")),
-      hint: `Resolve 3 + WIS (${mod("wis") >= 0 ? "+" : ""}${mod("wis")}), Patience 4 + CHA (${mod("cha") >= 0 ? "+" : ""}${mod("cha")}), floor 3, no cap`,
+      resolve:  floor(3 + mod("cha")),
+      patience: floor(4 + mod("wis")),
+      hint: `Resolve 3 + CHA (${mod("cha") >= 0 ? "+" : ""}${mod("cha")}), Patience 4 + WIS (${mod("wis") >= 0 ? "+" : ""}${mod("wis")}), floor 3, no cap`,
     };
   }
 
