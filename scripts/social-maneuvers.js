@@ -140,15 +140,16 @@ const SOCIAL_MANEUVERS = [
     skillKeys2:      { dnd5e: "ins", "a5e-for-dnd5e": "insight" },
     vulnerabilityTags: [],
     immunityTags:      [],
-    description:  "The plain threat. Comply, or face what comes — no crowd, no theatre, just the cold promise of consequences. (Not Humiliate: this is quiet and personal, and it doesn't scar.)",
-    howto:        "State the stakes and mean it — what you'll do if they don't bend. Keep it low, close, and certain.",
+    description:  "The plain threat. Comply, or face what comes — quiet, personal, no crowd. HIGH-RISK basic: a threat you can't back up makes you look weak, so a miss costs double Patience. (Not Humiliate — that one's public and scars.)",
+    howto:        "State the stakes and mean it — what you'll do if they don't bend. Only reach for it when you can back it up.",
     example:      "\"I know which window is your daughter's. Sign the writ, and I forget the address. It's a small thing to ask.\"",
     successText:  "The threat lands cold. Resolve −1.",
-    failText:     "They don't believe you'll follow through. Patience −1.",
+    failText:     "They call your bluff — and now you look weak. Patience −2.",
     immuneText:   null,
     applyOnSuccess: null,
     grantStrings: 0,
     resolveDamage: 1,
+    failPatience: 2,   // a threat that misses makes you look weak
   },
 
   {
@@ -211,11 +212,11 @@ const SOCIAL_MANEUVERS = [
     description:  "The deep bait. Show them your throat and count what they reveal reaching for it.",
     howto:        "Play small, cornered, harmless — let them lower their guard to help or to gloat, and note what they let slip.",
     example:      "\"You've completely outmaneuvered me — I don't even see how you did it. You'll have to explain it to me slowly; I clearly can't keep pace with someone like you.\"",
-    successText:  "They lunge at the opening and show you everything. You gain 3 Strings on them.",
+    successText:  "They lunge at the opening and show you everything. You gain 2 Strings on them.",
     failText:     "They circle the bait, unconvinced. Patience −1.",
     immuneText:   "Weakness earns only their contempt. Target becomes Defiant.",
     applyOnSuccess: null,
-    grantStrings: 3,
+    grantStrings: 2,
     resolveDamage: 0,
   },
 
@@ -447,14 +448,17 @@ const HOLD_LINE_CONDITIONS = {
  * Which wound you take when holding the line decides which doors open on you.
  */
 const CONDITION_OPENINGS = {
+  // Anger feeds the CHEAP jabs (goad + mock), NOT Humiliate — otherwise a
+  // single Humiliate (which plants Angry) makes the next Humiliate +2, a
+  // self-reinforcing spiral. Taunt→Humiliate stays the intended chain via
+  // the Provoked combo, not via the wound.
   instigate:      { angry:    "their temper is already lit" },
-  throw_gauntlet: { angry:    "their temper is already lit" },
+  sow_doubt:      { scared:   "their fear makes every doubt land", angry: "fury makes them careless" },
   flatter:        { smitten:  "their heart is already open" },
   love_bombing:   { smitten:  "their heart is already open", hopeless: "in the dark, any warmth will do" },
   guilt_trip:     { guilty:   "their guilt spills into every answer" },
   logic_exploit:  { guilty:   "their guilt spills into every answer" },
   gaslight:       { scared:   "their fear makes every doubt land" },
-  sow_doubt:      { scared:   "their fear makes every doubt land" },
   sweeten_deal:   { hopeless: "in the dark, any offer glows" },
 };
 
@@ -691,14 +695,14 @@ class SocialManeuverRoller {
     if (advantage) advantageReasons.push(relationReason);
 
     if (relation !== "blocked" && relation !== "immune") {
-      // Two skills, always: the maneuver rolls its PRIMARY on the d20; the
-      // SECONDARY skill only ASSISTS — it does NOT double your bonus. It lends
-      // HALF its modifier, capped at +3, and never a penalty (a weak support
-      // skill simply doesn't help). Without this a +10/+10 face rolled at +20.
-      if (maneuver.skill2) {
-        const raw = SocialManeuverRoller.getSkillMod2(sourceActor, maneuver);
-        const s2  = Math.max(0, Math.min(3, Math.floor(raw / 2)));
-        if (s2) bonusReasons.push({ label: `${maneuver.skill2} (support, +½ up to 3)`, value: s2 });
+      // Two skills: the maneuver rolls its PRIMARY on the d20; the SECONDARY
+      // skill ASSISTS by granting ADVANTAGE (an expertise die on a5e) — never a
+      // second flat modifier (that let a +10/+10 face roll at +20). You need to
+      // be genuinely capable in the support skill (mod ≥ +2), and it doesn't
+      // stack with advantage you already have.
+      if (maneuver.skill2 && SocialManeuverRoller.getSkillMod2(sourceActor, maneuver) >= 2 && !advantage) {
+        advantage = true;
+        advantageReasons.push(`${maneuver.skill2} (support skill)`);
       }
       if (leverage === "desire" && !advantage) {
         advantage = true;
@@ -1301,19 +1305,10 @@ class SocialManeuverRoller {
       }
       if (damage > 0)
         await SocialEncounterManager.adjustResolve(targetActor, -damage, sourceActorId);
-      // Breaking through their social health (Resolve) wins you a thread — a
-      // String. This is the fencing earn, alongside baring your heart in play.
-      // It does NOT stack with a maneuver whose own fiction already hands you a
-      // String (Play Weak, Charm, reads, cashed combos) — those keep their grant.
-      const earnedByDesign = (maneuver.grantStrings ?? 0) + (combo?.strings ?? 0);
-      if (damage > 0 && earnedByDesign === 0) {
-        await TSLStringStore.add(sourceActorId, targetActorId, 1);
-        const escS = foundry.utils.escapeHTML;
-        await ChatMessage.create({
-          speaker: ChatMessage.getSpeaker({ actor: sourceActor }),
-          content: `<div class="tsl-maneuver-card tsl-mv--success"><div class="tsl-mv-outcome tsl-mv-outcome--success">🧵 Through their guard — <b>${escS(sourceActor.name)}</b> gains a String on ${escS(targetActor.name)}.</div></div>`,
-        });
-      }
+      // (No String for merely CHIPPING Resolve — that flooded the economy.
+      // Breaking them all the way to 0 already hands the winner a String via
+      // the sway resolution; designed grants, reads, combos, opening your
+      // heart and giving in to a Wound are the other earns.)
       // Some blows leave a SCAR, not just a dent: a maneuver with
       // `woundOnSuccess` plants a lasting emotional Wound on the target
       // (Humiliate → Angry). It DEEPENS on repeat (applyOne escalates the

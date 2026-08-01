@@ -405,7 +405,7 @@ class SocialFencingApp extends _SocialAppBase {
       "Resolve": "Their will to hold their ground. Successful maneuvers chip it; break it to 0 and they're swayed. Starts at 3 + their CHA mod (floor 3, no cap) — force of personality holds the line; an average target folds in ~2 cashed combos, the strong-willed take more.",
       "Patience": "Their tolerance for the whole exchange. Failures burn it; at 0 they walk away. Starts at 4 + their WIS mod (floor 3, no cap) — patience is a Wisdom thing.",
       "social DC": "The hidden difficulty you roll against: 10 + WIS + INT + proficiency, or their passive Insight if higher. Only the GM ever sees the number.",
-      "support skill": "A SECOND skill that ASSISTS the maneuver's main d20 roll — it lends HALF its modifier, capped at +3 (never a penalty, never doubles your roll). E.g. Read Them = Insight + a little Investigation.",
+      "support skill": "A SECOND skill that ASSISTS the maneuver's main d20 roll — if you're genuinely capable in it (mod ≥ +2) it grants ADVANTAGE (an expertise die on a5e), never a second flat modifier. E.g. Read Them = Insight, with Investigation lending advantage.",
       "opening": "A condition on your target that makes a matching maneuver stronger. Two kinds, same ⊕ mark: a status you set up this exchange (Provoked, Desperate…) that a finisher cashes, or a lasting emotional wound they carry (Angry, Smitten, Guilty, Scared, Hopeless) that certain maneuvers press for +2.",
       "String": "A hold on a person — earned by opening up in character or by breaking through their Resolve. No passive effect; it is only ever spent, for +5 on ANY roll against them (even an attack).",
       "the Answer": "On a bad fumble OR hitting an immunity, the archetype strikes back in its triad's language: Power → you're Rattled · Emotion → you're Guilty · Reason → they take a String on you.",
@@ -691,7 +691,8 @@ class SocialFencingApp extends _SocialAppBase {
         const wnd = m.woundOnSuccess ? ` · a lasting <b>${esc(TSLConditionEffects.getMeta?.(m.woundOnSuccess)?.label ?? m.woundOnSuccess)}</b> wound` : "";
         const str = (m.grantStrings && !m.reveals) ? ` · +${m.grantStrings} String${m.grantStrings > 1 ? "s" : ""}` : "";
         const combo = m.combos ? ` · cashes ${Object.keys(m.combos).map(c => `<b>${esc(SOCIAL_CONDITIONS[c]?.label ?? c)}</b>`).join("/")} for more` : "";
-        const hit  = `${dmg}${st}${wnd}${str}${combo}`;
+        const kick = m.kickWhileDown ? ` · <b>+1</b> vs a target already off balance` : "";
+        const hit  = `${dmg}${st}${wnd}${str}${kick}${combo}`;
         const miss = `<b>−${m.failPatience ?? 1}</b> Patience`;
         const how = m.howto   ? `<div class="tsl-codex-howto">▸ ${esc(m.howto)}</div>` : "";
         const ex  = m.example ? `<div class="tsl-codex-example">${esc(m.example)}</div>` : "";
@@ -709,7 +710,7 @@ class SocialFencingApp extends _SocialAppBase {
     const numbers = `
       <div class="tsl-codex-sub">
         <div class="tsl-codex-sub-title">Where the numbers come from</div>
-        <div class="tsl-codex-combo"><b>Your roll</b> — a d20 + the move's <b>main skill</b>. Its <b>support skill</b> only <b>assists</b> — half its bonus, up to +3 (it never doubles your roll) — plus any situation bonus. On A5E this opens the system's own check dialog.</div>
+        <div class="tsl-codex-combo"><b>Your roll</b> — a d20 + the move's <b>main skill</b>. Its <b>support skill</b> <b>assists by granting advantage</b> when you're genuinely good at it (mod ≥ +2) — it never adds a second flat modifier — plus any situation bonus. On A5E this opens the system's own check dialog.</div>
         <div class="tsl-codex-combo"><b>Resolve</b> <span class="tsl-codex-gain">their will to hold their ground</span> — <b>3 + CHA</b> modifier (never below 3): force of personality holds the line. Break it to 0 and they are <b>swayed</b>.</div>
         <div class="tsl-codex-combo"><b>Patience</b> <span class="tsl-codex-gain">how long they'll suffer the talk</span> — <b>4 + WIS</b> modifier (never below 3): patience is temperance. Empty it and they <b>walk away</b>.</div>
         <div class="tsl-codex-combo"><b>Social DC</b> <span class="tsl-codex-gain">how hard they are to move</span> — the higher of their passive Insight, or <b>10 + WIS + INT + proficiency</b> (two mental defences). ${game.user.isGM ? "You set/see it; players don't." : "You never see the number — difficulty is learned by trying."}</div>
