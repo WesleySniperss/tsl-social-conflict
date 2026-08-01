@@ -636,6 +636,11 @@ class SocialManeuverRoller {
       }
     }
     if (cond("rattled")) dcMods.push({ label: "Rattled", value: -5 });
+    // Table-wide difficulty knob (world setting) — raise it if people fold too
+    // easily. A flat bump on every social DC, shown in the GM breakdown.
+    let dcTable = 0;
+    try { dcTable = Number(game.settings.get("tsl-social-conflict", "socialDcBonus")) || 0; } catch (e) {}
+    if (dcTable) dcMods.push({ label: "table difficulty", value: dcTable });
     // (Strings give no passive DC change — they are only ever spent, never held for an edge.)
     // A wearing conversation hardens people: past half Patience the door is closing
     const enc = SocialEncounterManager.getEncounter(targetActor);

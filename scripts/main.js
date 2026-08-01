@@ -42,6 +42,16 @@ Hooks.once("init", () => {
     default: 15,
   });
 
+  game.settings.register("tsl-social-conflict", "socialDcBonus", {
+    name: "Social difficulty (global DC bonus)",
+    hint: "A flat modifier added to EVERY social DC, on top of the per-target math (10 + WIS + INT + proficiency, or passive Insight). Raise it if your table finds people too easy to sway; lower it for a softer game. 0 = the base numbers. Try +2 or +3 to make every read/persuasion a real gamble.",
+    scope: "world",
+    config: true,
+    type: Number,
+    default: 0,
+    range: { min: -5, max: 10, step: 1 },
+  });
+
   game.settings.register("tsl-social-conflict", "gmDecidesOutcome", {
     name: "GM adjudicates every maneuver",
     hint: "After each maneuver roll the GM confirms whether it beat the hidden difficulty — clean hit, success, failure or a fumble — with the computed result pre-selected (one click). The GM always has the final word on success. Turn off to resolve automatically against the DC.",
