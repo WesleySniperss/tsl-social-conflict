@@ -9,8 +9,8 @@
   --tsl-surface:    rgba(255,255,255,0.03);
   --tsl-border:     rgba(255,255,255,0.08);
   --tsl-text:       #f0dfc8;
-  --tsl-muted:      #806858;
-  --tsl-dim:        #5a4a3e;
+  --tsl-muted:      #a89078;
+  --tsl-dim:        #85705f;
   --tsl-p0:         #e8557a;
   --tsl-p1:         #9b6ee8;
   --tsl-font-title: 'Cinzel', serif;
@@ -3201,8 +3201,8 @@
   --tsl-surface:    rgba(255,255,255,0.03);
   --tsl-border:     rgba(255,255,255,0.09);
   --tsl-text:       #f0dfc8;
-  --tsl-muted:      #906070;
-  --tsl-dim:        #6a4a56;
+  --tsl-muted:      #b58598;
+  --tsl-dim:        #997683;
   --tsl-p0:         #e8557a;
   --tsl-p1:         #9b6ee8;
   --tsl-font-title: 'Cinzel', serif;
@@ -3581,7 +3581,7 @@
 #tsl-scene-visualizer {
   --tsl-bg: #0e0a08;
   --tsl-text: #f0dfc8;
-  --tsl-muted: #806858;
+  --tsl-muted: #a89078;
   --tsl-border: rgba(255,255,255,0.08);
   --tsl-font-title: 'Cinzel', serif;
   --tsl-font-body: 'EB Garamond', serif;
@@ -3715,3 +3715,23 @@
   font-family: var(--tsl-font-title); letter-spacing: .3px;
 }
 .tsl-viz-conflict:hover { background: rgba(232,85,122,0.24); color: #fff; }
+
+/* ─── Readability pass (v1.57): crisper, calmer type in every window ─── */
+#tsl-social-conflict .window-content,
+#tsl-scene-visualizer .window-content,
+.tsl-fencing {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  line-height: 1.45;
+}
+/* The "how you use it" line on each move — the actionable one, so it reads
+   clearly; the real-tactic note under it is dimmer, secondary. */
+.tsl-codex-howto {
+  color: #f4e6d2;
+  font-size: 12.5px;
+  line-height: 1.4;
+  margin: 3px 0 1px;
+}
+.tsl-codex-tactic { font-size: 11px; opacity: 0.9; }
+.tsl-codex-tactic i { color: var(--tsl-muted); }

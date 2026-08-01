@@ -430,6 +430,7 @@ class TSLConflictApp extends _TSLAppBase {
           const tip = [
             `<b>${esc(m.name)}</b> · ${esc(m.skill)} ${mod >= 0 ? "+" : ""}${mod}${m.skill2 ? ` + ${esc(m.skill2)} (support)` : ""}`,
             esc(m.description),
+            m.howto ? `▸ <i>${esc(m.howto)}</i>` : null,
             liveBlock,
             liveBlock ? null : comboTip,
             liveBlock ? null : (ar.vulnerable.length ? `◎ Cuts deep: ${esc(ar.vulnerable.map(x => x.label).join(", "))}` : null),

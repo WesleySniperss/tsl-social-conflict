@@ -683,14 +683,15 @@ class SocialFencingApp extends _SocialAppBase {
         const dmg = m.resolveDamage ? `<b>−${m.resolveDamage}</b> Resolve` : (m.reveals ? "a tell + a String" : "<b>0 damage — a set-up</b>");
         const st  = m.applyOnSuccess ? ` · makes them <b>${esc(SOCIAL_CONDITIONS[m.applyOnSuccess]?.label ?? m.applyOnSuccess)}</b>` : "";
         const str = (m.grantStrings && !m.reveals) ? ` · +${m.grantStrings} String${m.grantStrings > 1 ? "s" : ""}` : "";
-        return `<div class="tsl-codex-combo"><b>${esc(m.name)}</b> <span class="tsl-codex-gain">(${esc(m.skill)})</span> — ${dmg}${st}${str}<br><i>${esc(REAL_TACTIC[m.id] ?? "")}</i></div>`;
+        const how = m.howto ? `<div class="tsl-codex-howto">▸ ${esc(m.howto)}</div>` : "";
+        return `<div class="tsl-codex-combo"><b>${esc(m.name)}</b> <span class="tsl-codex-gain">(${esc(m.skill)})</span> — ${dmg}${st}${str}${how}<div class="tsl-codex-tactic"><i>${esc(REAL_TACTIC[m.id] ?? "")}</i></div></div>`;
       }).join("");
       return `<div class="tsl-codex-sub"><div class="tsl-codex-sub-title">${SCHOOL_LABEL[g]}</div>${rows}</div>`;
     }).join("");
     const moves = `
       <section class="tsl-notes-section">
         <div class="tsl-notes-section-title">The twelve moves</div>
-        <div class="tsl-codex-hint-sm">Four schools of three. Some chip <b>Resolve</b>; some deal <b>0</b> — those are <b>set-ups</b> that arm a ⊕ opening for a bigger hit next turn. Each rolls its own skill. Under each is the <b>real tactic</b> it models — none of this is invented, it's what people actually do to each other.</div>
+        <div class="tsl-codex-hint-sm">Four schools of three. Some chip <b>Resolve</b>; some deal <b>0</b> — those are <b>set-ups</b> that arm a ⊕ opening for a bigger hit next turn. Each rolls its own skill. The <b>▸ line</b> is how you actually play it at the table; the <i>italic</i> under it is the <b>real tactic</b> it models — none of this is invented, it's what people do to each other.</div>
         ${movesRef}
       </section>`;
 
@@ -1004,8 +1005,9 @@ class SocialFencingApp extends _SocialAppBase {
           const liveTip = "<br><b>Vs " + esc(tgt.name) + ":</b><br>" +
             SocialManeuverRoller.describeVsTarget(src, tgt, m, ctx.isGM)
               .map(l => esc(l)).join("<br>");
+          const howLine = m.howto ? `<br>▸ <i>${esc(m.howto)}</i>` : "";
           return `<button class="tsl-chip ${isSel ? "selected" : ""}" data-fence-maneuver="${m.id}"
-                    data-tooltip="<b>${esc(m.name)}</b> · ${esc(m.skill)}${m.skill2 ? ` + ${esc(m.skill2)}` : ""}<br>${esc(m.description)}${liveTip}">
+                    data-tooltip="<b>${esc(m.name)}</b> · ${esc(m.skill)}${m.skill2 ? ` + ${esc(m.skill2)}` : ""}<br>${esc(m.description)}${howLine}${liveTip}">
                     <i class="fas ${m.icon}"></i><span class="tsl-chip-name">${esc(m.name)}</span>${mark}</button>`;
         }).join("");
         const schoolTip = SOCIAL_TRIADS[g.id]?.hint
