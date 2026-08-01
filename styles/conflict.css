@@ -3706,3 +3706,12 @@
 }
 .tsl-wound-steps button:hover:not(:disabled) { background: rgba(232,85,122,0.22); color: #fff; }
 .tsl-wound-steps button:disabled { opacity: 0.3; cursor: default; }
+
+/* Start-conflict button in the Social Scene header (GM) */
+.tsl-viz-conflict {
+  width: auto; background: rgba(232,85,122,0.12); color: #f0a9bd;
+  border: 1px solid rgba(232,85,122,0.4); border-radius: 6px;
+  padding: 3px 9px; font-size: 12px; cursor: pointer; white-space: nowrap;
+  font-family: var(--tsl-font-title); letter-spacing: .3px;
+}
+.tsl-viz-conflict:hover { background: rgba(232,85,122,0.24); color: #fff; }

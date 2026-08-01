@@ -15,24 +15,21 @@ class TSLHudButton {
     }
 
     try {
+      // ONE toolbar button (the two were merged — no reason for both). It opens
+      // the Social Scene, the everyone-can-see hub: relationship map + live
+      // roll/effect pulses. The GM starts an actual conflict from a button
+      // INSIDE the Scene (see TSLSceneVisualizer). Falls back to the old
+      // conflict-selection flow if the visualiser isn't loaded.
       VTools.register({
         name:    "tsl-social-conflict",
-        title:   "Social Conflict",
-        icon:    "fas fa-heart-crack",
-        onClick: () => TSLHudButton._handleClick(),
-      });
-      // The Social Scene — a live relationship map + effect visualiser for
-      // EVERYONE (not GM-only). Where the conflict window is headed long-term.
-      VTools.register({
-        name:    "tsl-social-scene",
-        title:   "Social Scene",
+        title:   "Social",
         icon:    "fas fa-people-arrows",
         onClick: () => {
           if (typeof TSLSceneVisualizer !== "undefined") TSLSceneVisualizer.toggle();
-          else ui.notifications.warn("Social Scene visualizer not loaded.");
+          else TSLHudButton._handleClick();
         },
       });
-      console.log("TSL | VTools buttons registered");
+      console.log("TSL | VTools button registered");
     } catch (err) {
       console.error("TSL | Error registering VTools button:", err);
     }

@@ -191,10 +191,21 @@ class TSLSceneVisualizer extends _TSLVizBase {
     const nodes = this._collectNodes();
     this._nodePos = {};
 
+    // Header (shared) — the GM starts an actual Social Conflict from HERE now,
+    // so the toolbar needs only one button (this window).
+    const head = (subLabel) => `
+      <div class="tsl-viz-head">
+        <span class="tsl-viz-title"><i class="fas fa-people-arrows"></i> The Social Scene</span>
+        <span class="tsl-viz-sub">${subLabel}</span>
+        ${game.user.isGM ? `<button class="tsl-viz-conflict" data-tooltip="Start a Social Conflict — the shared roll board — with the tokens you have selected on the canvas.">⚔ Conflict</button>` : ""}
+        <button class="tsl-viz-refresh" data-tooltip="Redraw"><i class="fas fa-rotate"></i></button>
+      </div>`;
+
     if (!nodes.length) {
       return `<div class="tsl-viz-root">
+        ${head("nobody on the map yet")}
         <div class="tsl-viz-empty">No social scene yet — no bonded characters, tracks or wounds on the canvas.
-        Set relationships in a token's Chronicle, and they'll appear here.</div>
+        Set relationships in a token's Chronicle, and they'll appear here.${game.user.isGM ? " Or select tokens and hit ⚔ Conflict above." : ""}</div>
       </div>`;
     }
 
@@ -260,11 +271,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
 
     return `
       <div class="tsl-viz-root">
-        <div class="tsl-viz-head">
-          <span class="tsl-viz-title"><i class="fas fa-people-arrows"></i> The Social Scene</span>
-          <span class="tsl-viz-sub">${nodes.length} on the map · ${edges.length} bond${edges.length === 1 ? "" : "s"}</span>
-          <button class="tsl-viz-refresh" data-tooltip="Redraw"><i class="fas fa-rotate"></i></button>
-        </div>
+        ${head(`${nodes.length} on the map · ${edges.length} bond${edges.length === 1 ? "" : "s"}`)}
         <div class="tsl-viz-stage" style="width:${size}px;height:${size}px">
           <svg class="tsl-viz-svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${lines}</svg>
           ${edgeChips}
@@ -279,6 +286,13 @@ class TSLSceneVisualizer extends _TSLVizBase {
     const el = html[0] ?? html;
 
     el.querySelector(".tsl-viz-refresh")?.addEventListener("click", () => this.render(true));
+
+    // GM: start the shared Social Conflict roll board from the selected tokens
+    // (the old second toolbar button now lives here).
+    el.querySelector(".tsl-viz-conflict")?.addEventListener("click", () => {
+      if (typeof TSLHudButton !== "undefined") TSLHudButton._handleClick();
+      else if (typeof TSLConflictApp !== "undefined") TSLConflictApp.openSelection(canvas.tokens?.controlled ?? []);
+    });
 
     // Click a node → open that character's Chronicle (GM anyone, owner own).
     // The Chronicle opens via SocialFencingDialog.open (NOT SocialFencingApp —
