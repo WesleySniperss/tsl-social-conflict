@@ -3735,3 +3735,16 @@
 }
 .tsl-codex-tactic { font-size: 11px; opacity: 0.9; }
 .tsl-codex-tactic i { color: var(--tsl-muted); }
+
+/* In-scene example quote on each move (Codex → Moves) */
+.tsl-codex-example {
+  margin: 3px 0 2px;
+  padding: 4px 9px;
+  border-left: 2px solid rgba(232,85,122,0.5);
+  background: rgba(232,85,122,0.06);
+  border-radius: 0 5px 5px 0;
+  color: #e9d6c4;
+  font-style: italic;
+  font-size: 12px;
+  line-height: 1.4;
+}

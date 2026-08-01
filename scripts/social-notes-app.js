@@ -683,15 +683,16 @@ class SocialFencingApp extends _SocialAppBase {
         const dmg = m.resolveDamage ? `<b>−${m.resolveDamage}</b> Resolve` : (m.reveals ? "a tell + a String" : "<b>0 damage — a set-up</b>");
         const st  = m.applyOnSuccess ? ` · makes them <b>${esc(SOCIAL_CONDITIONS[m.applyOnSuccess]?.label ?? m.applyOnSuccess)}</b>` : "";
         const str = (m.grantStrings && !m.reveals) ? ` · +${m.grantStrings} String${m.grantStrings > 1 ? "s" : ""}` : "";
-        const how = m.howto ? `<div class="tsl-codex-howto">▸ ${esc(m.howto)}</div>` : "";
-        return `<div class="tsl-codex-combo"><b>${esc(m.name)}</b> <span class="tsl-codex-gain">(${esc(m.skill)})</span> — ${dmg}${st}${str}${how}<div class="tsl-codex-tactic"><i>${esc(REAL_TACTIC[m.id] ?? "")}</i></div></div>`;
+        const how = m.howto   ? `<div class="tsl-codex-howto">▸ ${esc(m.howto)}</div>` : "";
+        const ex  = m.example ? `<div class="tsl-codex-example">${esc(m.example)}</div>` : "";
+        return `<div class="tsl-codex-combo"><b>${esc(m.name)}</b> <span class="tsl-codex-gain">(${esc(m.skill)})</span> — ${dmg}${st}${str}${how}${ex}<div class="tsl-codex-tactic"><i>${esc(REAL_TACTIC[m.id] ?? "")}</i></div></div>`;
       }).join("");
       return `<div class="tsl-codex-sub"><div class="tsl-codex-sub-title">${SCHOOL_LABEL[g]}</div>${rows}</div>`;
     }).join("");
     const moves = `
       <section class="tsl-notes-section">
         <div class="tsl-notes-section-title">The twelve moves</div>
-        <div class="tsl-codex-hint-sm">Four schools of three. Some chip <b>Resolve</b>; some deal <b>0</b> — those are <b>set-ups</b> that arm a ⊕ opening for a bigger hit next turn. Each rolls its own skill. The <b>▸ line</b> is how you actually play it at the table; the <i>italic</i> under it is the <b>real tactic</b> it models — none of this is invented, it's what people do to each other.</div>
+        <div class="tsl-codex-hint-sm">Four schools of three. Some chip <b>Resolve</b>; some deal <b>0</b> — those are <b>set-ups</b> that arm a ⊕ opening for a bigger hit next turn. Each rolls its own skill. The <b>▸ line</b> is how you play it; the <b>quote</b> under it is a line you might actually <b>say in the scene</b>; the small <i>italic</i> is the <b>real tactic</b> it models.</div>
         ${movesRef}
       </section>`;
 
