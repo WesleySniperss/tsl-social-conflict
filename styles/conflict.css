@@ -3753,3 +3753,30 @@
 .tsl-codex-outcome { font-size: 12px; line-height: 1.4; margin: 1px 0; }
 .tsl-codex-outcome--hit  b:first-child { color: #7bd88f; }
 .tsl-codex-outcome--miss b:first-child { color: #e8888f; }
+
+/* ─── Codex accordions (collapsible sub-sections) ─────────────────── */
+details.tsl-codex-sub { margin: 4px 0; }
+details.tsl-codex-sub > summary {
+  cursor: pointer; list-style: none; user-select: none;
+  display: flex; align-items: center; gap: 4px;
+}
+details.tsl-codex-sub > summary::-webkit-details-marker { display: none; }
+details.tsl-codex-sub > summary::before {
+  content: "▸"; font-size: 10px; color: var(--tsl-muted); transition: transform .12s;
+}
+details.tsl-codex-sub[open] > summary::before { content: "▾"; }
+details.tsl-codex-sub > summary:hover { filter: brightness(1.15); }
+
+/* "Act here" banner atop the Chronicle maneuver console */
+.tsl-fc-banner {
+  margin: 2px 0 8px; padding: 6px 9px;
+  background: rgba(232,85,122,0.09); border: 1px solid rgba(232,85,122,0.28);
+  border-radius: 6px; font-size: 12px; line-height: 1.4; color: #f0dfc8;
+}
+
+/* Worked-scene framing box (Codex → Start) */
+.tsl-codex-scene {
+  margin: 4px 0 8px; padding: 7px 10px; display: flex; flex-direction: column; gap: 5px;
+  background: rgba(85,184,232,0.07); border-left: 3px solid rgba(85,184,232,0.5);
+  border-radius: 0 6px 6px 0; font-size: 12.5px; line-height: 1.45;
+}

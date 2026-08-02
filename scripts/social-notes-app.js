@@ -392,12 +392,14 @@ class SocialFencingApp extends _SocialAppBase {
     const tslOn     = mode !== "fencing";   // the 2d6 Feelings layer
     const fencingOn = mode !== "tsl";       // d20 maneuvers, tracks, statuses
 
-    // A titled block of short bullets — scannable, not a wall of prose.
-    const sub = (title, items) => `
-      <div class="tsl-codex-sub">
-        <div class="tsl-codex-sub-title">${title}</div>
+    // A titled, COLLAPSIBLE block of short bullets — the page opens as a tidy
+    // list of headers you expand on demand, instead of one long scroll.
+    // (Native <details>: no JS, works in Foundry. `opened` forces it open.)
+    const sub = (title, items, opened = false) => `
+      <details class="tsl-codex-sub"${opened ? " open" : ""}>
+        <summary class="tsl-codex-sub-title">${title}</summary>
         <ul class="tsl-codex-how">${items.map(i => `<li>${i}</li>`).join("")}</ul>
-      </div>`;
+      </details>`;
 
     // A key term: dotted underline + a hover definition. `term("Resolve")`
     // looks the name up in GLOSSARY; a second arg overrides the tip.
@@ -470,15 +472,15 @@ class SocialFencingApp extends _SocialAppBase {
       <section class="tsl-notes-section">
         <div class="tsl-notes-section-title">Openings (⊕) — the cheat sheet</div>
         <div class="tsl-codex-hint-sm">One rule, no jargon: <b>a condition on your target makes a matching maneuver stronger.</b> When one is live, that chip shows a ⊕. First you put a condition on them; then you press it.</div>
-        <div class="tsl-codex-sub">
-          <div class="tsl-codex-sub-title">Step 1 · Put a condition on them</div>
+        <details class="tsl-codex-sub" open>
+          <summary class="tsl-codex-sub-title">Step 1 · Put a condition on them</summary>
           <ul class="tsl-codex-how tsl-codex-combo">${setupRows}</ul>
           <div class="tsl-codex-hint-sm">Lasting emotional wounds (Angry / Smitten / Guilty / Scared / Hopeless) also come from Hold the Line, sincere Feelings moves, or a bad fumble — and stay until the story heals them.</div>
-        </div>
-        <div class="tsl-codex-sub">
-          <div class="tsl-codex-sub-title">Step 2 · Press it — when they're X, these gain ⊕</div>
+        </details>
+        <details class="tsl-codex-sub" open>
+          <summary class="tsl-codex-sub-title">Step 2 · Press it — when they're X, these gain ⊕</summary>
           <ul class="tsl-codex-how tsl-codex-combo">${openingRows}</ul>
-        </div>
+        </details>
       </section>`;
 
     const quickStart = `
@@ -574,16 +576,20 @@ class SocialFencingApp extends _SocialAppBase {
     // so walk one exchange end to end and name every part as it happens.
     const walkthrough = `
       <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title">One exchange, step by step</div>
-        <div class="tsl-codex-hint-sm">Lyra wants the captain to open the gate. He refuses. Blades out — words, not swords.</div>
+        <div class="tsl-notes-section-title">A scene, start to finish</div>
+        <div class="tsl-codex-scene">
+          <div><b>The scene.</b> It's an hour to dawn. Lyra must get through the river gate; <b>Captain Roell</b> has orders to let no one pass. Neither will draw steel — this is a battle of words.</div>
+          <div><b>The goal.</b> Break Roell's <b>${term("Resolve")}</b> to 0 (talk him round → he's <b>${term("swayed")}</b> and opens the gate) <i>before</i> he loses <b>${term("Patience")}</b> and ends the conversation (empties to 0 → he <b>${term("walk away", "calls the guards")}</b>, and his own agenda — keep the gate shut — wins).</div>
+        </div>
         <ol class="tsl-codex-how tsl-codex-quick">
-          <li><b>She sizes him up.</b> <b>Read Them</b> (Insight + Investigation). It lands: a <b>tell</b> is whispered to her — <i>“he keeps counting the guards behind you.”</i> She writes her guess into her Bond: <i>read as Broker</i>. She also gains a String.</li>
-          <li><b>She puts a condition on him.</b> <b>Taunt</b> — a jeer played for the room. It lands, so he is now <b>${SOCIAL_CONDITIONS.provoked?.label ?? "Provoked"}</b>. On its own that is worth little: <i>no damage at all.</i> It is a <b>set-up</b>.</li>
-          <li><b>Now the chips change.</b> Because he carries that condition, <b>Humiliate</b> shows a <b>⊕</b> in its corner — an ${term("opening")}. Hovering it says what it pays: the condition is <i>cashed</i> for extra Resolve damage.</li>
-          <li><b>She presses it.</b> Humiliate (Intimidation + Performance) lands: normal damage <b>plus</b> the opening's bonus. His <b>${term("Resolve")}</b> drops hard, and the <b>${SOCIAL_CONDITIONS.provoked?.label ?? "Provoked"}</b> condition is <b>spent</b> — the ⊕ goes away. Breaking through his guard also hands her a String.</li>
-          <li><b>He answers.</b> Later she overreaches and fumbles badly. His nature strikes back — she walks away <b>Rattled</b> herself. Conditions cut both ways.</li>
+          <li><b>She sizes him up.</b> <b>Read Them</b> (Insight + Investigation). It lands: a <b>tell</b> is whispered to her — <i>“he keeps glancing back at the guards.”</i> She notes her guess in her Bond: <i>read as Broker</i>, and gains a String.</li>
+          <li><b>She sets him up.</b> <b>Taunt</b> — a jeer for the room. It lands: he's now <b>${SOCIAL_CONDITIONS.provoked?.label ?? "Provoked"}</b>. On its own, <i>no damage</i> — it's a <b>set-up</b>.</li>
+          <li><b>The chip changes.</b> Because he carries that condition, <b>Humiliate</b> now shows a <b>⊕</b> — an ${term("opening")}. Hover it to see the payout: the set-up is <i>cashed</i> for extra Resolve damage.</li>
+          <li><b>She presses it.</b> Humiliate lands: normal damage <b>plus</b> the opening. His Resolve drops hard, ${SOCIAL_CONDITIONS.provoked?.label ?? "Provoked"} is <b>spent</b> (⊕ gone), and the public unmaking leaves him <b>Angry</b> — a lasting wound.</li>
+          <li><b>He answers.</b> She overreaches on the next move and fumbles — his nature bites back and she's left <b>Rattled</b>. Blades cut both ways.</li>
+          <li><b>How it ends.</b> One more landed maneuver takes his Resolve to <b>0</b>: he's <b>swayed</b>. He curses, unbars the gate, and their bond shifts a step. (Had her fumbles instead emptied <i>his</i> Patience first, he'd have called the guards and won the scene.)</li>
         </ol>
-        <div class="tsl-codex-hint-sm"><b>The two kinds of ⊕, in one line:</b> a <b>status you applied</b> (like ${SOCIAL_CONDITIONS.provoked?.label ?? "Provoked"}) is <i>spent</i> when a finisher cashes it — one shot. A <b>lasting wound</b> they carry (Angry, Smitten, Guilty, Scared, Hopeless, from Hold the Line or a Feelings move) is <i>never</i> spent: it keeps giving +2 until the story heals it. Both look the same on the chip, and you never need to tell them apart to play — press ⊕ when you see it.</div>
+        <div class="tsl-codex-hint-sm"><b>The two kinds of ⊕, in one line:</b> a <b>status you applied</b> (like ${SOCIAL_CONDITIONS.provoked?.label ?? "Provoked"}) is <i>spent</i> when a finisher cashes it — one shot. A <b>lasting wound</b> they carry (Angry, Smitten, Guilty, Scared, Hopeless) is <i>never</i> spent: it keeps giving +2 until the story heals it. Both look the same on the chip; press ⊕ when you see it.</div>
       </section>`;
 
     const how = quickStart + comboReference + reference + gm;
@@ -644,16 +650,16 @@ class SocialFencingApp extends _SocialAppBase {
       <section class="tsl-notes-section">
         <div class="tsl-notes-section-title">Statuses & wounds</div>
         <div class="tsl-codex-hint-sm"><b>Two kinds of condition, and the card keeps them apart.</b> <b>States</b> (below) are the <b>fleeting</b> layer — a maneuver sets one up, it lasts a round or two, and a finisher <b>spends</b> it. <b>Wounds</b> (❤ — Angry, Smitten, Guilty, Scared, Hopeless) are the <b>lasting</b> layer — they come from Hold the Line or betrayal, and they don't just sit there: they <b>push the one who carries them</b>. Never worry which is which mid-roll — both show ⊕.</div>
-        <div class="tsl-codex-sub">
-          <div class="tsl-codex-sub-title">States — fleeting set-ups (this fight)</div>
+        <details class="tsl-codex-sub" open>
+          <summary class="tsl-codex-sub-title">States — fleeting set-ups (this fight)</summary>
           <div class="tsl-codex-hint-sm">Each arms a ⊕ opening and is <b>spent</b> when a finisher cashes it. <b>Defiant</b> is the odd one — a wall, not an opening, broken only by a successful <b>Read Them</b>.</div>
           <div class="tsl-codex-statuses">${statusRows}</div>
-        </div>
-        <div class="tsl-codex-sub">
-          <div class="tsl-codex-sub-title">Wounds — they push you (VtM-style)</div>
+        </details>
+        <details class="tsl-codex-sub" open>
+          <summary class="tsl-codex-sub-title">Wounds — they push you (VtM-style)</summary>
           <div class="tsl-codex-hint-sm">Each Wound is a <b>different kind of thing</b> — a charm (Smitten), a rage trade (Angry), a fright (Scared), a debt (Guilty), a grey weight (Hopeless) — and it <b>escalates</b> through three tiers: <b>● Light → ●● Deep → ●●● Breaking point</b>. Pressed again, it <b>deepens</b> rather than stacking a new one; at the top tier it takes the wheel for a beat. <b>Give in</b> at a cost and you refuel (a String, or Inspiration). Four Wounds = <b>Overwhelmed</b> (yield or flee). Set the tier on your own character in the <b>Fencing</b> tab (▲/▼).</div>
           <div class="tsl-codex-combo-list">${woundDossier}</div>
-        </div>
+        </details>
       </section>`;
 
     // The moves, by school, each tagged with the real persuasion tactic
@@ -704,19 +710,19 @@ class SocialFencingApp extends _SocialAppBase {
           <div class="tsl-codex-tactic"><i>${esc(REAL_TACTIC[m.id] ?? "")}</i></div>
         </div>`;
       }).join("");
-      return `<div class="tsl-codex-sub"><div class="tsl-codex-sub-title">${SCHOOL_LABEL[g]}</div>${rows}</div>`;
+      return `<details class="tsl-codex-sub" open><summary class="tsl-codex-sub-title">${SCHOOL_LABEL[g]}</summary>${rows}</details>`;
     }).join("");
     // Where every number a player sees actually comes from.
     const numbers = `
-      <div class="tsl-codex-sub">
-        <div class="tsl-codex-sub-title">Where the numbers come from</div>
+      <details class="tsl-codex-sub">
+        <summary class="tsl-codex-sub-title">Where the numbers come from</summary>
         <div class="tsl-codex-combo"><b>Your roll</b> — a d20 + the move's <b>main skill</b>, with its <b>support skill's</b> full modifier added on top (plus any situation bonus). On A5E this opens the system's own check dialog.</div>
         <div class="tsl-codex-combo"><b>Resolve</b> <span class="tsl-codex-gain">their will to hold their ground</span> — <b>3 + CHA</b> modifier (never below 3): force of personality holds the line. Break it to 0 and they are <b>swayed</b>.</div>
         <div class="tsl-codex-combo"><b>Patience</b> <span class="tsl-codex-gain">how long they'll suffer the talk</span> — <b>4 + WIS</b> modifier (never below 3): patience is temperance. Empty it and they <b>walk away</b>.</div>
         <div class="tsl-codex-combo"><b>Social DC</b> <span class="tsl-codex-gain">how hard they are to move</span> — the higher of their passive Insight, or <b>10 + their WIS save + INT save</b> (two mental saves — proficiency baked in, so a save-hardened target really resists). ${game.user.isGM ? "You set/see it; players don't." : "You never see the number — difficulty is learned by trying."}</div>
         <div class="tsl-codex-combo"><b>Strings</b> <span class="tsl-codex-gain">trump cards</span> — spend one for <b>+5</b> on any roll against that person. Earned by opening your heart in play, or by breaking their Resolve.</div>
         <div class="tsl-codex-hint-sm">Press a move their <b>nature is immune</b> to and it backfires — no effect, and they turn <b>Defiant</b> (maneuver-proof until a successful <b>Read Them</b> cracks it).</div>
-      </div>`;
+      </details>`;
     const moves = `
       <section class="tsl-notes-section">
         <div class="tsl-notes-section-title">The moves</div>
@@ -1075,7 +1081,8 @@ class SocialFencingApp extends _SocialAppBase {
 
     return `
       <section class="tsl-notes-section tsl-fc">
-        <div class="tsl-notes-section-title" data-tooltip="Fence a target from your own menu: pick who, pick a maneuver, roll. No GM setup needed.">Maneuver — ${esc(src.name)} acts</div>
+        <div class="tsl-notes-section-title" data-tooltip="Fence a target from your own menu: pick who, pick a maneuver, roll. No GM setup needed.">⚔ Act here — ${esc(src.name)}'s move</div>
+        <div class="tsl-fc-banner">This is where <b>${esc(src.name)}</b> acts: <b>1)</b> pick who you're working on · <b>2)</b> pick a maneuver · <b>3)</b> roll. That's the whole loop.</div>
         <div class="tsl-fc-target-row">
           <span class="tsl-fc-target-label">Target</span>
           <select class="tsl-fc-target">
