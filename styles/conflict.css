@@ -3791,3 +3791,66 @@ details.tsl-codex-sub > summary:hover { filter: brightness(1.15); }
 .tsl-status-row--states .tsl-state-toggle.active {
   background: rgba(255,255,255,0.10); border-color: var(--st-color); color: #fff; font-weight: 600;
 }
+
+/* ─── Visual effects (v1.65): resolution drama · living map · card juice ─── */
+
+/* Resolution drama on the Scene Visualizer node */
+.tsl-viz-node.resolve-swayed .tsl-viz-portrait { animation: tsl-viz-swayed 1.6s ease-out; }
+@keyframes tsl-viz-swayed {
+  0%   { box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+  25%  { box-shadow: 0 0 26px 8px rgba(255,150,170,.95); border-color: #ffd27a; }
+  100% { box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+}
+.tsl-viz-node.resolve-walked .tsl-viz-portrait { animation: tsl-viz-walked 1.6s ease-out; }
+@keyframes tsl-viz-walked {
+  0% { filter: none; } 45% { filter: grayscale(1) brightness(.55); } 100% { filter: grayscale(.35); }
+}
+.tsl-viz-burst {
+  position: absolute; transform: translate(-50%,-50%); width: 56px; height: 56px;
+  border-radius: 50%; pointer-events: none; z-index: 5; animation: tsl-viz-burst 1.3s ease-out forwards;
+}
+.tsl-viz-burst--swayed { border: 2px solid #ff9aae; }
+.tsl-viz-burst--walked { border: 2px solid #8a7d72; }
+@keyframes tsl-viz-burst {
+  0%   { opacity: .9; transform: translate(-50%,-50%) scale(.4); }
+  100% { opacity: 0;  transform: translate(-50%,-50%) scale(2.7); }
+}
+.tsl-viz-resolveword {
+  position: absolute; transform: translate(-50%,-50%); z-index: 7; pointer-events: none;
+  font-family: var(--tsl-font-title, serif); font-weight: 700; font-size: 16px; letter-spacing: 1px;
+  text-shadow: 0 1px 5px #000; animation: tsl-viz-rword 1.7s ease-out forwards;
+}
+.tsl-viz-resolveword--swayed { color: #ff9aae; }
+.tsl-viz-resolveword--walked { color: #b8a894; }
+@keyframes tsl-viz-rword {
+  0%   { opacity: 0; transform: translate(-50%,-50%) scale(.7); }
+  20%  { opacity: 1; transform: translate(-50%,-160%) scale(1.1); }
+  100% { opacity: 0; transform: translate(-50%,-235%) scale(1); }
+}
+
+/* Living map: strong bonds shimmer, Overwhelmed nodes pulse */
+.tsl-viz-edge--strong { animation: tsl-viz-shimmer 3.5s ease-in-out infinite; }
+@keyframes tsl-viz-shimmer { 0%,100% { stroke-opacity: .55; } 50% { stroke-opacity: 1; } }
+.tsl-viz-node.overwhelmed .tsl-viz-portrait { animation: tsl-viz-ow 1.7s ease-in-out infinite; }
+@keyframes tsl-viz-ow {
+  0%,100% { box-shadow: 0 0 6px rgba(232,85,85,.55); }
+  50%     { box-shadow: 0 0 15px 3px rgba(232,85,85,.95); }
+}
+
+/* Conflict-card portrait juice on a landed pulse */
+.tsl-portrait.tsl-hit-hit  { animation: tsl-hit-hit .8s ease-out; }
+@keyframes tsl-hit-hit {
+  0%,100% { box-shadow: none; transform: none; }
+  18% { box-shadow: 0 0 14px 3px rgba(232,85,85,.9); transform: translateX(-2px); }
+  40% { transform: translateX(2px); } 60% { transform: translateX(-1px); }
+}
+.tsl-portrait.tsl-hit-crit { animation: tsl-hit-crit .85s ease-out; }
+@keyframes tsl-hit-crit {
+  0%,100% { box-shadow: none; transform: none; }
+  15% { box-shadow: 0 0 22px 6px rgba(255,210,122,.95); transform: scale(1.09); }
+  45% { transform: scale(.97) translateX(2px); }
+}
+.tsl-portrait.tsl-hit-miss { animation: tsl-hit-miss .5s ease-out; }
+@keyframes tsl-hit-miss { 0%,100% { transform: none; } 30% { transform: translateX(-2px); } 70% { transform: translateX(2px); } }
+.tsl-portrait.tsl-hit-wall { animation: tsl-hit-wall .8s ease-out; }
+@keyframes tsl-hit-wall { 0%,100% { box-shadow: none; } 25% { box-shadow: 0 0 14px 3px rgba(232,85,122,.9); } }

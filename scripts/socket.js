@@ -34,6 +34,7 @@ class TSLSocket {
    */
   static broadcastPulse(data) {
     if (typeof TSLSceneVisualizer !== "undefined") TSLSceneVisualizer.pulse(data);
+    if (typeof TSLConflictApp !== "undefined") TSLConflictApp.pulse?.(data);
     TSLSocket.emit("SOCIAL_PULSE", data);
   }
 
@@ -58,8 +59,9 @@ class TSLSocket {
         break;
 
       case "SOCIAL_PULSE":
-        // A maneuver resolved somewhere — animate it on the Scene Visualizer
+        // A maneuver resolved somewhere — animate it for everyone
         if (typeof TSLSceneVisualizer !== "undefined") TSLSceneVisualizer.pulse(data);
+        if (typeof TSLConflictApp !== "undefined") TSLConflictApp.pulse?.(data);
         break;
 
       case "GM_ACTION":

@@ -1450,6 +1450,9 @@ class SocialManeuverRoller {
           srcId: sourceActorId, tgtId: targetActorId,
           group: maneuver?.group ?? "general",
           outcome: outcomeType, damage: resolveDrop,
+          // If this blow just decided the whole exchange, the visualiser plays
+          // the dramatic resolution (swayed = warm break · walked = fade).
+          resolved: (!encBefore?.outcome && encNow?.outcome) ? encNow.outcome : null,
         });
       }
     } catch (err) { console.warn("TSL | pulse broadcast failed:", err); }

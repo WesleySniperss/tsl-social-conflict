@@ -105,6 +105,32 @@ class TSLConflictApp extends _TSLAppBase {
 
   static receiveClose() { TSLConflictApp._instance?.close(); }
 
+  /** A social pulse — flash the struck participant's portrait (juice). */
+  static pulse(data) {
+    const app = TSLConflictApp._instance;
+    if (!app?.rendered) return;
+    try { app._flashPulse(data); } catch (e) {}
+  }
+
+  _flashPulse({ tgtId, outcome } = {}) {
+    const root = this.element?.[0];
+    if (!root || !tgtId) return;
+    const ps  = ConflictStore.state?.participants ?? [];
+    const idx = ps.findIndex(p => p.actorId === tgtId);
+    if (idx < 0) return;
+    const kind = (outcome === "immune" || outcome === "blocked") ? "wall"
+      : (outcome === "success" || outcome === "crit") ? "hit" : "miss";
+    // A short delay lets any re-render from the same outcome settle first.
+    setTimeout(() => {
+      const port = (this.element?.[0])?.querySelector(`.tsl-participant[data-idx="${idx}"] .tsl-portrait`);
+      if (!port) return;
+      const cls = outcome === "crit" ? "tsl-hit-crit" : `tsl-hit-${kind}`;
+      port.classList.remove(cls); void port.offsetWidth;   // restart the animation
+      port.classList.add(cls);
+      setTimeout(() => port.classList.remove(cls), 850);
+    }, 70);
+  }
+
   // ── Render ───────────────────────────────────────────────────────────────────
 
   async getData() {
@@ -289,8 +315,8 @@ class TSLConflictApp extends _TSLAppBase {
       if (!enc?.active) {
         if (enc?.outcome) {
           const tip = enc.outcome === "swayed"
-            ? "Swayed — their Resolve hit 0. They concede / you win the exchange, and their bond toward the winner deepens a step."
-            : "Walked away — their Patience hit 0. They end the talk on their own terms, and their agenda advances.";
+            ? "Swayed = you WON. Their Resolve hit 0: they concede the point / do what you were after (GM frames it), the bond deepens +1, and you gain a String on them."
+            : "Walked away = you LOST. Their Patience hit 0: they end the talk on their terms, the bond cools −1, they gain a String on you, and their agenda advances.";
           return `<div class="tsl-enc-done tsl-enc-done--${enc.outcome}" data-tooltip="${tip}">${
             enc.outcome === "swayed" ? "💔 Swayed" : "🚪 Walked away"}</div>`;
         }

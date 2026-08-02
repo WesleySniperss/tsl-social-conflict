@@ -218,7 +218,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
       const a = this._nodePos[e.aId], b = this._nodePos[e.bId];
       const w = 1.5 + e.strength * 1.6;
       const op = 0.35 + e.strength * 0.18;
-      return `<line class="tsl-viz-edge" data-a="${e.aId}" data-b="${e.bId}"
+      return `<line class="tsl-viz-edge${e.strength >= 3 ? " tsl-viz-edge--strong" : ""}" data-a="${e.aId}" data-b="${e.bId}"
         x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}"
         stroke="${e.color}" stroke-width="${w.toFixed(1)}" stroke-opacity="${op.toFixed(2)}"
         stroke-linecap="round" />`;
@@ -327,7 +327,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
     try { app._playPulse(data); } catch (err) { console.warn("TSL | viz pulse failed:", err); }
   }
 
-  _playPulse({ srcId, tgtId, group, outcome, damage } = {}) {
+  _playPulse({ srcId, tgtId, group, outcome, damage, resolved } = {}) {
     const root = this.element?.[0];
     const stage = root?.querySelector(".tsl-viz-stage");
     const svg   = root?.querySelector(".tsl-viz-svg");
@@ -373,6 +373,28 @@ class TSLSceneVisualizer extends _TSLVizBase {
       float.style.top  = `${tgt.y}px`;
       stage.appendChild(float);
       setTimeout(() => float.remove(), 1200);
+    }
+
+    // Resolution drama: this blow ended the exchange. Swayed = a warm break;
+    // walked = the node greys out and drifts. A short, satisfying climax.
+    if (resolved && tgtNode) {
+      tgtNode.classList.add(`resolve-${resolved}`);
+      setTimeout(() => tgtNode.classList.remove(`resolve-${resolved}`), 1700);
+      if (tgt) {
+        const burst = document.createElement("div");
+        burst.className = `tsl-viz-burst tsl-viz-burst--${resolved}`;
+        burst.style.left = `${tgt.x}px`;
+        burst.style.top  = `${tgt.y}px`;
+        stage.appendChild(burst);
+        setTimeout(() => burst.remove(), 1400);
+        const word = document.createElement("div");
+        word.className = `tsl-viz-resolveword tsl-viz-resolveword--${resolved}`;
+        word.textContent = resolved === "swayed" ? "SWAYED" : "WALKED";
+        word.style.left = `${tgt.x}px`;
+        word.style.top  = `${tgt.y}px`;
+        stage.appendChild(word);
+        setTimeout(() => word.remove(), 1700);
+      }
     }
   }
 }
