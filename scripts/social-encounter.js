@@ -154,9 +154,11 @@ class SocialEncounterManager {
   /**
    * Everything that happens the moment a track empties. GM side.
    *   swayed  → the loser's regard for the winner warms (+1); the winner
-   *             gains a String — the concession is a hold to invoke later;
-   *             the scene's fencing statuses clear.
-   *   walked  → regard cools (−1); statuses clear; a triad-flavored exit.
+   *             gains a String — the concession is a hold to invoke later.
+   *   walked  → regard cools (−1); the winner gains a String; a flavored exit.
+   * NOTE: fencing statuses are NOT cleared here — they carry their own
+   * durations and REAL combat riders, so if the talk turns to blades they must
+   * still bite. They expire on their own (scene/rounds) or the GM clears them.
    */
   static async _resolveConsequences(actor, sourceId, outcome) {
     let gainedString = false;
@@ -173,11 +175,6 @@ class SocialEncounterManager {
       // you while you failed to land — they leave holding a String on you.
       await TSLStringStore.add(actor.id, sourceId, 1);
       tookString = true;
-    }
-
-    // The exchange is over — clear the scene's fencing statuses on the loser
-    for (const id of SOCIAL_CONDITION_ORDER) {
-      await SocialArchetypeManager.removeCondition(actor, id);
     }
 
     await SocialEncounterManager._announce(actor, outcome, { winner, gainedString, tookString });
@@ -209,7 +206,7 @@ class SocialEncounterManager {
           `They <strong>concede the exchange</strong> — they do the thing, or grant the point (the GM frames exactly what).`,
           `The bond toward ${who} deepens — <strong>strength +1</strong>.`,
           opts.gainedString ? `${who} gains a <strong>String</strong> on them — the concession is a hold to invoke later.` : null,
-          `The scene's fencing statuses on them clear.`,
+          `Any fencing statuses on them <strong>linger</strong> — if this turns to a fight, they still bite.`,
         ].filter(Boolean)
       : [
           `They <strong>disengage</strong> — this conversation is over on their terms.`,
@@ -219,7 +216,7 @@ class SocialEncounterManager {
             ? `They leave with what they came for — <strong>their agenda advances</strong> (GM: see their Profile).`
             : null,
           walkFlavor ? esc(walkFlavor) : null,
-          `The scene's fencing statuses on them clear.`,
+          `Any fencing statuses on them <strong>linger</strong> — if this turns to a fight, they still bite.`,
         ].filter(Boolean);
 
     const cls = outcome === "swayed" ? "success" : "immune";
