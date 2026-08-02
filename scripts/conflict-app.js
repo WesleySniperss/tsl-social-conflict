@@ -288,7 +288,10 @@ class TSLConflictApp extends _TSLAppBase {
       const enc = encounters?.[p.actorId];
       if (!enc?.active) {
         if (enc?.outcome) {
-          return `<div class="tsl-enc-done tsl-enc-done--${enc.outcome}">${
+          const tip = enc.outcome === "swayed"
+            ? "Swayed — their Resolve hit 0. They concede / you win the exchange, and their bond toward the winner deepens a step."
+            : "Walked away — their Patience hit 0. They end the talk on their own terms, and their agenda advances.";
+          return `<div class="tsl-enc-done tsl-enc-done--${enc.outcome}" data-tooltip="${tip}">${
             enc.outcome === "swayed" ? "💔 Swayed" : "🚪 Walked away"}</div>`;
         }
         return "";
@@ -308,14 +311,27 @@ class TSLConflictApp extends _TSLAppBase {
     // Active fencing statuses (Rattled, Enthralled, Provoked…) — the FLEETING,
     // tactical layer applied by maneuvers this exchange. Labeled "States" so
     // they never blur with the lasting emotional Wounds below.
-    const renderStatuses = (p) => {
+    const renderStatuses = (p, idx) => {
       if (!showFencing) return "";
-      const conds = SocialArchetypeManager.getActiveConditions(game.actors.get(p.actorId));
-      if (!conds.length) return "";
-      return `<div class="tsl-status-row tsl-status-row--states">
-        <span class="tsl-row-label tsl-row-label--state" data-tooltip="Fleeting fencing states — set up by maneuvers, gone in a round or two. Different from the lasting Wounds (❤).">States</span>
-        ${conds.map(c => `
-        <span class="tsl-status-tag" style="--st-color:${c.meta.color ?? "#806858"}" data-tooltip="<b>${c.meta.label}</b><br>${foundry.utils.escapeHTML(c.meta.description)}${c.meta.combat ? `<br><b>Combat:</b> ${foundry.utils.escapeHTML(c.meta.combat)}` : ""}">${foundry.utils.escapeHTML(c.meta.label)}</span>`).join("")}</div>`;
+      const esc0   = foundry.utils.escapeHTML;
+      const active = new Set(SocialArchetypeManager.getActiveConditions(game.actors.get(p.actorId)).map(c => c.id));
+      const label  = `<span class="tsl-row-label tsl-row-label--state" data-tooltip="Fleeting fencing states — set up by maneuvers, gone in a round or two. Different from the lasting Wounds (❤).">States</span>`;
+      const tip = (meta) => `<b>${esc0(meta.label)}</b><br>${esc0(meta.description)}${meta.combat ? `<br><b>Combat:</b> ${esc0(meta.combat)}` : ""}`;
+      // GM can set/clear any State right here; a player sees only the live ones.
+      if (isGM) {
+        const chips = SOCIAL_CONDITION_ORDER.map(id => {
+          const meta = SOCIAL_CONDITIONS[id];
+          return `<button class="tsl-state-toggle ${active.has(id) ? "active" : ""}" data-participant="${idx}" data-state="${id}"
+                    style="--st-color:${meta.color ?? "#806858"}" data-tooltip="${tip(meta)}">${esc0(meta.label)}</button>`;
+        }).join("");
+        return `<div class="tsl-status-row tsl-status-row--states">${label}${chips}</div>`;
+      }
+      if (!active.size) return "";
+      const tags = SOCIAL_CONDITION_ORDER.filter(id => active.has(id)).map(id => {
+        const meta = SOCIAL_CONDITIONS[id];
+        return `<span class="tsl-status-tag" style="--st-color:${meta.color ?? "#806858"}" data-tooltip="${tip(meta)}">${esc0(meta.label)}</span>`;
+      }).join("");
+      return `<div class="tsl-status-row tsl-status-row--states">${label}${tags}</div>`;
     };
 
     const renderParticipant = (p, idx) => {
@@ -360,7 +376,7 @@ class TSLConflictApp extends _TSLAppBase {
             </div>
           </div>
           ${renderEncounter(p)}
-          ${renderStatuses(p)}
+          ${renderStatuses(p, idx)}
           ${renderFooter(p, idx)}
           ${canYield ? `<button class="tsl-yield-btn" data-participant="${idx}">Yield</button>` : ""}
         </div>`;
@@ -748,6 +764,22 @@ class TSLConflictApp extends _TSLAppBase {
 
     if (el.matches(".tsl-cond-pip") && game.user.isGM) {
       ConflictStore.toggleCondition(parseInt(el.dataset.participant), el.dataset.condition);
+      return;
+    }
+
+    // GM toggles a fencing State on a participant, straight from the card.
+    const stateBtn = el.closest?.(".tsl-state-toggle");
+    if (stateBtn && game.user.isGM) {
+      const p = ConflictStore.state?.participants?.[parseInt(stateBtn.dataset.participant)];
+      const actor = p && this._participantActor(p);
+      if (actor) {
+        const id  = stateBtn.dataset.state;
+        const has = SocialArchetypeManager.getActiveCondition(actor, id);
+        Promise.resolve(has
+          ? SocialArchetypeManager.removeCondition(actor, id)
+          : SocialArchetypeManager.applyCondition(actor, id)
+        ).then(() => { ConflictStore._broadcast?.(); this.render(); });
+      }
       return;
     }
 

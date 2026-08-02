@@ -3780,3 +3780,14 @@ details.tsl-codex-sub > summary:hover { filter: brightness(1.15); }
   background: rgba(85,184,232,0.07); border-left: 3px solid rgba(85,184,232,0.5);
   border-radius: 0 6px 6px 0; font-size: 12.5px; line-height: 1.45;
 }
+
+/* GM State toggles on the conflict participant card */
+.tsl-status-row--states .tsl-state-toggle {
+  width: auto; font-size: 10px; padding: 1px 7px; border-radius: 10px; cursor: pointer;
+  background: transparent; color: var(--tsl-muted, #a89078);
+  border: 1px solid rgba(255,255,255,0.14); white-space: nowrap;
+}
+.tsl-status-row--states .tsl-state-toggle:hover { border-color: var(--st-color); color: #f0dfc8; }
+.tsl-status-row--states .tsl-state-toggle.active {
+  background: rgba(255,255,255,0.10); border-color: var(--st-color); color: #fff; font-weight: 600;
+}

@@ -1081,8 +1081,7 @@ class SocialFencingApp extends _SocialAppBase {
 
     return `
       <section class="tsl-notes-section tsl-fc">
-        <div class="tsl-notes-section-title" data-tooltip="Fence a target from your own menu: pick who, pick a maneuver, roll. No GM setup needed.">⚔ Act here — ${esc(src.name)}'s move</div>
-        <div class="tsl-fc-banner">This is where <b>${esc(src.name)}</b> acts: <b>1)</b> pick who you're working on · <b>2)</b> pick a maneuver · <b>3)</b> roll. That's the whole loop.</div>
+        <div class="tsl-notes-section-title" data-tooltip="Fence a target from your own menu: pick who, pick a maneuver, roll. No GM setup needed.">⚔ ${esc(src.name)} acts</div>
         <div class="tsl-fc-target-row">
           <span class="tsl-fc-target-label">Target</span>
           <select class="tsl-fc-target">
@@ -1280,7 +1279,7 @@ class SocialFencingApp extends _SocialAppBase {
       const tracks = enc.active
         ? `<span class="tsl-board-track" data-tooltip="Resolve / Patience">R${enc.resolve} · P${enc.patience}</span>`
         : enc.outcome
-          ? `<span class="tsl-board-out tsl-board-out--${enc.outcome}">${enc.outcome === "swayed" ? "swayed" : "walked"}</span>`
+          ? `<span class="tsl-board-out tsl-board-out--${enc.outcome}" data-tooltip="${enc.outcome === "swayed" ? "Swayed — their Resolve broke: they conceded / were won over." : "Walked away — their Patience ran out: they ended the talk on their terms."}">${enc.outcome === "swayed" ? "swayed" : "walked"}</span>`
           : "";
       rows.push(`
         <div class="tsl-board-row">
