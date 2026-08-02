@@ -1,15 +1,22 @@
 /**
  * tsl-social-conflict | scene-visualizer.js
  *
- * The Social Scene — a live relationship map for everyone at the table.
- * Characters on the scene are nodes (portrait + Resolve/Patience + ⚔ States +
- * ❤ Wounds); bonds are the lines between them (colour = school, thickness =
- * strength). When a maneuver resolves anywhere (Chronicle console OR conflict
- * window), a "social pulse" is broadcast to every client and animated here: a
- * beam from actor → target, a flash on the one who was hit, a floating result.
+ * The relationship map — a live graph for everyone at the table. It comes in
+ * TWO windows (same class, different `mode`):
+ *   • "scene" — only the characters on THIS canvas scene (filtered to what a
+ *     player can see). The everyone-can-open view, for the table.
+ *   • "world" — every socially-relevant actor in the world (all bonds at once).
+ *     The GM's overview of the whole web; a player sees only their own cast.
+ * Both can be open at the same time.
  *
- * Phase 1 = this graph window. Phase 2 (planned) = the same graph drawn as a
- * PIXI overlay on the battlemap between the real tokens.
+ * Nodes = portrait + Resolve/Patience + ⚔ States + ❤ Wounds; edges = bonds
+ * (colour = school, thickness = strength). When a maneuver resolves anywhere,
+ * a "social pulse" is broadcast to every client and animated here: a beam
+ * actor → target, a flash on the one hit, a floating result, and — if the
+ * blow ended the exchange — the swayed / walked drama.
+ *
+ * ZOOM scales the MAP inside a fixed viewport (the window keeps its size; the
+ * map scrolls when zoomed past the viewport). Resize the window for more map.
  *
  * ApplicationV1 (like the other two windows) — referenced defensively so a
  * namespace move (globalThis.Application → foundry.appv1.api.Application) still
@@ -22,17 +29,34 @@ const _TSLVizBase = globalThis.Application ?? foundry?.appv1?.api?.Application;
 
 class TSLSceneVisualizer extends _TSLVizBase {
 
-  static _instance = null;
-  static get instance() { return TSLSceneVisualizer._instance; }
+  // Two independent windows, keyed by mode.
+  static _instances = { scene: null, world: null };
+  static get instance() { return TSLSceneVisualizer._instances.scene; }
 
   constructor(options = {}) {
     super(options);
+    this._mode      = options.mode === "world" ? "world" : "scene";
     this._nodePos   = {};      // actorId → { x, y } centre in graph coords
     this._customPos = {};      // actorId → { x, y } — user-dragged overrides (session)
-    this._zoom      = 1;       // graph zoom (0.5–2), personal to this client
-    this._drag      = null;    // active node drag state
+    this._zoom      = 1;       // graph zoom (0.4–2.5), personal to this client
     this._size      = 480;     // graph square side (recomputed per render)
-    this._rerender = foundry.utils.debounce(() => this.render(false), 120);
+    this._animatingUntil = 0;  // while a pulse is playing, defer auto re-renders
+    this._rt        = null;
+    // Auto re-render (bonds/tracks/effects changed) — but NEVER mid-pulse, or
+    // the freshly-drawn animation gets wiped and the effect only flashes for a
+    // fraction of a second. The state changes that trigger this fire in the SAME
+    // pass as the pulse (and often just BEFORE it sets _animatingUntil), so the
+    // scheduled tick RE-CHECKS at fire time and defers itself until the pulse is
+    // done, rather than deciding the wait up front.
+    this._rerender = () => {
+      clearTimeout(this._rt);
+      const tick = () => {
+        const remaining = this._animatingUntil - Date.now();
+        if (remaining > 0) { this._rt = setTimeout(tick, remaining + 30); return; }
+        if (this.rendered) this.render(false);
+      };
+      this._rt = setTimeout(tick, 140);
+    };
     this._hooks = [];
     this._bindHooks();
   }
@@ -43,24 +67,32 @@ class TSLSceneVisualizer extends _TSLVizBase {
       classes: ["tsl-viz"],
       title: "Social Scene",
       template: null,
-      width: 560,
-      height: "auto",
+      width: 620,
+      height: 640,          // fixed — the MAP zooms inside, not the window
       resizable: true,
       minimizable: true,
     });
   }
 
-  static open() {
-    if (TSLSceneVisualizer._instance) { TSLSceneVisualizer._instance.render(true); return TSLSceneVisualizer._instance; }
-    const app = new TSLSceneVisualizer();
-    TSLSceneVisualizer._instance = app;
+  static open(mode = "scene") {
+    const key = mode === "world" ? "world" : "scene";
+    const existing = TSLSceneVisualizer._instances[key];
+    if (existing) { existing.render(true); existing.bringToTop?.(); return existing; }
+    const app = new TSLSceneVisualizer({
+      mode: key,
+      id:      key === "world" ? "tsl-relationship-visualizer" : "tsl-scene-visualizer",
+      title:   key === "world" ? "Web of Bonds — all relationships" : "Social Scene",
+      classes: ["tsl-viz", key === "world" ? "tsl-viz--world" : "tsl-viz--scene"],
+    });
+    TSLSceneVisualizer._instances[key] = app;
     app.render(true);
     return app;
   }
 
-  static toggle() {
-    if (TSLSceneVisualizer._instance) TSLSceneVisualizer._instance.close();
-    else TSLSceneVisualizer.open();
+  static toggle(mode = "scene") {
+    const key = mode === "world" ? "world" : "scene";
+    if (TSLSceneVisualizer._instances[key]) TSLSceneVisualizer._instances[key].close();
+    else TSLSceneVisualizer.open(key);
   }
 
   // ── Live-update hooks ──────────────────────────────────────────────────────
@@ -79,7 +111,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
     on("createActiveEffect", effectTouch);
     on("deleteActiveEffect", effectTouch);
     on("updateActiveEffect", effectTouch);
-    // Scene population changes.
+    // Scene population changes (only matter to the scene window, but harmless).
     on("canvasReady", () => this._rerender());
     on("createToken", () => this._rerender());
     on("deleteToken", () => this._rerender());
@@ -87,9 +119,10 @@ class TSLSceneVisualizer extends _TSLVizBase {
   }
 
   async close(options = {}) {
+    clearTimeout(this._rt);
     for (const [name, id] of this._hooks) Hooks.off(name, id);
     this._hooks = [];
-    TSLSceneVisualizer._instance = null;
+    if (TSLSceneVisualizer._instances[this._mode] === this) TSLSceneVisualizer._instances[this._mode] = null;
     return super.close(options);
   }
 
@@ -104,40 +137,61 @@ class TSLSceneVisualizer extends _TSLVizBase {
     return SOCIAL_TRIADS?.[school]?.color ?? "#8a7d72";
   }
 
+  /** Build a node record from an actor (+ optional token for scene art). */
+  _nodeData(actor, tok) {
+    const enc    = SocialEncounterManager.getEncounter(actor);
+    const conds  = SocialArchetypeManager.getActiveConditions(actor);
+    const wounds = (typeof TSLConditionEffects !== "undefined")
+      ? TSLConditionEffects.ORDER.filter(id => TSLConditionEffects.hasCondition(actor, id))
+      : [];
+    return {
+      id: actor.id,
+      name: actor.name,
+      img: actor.img || tok?.document?.texture?.src || "icons/svg/mystery-man.svg",
+      enc, conds, wounds,
+      hasBond: TSLBondStore.getList(actor.id).length > 0,
+      overwhelmed: (typeof TSLConditionEffects !== "undefined")
+        && TSLConditionEffects.countConditions(actor) >= 4,
+    };
+  }
+
+  static _isRelevant(nd, actor) {
+    return actor.hasPlayerOwner || nd.hasBond || nd.conds.length || nd.wounds.length
+      || nd.enc.active || nd.enc.outcome;
+  }
+
   /**
-   * Who belongs on the social map: player characters always, plus any actor
-   * that carries a bond, a fencing State/Wound, or a live encounter — the
-   * socially relevant cast, not every goblin on the battlemap. A player only
-   * sees tokens they can actually see.
+   * Who belongs on the map.
+   *  • scene mode: player characters + the socially-relevant cast that are
+   *    tokens on THIS scene (a player only sees tokens they can see).
+   *  • world mode: every socially-relevant actor in the world (a player is
+   *    limited to actors they own or that have a player owner).
    */
   _collectNodes() {
     const isGM  = game.user.isGM;
     const nodes = [];
     const seen  = new Set();
+
+    if (this._mode === "world") {
+      for (const actor of game.actors) {
+        if (!actor || seen.has(actor.id)) continue;
+        if (!isGM && !(actor.isOwner || actor.hasPlayerOwner)) continue;
+        const nd = this._nodeData(actor, null);
+        if (!TSLSceneVisualizer._isRelevant(nd, actor)) continue;
+        seen.add(actor.id);
+        nodes.push(nd);
+      }
+      return nodes;
+    }
+
     for (const tok of (canvas.tokens?.placeables ?? [])) {
       const actor = tok.actor;
       if (!actor || seen.has(actor.id)) continue;
       if (!isGM && (tok.document.hidden || !tok.visible)) continue;
-
-      const enc   = SocialEncounterManager.getEncounter(actor);
-      const conds = SocialArchetypeManager.getActiveConditions(actor);
-      const wounds = (typeof TSLConditionEffects !== "undefined")
-        ? TSLConditionEffects.ORDER.filter(id => TSLConditionEffects.hasCondition(actor, id))
-        : [];
-      const hasBond = TSLBondStore.getList(actor.id).length > 0;
-      const relevant = actor.hasPlayerOwner || hasBond || conds.length || wounds.length
-        || enc.active || enc.outcome;
-      if (!relevant) continue;
-
+      const nd = this._nodeData(actor, tok);
+      if (!TSLSceneVisualizer._isRelevant(nd, actor)) continue;
       seen.add(actor.id);
-      nodes.push({
-        id: actor.id,
-        name: actor.name,
-        img: actor.img || tok.document.texture?.src || "icons/svg/mystery-man.svg",
-        enc, conds, wounds,
-        overwhelmed: (typeof TSLConditionEffects !== "undefined")
-          && TSLConditionEffects.countConditions(actor) >= 4,
-      });
+      nodes.push(nd);
     }
     return nodes;
   }
@@ -192,17 +246,24 @@ class TSLSceneVisualizer extends _TSLVizBase {
   _renderHTML() {
     const esc   = foundry.utils.escapeHTML;
     this._customPos ??= {};          // defensive (survives Object.create in tests)
+    const world = this._mode === "world";
     const nodes = this._collectNodes();
     this._nodePos = {};
 
-    // Header (shared) — the GM starts an actual Social Conflict from HERE now,
-    // so the toolbar needs only one button (this window).
+    // Header — the GM starts an actual Social Conflict from the scene view, and
+    // can jump to the other window (all-bonds ↔ this-scene).
+    const modeBtn = world
+      ? `<button class="tsl-viz-mode" data-open-mode="scene" data-tooltip="Switch to just this scene — what players see"><i class="fas fa-clapperboard"></i> This scene</button>`
+      : (game.user.isGM
+          ? `<button class="tsl-viz-mode" data-open-mode="world" data-tooltip="Open the full web — every relationship in the world"><i class="fas fa-globe"></i> All bonds</button>`
+          : "");
     const head = (subLabel) => `
       <div class="tsl-viz-head">
-        <span class="tsl-viz-title"><i class="fas fa-people-arrows"></i> The Social Scene</span>
+        <span class="tsl-viz-title"><i class="fas ${world ? "fa-globe" : "fa-people-arrows"}"></i> ${world ? "Web of Bonds" : "The Social Scene"}</span>
         <span class="tsl-viz-sub">${subLabel}</span>
-        ${game.user.isGM ? `<button class="tsl-viz-conflict" data-tooltip="Start a Social Conflict — the shared roll board — with the tokens you have selected on the canvas.">⚔ Conflict</button>` : ""}
-        <span class="tsl-viz-zoom" data-tooltip="Zoom (or scroll-wheel over the map). Drag a portrait to rearrange.">
+        ${modeBtn}
+        ${(!world && game.user.isGM) ? `<button class="tsl-viz-conflict" data-tooltip="Start a Social Conflict — the shared roll board — with the tokens you have selected on the canvas.">⚔ Conflict</button>` : ""}
+        <span class="tsl-viz-zoom" data-tooltip="Zoom the MAP (or scroll-wheel over it). Drag a portrait to rearrange.">
           <button class="tsl-viz-zoom-btn" data-zoom="out">−</button>
           <button class="tsl-viz-zoom-btn" data-zoom="reset" data-tooltip="Reset zoom & layout">⟲</button>
           <button class="tsl-viz-zoom-btn" data-zoom="in">+</button>
@@ -211,10 +272,12 @@ class TSLSceneVisualizer extends _TSLVizBase {
       </div>`;
 
     if (!nodes.length) {
+      const empty = world
+        ? "No relationships yet anywhere — set bonds in any character's Chronicle and the whole web appears here."
+        : `No social scene yet — no bonded characters, tracks or wounds on the canvas. Set relationships in a token's Chronicle, and they'll appear here.${game.user.isGM ? " Or select tokens and hit ⚔ Conflict above." : ""}`;
       return `<div class="tsl-viz-root">
-        ${head("nobody on the map yet")}
-        <div class="tsl-viz-empty">No social scene yet — no bonded characters, tracks or wounds on the canvas.
-        Set relationships in a token's Chronicle, and they'll appear here.${game.user.isGM ? " Or select tokens and hit ⚔ Conflict above." : ""}</div>
+        ${head(world ? "no bonds recorded yet" : "nobody on the map yet")}
+        <div class="tsl-viz-empty">${empty}</div>
       </div>`;
     }
 
@@ -279,17 +342,20 @@ class TSLSceneVisualizer extends _TSLVizBase {
         <span class="tsl-viz-legend-note">line thickness = bond strength</span>
       </div>`;
 
-    // The stage is sized to the ZOOMED extent (so the window scrolls when you
-    // zoom in); the inner canvas holds the graph and is scaled by CSS transform.
+    // A FIXED viewport scrolls; the inner canvas is the map, scaled by zoom.
+    // The stage box takes the zoomed extent so scrollbars appear when the map
+    // grows past the viewport — the WINDOW itself never changes size.
     const z = this._zoom || 1;
     return `
       <div class="tsl-viz-root">
-        ${head(`${nodes.length} on the map · ${edges.length} bond${edges.length === 1 ? "" : "s"}`)}
-        <div class="tsl-viz-stage" style="width:${(size * z).toFixed(0)}px;height:${(size * z).toFixed(0)}px">
-          <div class="tsl-viz-canvas" style="width:${size}px;height:${size}px;transform:scale(${z});transform-origin:0 0">
-            <svg class="tsl-viz-svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${lines}</svg>
-            ${edgeChips}
-            ${nodeHtml}
+        ${head(`${nodes.length} ${world ? "in the web" : "on the map"} · ${edges.length} bond${edges.length === 1 ? "" : "s"} · ${Math.round(z * 100)}%`)}
+        <div class="tsl-viz-viewport">
+          <div class="tsl-viz-stage" style="width:${(size * z).toFixed(0)}px;height:${(size * z).toFixed(0)}px">
+            <div class="tsl-viz-canvas" style="width:${size}px;height:${size}px;transform:scale(${z});transform-origin:0 0">
+              <svg class="tsl-viz-svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${lines}</svg>
+              ${edgeChips}
+              ${nodeHtml}
+            </div>
           </div>
         </div>
         ${legend}
@@ -302,16 +368,19 @@ class TSLSceneVisualizer extends _TSLVizBase {
 
     el.querySelector(".tsl-viz-refresh")?.addEventListener("click", () => this.render(true));
 
-    // GM: start the shared Social Conflict roll board from the selected tokens
-    // (the old second toolbar button now lives here).
+    // Jump to the other window (scene ↔ world).
+    el.querySelector(".tsl-viz-mode")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      TSLSceneVisualizer.open(e.currentTarget.dataset.openMode);
+    });
+
+    // GM: start the shared Social Conflict roll board from the selected tokens.
     el.querySelector(".tsl-viz-conflict")?.addEventListener("click", () => {
       if (typeof TSLHudButton !== "undefined") TSLHudButton._handleClick();
       else if (typeof TSLConflictApp !== "undefined") TSLConflictApp.openSelection(canvas.tokens?.controlled ?? []);
     });
 
     // Click a node → open that character's Chronicle (GM anyone, owner own).
-    // The Chronicle opens via SocialFencingDialog.open (NOT SocialFencingApp —
-    // that's the window class and has no static open()).
     const openChronicle = (actor) =>
       (typeof SocialFencingDialog !== "undefined") ? SocialFencingDialog.open(actor)
       : (typeof SocialNotesDialog  !== "undefined") ? SocialNotesDialog.open(actor)
@@ -328,8 +397,9 @@ class TSLSceneVisualizer extends _TSLVizBase {
         let moved = false;
         try { node.setPointerCapture(ev.pointerId); } catch (e) {}
         const onMove = (e) => {
-          const dx = (e.clientX - start.x) / this._zoom;
-          const dy = (e.clientY - start.y) / this._zoom;
+          const z = this._zoom || 1;
+          const dx = (e.clientX - start.x) / z;
+          const dy = (e.clientY - start.y) / z;
           if (!moved && Math.hypot(dx, dy) > 4) { moved = true; node.classList.add("dragging"); }
           if (!moved) return;
           this._nodePos[id] = { x: orig.x + dx, y: orig.y + dy };
@@ -357,17 +427,42 @@ class TSLSceneVisualizer extends _TSLVizBase {
     });
 
     // Zoom — buttons and scroll-wheel over the map; ⟲ resets zoom + layout.
-    const setZoom = (z) => { this._zoom = Math.max(0.5, Math.min(2, z)); this.render(false); };
+    // Zoom the MAP only: keep the point under the cursor stable by adjusting the
+    // viewport scroll, so the window never resizes.
+    const viewport = el.querySelector(".tsl-viz-viewport");
+    const applyZoom = (nz, anchor) => {
+      const z0 = this._zoom || 1;
+      const z1 = Math.max(0.4, Math.min(2.5, nz));
+      if (z1 === z0) return;
+      // Keep the anchor point (in canvas coords) under the same screen spot.
+      let ax = null, ay = null;
+      if (viewport && anchor) {
+        const r = viewport.getBoundingClientRect();
+        ax = (viewport.scrollLeft + (anchor.x - r.left)) / z0;
+        ay = (viewport.scrollTop  + (anchor.y - r.top))  / z0;
+      }
+      this._zoom = z1;
+      this.render(false);
+      // After the re-render, restore scroll so the anchor stays put.
+      if (viewport && ax != null) {
+        const vp = this.element?.[0]?.querySelector(".tsl-viz-viewport");
+        if (vp) {
+          const r = viewport.getBoundingClientRect();
+          vp.scrollLeft = ax * z1 - (anchor.x - r.left);
+          vp.scrollTop  = ay * z1 - (anchor.y - r.top);
+        }
+      }
+    };
     el.querySelectorAll("[data-zoom]").forEach(btn => btn.addEventListener("click", (e) => {
       e.stopPropagation();
       const m = btn.dataset.zoom;
-      if (m === "in")       setZoom(this._zoom + 0.15);
-      else if (m === "out") setZoom(this._zoom - 0.15);
+      if (m === "in")       applyZoom((this._zoom || 1) + 0.2);
+      else if (m === "out") applyZoom((this._zoom || 1) - 0.2);
       else { this._zoom = 1; this._customPos = {}; this.render(false); }
     }));
-    el.querySelector(".tsl-viz-stage")?.addEventListener("wheel", (e) => {
+    viewport?.addEventListener("wheel", (e) => {
       e.preventDefault();
-      setZoom(this._zoom + (e.deltaY < 0 ? 0.12 : -0.12));
+      applyZoom((this._zoom || 1) + (e.deltaY < 0 ? 0.15 : -0.15), { x: e.clientX, y: e.clientY });
     }, { passive: false });
   }
 
@@ -394,14 +489,15 @@ class TSLSceneVisualizer extends _TSLVizBase {
   // ── Live pulses (called on every client via the socket) ─────────────────────
 
   /**
-   * Animate a resolved maneuver. { srcId, tgtId, group, outcome, damage }.
-   * A beam actor→target, a flash on the target, a floating result — no
-   * re-render. Safe to call when the window is closed (no-op).
+   * Animate a resolved maneuver on BOTH windows that are open.
+   * { srcId, tgtId, group, outcome, damage, resolved }.
    */
   static pulse(data) {
-    const app = TSLSceneVisualizer._instance;
-    if (!app?.rendered) return;
-    try { app._playPulse(data); } catch (err) { console.warn("TSL | viz pulse failed:", err); }
+    for (const key of ["scene", "world"]) {
+      const app = TSLSceneVisualizer._instances[key];
+      if (!app?.rendered) continue;
+      try { app._playPulse(data); } catch (err) { console.warn("TSL | viz pulse failed:", err); }
+    }
   }
 
   _playPulse({ srcId, tgtId, group, outcome, damage, resolved } = {}) {
@@ -409,6 +505,10 @@ class TSLSceneVisualizer extends _TSLVizBase {
     const stage = root?.querySelector(".tsl-viz-canvas");   // the scaled coord space
     const svg   = root?.querySelector(".tsl-viz-svg");
     if (!stage || !svg) return;
+
+    // Hold off any auto re-render (from this outcome's flag/effect changes) until
+    // the whole animation has played — otherwise it flashes for a split second.
+    this._animatingUntil = Math.max(this._animatingUntil, Date.now() + 3600);
 
     const kind = (outcome === "immune" || outcome === "blocked") ? "wall"
       : (outcome === "success" || outcome === "crit") ? "hit"
@@ -423,19 +523,27 @@ class TSLSceneVisualizer extends _TSLVizBase {
       line.setAttribute("x2", tgt.x); line.setAttribute("y2", tgt.y);
       line.setAttribute("class", `tsl-viz-beam tsl-viz-beam--${kind}`);
       svg.appendChild(line);
-      setTimeout(() => line.remove(), 1600);
+      setTimeout(() => line.remove(), 2000);
 
       // Light up the standing bond edge between them, if any.
       const edge = svg.querySelector(
         `.tsl-viz-edge[data-a="${srcId}"][data-b="${tgtId}"], .tsl-viz-edge[data-a="${tgtId}"][data-b="${srcId}"]`);
-      if (edge) { edge.classList.add("pulsing"); setTimeout(() => edge.classList.remove("pulsing"), 1600); }
+      if (edge) { edge.classList.add("pulsing"); setTimeout(() => edge.classList.remove("pulsing"), 2000); }
     }
 
-    // Flash the one who was acted upon.
+    // Flash the one who was acted upon + a spreading ring so it's unmissable.
     const tgtNode = stage.querySelector(`.tsl-viz-node[data-actor-id="${tgtId}"]`);
     if (tgtNode) {
       tgtNode.classList.add(`flash-${kind}`);
-      setTimeout(() => tgtNode.classList.remove(`flash-${kind}`), 1400);
+      setTimeout(() => tgtNode.classList.remove(`flash-${kind}`), 1800);
+    }
+    if (tgt) {
+      const ring = document.createElement("div");
+      ring.className = `tsl-viz-ring tsl-viz-ring--${kind}`;
+      ring.style.left = `${tgt.x}px`;
+      ring.style.top  = `${tgt.y}px`;
+      stage.appendChild(ring);
+      setTimeout(() => ring.remove(), 1400);
     }
 
     // Float the result over the target — long enough to actually READ it.
@@ -447,28 +555,28 @@ class TSLSceneVisualizer extends _TSLVizBase {
       float.style.left = `${tgt.x}px`;
       float.style.top  = `${tgt.y}px`;
       stage.appendChild(float);
-      setTimeout(() => float.remove(), 2800);
+      setTimeout(() => float.remove(), 3000);
     }
 
     // Resolution drama: this blow ended the exchange. Swayed = a warm break;
     // walked = the node greys out and drifts. Held long enough to read.
     if (resolved && tgtNode) {
       tgtNode.classList.add(`resolve-${resolved}`);
-      setTimeout(() => tgtNode.classList.remove(`resolve-${resolved}`), 3000);
+      setTimeout(() => tgtNode.classList.remove(`resolve-${resolved}`), 3200);
       if (tgt) {
         const burst = document.createElement("div");
         burst.className = `tsl-viz-burst tsl-viz-burst--${resolved}`;
         burst.style.left = `${tgt.x}px`;
         burst.style.top  = `${tgt.y}px`;
         stage.appendChild(burst);
-        setTimeout(() => burst.remove(), 1600);
+        setTimeout(() => burst.remove(), 1800);
         const word = document.createElement("div");
         word.className = `tsl-viz-resolveword tsl-viz-resolveword--${resolved}`;
         word.textContent = resolved === "swayed" ? "SWAYED" : "WALKED AWAY";
         word.style.left = `${tgt.x}px`;
         word.style.top  = `${tgt.y}px`;
         stage.appendChild(word);
-        setTimeout(() => word.remove(), 3000);
+        setTimeout(() => word.remove(), 3400);
       }
     }
   }

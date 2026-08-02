@@ -3596,11 +3596,19 @@
   font-family: var(--tsl-font-body);
   padding: 0;
 }
-.tsl-viz-root { padding: 8px 10px 10px; overflow: auto; max-height: 78vh; }
+/* The window is a fixed frame; the MAP zooms/scrolls inside the viewport. */
+.tsl-viz .window-content { padding: 0; overflow: hidden; }
+.tsl-viz-root {
+  display: flex; flex-direction: column; height: 100%;
+  padding: 8px 10px 10px; box-sizing: border-box; overflow: hidden;
+}
 .tsl-viz-head {
   display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
-  position: sticky; top: 0; background: var(--tsl-bg); z-index: 5; padding: 2px 0;
+  flex: 0 0 auto; background: var(--tsl-bg); z-index: 5; padding: 2px 0;
 }
+/* Fixed viewport — this scrolls when the zoomed map is bigger than it; the
+   window keeps its size. Resize the window for more map area. */
+.tsl-viz-viewport { flex: 1 1 auto; min-height: 0; position: relative; overflow: auto; }
 .tsl-viz-title { font-family: var(--tsl-font-title); font-size: 15px; color: #f0dfc8; letter-spacing: .5px; }
 .tsl-viz-title i { color: #e8557a; margin-right: 4px; }
 .tsl-viz-sub { font-size: 12px; color: var(--tsl-muted); flex: 1; }
@@ -3659,28 +3667,44 @@
 .tsl-viz-dot--state { background: var(--dot, #9b6ee8); border-radius: 2px; }
 .tsl-viz-dot--wound { background: #e8557a; }
 
-/* Live pulses */
-.tsl-viz-beam { fill: none; stroke-dasharray: 7 7; animation: tsl-viz-beam 1.2s ease-out forwards; }
-.tsl-viz-beam--hit  { stroke: #ffd27a; stroke-width: 4; filter: drop-shadow(0 0 6px #ffd27a); }
-.tsl-viz-beam--miss { stroke: #8a7d72; stroke-width: 2.5; }
-.tsl-viz-beam--wall { stroke: #e8557a; stroke-width: 4; filter: drop-shadow(0 0 6px #e8557a); }
+/* Live pulses — durations match the JS removal timers so they stay fully
+   visible, and the window defers its auto-redraw until they finish. */
+.tsl-viz-beam { fill: none; stroke-dasharray: 9 6; animation: tsl-viz-beam 1.8s ease-out forwards; }
+.tsl-viz-beam--hit  { stroke: #ffd27a; stroke-width: 5; filter: drop-shadow(0 0 8px #ffd27a); }
+.tsl-viz-beam--miss { stroke: #b8a894; stroke-width: 3.5; filter: drop-shadow(0 0 4px #000); }
+.tsl-viz-beam--wall { stroke: #e8557a; stroke-width: 5; filter: drop-shadow(0 0 8px #e8557a); }
 @keyframes tsl-viz-beam {
-  0%   { opacity: 0; stroke-dashoffset: 40; }
+  0%   { opacity: 0; stroke-dashoffset: 60; }
   15%  { opacity: 1; }
-  100% { opacity: 0; stroke-dashoffset: 0; }
+  70%  { opacity: 1; stroke-dashoffset: 0; }   /* hold the drawn beam */
+  100% { opacity: 0; stroke-dashoffset: -10; }
 }
-.tsl-viz-node.flash-hit  .tsl-viz-portrait { animation: tsl-viz-flash-hit 1.3s ease-out; }
-.tsl-viz-node.flash-wall .tsl-viz-portrait { animation: tsl-viz-flash-wall 1.3s ease-out; }
-.tsl-viz-node.flash-miss .tsl-viz-portrait { animation: tsl-viz-flash-miss 1.3s ease-out; }
-@keyframes tsl-viz-flash-hit  { 0%,100% { box-shadow: 0 2px 8px rgba(0,0,0,.5); } 30% { box-shadow: 0 0 18px 4px rgba(232,85,85,.9); border-color: #e85555; } }
-@keyframes tsl-viz-flash-wall { 0%,100% { box-shadow: 0 2px 8px rgba(0,0,0,.5); } 30% { box-shadow: 0 0 18px 4px rgba(232,85,122,.9); border-color: #e8557a; } }
-@keyframes tsl-viz-flash-miss { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+.tsl-viz-node.flash-hit  .tsl-viz-portrait { animation: tsl-viz-flash-hit 1.7s ease-out; }
+.tsl-viz-node.flash-wall .tsl-viz-portrait { animation: tsl-viz-flash-wall 1.7s ease-out; }
+.tsl-viz-node.flash-miss .tsl-viz-portrait { animation: tsl-viz-flash-miss 1.7s ease-out; }
+@keyframes tsl-viz-flash-hit  { 0%,100% { box-shadow: 0 2px 8px rgba(0,0,0,.5); } 20% { box-shadow: 0 0 26px 7px rgba(232,85,85,1); border-color: #ff6b6b; transform: scale(1.08); } 55% { box-shadow: 0 0 12px 2px rgba(232,85,85,.5); transform: scale(1); } }
+@keyframes tsl-viz-flash-wall { 0%,100% { box-shadow: 0 2px 8px rgba(0,0,0,.5); } 20% { box-shadow: 0 0 26px 7px rgba(232,85,122,1); border-color: #f0a9bd; } 55% { box-shadow: 0 0 12px 2px rgba(232,85,122,.5); } }
+@keyframes tsl-viz-flash-miss { 0%,100% { transform: translateX(0); } 15% { transform: translateX(-5px) rotate(-2deg); } 45% { transform: translateX(5px) rotate(2deg); } 75% { transform: translateX(-3px); } }
+
+/* Spreading ring on the target — makes the hit unmissable at a glance. */
+.tsl-viz-ring {
+  position: absolute; transform: translate(-50%,-50%); z-index: 4; pointer-events: none;
+  width: 60px; height: 60px; border-radius: 50%; border: 3px solid #fff;
+  animation: tsl-viz-ring 1.4s cubic-bezier(.2,.7,.3,1) forwards;
+}
+.tsl-viz-ring--hit  { border-color: #ff8a8a; }
+.tsl-viz-ring--wall { border-color: #f0a9bd; }
+.tsl-viz-ring--miss { border-color: #b8a894; }
+@keyframes tsl-viz-ring {
+  0%   { opacity: .95; transform: translate(-50%,-50%) scale(.5); }
+  100% { opacity: 0;   transform: translate(-50%,-50%) scale(2.6); }
+}
 
 .tsl-viz-float {
   position: absolute; transform: translate(-50%, -50%); z-index: 6; pointer-events: none;
-  font-family: var(--tsl-font-title); font-size: 18px; font-weight: 700; white-space: nowrap;
-  text-shadow: 0 1px 5px #000, 0 0 3px #000;
-  animation: tsl-viz-float 2.8s ease-out forwards;   /* long enough to read */
+  font-family: var(--tsl-font-title); font-size: 22px; font-weight: 700; white-space: nowrap;
+  text-shadow: 0 1px 6px #000, 0 0 4px #000, 0 0 2px #000;
+  animation: tsl-viz-float 3s ease-out forwards;   /* long enough to read */
 }
 .tsl-viz-float--hit  { color: #ff8a8a; }
 .tsl-viz-float--miss { color: #b8a894; }
@@ -3721,6 +3745,15 @@
   font-family: var(--tsl-font-title); letter-spacing: .3px;
 }
 .tsl-viz-conflict:hover { background: rgba(232,85,122,0.24); color: #fff; }
+
+/* Switch between the two windows (this scene ↔ all bonds) */
+.tsl-viz-mode {
+  width: auto; background: transparent; color: var(--tsl-muted, #a89078);
+  border: 1px solid rgba(255,255,255,0.16); border-radius: 6px;
+  padding: 3px 9px; font-size: 12px; cursor: pointer; white-space: nowrap;
+  font-family: var(--tsl-font-title); letter-spacing: .3px;
+}
+.tsl-viz-mode:hover { color: #f0dfc8; border-color: rgba(255,255,255,0.32); background: rgba(255,255,255,0.06); }
 
 /* ─── Readability pass (v1.57): crisper, calmer type in every window ─── */
 #tsl-social-conflict .window-content,

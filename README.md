@@ -5,7 +5,7 @@ A social-intrigue toolkit for **Foundry VTT v13+** (v14 verified): a **Chronicle
 ## Three windows
 
 - **Chronicle** — right-click a token → the address-book button. A per-character dossier, and where you actually fence (the **Fencing** tab). The **Codex** tab is the full, always-current in-app manual (paged, collapsible, with a worked example scene).
-- **Social Scene** — the VTools toolbar **Social** button (everyone can open it). A live relationship map: portraits as nodes, bonds as the lines between them (colour = school, thickness = strength), with live roll/effect pulses. Drag the portraits to arrange it, zoom with the buttons or scroll-wheel. The GM starts a shared conflict from the **⚔ Conflict** button here.
+- **Social Scene** — the VTools toolbar **Social** button (everyone can open it). A live relationship map: portraits as nodes, bonds as the lines between them (colour = school, thickness = strength), with live roll/effect pulses (a beam, a flash, the falling Resolve, the swayed/walked drama). Drag the portraits to arrange it; **zoom the map** with the buttons or scroll-wheel (the window stays put, the map scrolls inside). It comes in **two views**: *This scene* (only the current scene — what players see) and *All bonds* (the whole web of relationships, GM overview) — switch with the header button; both can be open at once. The GM starts a shared conflict from the **⚔ Conflict** button here.
 - **Conflict window** — the shared roll board when the GM launches a scene; every client sees it and acts from their own copy.
 
 ## Chronicle of Bonds
