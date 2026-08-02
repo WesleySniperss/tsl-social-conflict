@@ -490,7 +490,7 @@ class SocialFencingApp extends _SocialAppBase {
         <div class="tsl-notes-section-title">The details</div>
         ${sub("Read them — nature is hidden", [
           `No one is handed the archetype. A successful <b>Read Them</b> whispers a private <b>tell</b> — deduce who they are and note your guess in the Bond ("Read as").`,
-          `You never see their weak spots or their difficulty — that's the GM's to know. You learn by watching what happens: an unexpected bounce, a surprise clean hit, a whispered tell.`,
+          `Once you write a guess, the chip marks (◎ weak spot · ✕ walled · ▲ yields) follow <b>your read</b> — a theory, so a wrong guess shows wrong marks. The <b>difficulty</b> stays the GM's to know. Outcomes are the proof: an unexpected bounce, a surprise clean hit, a whispered tell tell you if your read was right.`,
         ])}
         ${sub("The relationship is the terrain", [
           `A ${term("bond")} is <b>ONE shared relationship</b> — one TYPE, one STRENGTH (0–3 ●). Write it on either person and it appears on both; edit it anywhere and both update. (Directional pairs flip to fit: your <b>Mentor</b> is their <b>Protégé</b>, and if you're <b>Sworn</b> to someone, they are your <b>Liege</b>.)`,
@@ -519,7 +519,7 @@ class SocialFencingApp extends _SocialAppBase {
         ])}
         ${sub("Reading the chip corners", [
           `<b>⊕</b> — an <b>${term("opening")} is live right now</b>: this maneuver gains a bonus because of a condition they carry. Everyone sees ⊕; it reads off visible statuses.`,
-          `<b>◎</b> weak spot (cuts deep) · <b>✕</b> bounces off / walled · <b>▲</b> their nature yields to this school — these are the <b>GM's</b> to see. Players deduce weak spots from outcomes, not the chips.`,
+          `<b>◎</b> weak spot (cuts deep) · <b>✕</b> bounces off / walled · <b>▲</b> their nature yields to this school. These follow <b>your read</b> — the archetype you wrote in their Bond (<i>Read as</i>). They are a <b>theory</b>: guess wrong and the marks are wrong, and the OUTCOME sets you straight. No guess yet → no marks. (The GM always sees the truth.)`,
         ])}
         ${sub("Grades & the Answer", [
           `A <b>clean hit</b> (well over) cuts +1 deeper. A <b>bad miss</b> — or hitting an immunity — earns ${term("the Answer")}.`,
@@ -615,7 +615,7 @@ class SocialFencingApp extends _SocialAppBase {
     const natures = `
       <section class="tsl-notes-section">
         <div class="tsl-notes-section-title">The nine natures</div>
-        <div class="tsl-codex-hint-sm">Never shown to players — deduce them. Each has at least one ◎ weak spot and one ✕ wall, and the traps sit INSIDE a triad, so knowing the school isn't enough.</div>
+        <div class="tsl-codex-hint-sm">A target's nature is never handed to players — deduce it, then note your guess in their Bond and the chip marks follow your read. Each nature has at least one ◎ weak spot and one ✕ wall, and the traps sit INSIDE a triad, so knowing the school isn't enough.</div>
       </section>
       ${triadBlocks}`;
 
@@ -1023,10 +1023,12 @@ class SocialFencingApp extends _SocialAppBase {
             (m.combos && Object.keys(m.combos).some(st => SocialArchetypeManager.getActiveCondition(tgt, st)))
             || (m.kickWhileDown && SOCIAL_CONDITION_ORDER.some(st => SocialArchetypeManager.getActiveCondition(tgt, st)))
             || !!findOpening(tgt, m);
-          // Weak/strong marks show to the GM, or to everyone once the nature is
-          // opened; ⊕ (a live opening) stays for all — it reads off statuses.
-          const mark  = seeArch && rel === "immune" ? `<span class="tsl-chip-mark tsl-chip-mark--imm">✕</span>`
-                      : seeArch && rel === "vulnerable" ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">◎</span>`
+          // Weak/strong marks follow the READ: the GM's truth, or a player's own
+          // THEORY (their Bond guess `arch`). No theory → no marks. ⊕ (a live
+          // opening) always shows — it reads off visible statuses.
+          const showMarks = seeArch || !!arch;
+          const mark  = showMarks && rel === "immune" ? `<span class="tsl-chip-mark tsl-chip-mark--imm">✕</span>`
+                      : showMarks && rel === "vulnerable" ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">◎</span>`
                       : comboReady ? `<span class="tsl-chip-mark tsl-chip-mark--combo">⊕</span>` : "";
           // What this maneuver actually does against THIS target, right now
           // (veiled, follows the viewer's read). The console always has a target.
@@ -1096,12 +1098,13 @@ class SocialFencingApp extends _SocialAppBase {
     const m = this._fenceManeuverId ? SocialManeuverRoller.getManeuver(this._fenceManeuverId) : null;
     if (!m) return `<div class="tsl-fc-note tsl-fc-note--pick">Pick a maneuver to see the roll.</div>`;
     const esc   = foundry.utils.escapeHTML;
-    // GM assesses on the truth; a player's bar carries no archetype analysis
-    // (override null) — only their own bonuses and visible statuses.
-    const known = ctx.isGM && !!dispArch;
+    // GM assesses on the truth; a player's bar follows THEIR THEORY (dispArch =
+    // their Bond guess) — provisional marks/hints, corrected by outcomes. No
+    // theory → no archetype analysis. The dice always follow the truth.
+    const known = !!dispArch;
     const a = SocialManeuverRoller.assess(src, tgt, m, {
       leverage: this._fenceLeverage,
-      archetypeOverride: ctx.isGM ? undefined : null,
+      archetypeOverride: ctx.isGM ? undefined : (dispArch ?? null),
     });
     const strAdd = this._fenceStringSpend ? STRING_SPEND_BONUS : 0;
     // String spend moved AFTER the roll (the gamble) — no pre-commit toggle

@@ -889,21 +889,24 @@ class SocialManeuverRoller {
    * leaks the archetype name or the DC. Returns an array of short lines.
    */
   static describeVsTarget(sourceActor, targetActor, maneuver, isGM) {
-    // The GM assesses on the TRUTH and sees everything; a player never sees
-    // the archetype weak/strong analysis at all — only what they themselves
-    // bring and what's plainly visible (statuses, wounds). Nature is deduced
-    // from OUTCOMES, not read off a tooltip.
-    // ...unless the GM has OPENED this nature to the table — then the read is
-    // public and everyone sees the analysis (the DC number still stays GM-only).
-    const seeArch = isGM || SocialArchetypeManager.isRevealed(targetActor);
+    // The GM assesses on the TRUTH. A player assesses on THEIR OWN THEORY — the
+    // archetype they wrote in their Bond ("Read as") — so the weak/strong marks
+    // follow their guess and are provisional: a wrong theory shows wrong marks,
+    // corrected by what actually HAPPENS. With no theory yet, no marks at all.
+    // (A GM-opened nature makes the truth public; the DC number stays GM-only.)
+    const revealed  = isGM || SocialArchetypeManager.isRevealed(targetActor);
+    const guessId   = revealed ? null : (TSLBondStore.find(sourceActor.id, targetActor.id)?.perceivedArchetypeId ?? null);
+    const guessArch = guessId ? SocialArchetypeManager.getArchetypeById(guessId) : null;
+    const showArch  = revealed || !!guessArch;   // marks follow truth OR the theory
     const a = SocialManeuverRoller.assess(sourceActor, targetActor, maneuver,
-      { archetypeOverride: seeArch ? undefined : null });
+      { archetypeOverride: revealed ? undefined : (guessArch ?? null) });
     const out = [];
 
-    // Relation — hidden, EXCEPT a live Defiant wall (that's a visible status)
+    // Relation — follows the read (truth for GM, theory for a player); a live
+    // Defiant wall is a visible status so it always shows.
     if (a.relation === "blocked")           out.push("✕ Walled off right now — nothing gets through");
-    else if (seeArch && a.relation === "immune")     out.push("✕ Bounces off them — auto-fails, they turn Defiant");
-    else if (seeArch && a.relation === "vulnerable") out.push("◎ Cuts deep here — Advantage & +1 Resolve damage");
+    else if (showArch && a.relation === "immune")     out.push("✕ Bounces off them — auto-fails, they turn Defiant");
+    else if (showArch && a.relation === "vulnerable") out.push("◎ Cuts deep here — Advantage & +1 Resolve damage");
 
     // Opening from a set-up status (observable — safe for players)
     if (a.combo) {
@@ -915,12 +918,13 @@ class SocialManeuverRoller {
     if (a.opening) out.push(`⊕ Opening — +2 (${a.opening.flavor})`);
     if (a.kick)    out.push("⊕ Opening — they have a status: +1 Resolve damage");
 
-    // Flat bonuses. Archetype/defense-derived ones (counter, blind side) are
-    // GM-only; the player's OWN bonuses (skill, bond, leaning) always show.
+    // Flat bonuses. The counter (▲/▽) follows the read (truth or theory);
+    // blind-side is truth-only (it reads the target's real dots, which a theory
+    // can't guess); the player's OWN bonuses (skill, bond, leaning) always show.
     for (const b of a.bonusReasons) {
-      if (b.kind === "counter")   { if (seeArch) out.push(`▲ Their nature bends to this school — +${b.value}`); continue; }
-      if (b.kind === "countered") { if (seeArch) out.push(`▽ Their nature resists this school — ${b.value}`); continue; }
-      if (/unguarded approach/i.test(b.label)) { if (seeArch) out.push(`+${b.value} an unguarded approach`); continue; }
+      if (b.kind === "counter")   { if (showArch) out.push(`▲ Their nature bends to this school — +${b.value}`); continue; }
+      if (b.kind === "countered") { if (showArch) out.push(`▽ Their nature resists this school — ${b.value}`); continue; }
+      if (/unguarded approach/i.test(b.label)) { if (revealed) out.push(`+${b.value} an unguarded approach`); continue; }
       const sign = b.value >= 0 ? "+" : "−";
       out.push(`${sign}${Math.abs(b.value)} ${b.label.split(" — ")[0]}`);
     }
