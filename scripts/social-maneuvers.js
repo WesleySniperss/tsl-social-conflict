@@ -552,19 +552,33 @@ class SocialManeuverRoller {
   }
 
   /**
-   * Social DC — the target defends with TWO mental stats, mirroring the
-   * attacker's two skills: 10 + WIS mod + INT mod + proficiency, or passive
-   * Insight when that's higher (Insight experts keep their edge). WIS is
-   * their read/willpower, INT their refusal to be fooled — a clever target
-   * resists on both axes; a dim one folds. Proficiency falls back to level/CR
-   * math when the system doesn't expose it.
+   * A target's SAVING-THROW modifier for an ability — their real mental
+   * fortitude, proficiency baked in where they have it.
+   *   dnd5e: `abilities.<key>.save` is already the numeric total.
+   *   a5e / generic: reconstruct as ability mod + proficiency (if proficient
+   *   in that save) — robust to a5e's field-name churn.
+   */
+  static getSaveMod(actor, key) {
+    const ab = actor?.system?.abilities?.[key];
+    if (!ab) return 0;
+    if (typeof ab.save === "number") return ab.save;               // dnd5e
+    const base = typeof ab.mod === "number" ? ab.mod : 0;
+    const prof = (ab.save?.proficient || ab.proficient)
+      ? SocialManeuverRoller.getProfBonus(actor) : 0;
+    return base + prof;
+  }
+
+  /**
+   * Social DC — the target defends with their TWO mental SAVING THROWS,
+   * mirroring the attacker's two skills: 10 + WIS save + INT save, or passive
+   * Insight when that's higher. Saves (not raw ability mods) mean a mentally
+   * fortified target — one proficient in WIS/INT saves — is genuinely hard,
+   * while a dim mook folds. WIS = read/willpower, INT = refusal to be fooled.
    */
   static getSocialDC(actor) {
-    const wis = actor.system?.abilities?.wis?.mod ?? 0;
-    const int = actor.system?.abilities?.int?.mod ?? 0;
     return Math.max(
       SocialManeuverRoller.getPassiveInsight(actor),
-      10 + wis + int + SocialManeuverRoller.getProfBonus(actor)
+      10 + SocialManeuverRoller.getSaveMod(actor, "wis") + SocialManeuverRoller.getSaveMod(actor, "int")
     );
   }
 
@@ -695,14 +709,13 @@ class SocialManeuverRoller {
     if (advantage) advantageReasons.push(relationReason);
 
     if (relation !== "blocked" && relation !== "immune") {
-      // Two skills: the maneuver rolls its PRIMARY on the d20; the SECONDARY
-      // skill ASSISTS by granting ADVANTAGE (an expertise die on a5e) — never a
-      // second flat modifier (that let a +10/+10 face roll at +20). You need to
-      // be genuinely capable in the support skill (mod ≥ +2), and it doesn't
-      // stack with advantage you already have.
-      if (maneuver.skill2 && SocialManeuverRoller.getSkillMod2(sourceActor, maneuver) >= 2 && !advantage) {
-        advantage = true;
-        advantageReasons.push(`${maneuver.skill2} (support skill)`);
+      // Two skills, always: the maneuver rolls its PRIMARY on the d20, and its
+      // SECONDARY skill's FULL modifier rides on top as a flat bonus (Read Them
+      // = Insight + Investigation). The higher rolls this produces are balanced
+      // by the social DC, which now leans on the target's WIS/INT SAVE mods.
+      if (maneuver.skill2) {
+        const s2 = SocialManeuverRoller.getSkillMod2(sourceActor, maneuver);
+        if (s2) bonusReasons.push({ label: `${maneuver.skill2} (support skill)`, value: s2 });
       }
       if (leverage === "desire" && !advantage) {
         advantage = true;
