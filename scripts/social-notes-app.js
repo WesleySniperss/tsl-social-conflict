@@ -313,11 +313,6 @@ class SocialFencingApp extends _SocialAppBase {
       </section>`;
       })()}
 
-      <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title" data-tooltip="Why do they want what they want? Feeds the tells whispered on a read.">Motivation</div>
-        <textarea name="motivation" rows="2" placeholder="Why do they want this?" ${disabled}>${foundry.utils.escapeHTML(notes.motivation)}</textarea>
-      </section>
-
       ${!isGM ? "" : `
       <section class="tsl-notes-section">
         <div class="tsl-notes-section-title" data-tooltip="GM only. What THEY want from the party in this conversation — a secret, a promise, money, humiliation. If they walk away with Patience intact, this agenda ADVANCES: losing the exchange must cost the players something.">Agenda — what they want (GM)</div>
@@ -325,13 +320,8 @@ class SocialFencingApp extends _SocialAppBase {
       </section>`}
 
       <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title">Personality</div>
-        <textarea name="personality" rows="2" placeholder="How do they behave?" ${disabled}>${foundry.utils.escapeHTML(notes.personality)}</textarea>
-      </section>
-
-      <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title">Notes</div>
-        <textarea name="notes" rows="3" placeholder="Additional context…" ${disabled}>${foundry.utils.escapeHTML(notes.notes)}</textarea>
+        <div class="tsl-notes-section-title" data-tooltip="Anything the dossier above doesn't cover — how they behave, quirks, history, the story behind their Desire.">Notes</div>
+        <textarea name="notes" rows="3" placeholder="How they behave, history, the why behind their Desire…" ${disabled}>${foundry.utils.escapeHTML(notes.notes)}</textarea>
       </section>`;
   }
 
@@ -1356,7 +1346,7 @@ class SocialFencingApp extends _SocialAppBase {
       TSLPlaybooks.setForActor(this._actor, e.target.value || null);
     });
 
-    for (const name of ["motivation", "personality", "notes", "intent"]) {
+    for (const name of ["notes", "intent"]) {
       el.querySelector(`textarea[name='${name}']`)?.addEventListener("change", (e) => {
         SocialArchetypeManager.setActorData(this._actor, { [name]: e.target.value.trim() });
       });
