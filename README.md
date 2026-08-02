@@ -1,38 +1,37 @@
 # TSL: Social Conflict
 
-A social intrigue toolkit for Foundry VTT: a **Chronicle of Bonds** (relationship & profiling dossiers) plus a **Social Fencing** minigame, inspired by the emotional mechanics of **Thirsty Sword Lesbians** and the social maneuvering of Vampire: the Masquerade.
+A social-intrigue toolkit for **Foundry VTT v13+** (v14 verified): a **Chronicle of Bonds** (relationships & profiling), a **Social Fencing** minigame (d20 maneuvers vs a hidden difficulty), and a live **Social Scene** relationship map. Inspired by the emotional mechanics of **Thirsty Sword Lesbians** and the social maneuvering of Vampire: the Masquerade. Built for **dnd5e** and **a5e** (Level Up), with a generic fallback.
 
-## Features
+## Three windows
 
-### Chronicle of Bonds (right-click a token → address-book button)
-- **Profile** — psychological dossier per character:
-  - **Archetype** — 9 personality subtypes across the **Extended Triad** (Power · Emotion · Order), each with vulnerabilities, immunities and a play-advice hint
-  - **Extended Triad leanings** — how strongly each of the three drives pulls at the character (0–3)
-  - **Profiling points** — Desire, Fear, Weakness, Mask, The Line — every label carries a tooltip explaining how to use it at the table
-- **Bonds** — a living relationship table with every PC/NPC that matters:
-  - Bond type (ally, lover, rival, creditor…), each with a hint
-  - **Attitude** −3…+3 — mechanically shifts the DC when that person tries to sway you
-  - **Read as** — what your character *believes* the other's archetype is (may be wrong until verified by Cold Reading)
-  - **Strings** — emotional leverage, spendable in conflicts
-  - Add bonds from a candidate list or by **clicking a visible token on the canvas**
-- Players open only chronicles of actors they own; what they know about others lives in their own Bonds tab
+- **Chronicle** — right-click a token → the address-book button. A per-character dossier, and where you actually fence (the **Fencing** tab). The **Codex** tab is the full, always-current in-app manual (paged, collapsible, with a worked example scene).
+- **Social Scene** — the VTools toolbar **Social** button (everyone can open it). A live relationship map: portraits as nodes, bonds as the lines between them (colour = school, thickness = strength), with live roll/effect pulses. Drag the portraits to arrange it, zoom with the buttons or scroll-wheel. The GM starts a shared conflict from the **⚔ Conflict** button here.
+- **Conflict window** — the shared roll board when the GM launches a scene; every client sees it and acts from their own copy.
 
-### Social Fencing
-- **GM-initiated** — select tokens, click "Social Conflict" in the VTools toolbar
-- **Live sync** — all players see the conflict window simultaneously; player actions are executed authoritatively on the GM client
-- **12 maneuvers** in 4 groups, driven by real skill bonuses (Persuasion, Deception, Insight, Intimidation, Performance, Investigation)
-- **Archetype matrix** — every archetype is vulnerable to some maneuvers (Advantage, double Resolve damage) and immune to others (auto-fail, target turns **Defiant**)
-- **Hidden information** — vulnerability/immunity badges appear only after your character *reads* the target (Cold Reading / Logic Exploit)
-- **Resolve vs Patience** — break their Resolve before their Patience runs out: successes chip Resolve, failures burn Patience
-- **TSL layer** — emotional moves (2d6 + stat), conditions (Smitten, Angry, Scared, Guilty, Hopeless), Overwhelmed at 4+, Strings, Yield and 💋 Finally Kiss
+## Chronicle of Bonds
+
+- **Profile** — the character's **archetype** (9 natures across the Power / Emotion / Reason triads — hidden from players by default), their Extended-Triad **dots** (a 4-point pool, PC-only), and the **profiling dossier**: **Desire / Fear / Weakness** are leverage doors you exploit in a conflict; **Mask / The Line** help you read them. Plus a GM-only **Agenda** (their goal in the scene) and free **Notes**. Hover any label for its hint.
+- **Bonds** — one shared relationship per pair, **mirrored on both actors**: a **type** (ally, friend, family, crush, lover, mentor, protégé, rival, enemy, sworn, liege, confidant) and a **strength ●–●●●**. A bond bends the numbers (a school edge and skill edges on maneuvers, the guard DC, guilt when you turn Power on someone close), projects a **combat aura** to allies in reach, unlocks a distinctive **ability at ●●** and a once-per-rest **signature** at ●●●. Add a bond from the scene list or by clicking a token on the map.
+- Players open only chronicles of actors they own; what they know about anyone else lives in their own Bonds.
+
+## Social Fencing
+
+- **Fifteen maneuvers in four schools.** **General** holds the basics anyone reaches for — read · mock · goad · **persuade** · **threaten** · **lie** — with no archetype traps; the three archetype schools (**Power · Emotion · Reason**) are the deeper game. Each maneuver rolls a main social skill, with a support skill's modifier on top.
+- **Resolve vs Patience.** Chip their **Resolve** (3 + CHA modifier, floor 3) to 0 to **sway** them — they concede / do what you were after, their bond toward you deepens, and you gain a String. If their **Patience** (4 + WIS modifier, floor 3) empties first they **walk away** (their agenda advances). Tracks arm themselves on the first maneuver — no setup step.
+- **Hidden difficulty.** The social DC (10 + their WIS save + INT save, or passive Insight) is GM-only — players learn a target's weak spots from what *happens* when they roll, not from the chips. Archetypes stay hidden too; a successful **Read Them** whispers a tell you deduce from and note in your Bond.
+- **Archetype matrix.** Every nature is vulnerable to some maneuvers (advantage, deeper damage) and immune to others (press one and they turn **Defiant**). **Openings (⊕):** a condition on the target makes a matching maneuver stronger.
+- **States vs Wounds.** Fleeting fencing **States** (Rattled, Provoked, Enthralled, Beholden, Desperate, Defiant) carry real combat riders and linger even after the talk (so they still bite if it turns to a fight). Lasting emotional **Wounds** (Angry, Scared, Guilty, Hopeless, Smitten) escalate through three tiers and push the one who carries them; four = **Overwhelmed**.
+- **Strings** — a trump card: spend one for **+5** on any roll against that person. Earned by breaking their Resolve, opening your heart in play, reads, deals, or giving in to a Wound.
+- Optional layers: the **TSL 2d6 feelings moves**, **Hold the Line** (refuse a status by taking a Wound), GM adjudication of every roll, and a global **Social difficulty** dial in Settings.
 
 ## Usage
 
-1. **Between scenes**: right-click any token → address-book button → fill in profiles and bonds. Hover any label for hints.
-2. **To start fencing**: GM clicks **Social Conflict** in the VTools toolbar, picks participants, starts the conflict.
-3. **(Optional)** GM opens the target's Chronicle → *Fencing* tab → starts an Encounter with Patience (3–6) and Resolve (2–5).
-4. Players pick maneuvers or TSL moves on their turn; spend Strings for bonuses; read targets to reveal their weak spots.
-5. The exchange ends when Resolve breaks (swayed), Patience empties (they walk away), someone Yields — or you Finally Kiss.
+1. **Prep** — right-click a token → the Chronicle → fill in Profile & Bonds. Hover any label for a hint; read the **Codex** tab for the full walkthrough.
+2. **Fence** — open a character's Chronicle → **Fencing** tab → pick a target, pick a maneuver, roll. (Or the GM opens the **Social** scene and hits **⚔ Conflict** to launch a shared board.)
+3. Tracks start automatically. Break their Resolve to **sway** them, or run their Patience out and they **walk away**. Read targets to reveal tells; spend Strings for +5.
+4. The exchange ends on **swayed**, **walked away**, a **Yield**, or a **Finally Kiss**. Any fencing statuses linger into a fight that follows.
+
+Requires the **vtools** module.
 
 ## License
 

@@ -910,9 +910,11 @@ class SocialFencingApp extends _SocialAppBase {
     // the GM anyone's. Lives here (the token-opened Chronicle) so wounds are
     // managed in our menu, not only via the token HUD.
     const woundsHtml = this._buildWoundToggles(ctx);
-    // Players get the console + their wounds; the GM also gets tracks + board.
+    // Order: the fleeting fencing STATES (used far more often) sit above the
+    // lasting WOUNDS. The GM's tracks + State toggles come from _buildGMFencing,
+    // so Wounds go LAST for them; a player has no State toggles, so just wounds.
     if (!ctx.isGM) return consoleHtml + woundsHtml;
-    return consoleHtml + woundsHtml + this._buildGMFencing(ctx);
+    return consoleHtml + this._buildGMFencing(ctx) + woundsHtml;
   }
 
   /**
