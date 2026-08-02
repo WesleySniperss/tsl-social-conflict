@@ -656,7 +656,7 @@ class SocialFencingApp extends _SocialAppBase {
         </div>
       </section>`;
 
-    // The twelve moves, by school, each tagged with the real persuasion tactic
+    // The moves, by school, each tagged with the real persuasion tactic
     // it models — so the fiction reads as something people actually do.
     const REAL_TACTIC = {
       cold_reading:     "Cold reading — you watch their face for tells",

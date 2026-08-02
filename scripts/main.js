@@ -44,7 +44,7 @@ Hooks.once("init", () => {
 
   game.settings.register("tsl-social-conflict", "socialDcBonus", {
     name: "Social difficulty (global DC bonus)",
-    hint: "A flat modifier added to EVERY social DC, on top of the per-target math (10 + WIS + INT + proficiency, or passive Insight). Raise it if your table finds people too easy to sway; lower it for a softer game. 0 = the base numbers. Try +2 or +3 to make every read/persuasion a real gamble.",
+    hint: "A flat modifier added to EVERY social DC, on top of the per-target math (10 + WIS save + INT save, or passive Insight). Raise it if your table finds people too easy to sway; lower it for a softer game. 0 = the base numbers. Try +2 or +3 to make every read/persuasion a real gamble.",
     scope: "world",
     config: true,
     type: Number,

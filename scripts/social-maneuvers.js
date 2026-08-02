@@ -633,7 +633,7 @@ class SocialManeuverRoller {
       return e && e.flags?.[scope]?.sourceActorId === sourceActor.id ? e : null;
     };
 
-    // ── DC: 10 + WIS + INT + proficiency (or passive Insight), ± bond/Rattled ──
+    // ── DC: 10 + WIS save + INT save (or passive Insight), ± bond/Rattled ──
     const dcBase = SocialManeuverRoller.getSocialDC(targetActor);
     const dcMods = [];
     // THEIR bond toward you is their guard: type × strength decides whether
