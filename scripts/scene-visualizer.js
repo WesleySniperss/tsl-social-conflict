@@ -27,8 +27,11 @@ class TSLSceneVisualizer extends _TSLVizBase {
 
   constructor(options = {}) {
     super(options);
-    this._nodePos = {};        // actorId → { x, y } centre in graph coords
-    this._size    = 480;       // graph square side (recomputed per render)
+    this._nodePos   = {};      // actorId → { x, y } centre in graph coords
+    this._customPos = {};      // actorId → { x, y } — user-dragged overrides (session)
+    this._zoom      = 1;       // graph zoom (0.5–2), personal to this client
+    this._drag      = null;    // active node drag state
+    this._size      = 480;     // graph square side (recomputed per render)
     this._rerender = foundry.utils.debounce(() => this.render(false), 120);
     this._hooks = [];
     this._bindHooks();
@@ -188,6 +191,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
 
   _renderHTML() {
     const esc   = foundry.utils.escapeHTML;
+    this._customPos ??= {};          // defensive (survives Object.create in tests)
     const nodes = this._collectNodes();
     this._nodePos = {};
 
@@ -198,6 +202,11 @@ class TSLSceneVisualizer extends _TSLVizBase {
         <span class="tsl-viz-title"><i class="fas fa-people-arrows"></i> The Social Scene</span>
         <span class="tsl-viz-sub">${subLabel}</span>
         ${game.user.isGM ? `<button class="tsl-viz-conflict" data-tooltip="Start a Social Conflict — the shared roll board — with the tokens you have selected on the canvas.">⚔ Conflict</button>` : ""}
+        <span class="tsl-viz-zoom" data-tooltip="Zoom (or scroll-wheel over the map). Drag a portrait to rearrange.">
+          <button class="tsl-viz-zoom-btn" data-zoom="out">−</button>
+          <button class="tsl-viz-zoom-btn" data-zoom="reset" data-tooltip="Reset zoom & layout">⟲</button>
+          <button class="tsl-viz-zoom-btn" data-zoom="in">+</button>
+        </span>
         <button class="tsl-viz-refresh" data-tooltip="Redraw"><i class="fas fa-rotate"></i></button>
       </div>`;
 
@@ -210,7 +219,8 @@ class TSLSceneVisualizer extends _TSLVizBase {
     }
 
     const { pos, size } = this._layout(nodes.length);
-    nodes.forEach((nd, i) => { this._nodePos[nd.id] = pos[i]; });
+    // User-dragged positions win over the circular default (kept for the session).
+    nodes.forEach((nd, i) => { this._nodePos[nd.id] = this._customPos[nd.id] ?? pos[i]; });
     const edges = this._collectEdges(nodes.map(n => n.id));
 
     // ── Edges (SVG lines + midpoint chips) ──
@@ -229,7 +239,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
       const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
       const dots = "●".repeat(e.strength) + "○".repeat(3 - e.strength);
       const tip  = `${esc(e.label)} — strength ${e.strength}/3 · ${SOCIAL_TRIADS?.[e.school]?.label ?? "—"}`;
-      return `<div class="tsl-viz-edge-chip" style="left:${mx.toFixed(1)}px;top:${my.toFixed(1)}px;--edge-col:${e.color}"
+      return `<div class="tsl-viz-edge-chip" data-a="${e.aId}" data-b="${e.bId}" style="left:${mx.toFixed(1)}px;top:${my.toFixed(1)}px;--edge-col:${e.color}"
         data-tooltip="${tip}"><span class="tsl-viz-edge-type">${esc(e.label)}</span><span class="tsl-viz-edge-dots">${dots}</span></div>`;
     }).join("");
 
@@ -269,13 +279,18 @@ class TSLSceneVisualizer extends _TSLVizBase {
         <span class="tsl-viz-legend-note">line thickness = bond strength</span>
       </div>`;
 
+    // The stage is sized to the ZOOMED extent (so the window scrolls when you
+    // zoom in); the inner canvas holds the graph and is scaled by CSS transform.
+    const z = this._zoom || 1;
     return `
       <div class="tsl-viz-root">
         ${head(`${nodes.length} on the map · ${edges.length} bond${edges.length === 1 ? "" : "s"}`)}
-        <div class="tsl-viz-stage" style="width:${size}px;height:${size}px">
-          <svg class="tsl-viz-svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${lines}</svg>
-          ${edgeChips}
-          ${nodeHtml}
+        <div class="tsl-viz-stage" style="width:${(size * z).toFixed(0)}px;height:${(size * z).toFixed(0)}px">
+          <div class="tsl-viz-canvas" style="width:${size}px;height:${size}px;transform:scale(${z});transform-origin:0 0">
+            <svg class="tsl-viz-svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${lines}</svg>
+            ${edgeChips}
+            ${nodeHtml}
+          </div>
         </div>
         ${legend}
       </div>`;
@@ -301,16 +316,78 @@ class TSLSceneVisualizer extends _TSLVizBase {
       (typeof SocialFencingDialog !== "undefined") ? SocialFencingDialog.open(actor)
       : (typeof SocialNotesDialog  !== "undefined") ? SocialNotesDialog.open(actor)
       : null;
+    // Drag a portrait to rearrange the map; a clean click (no drag) opens the
+    // Chronicle. Positions persist for the session; ⟲ resets them.
     el.querySelectorAll(".tsl-viz-node[data-actor-id]").forEach(node => {
-      node.addEventListener("click", () => {
-        const actor = game.actors.get(node.dataset.actorId);
-        if (!actor) return;
-        if (!game.user.isGM && !actor.isOwner) {
-          ui.notifications.info(`${actor.name}: you can only open a Chronicle you own.`);
-          return;
-        }
-        openChronicle(actor);
+      node.addEventListener("pointerdown", (ev) => {
+        if (ev.button !== 0) return;
+        ev.preventDefault();
+        const id    = node.dataset.actorId;
+        const start = { x: ev.clientX, y: ev.clientY };
+        const orig  = { ...(this._nodePos[id] ?? { x: 0, y: 0 }) };
+        let moved = false;
+        try { node.setPointerCapture(ev.pointerId); } catch (e) {}
+        const onMove = (e) => {
+          const dx = (e.clientX - start.x) / this._zoom;
+          const dy = (e.clientY - start.y) / this._zoom;
+          if (!moved && Math.hypot(dx, dy) > 4) { moved = true; node.classList.add("dragging"); }
+          if (!moved) return;
+          this._nodePos[id] = { x: orig.x + dx, y: orig.y + dy };
+          this._repositionNode(id);
+        };
+        const onUp = () => {
+          node.removeEventListener("pointermove", onMove);
+          node.removeEventListener("pointerup", onUp);
+          node.classList.remove("dragging");
+          if (moved) {
+            this._customPos[id] = { ...this._nodePos[id] };   // remember the spot
+          } else {
+            const actor = game.actors.get(id);
+            if (!actor) return;
+            if (!game.user.isGM && !actor.isOwner) {
+              ui.notifications.info(`${actor.name}: you can only open a Chronicle you own.`);
+              return;
+            }
+            openChronicle(actor);
+          }
+        };
+        node.addEventListener("pointermove", onMove);
+        node.addEventListener("pointerup", onUp);
       });
+    });
+
+    // Zoom — buttons and scroll-wheel over the map; ⟲ resets zoom + layout.
+    const setZoom = (z) => { this._zoom = Math.max(0.5, Math.min(2, z)); this.render(false); };
+    el.querySelectorAll("[data-zoom]").forEach(btn => btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const m = btn.dataset.zoom;
+      if (m === "in")       setZoom(this._zoom + 0.15);
+      else if (m === "out") setZoom(this._zoom - 0.15);
+      else { this._zoom = 1; this._customPos = {}; this.render(false); }
+    }));
+    el.querySelector(".tsl-viz-stage")?.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      setZoom(this._zoom + (e.deltaY < 0 ? 0.12 : -0.12));
+    }, { passive: false });
+  }
+
+  /** Live-move a node's DOM + its edges + edge chips to this._nodePos[id]. */
+  _repositionNode(id) {
+    const root = this.element?.[0];
+    if (!root) return;
+    const p = this._nodePos[id];
+    if (!p) return;
+    const node = root.querySelector(`.tsl-viz-node[data-actor-id="${id}"]`);
+    if (node) { node.style.left = `${(p.x - 46).toFixed(1)}px`; node.style.top = `${(p.y - 46).toFixed(1)}px`; }
+    root.querySelectorAll(".tsl-viz-edge").forEach(line => {
+      if (line.dataset.a === id) { line.setAttribute("x1", p.x.toFixed(1)); line.setAttribute("y1", p.y.toFixed(1)); }
+      if (line.dataset.b === id) { line.setAttribute("x2", p.x.toFixed(1)); line.setAttribute("y2", p.y.toFixed(1)); }
+    });
+    root.querySelectorAll(".tsl-viz-edge-chip").forEach(chip => {
+      if (chip.dataset.a === id || chip.dataset.b === id) {
+        const a = this._nodePos[chip.dataset.a], b = this._nodePos[chip.dataset.b];
+        if (a && b) { chip.style.left = `${((a.x + b.x) / 2).toFixed(1)}px`; chip.style.top = `${((a.y + b.y) / 2).toFixed(1)}px`; }
+      }
     });
   }
 
@@ -329,7 +406,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
 
   _playPulse({ srcId, tgtId, group, outcome, damage, resolved } = {}) {
     const root = this.element?.[0];
-    const stage = root?.querySelector(".tsl-viz-stage");
+    const stage = root?.querySelector(".tsl-viz-canvas");   // the scaled coord space
     const svg   = root?.querySelector(".tsl-viz-svg");
     if (!stage || !svg) return;
 
@@ -346,54 +423,52 @@ class TSLSceneVisualizer extends _TSLVizBase {
       line.setAttribute("x2", tgt.x); line.setAttribute("y2", tgt.y);
       line.setAttribute("class", `tsl-viz-beam tsl-viz-beam--${kind}`);
       svg.appendChild(line);
-      setTimeout(() => line.remove(), 1300);
+      setTimeout(() => line.remove(), 1600);
 
-      // Briefly light up the standing bond edge between them, if any.
+      // Light up the standing bond edge between them, if any.
       const edge = svg.querySelector(
         `.tsl-viz-edge[data-a="${srcId}"][data-b="${tgtId}"], .tsl-viz-edge[data-a="${tgtId}"][data-b="${srcId}"]`);
-      if (edge) { edge.classList.add("pulsing"); setTimeout(() => edge.classList.remove("pulsing"), 1300); }
+      if (edge) { edge.classList.add("pulsing"); setTimeout(() => edge.classList.remove("pulsing"), 1600); }
     }
 
     // Flash the one who was acted upon.
     const tgtNode = stage.querySelector(`.tsl-viz-node[data-actor-id="${tgtId}"]`);
     if (tgtNode) {
       tgtNode.classList.add(`flash-${kind}`);
-      setTimeout(() => tgtNode.classList.remove(`flash-${kind}`), 950);
+      setTimeout(() => tgtNode.classList.remove(`flash-${kind}`), 1400);
     }
 
-    // Float the result over the target.
+    // Float the result over the target — long enough to actually READ it.
     if (tgt) {
-      const label = kind === "wall" ? "walled"
-        : kind === "hit" ? (damage > 0 ? `−${damage}` : "hit")
-        : "miss";
+      const label = kind === "wall" ? "walled off" : kind === "hit" ? (damage > 0 ? `−${damage} Resolve` : "hit") : "miss";
       const float = document.createElement("div");
       float.className = `tsl-viz-float tsl-viz-float--${kind}`;
       float.textContent = label;
       float.style.left = `${tgt.x}px`;
       float.style.top  = `${tgt.y}px`;
       stage.appendChild(float);
-      setTimeout(() => float.remove(), 1200);
+      setTimeout(() => float.remove(), 2800);
     }
 
     // Resolution drama: this blow ended the exchange. Swayed = a warm break;
-    // walked = the node greys out and drifts. A short, satisfying climax.
+    // walked = the node greys out and drifts. Held long enough to read.
     if (resolved && tgtNode) {
       tgtNode.classList.add(`resolve-${resolved}`);
-      setTimeout(() => tgtNode.classList.remove(`resolve-${resolved}`), 1700);
+      setTimeout(() => tgtNode.classList.remove(`resolve-${resolved}`), 3000);
       if (tgt) {
         const burst = document.createElement("div");
         burst.className = `tsl-viz-burst tsl-viz-burst--${resolved}`;
         burst.style.left = `${tgt.x}px`;
         burst.style.top  = `${tgt.y}px`;
         stage.appendChild(burst);
-        setTimeout(() => burst.remove(), 1400);
+        setTimeout(() => burst.remove(), 1600);
         const word = document.createElement("div");
         word.className = `tsl-viz-resolveword tsl-viz-resolveword--${resolved}`;
-        word.textContent = resolved === "swayed" ? "SWAYED" : "WALKED";
+        word.textContent = resolved === "swayed" ? "SWAYED" : "WALKED AWAY";
         word.style.left = `${tgt.x}px`;
         word.style.top  = `${tgt.y}px`;
         stage.appendChild(word);
-        setTimeout(() => word.remove(), 1700);
+        setTimeout(() => word.remove(), 3000);
       }
     }
   }
