@@ -1,0 +1,623 @@
+<title>Емоційний шар — Соціальне Фехтування</title>
+<style>
+  :root{
+    --ground:#f3ecdb; --panel:#fbf6ea; --panel-2:#f7efdf;
+    --ink:#2a1f18; --muted:#6f5d4b; --line:#e0d0b4;
+    --wound:#c1354f; --wound-tint:rgba(193,53,79,.09);
+    --boon:#a9781a; --boon-tint:rgba(169,120,26,.10);
+    --scar:#6f52b0; --scar-tint:rgba(111,82,176,.09);
+    --shadow:0 1px 2px rgba(60,40,20,.10), 0 8px 24px rgba(60,40,20,.06);
+    --font-display:"Trajan Pro",Georgia,"Times New Roman",serif;
+    --font-body:"Iowan Old Style","Palatino Linotype","Book Antiqua",Georgia,serif;
+    --font-ui:ui-sans-serif,system-ui,"Segoe UI",sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --ground:#100b09; --panel:#191110; --panel-2:#1f1613;
+      --ink:#ece0d0; --muted:#a3907e; --line:#2e221d;
+      --wound:#e75d78; --wound-tint:rgba(231,93,120,.10);
+      --boon:#e0b24e; --boon-tint:rgba(224,178,78,.10);
+      --scar:#a98be6; --scar-tint:rgba(169,139,230,.10);
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"]{
+    --ground:#f3ecdb; --panel:#fbf6ea; --panel-2:#f7efdf;
+    --ink:#2a1f18; --muted:#6f5d4b; --line:#e0d0b4;
+    --wound:#c1354f; --wound-tint:rgba(193,53,79,.09);
+    --boon:#a9781a; --boon-tint:rgba(169,120,26,.10);
+    --scar:#6f52b0; --scar-tint:rgba(111,82,176,.09);
+    --shadow:0 1px 2px rgba(60,40,20,.10), 0 8px 24px rgba(60,40,20,.06);
+  }
+  :root[data-theme="dark"]{
+    --ground:#100b09; --panel:#191110; --panel-2:#1f1613;
+    --ink:#ece0d0; --muted:#a3907e; --line:#2e221d;
+    --wound:#e75d78; --wound-tint:rgba(231,93,120,.10);
+    --boon:#e0b24e; --boon-tint:rgba(224,178,78,.10);
+    --scar:#a98be6; --scar-tint:rgba(169,139,230,.10);
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);
+    font-family:var(--font-body);font-size:17px;line-height:1.6;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 22px 96px;}
+  .prose{max-width:740px;}
+
+  header.top{padding:64px 0 30px;border-bottom:1px solid var(--line);margin-bottom:8px;}
+  .eyebrow{font-family:var(--font-ui);text-transform:uppercase;letter-spacing:.24em;
+    font-size:12px;color:var(--muted);margin:0 0 16px;}
+  h1{font-family:var(--font-display);font-weight:600;letter-spacing:.02em;
+    text-transform:uppercase;font-size:clamp(30px,5vw,52px);line-height:1.05;
+    margin:0;text-wrap:balance;}
+  h1 .amp{color:var(--wound);}
+  header.top p.lede{max-width:640px;color:var(--muted);font-size:19px;margin:20px 0 0;}
+
+  nav.toc{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--ground) 92%,transparent);
+    backdrop-filter:blur(6px);border-bottom:1px solid var(--line);
+    display:flex;flex-wrap:wrap;gap:4px 22px;padding:13px 0;margin-bottom:44px;
+    font-family:var(--font-ui);font-size:13px;letter-spacing:.04em;}
+  nav.toc a{color:var(--muted);text-decoration:none;padding:2px 0;border-bottom:2px solid transparent;}
+  nav.toc a:hover,nav.toc a:focus-visible{color:var(--ink);border-color:var(--wound);outline:none;}
+
+  section{margin:0 0 60px;scroll-margin-top:64px;}
+  h2{font-family:var(--font-display);text-transform:uppercase;letter-spacing:.06em;
+    font-weight:600;font-size:clamp(20px,3vw,27px);margin:0 0 6px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;}
+  h2 .no{font-family:var(--font-ui);font-size:13px;letter-spacing:.12em;color:var(--muted);font-weight:500;}
+  h2 + .sub{color:var(--muted);margin:0 0 26px;max-width:720px;}
+  p{margin:0 0 15px;}
+  b,strong{font-weight:600;color:var(--ink);}
+  .k{font-family:var(--font-ui);text-transform:uppercase;letter-spacing:.09em;
+    font-size:11.5px;font-weight:600;color:var(--muted);}
+
+  .cols{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));}
+  .rescard{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:22px 24px;box-shadow:var(--shadow);}
+  .rescard h3{font-family:var(--font-display);letter-spacing:.03em;margin:0 0 4px;font-size:22px;}
+  .rescard .tag{font-family:var(--font-ui);font-size:12px;letter-spacing:.06em;color:var(--muted);margin-bottom:14px;}
+  .rescard p{font-size:15.5px;margin:0 0 10px;}
+  .rescard p:last-child{margin-bottom:0;}
+  .pill{display:inline-block;font-family:var(--font-ui);font-size:12px;font-weight:600;
+    padding:1px 9px;border-radius:999px;border:1px solid currentColor;}
+
+  .legend{display:flex;flex-wrap:wrap;gap:10px 20px;background:var(--panel-2);border:1px solid var(--line);
+    border-radius:10px;padding:13px 18px;margin:0 0 26px;font-size:14.5px;}
+  .legend b{color:var(--wound);}
+
+  .grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fill,minmax(370px,1fr));}
+  article.emo{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--edge);
+    border-radius:12px;padding:20px 22px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:12px;}
+  .emo--wound{--edge:var(--wound);}
+  .emo--boon{--edge:var(--boon);}
+  .emo--scar{--edge:var(--scar);}
+  .emo__head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;}
+  .emo__title h3{font-family:var(--font-display);letter-spacing:.03em;font-size:24px;margin:0;line-height:1.1;}
+  .emo__title .sub{font-family:var(--font-ui);font-size:12.5px;letter-spacing:.05em;color:var(--muted);
+    text-transform:uppercase;margin-top:3px;display:block;}
+  .badge{font-family:var(--font-ui);font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+    padding:3px 10px;border-radius:999px;white-space:nowrap;flex:none;}
+  .badge--wound{color:var(--wound);background:var(--wound-tint);}
+  .badge--boon{color:var(--boon);background:var(--boon-tint);}
+  .badge--scar{color:var(--scar);background:var(--scar-tint);}
+  .emo__meta{font-size:14px;color:var(--muted);margin:0;}
+  .emo__meta b{color:var(--ink);}
+  .emo__desc{margin:0;font-size:16px;}
+  blockquote.ex{margin:0;padding:11px 0 11px 16px;border-left:2px solid var(--edge);
+    background:var(--edge-tint,transparent);font-style:italic;color:var(--ink);font-size:15.5px;line-height:1.5;}
+  .emo--wound blockquote.ex{--edge-tint:var(--wound-tint);}
+  .emo--boon blockquote.ex{--edge-tint:var(--boon-tint);}
+  .emo--scar blockquote.ex{--edge-tint:var(--scar-tint);}
+  .lines{display:flex;flex-direction:column;gap:7px;margin-top:auto;}
+  .line{font-size:14.5px;line-height:1.45;}
+  .line .k{margin-right:6px;}
+  .dot{color:var(--edge);letter-spacing:1px;}
+  .ult{background:var(--edge-tint,var(--wound-tint));border-radius:8px;padding:9px 12px;font-size:14.5px;}
+  .emo--wound .ult{--edge-tint:var(--wound-tint);}
+  .emo--boon .ult{--edge-tint:var(--boon-tint);}
+  .ult .name{font-weight:700;color:var(--edge);}
+  .immune{font-family:var(--font-ui);font-size:11.5px;letter-spacing:.04em;color:var(--scar);
+    border-top:1px dashed var(--line);padding-top:8px;}
+
+  .note{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:20px 24px;box-shadow:var(--shadow);}
+  .note h3{font-family:var(--font-display);letter-spacing:.03em;font-size:19px;margin:0 0 10px;}
+  ol.steps{margin:0;padding-left:0;list-style:none;counter-reset:s;display:flex;flex-direction:column;gap:12px;}
+  ol.steps li{position:relative;padding-left:44px;counter-increment:s;font-size:15.5px;}
+  ol.steps li::before{content:counter(s);position:absolute;left:0;top:-1px;width:28px;height:28px;
+    border-radius:50%;background:var(--wound-tint);color:var(--wound);border:1px solid var(--wound);
+    font-family:var(--font-ui);font-weight:700;font-size:13px;display:grid;place-items:center;}
+  ul.clean{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:11px;}
+  ul.clean li{position:relative;padding-left:20px;font-size:15.5px;}
+  ul.clean li::before{content:"";position:absolute;left:0;top:.62em;width:7px;height:7px;border-radius:50%;
+    background:var(--muted);}
+
+  table.consist{width:100%;border-collapse:collapse;font-size:14.5px;}
+  .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;}
+  table.consist th,table.consist td{text-align:left;padding:12px 15px;border-bottom:1px solid var(--line);vertical-align:top;}
+  table.consist th{font-family:var(--font-ui);font-size:12px;text-transform:uppercase;letter-spacing:.07em;
+    color:var(--muted);background:var(--panel-2);font-weight:600;white-space:nowrap;}
+  table.consist tr:last-child td{border-bottom:none;}
+  table.consist td b{color:var(--ink);}
+
+  .out{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));}
+  .outcard{border:1px solid var(--line);border-left:3px solid var(--oc);border-radius:10px;padding:13px 16px;background:var(--panel);}
+  .outcard .h{font-weight:700;font-size:15.5px;margin-bottom:3px;color:var(--oc);}
+  .outcard p{font-size:14px;margin:0;color:var(--ink);}
+
+  code{font-family:ui-monospace,"SFMono-Regular",Menlo,monospace;font-size:.86em;
+    background:var(--panel-2);padding:1px 6px;border-radius:5px;border:1px solid var(--line);}
+  footer{border-top:1px solid var(--line);padding-top:22px;color:var(--muted);font-size:14px;}
+  @media (max-width:520px){
+    body{font-size:16px;} .wrap{padding:0 16px 72px;} header.top{padding:44px 0 24px;}
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="top">
+    <p class="eyebrow">TSL: Social Conflict · дизайн-документ</p>
+    <h1>Емоційний шар <span class="amp">&</span> його рани</h1>
+    <p class="lede">Соціальне фехтування лишає слід. Кожен обмін годує обидві сторони —
+      переможений темніє, переможець світлішає. Рани тримаються днями, глибшають, а зрештою
+      застигають у характер. Усе рахується автоматично проти твоєї цілі.</p>
+  </header>
+
+  <nav class="toc" aria-label="Розділи">
+    <a href="#resources">Ресурси</a>
+    <a href="#emotions">Емоції</a>
+    <a href="#compulsion">Компульсії</a>
+    <a href="#scars">Шрами</a>
+    <a href="#bonds">Бонди</a>
+    <a href="#engine">Двигун</a>
+    <a href="#outcome">Вікно результату</a>
+    <a href="#stacking">Стакання</a>
+  </nav>
+
+  <!-- ─────────── RESOURCES ─────────── -->
+  <section id="resources">
+    <h2>Два гаманці</h2>
+    <p class="sub">Дві різні валюти, які не плутаються: одна — важіль над іншими,
+      друга — твій власний самоконтроль.</p>
+    <div class="cols">
+      <div class="rescard">
+        <h3>Нитки <span class="pill" style="color:var(--wound)">Strings</span></h3>
+        <p class="tag">важіль над іншими</p>
+        <p>Спалюєш одну на <b>+5</b> до будь-якого кидка проти конкретної людини.</p>
+        <p><span class="k">Заробляєш</span> — коли <b>розкриваєш вразливість</b> у грі (відкрив серце, зізнався в слабкості).</p>
+      </div>
+      <div class="rescard">
+        <h3>Воля <span class="pill" style="color:var(--boon)">Willpower</span></h3>
+        <p class="tag">твій самоконтроль</p>
+        <p>Пул = <b>твій бонус майстерності</b>, поновлюється на <b>довгий відпочинок</b>. Плюс <b>+1</b>, коли йдеш за Потягом своєї Рани.</p>
+        <p>Витрачаєш, щоб <b>активувати Ультимат</b> Дару / сигнатуру Бонду, або <b>переважити твердий блок Рани</b> (наблизитись попри Fear, вдарити об'єкт Obsession).</p>
+        <p><span class="k">Замість</span> фіксованих «раз на N» — усі ультимати живляться Волею.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────── EMOTIONS ─────────── -->
+  <section id="emotions">
+    <h2>Емоції <span class="no">9 незалежних станів</span></h2>
+    <p class="sub">Не полярні пари, а окремі стани. <b>Рани</b> приходять із поразки, тиску й драми
+      (Hold the Line, приниження). <b>Дари</b> ГМ роздає вручну — за виграний обмін, подолання рани
+      чи яскравий момент (як Inspiration).</p>
+    <div class="legend">
+      <span><b>Штраф/бонус = рівень:</b> ● −1 · ●● −2 · ●●● −3</span>
+      <span><b>Тривалість:</b> гостра Рана діє <b>до кінця дня</b> (довгий відпочинок стирає) або доки не загоять дією</span>
+      <span><b>Утретє</b> та сама Рана застигає в Шрам</span>
+      <span><b>●●●</b> відмикає Ультимат (без втрати контролю)</span>
+    </div>
+
+    <div class="grid">
+
+      <!-- WRATH -->
+      <article class="emo emo--wound">
+        <div class="emo__head">
+          <div class="emo__title"><h3>Wrath</h3><span class="sub">Червоний туман</span></div>
+          <span class="badge badge--wound">Рана</span>
+        </div>
+        <p class="emo__meta">До кого: <b>джерело гніву</b></p>
+        <p class="emo__desc">Лють закипає, і слова стають зайвими — лишається бажання вдарити.</p>
+        <blockquote class="ex">«Кісточки пальців біліють. Кожне його слово — крапля на розпечене залізо.
+          Ти вже не слухаєш — ти чекаєш приводу.»</blockquote>
+        <div class="lines">
+          <p class="line"><span class="k">Потяг</span> ескалювати, вдарити, змусити його відчути те, що відчуваєш ти</p>
+          <p class="line"><span class="k">Модифікатори (×рівень)</span> <b>+</b> атаки · Intimidation · Athletics · прийоми&nbsp;Влади; <b>−</b> AC · спаскидки · Stealth · Perception · обережні&nbsp;скіли · концентрація</p>
+          <div class="ult"><span class="dot">●●●</span> <span class="name">Berserk</span> — обери одну свою атаку → авто-<b>кріт</b>; і <b>резист шкоди</b> від однієї атаки по тобі. (без втрати контролю — ти лишаєшся собою)</div>
+          <p class="line"><span class="k">Гоїться</span> вилити — зламати щось, почати бійку, сказати те, що ковтав → лишає Дар <b>Resolve</b>.</p>
+        </div>
+      </article>
+
+      <!-- GRUDGE -->
+      <article class="emo emo--wound">
+        <div class="emo__head">
+          <div class="emo__title"><h3>Grudge</h3><span class="sub">Вендета</span></div>
+          <span class="badge badge--wound">Рана</span>
+        </div>
+        <p class="emo__meta">До кого: <b>némesis</b></p>
+        <p class="emo__desc">Холодна, особиста ненависть до однієї людини. Ти не забудеш.</p>
+        <blockquote class="ex">«Ти всміхаєшся і киваєш — а подумки вже складаєш список.
+          Він за це заплатить. Не сьогодні, то колись.»</blockquote>
+        <div class="lines">
+          <p class="line"><span class="k">Потяг</span> поквитатися з némesis'ом, підривати й топити його за будь-якої нагоди</p>
+          <p class="line"><span class="k">Модифікатори (×рівень)</span> <b>−</b> ініціатива · Perception (одержимий помстою); <b>авто +</b> усе проти цілі</p>
+          <div class="ult"><span class="dot">●●●</span> <span class="name">Vendetta</span> — перевага на все проти цілі, завада проти всіх інших, <b>Help бонусною дією</b> проти неї.</div>
+          <p class="line"><span class="k">Гоїться</span> реальний удар по них · або щире примирення.</p>
+        </div>
+      </article>
+
+      <!-- OBSESSION -->
+      <article class="emo emo--wound">
+        <div class="emo__head">
+          <div class="emo__title"><h3>Obsession</h3><span class="sub">Одержимість</span></div>
+          <span class="badge badge--wound">Рана</span>
+        </div>
+        <p class="emo__meta">До кого: <b>об'єкт</b></p>
+        <p class="emo__desc">Одна людина заповнює кожну думку; ти прагнеш бути поруч, догодити — і все інше блякне.</p>
+        <blockquote class="ex">«Ти ловиш кожен її погляд, зважуєш кожне слово — чи не образив?
+          Розмова тече повз; ти чуєш лише її голос.»</blockquote>
+        <div class="lines">
+          <p class="line"><span class="k">Потяг</span> бути поруч, догодити об'єкту, поставити його понад усе</p>
+          <p class="line"><span class="k">Модифікатори (×рівень)</span> <b>−</b> Perception · Insight; <b>не можеш</b> бити ціль прийомами; вона вмовляє тебе з <b>перевагою</b></p>
+          <p class="line"><span class="k">Гоїться</span> здобув — і воно порожнє · або отямлення від друга.</p>
+        </div>
+      </article>
+
+      <!-- FEAR -->
+      <article class="emo emo--wound">
+        <div class="emo__head">
+          <div class="emo__title"><h3>Fear</h3><span class="sub">Жах</span></div>
+          <span class="badge badge--wound">Рана</span>
+        </div>
+        <p class="emo__meta">До кого: <b>джерело страху</b></p>
+        <p class="emo__desc">Жах перед однією людиною вкорінюється в тіло.</p>
+        <blockquote class="ex">«Щойно він заходить, твоє горло стискається.
+          Ти не дивишся йому в очі — лише рахуєш, де двері.»</blockquote>
+        <div class="lines">
+          <p class="line"><span class="k">Потяг</span> тікати, дати ground, за будь-яку ціну уникнути джерела</p>
+          <p class="line"><span class="k">Модифікатори</span> нативний <b>Frightened</b> (завада поки бачиш його, не наближаєшся); <b>−рівень</b> спаскидки vs страх</p>
+          <p class="line"><span class="k">Гоїться</span> втекти в безпеку · або зустріти зі союзником → лишає Дар <b>Valor</b>.</p>
+        </div>
+      </article>
+
+      <!-- DESPAIR -->
+      <article class="emo emo--wound">
+        <div class="emo__head">
+          <div class="emo__title"><h3>Despair</h3><span class="sub">Відчай</span></div>
+          <span class="badge badge--wound">Рана</span>
+        </div>
+        <p class="emo__meta">До кого: <b>—</b> (загальний)</p>
+        <p class="emo__desc">Світло гасне; ніщо, що ти зробиш, не має значення.</p>
+        <blockquote class="ex">«Руки опускаються самі. Навіщо — ти вже знаєш, чим це скінчиться.»</blockquote>
+        <div class="lines">
+          <p class="line"><span class="k">Потяг</span> здатися, не старатися, прийняти найгірше без спротиву</p>
+          <p class="line"><span class="k">Модифікатори (×рівень)</span> <b>−</b> усі перевірки · спаскидки · ініціатива; нема expertise. <span style="color:var(--muted)">(критувати — можеш)</span></p>
+          <p class="line"><span class="k">Гоїться</span> хтось інший має тебе розпалити (втіха, промова) → лишає Дар <b>Hope</b>.</p>
+        </div>
+      </article>
+
+      <!-- VALOR -->
+      <article class="emo emo--boon">
+        <div class="emo__head">
+          <div class="emo__title"><h3>Valor</h3><span class="sub">Відвага</span></div>
+          <span class="badge badge--boon">Дар</span>
+        </div>
+        <p class="emo__meta">Джерело: <b>ГМ дає вручну</b></p>
+        <p class="emo__desc">Відвага спалахує; ти стоїш прямо і б'єш влучно.</p>
+        <blockquote class="ex">«Страх ще тут, під ребрами — але ти робиш крок уперед. Сьогодні ти не відступиш.»</blockquote>
+        <div class="lines">
+          <p class="line"><span class="k">Модифікатори</span> <b>перевага</b> на спаскидки vs страх; ти не боїшся (важко залякати)</p>
+          <div class="ult"><span class="dot">●●●</span> <span class="name">Heroic Surge</span> <span class="k" style="color:var(--boon)">1 Воля</span> — зайва дія/атака з перевагою; союзники поруч +1.</div>
+        </div>
+      </article>
+
+      <!-- DEVOTION -->
+      <article class="emo emo--boon">
+        <div class="emo__head">
+          <div class="emo__title"><h3>Devotion</h3><span class="sub">Відданість</span></div>
+          <span class="badge badge--boon">Дар</span>
+        </div>
+        <p class="emo__meta">До кого: <b>коханий</b> · ГМ дає вручну</p>
+        <p class="emo__desc">Любов як сила — заради когось ти б'єшся вдвічі впертіше.</p>
+        <blockquote class="ex">«Ти бачиш її за спинами ворогів — і втома зникає.
+          Заради неї ти витримаєш ще один удар.»</blockquote>
+        <div class="lines">
+          <p class="line"><span class="k">Модифікатори (×рівень)</span> <b>+</b> діяти/захищати заради нього; <b>+</b> спаскидки поруч із ним</p>
+          <div class="ult"><span class="dot">●●●</span> <span class="name">Shield Them</span> <span class="k" style="color:var(--boon)">1 Воля</span> — реакцією стаєш між коханим і загрозою, з перевагою.</div>
+        </div>
+      </article>
+
+      <!-- RESOLVE -->
+      <article class="emo emo--boon">
+        <div class="emo__head">
+          <div class="emo__title"><h3>Resolve</h3><span class="sub">Витримка</span></div>
+          <span class="badge badge--boon">Дар</span>
+        </div>
+        <p class="emo__meta">Джерело: <b>ГМ дає вручну</b></p>
+        <p class="emo__desc">Зібраний і непохитний.</p>
+        <blockquote class="ex">«Ти дихаєш рівно. Хай кричать, хай погрожують — ти вже вирішив.»</blockquote>
+        <div class="lines">
+          <p class="line"><span class="k">Модифікатори (×рівень)</span> <b>+</b> спаскидки; <b>імунітет</b> до «зламатися» (cowed)</p>
+          <div class="ult"><span class="dot">●●●</span> <span class="name">Unbreakable</span> <span class="k" style="color:var(--boon)">1 Воля</span> — авто-успіх одного спаскидка vs страх / чар / примус.</div>
+        </div>
+      </article>
+
+      <!-- HOPE -->
+      <article class="emo emo--boon">
+        <div class="emo__head">
+          <div class="emo__title"><h3>Hope</h3><span class="sub">Надія</span></div>
+          <span class="badge badge--boon">Дар</span>
+        </div>
+        <p class="emo__meta">Джерело: <b>ГМ дає вручну</b></p>
+        <p class="emo__desc">Піднесення — ти віриш, що ще можна вибратися, і це заразно.</p>
+        <blockquote class="ex">«„Ще не кінець", — кажеш ти, і сам віриш. І бачиш, як спини навколо випростуються.»</blockquote>
+        <div class="lines">
+          <p class="line"><span class="k">Модифікатори (×рівень)</span> <b>+</b> перевірки</p>
+          <div class="ult"><span class="dot">●●●</span> <span class="name">Rally</span> <span class="k" style="color:var(--boon)">1 Воля</span> — даєш союзникам підйом: перевага на наступний кидок.</div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ─────────── COMPULSIONS ─────────── -->
+  <section id="compulsion">
+    <h2>Компульсії <span class="no">потяг, і чим за нього платять</span></h2>
+    <p class="sub prose">Емоції й Шрами не просто дають цифри — вони <b>тягнуть</b> поводитися певним чином
+      (рядок «Потяг» у кожній Рані вище). Це <b>не</b> втрата контролю: ти вирішуєш сам. Нагорода — за <b>відіграш</b>,
+      а не за успіх чи провал кубика.</p>
+    <div class="cols">
+      <div class="rescard" style="border-left:4px solid var(--wound)">
+        <h3>Слідуєш Потягу Рани → +Воля</h3>
+        <p class="tag">віддався емоції — відновив самоконтроль</p>
+        <p>Дієш за Потягом своєї Рани, навіть собі на шкоду → <b>відновлюєш 1 Волю</b>. Віддаючись почуттю, ти знову збираєш сили (класична петля VtM: живеш за пристрастю — маєш чим платити).</p>
+      </div>
+      <div class="rescard" style="border-left:4px solid var(--scar)">
+        <h3>Слідуєш Шраму → Inspiration</h3>
+        <p class="tag">постійна риса · вагоміша нагорода</p>
+        <p>Відіграєш вкорінену поведінку свого Шраму → <b>Inspiration</b> (перевага на кидок, як завжди в системі). Класичне «грай свій флоу».</p>
+      </div>
+    </div>
+    <p class="prose" style="margin-top:16px;color:var(--muted);font-size:15px">
+      <b>Воля переважує тверді блоки.</b> Деякі Рани фізично не дають щось зробити (Fear — не наблизитись до джерела;
+      Obsession — не вдарити об'єкт). Щоб зробити це <i>попри все</i> — спали <b>1 Волю</b>. Нема Волі — ти скутий блоком,
+      поки Рана жива. Жодних «завад»: або переважив Волею, або ні.</p>
+    <p class="prose" style="margin-top:10px;color:var(--muted);font-size:15px">
+      <b>Прибрано:</b> Inspiration за провал і Нитку за виграний обмін — нагорода тепер лише за гру, а не за кубик.
+      <b>Нитки</b> тепер ідуть з іншого джерела — коли ти <b>розкриваєш вразливість</b> у грі (див. гаманці).</p>
+  </section>
+
+  <!-- ─────────── SCARS ─────────── -->
+  <section id="scars">
+    <h2>Шрами <span class="no">8 · стани характеру</span></h2>
+    <p class="sub">Шрам — постійна риса характеру з перевагою і ціною. Стандартний шлях: ту саму Рану ти дістаєш
+      <b>утретє</b> — і вона застигає у свій Шрам. Кілька шрамів натомість <b>подієві</b> (втрата, пережитий жах —
+      таврують одразу). Зазвичай Шрам робить тебе <b>імунним до пов'язаної Рани</b> — крім тих, що навпаки її
+      <i>загострюють</i> (The Haunted). Відіграєш свій Шрам → <b>Inspiration</b>. Знімається лише способом із «Прибирається».
+      <span style="color:var(--muted)">Надихалися: The One Ring (Scars), Blades (Trauma), Unknown Armies, Call of Cthulhu.</span></p>
+    <div class="note prose" style="margin-bottom:28px">
+      <h3>Шрам ≠ Бонд <span class="k" style="font-family:var(--font-ui)">чому не дублюється</span></h3>
+      <p style="margin:0"><b>Бонд</b> — жива взаємність двох <i>присутніх</i> людей, що змінюється з часом.
+        <b>Шрам</b> — слід у ТВОЇЙ голові, який лишається, коли бонду вже нема: людина мертва, пішла, або зв'язок обірвано.
+        Тому більшість Шрамів — про <b>тебе</b> (Cruelty, Cold, Hollow, Fixation) або про <b>втрату</b>
+        (Grief, Haunted), де живого бонду немає за визначенням.
+        Ті нечисленні, що про <i>присутню</i> людину (Vendetta, Bound Heart), не створюють другий запис —
+        вони <b>замикають</b> наявний бонд (Vendetta робить ворожість вічною; Bound Heart — прив'язаність незламною)
+        і додають зверху особистий модифікатор.</p>
+    </div>
+
+    <div class="grid">
+
+      <article class="emo emo--scar">
+        <div class="emo__head">
+          <div class="emo__title"><h3>Cruelty</h3><span class="sub">Жорстокість · з Wrath</span></div>
+          <span class="badge badge--scar">Шрам</span>
+        </div>
+        <p class="emo__desc">Гнів лишив жорстоку жилку, яку вже не сховати.</p>
+        <blockquote class="ex">«Ти й сам не помітив, коли перестав спинятися.
+          Тепер б'єш і тоді, коли не треба — просто бо можеш.»</blockquote>
+        <div class="lines">
+          <p class="line"><span class="k">Перевага</span> +2 Intimidation; <b>+2 попадання і шкода врукопашну</b>; +2 порятунок vs залякування/страх</p>
+          <p class="line"><span class="k">Ціна</span> −2 Persuasion · Deception · Insight (люди чують це в тобі)</p>
+          <p class="line"><span class="k">Прибирається</span> арка милосердя — пощадити / допомогти тому, кого міг розчавити</p>
+          <p class="line"><span class="k">Відіграш → Inspiration</span> перегнув палицю, вдарив жорсткіше, ніж треба було</p>
+          <p class="immune">Імунітет до Wrath</p>
+        </div>
+      </article>
+
+      <article class="emo emo--scar">
+        <div class="emo__head">
+          <div class="emo__title"><h3>Vendetta</h3><span class="sub">Вендета · з Grudge</span></div>
+          <span class="badge badge--scar">Шрам</span>
+        </div>
+        <p class="emo__desc">Довічний némesis, вибитий у кістку.</p>
+        <blockquote class="ex">«Скільки б років не минуло, від одного його імені в тебе холоне всередині.»</blockquote>
+        <div class="lines">
+          <p class="line"><span class="k">Перевага</span> +2 та Help бонусом проти némesis'а</p>
+          <p class="line"><span class="k">Ціна</span> −2 усі соц-роли проти нього; палиш Волю, щоб проминути шанс йому нашкодити</p>
+          <p class="line"><span class="k">Прибирається</span> némesis падає · або щире примирення</p>
+          <p class="line"><span class="k">Відіграш → Inspiration</span> проминув власну вигоду заради шпильки némesis'у</p>
+          <p class="immune">Імунітет до Grudge</p>
+        </div>
+      </article>
+
+      <article class="emo emo--scar">
+        <div class="emo__head">
+          <div class="emo__title"><h3>Bound Heart</h3><span class="sub">Скуте серце · з Obsession</span></div>
+          <span class="badge badge--scar">Шрам</span>
+        </div>
+        <p class="emo__desc">Одержимість вляглась у постійну, тиху відданість. Гострого шалу вже нема — але серце навіки віддане одному.</p>
+        <blockquote class="ex">«Ти більше не тремтиш за кожен її погляд. Просто завжди знаєш, де вона, — і завжди будеш поруч, коли треба.»</blockquote>
+        <div class="lines">
+          <p class="line"><span class="k">Перевага</span> +2 діяти/захищати заради коханого; +2 спаскидки, коли захищаєш його; <b>можеш діяти й проти нього</b> (шал минув — тверезий розум повернувся)</p>
+          <p class="line"><span class="k">Ціна</span> −2 діяти проти нього в бою (рука все одно не піднімається легко)</p>
+          <p class="line"><span class="k">Прибирається</span> зрада / смерть · або арка відпускання</p>
+          <p class="line"><span class="k">Відіграш → Inspiration</span> поставив кохану(ого) понад ціль чи безпеку</p>
+          <p class="immune">Гострої <b>Obsession</b> до цієї людини більше не буває — вона вже стала твоєю сталою рисою</p>
+        </div>
+      </article>
+
+      <article class="emo emo--scar">
+        <div class="emo__head">
+          <div class="emo__title"><h3>The Fixation</h3><span class="sub">Одержимість метою · з Obsession</span></div>
+          <span class="badge badge--scar">Шрам</span>
+        </div>
+        <p class="emo__desc">Ти прив'язаний до мети, й не можеш думати ні про що інше, доки її не досягнеш.</p>
+        <blockquote class="ex">«Ти не спав, не їв до пуття. Але коли нарешті береш це в руки — весь світ раптом стає різким і ясним.»</blockquote>
+        <div class="lines">
+          <p class="line"><span class="k">Ціна</span> поки мета <b>не досягнута</b> — <b>−1 на все</b> (тебе гризе, не можеш зосередитись на іншому)</p>
+          <p class="line"><span class="k">Перевага</span> у день, коли <b>цілком присвятив себе меті</b> — <b>+1 на все</b> (одержимий фокус працює на тебе)</p>
+          <p class="line"><span class="k">Прибирається</span> досягнув мети / хтось силою відірвав тебе від неї</p>
+          <p class="line"><span class="k">Відіграш → Inspiration</span> кинув усе заради мети, коли слід було спинитись</p>
+          <p class="immune">Імунітет до Obsession</p>
+        </div>
+      </article>
+
+      <article class="emo emo--scar">
+        <div class="emo__head">
+          <div class="emo__title"><h3>The Cold</h3><span class="sub">Холод · з Fear</span></div>
+          <span class="badge badge--scar">Шрам</span>
+        </div>
+        <p class="emo__desc">Ти зачинив серце, щоб більше не боятися — і разом зі страхом пішло все інше.</p>
+        <blockquote class="ex">«Тобі вже не страшно. Тобі взагалі майже нічого.»</blockquote>
+        <div class="lines">
+          <p class="line"><span class="k">Перевага</span> <b>+2 спаскидки vs страх і чар</b></p>
+          <p class="line"><span class="k">Ціна</span> −2 Insight (емпатія) · Persuasion (тепло)</p>
+          <p class="line"><span class="k">Прибирається</span> хтось пробивається крізь лід (зв'язок до ●●●)</p>
+          <p class="line"><span class="k">Відіграш → Inspiration</span> холодно відштовхнув того, хто потягнувся до тебе</p>
+          <p class="immune">Імунітет до Fear</p>
+        </div>
+      </article>
+
+      <article class="emo emo--scar">
+        <div class="emo__head">
+          <div class="emo__title"><h3>The Hollow</h3><span class="sub">Порожнеча · з Despair</span></div>
+          <span class="badge badge--scar">Шрам</span>
+        </div>
+        <p class="emo__desc">Ти вигорів дощенту — і разом із розпачем відчув, що більше нема чого втрачати.</p>
+        <blockquote class="ex">«Ти робиш, що мусиш. Але вже не пам'ятаєш, коли востаннє чогось боявся — чи хотів.»</blockquote>
+        <div class="lines">
+          <p class="line"><span class="k">Перевага</span> <b>імунітет до страху і чар</b></p>
+          <p class="line"><span class="k">Ціна</span> починаєш умирання з <b>1 проваленим ряткидком смерті</b>; −1 усі перевірки</p>
+          <p class="line"><span class="k">Прибирається</span> хтось повертає тобі сенс (промова, зв'язок)</p>
+          <p class="line"><span class="k">Відіграш → Inspiration</span> байдуже пішов на ризик, якого інші б злякались</p>
+          <p class="immune">Імунітет до Despair</p>
+        </div>
+      </article>
+
+      <article class="emo emo--scar">
+        <div class="emo__head">
+          <div class="emo__title"><h3>The Grief</h3><span class="sub">Горе / розбите серце · з втрати людини</span></div>
+          <span class="badge badge--scar">Шрам</span>
+        </div>
+        <p class="emo__desc">Людину, яку ти любив, ти втратив — смерть, розрив, зникнення. І це не відпускає: у чужих рисах тобі раз у раз ввижається вона.</p>
+        <blockquote class="ex">«Незнайомка повертає голову тим самим рухом — і тобі перехоплює подих. Ти вже не тут. Ти там, із нею.»</blockquote>
+        <div class="lines">
+          <p class="line"><span class="k">Перевага</span> +2 бачити крізь романтичні/емоційні маніпуляції (тебе вже пекли)</p>
+          <p class="line"><span class="k">Ціна</span> <b>завада</b> на взаємодію з тим, хто <b>нагадує тобі втрачену людину</b> (риси, стать, манера)</p>
+          <p class="line"><span class="k">Прибирається</span> впустити нову любов · або справжнє прощання</p>
+          <p class="line"><span class="k">Відіграш → Inspiration</span> завмер / відсторонився від того, хто нагадав її</p>
+          <p class="immune"><span style="color:var(--muted)">подієвий (втрата) · без імунітету до Рани</span></p>
+        </div>
+      </article>
+
+      <article class="emo emo--scar">
+        <div class="emo__head">
+          <div class="emo__title"><h3>The Haunted</h3><span class="sub">Тінь минулого · з пережитого жаху</span></div>
+          <span class="badge badge--scar">Шрам</span>
+        </div>
+        <p class="emo__desc">Пережитий жах не відпускає — і тепер будь-який страх на світі здається тобі відлунням саме того.</p>
+        <blockquote class="ex">«Тінь у кутку, скрип дошки — і серце падає: це знову ВОНО. Щоразу це воно. Навіть коли це просто вітер.»</blockquote>
+        <div class="lines">
+          <p class="line"><span class="k">Ціна</span> <b>−2 спаскидки vs страх</b> (будь-який страх б'є як той самий, первісний); ГМ час від часу підкидає, що джерело <b>ввижається там, де його нема</b></p>
+          <p class="line"><span class="k">Перевага</span> +2 помітити <b>справжню</b> ту загрозу, коли вона таки з'являється (гіпер-пильність окупається)</p>
+          <p class="line"><span class="k">Прибирається</span> зустріти спогад лицем · упокоїти його</p>
+          <p class="line"><span class="k">Відіграш → Inspiration</span> зреагував на тригер так, наче загроза реальна</p>
+          <p class="immune"><span style="color:var(--muted)">подієвий (жах) · НЕ дає імунітету — навпаки, загострює страх</span></p>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ─────────── BONDS ─────────── -->
+  <section id="bonds">
+    <h2>Бонди <span class="no">сцена, на якій живе емоція</span></h2>
+    <div class="note prose">
+      <ul class="clean">
+        <li><b>Бонд — це стала сцена</b>, емоція — гострий стан на ній. Бонд визначає, яку емоцію ти <i>можеш</i> сильно відчути: <b>Devotion</b> — лише до теплого зв'язку; <b>Grudge / Wrath</b> — до rival / enemy; <b>Fear</b> — до сильнішого.</li>
+        <li><b>Емоції зсувають бонди:</b> перемога поглиблює зв'язок, зрада породжує Grudge, спільна біда — Devotion.</li>
+        <li><b>Сигнатури бондів ●●●</b> живляться <b>Волею</b>, точно як Ультимати Дарів — один економічний двигун на все.</li>
+        <li>Бонд і далі дає свої модифікатори проти цілі (аура, школа-зброя, guard DC) — рахуються тим самим двигуном, що й емоції.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ─────────── ENGINE ─────────── -->
+  <section id="engine">
+    <h2>Двигун <span class="no">авто по вибраній цілі</span></h2>
+    <p class="sub prose">Ключове: «проти цілі» перестає бути текстом, який ГМ тримає в голові.
+      Модуль чіпляється на кидки системи й сам застосовує все залежно від того, кого ти б'єш.</p>
+    <div class="note prose">
+      <ol class="steps">
+        <li>Модуль слухає <code>preRoll</code>-хуки dnd5e / a5e (атаки, перевірки, спаскидки) і читає твою вибрану ціль — <code>game.user.targets</code>.</li>
+        <li>Збирає ВСІ доречні модифікатори саме до цієї цілі: <b>бонд</b> (аура / школа / guard) + <b>емоції</b> (Grudge, Devotion, Obsession-блок, Fear-Frightened…).</li>
+        <li>Вкидає їх у кидок як ситуативний бонус / перевагу-заваду — гравець нічого не рахує руками.</li>
+      </ol>
+      <p style="margin:16px 0 0;font-size:15px;color:var(--muted)">Нецільові ефекти (Wrath −Perception, Despair −усе) лишаються звичайними Active Effects на листі. Так «проти конкретної людини» нарешті працює автоматично — одна система всередині Foundry.</p>
+    </div>
+  </section>
+
+  <!-- ─────────── OUTCOME DIALOG ─────────── -->
+  <section id="outcome">
+    <h2>Вікно результату <span class="no">підказки після кидка</span></h2>
+    <p class="sub prose">ГМ підтверджує підсумок проти прихованого DC. Кожна кнопка отримує підказку прямо у вікні —
+      щоб не тримати правила в голові:</p>
+    <div class="out">
+      <div class="outcard" style="--oc:var(--boon)">
+        <div class="h">★ Clean hit</div>
+        <p>Перевершив DC на 5+. Прийом спрацьовує <b>+1 шкоди Resolve</b> понад звичайне.</p>
+      </div>
+      <div class="outcard" style="--oc:var(--boon)">
+        <div class="h">✓ Success</div>
+        <p>Влучив. Ефект прийому спрацьовує повністю (шкода, статус, тощо).</p>
+      </div>
+      <div class="outcard" style="--oc:var(--muted)">
+        <div class="h">✗ Failure</div>
+        <p>Промах. Ціль втрачає <b>Patience</b> (важкі прийоми — більше).</p>
+      </div>
+      <div class="outcard" style="--oc:var(--wound)">
+        <div class="h">⚔ They answer</div>
+        <p>Провал на 5+ або удар по імунітету. Природа цілі <b>б'є у відповідь</b> — дебаф на тебе (Rattled / Beholden / Нитка на тебе).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────── STACKING ─────────── -->
+  <section id="stacking">
+    <h2>Стакання і суперечності <span class="no">перевірка логіки</span></h2>
+    <p class="sub prose">Що з чим складається, а що одне одному суперечить — і як це розв'язується.</p>
+    <div class="scroll">
+      <table class="consist">
+        <thead><tr><th>Ситуація</th><th>Правило</th></tr></thead>
+        <tbody>
+          <tr><td><b>Кілька емоцій одночасно</b></td><td>Стакаються: нецільові модифікатори <b>додаються</b>, цільові рахуються <b>лише проти свого джерела</b>. Можеш бути Devoted до однієї людини і Wrathful до іншої — не гасяться (різні джерела).</td></tr>
+          <tr><td><b>Забагато плюсів/мінусів</b></td><td>Сумарний ситуативний бонус від емоцій + бондів <b>обмежений ±5</b>. Перевага / завада за правилом 5e: <b>не стакаються</b> (є або нема), а перевага + завада = звичайний кидок.</td></tr>
+          <tr><td><b>Дві протилежні емоції на ОДНУ людину</b><br><span style="color:var(--muted);font-size:13px">Fear + Grudge · Obsession + Grudge</span></td><td>Суперечать (не можна водночас «не можу наближатись» і «мушу гнатися»). Діє <b>сильніша / новіша</b>; ГМ вирішує, яка бере гору.</td></tr>
+          <tr><td><b>Шрам → імунітет до рани</b></td><td>Зазвичай Шрам робить тебе <b>імунним до рани, що його породила</b> (травма застигла — Cruelty→Wrath, Cold→Fear, Hollow→Despair, Fixation→Obsession). <b>Виняток — The Haunted:</b> він не дає імунітету, а навпаки <i>загострює</i> страх. Bound Heart особливий: гострої Obsession до тієї людини вже не буває, бо вона стала твоєю рисою.</td></tr>
+          <tr><td><b>Шрам vs інші рани</b></td><td>Шрами не суперечать <i>іншим</i> ранам. The Hollow дає імунітет до страху/чар — тож Fear на тебе просто не сяде. Перекриття завжди на користь того, що вигідніше носієві.</td></tr>
+          <tr><td><b>Overwhelmed</b></td><td>Криза при <b>4+ Ранах</b>. <b>Дари й Шрами не рахуються</b> — Шрам це вже стан характеру, не гостра рана.</td></tr>
+          <tr><td><b>Воля: на що</b></td><td>Один пул (= майстерність, на довгий відпочинок): <b>Ультимати / сигнатури бондів</b> або <b>переважити твердий блок Рани</b> (наблизитись попри Fear, вдарити об'єкт Obsession). Нема Волі — блок тримає.</td></tr>
+          <tr><td><b>Нагороди за відіграш</b></td><td>Пішов за <b>Потягом Рани</b> → <b>+1 Воля</b> (відновив). Відіграв <b>Шрам</b> → <b>Inspiration</b>. Розкрив вразливість → <b>+Нитка</b>. Усе за <i>гру</i>, не за кубик.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="prose">
+    Живий документ дизайну емоційного шару. Назви — робочі (в грі будуть англійською);
+    описи й приклади — для узгодження. Кидай правки по будь-якому блоку — оновлю тут, і тоді в код.
+  </footer>
+
+</div>
