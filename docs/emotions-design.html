@@ -145,6 +145,14 @@
   .outcard .h{font-weight:700;font-size:15.5px;margin-bottom:3px;color:var(--oc);}
   .outcard p{font-size:14px;margin:0;color:var(--ink);}
 
+  figure.flow{margin:6px 0 4px;}
+  figure.flow svg{max-width:100%;height:auto;display:block;}
+  figure.flow figcaption{margin-top:14px;font-size:14.5px;color:var(--muted);line-height:1.55;max-width:860px;}
+  .example{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--boon);
+    border-radius:12px;padding:20px 24px;box-shadow:var(--shadow);margin-top:22px;}
+  .example h3{font-family:var(--font-display);letter-spacing:.03em;font-size:19px;margin:0 0 10px;}
+  .example p{margin:0;font-size:15.5px;line-height:1.6;}
+  .example b{color:var(--ink);}
   code{font-family:ui-monospace,"SFMono-Regular",Menlo,monospace;font-size:.86em;
     background:var(--panel-2);padding:1px 6px;border-radius:5px;border:1px solid var(--line);}
   footer{border-top:1px solid var(--line);padding-top:22px;color:var(--muted);font-size:14px;}
@@ -164,6 +172,8 @@
   </header>
 
   <nav class="toc" aria-label="Розділи">
+    <a href="#flow">Потік</a>
+    <a href="#primer">Кодекс гравця</a>
     <a href="#resources">Ресурси</a>
     <a href="#emotions">Емоції</a>
     <a href="#compulsion">Компульсії</a>
@@ -173,6 +183,87 @@
     <a href="#outcome">Вікно результату</a>
     <a href="#stacking">Стакання</a>
   </nav>
+
+  <!-- ─────────── FLOW ─────────── -->
+  <section id="flow">
+    <h2>Як це грається <span class="no">що за чим і чому</span></h2>
+    <p class="sub prose">Один соціальний удар запускає ланцюг, що тягнеться від однієї сцени до всієї кампанії.
+      Читай зліва направо — угорі шлях емоції, знизу те, чим вона тобі платить.</p>
+    <figure class="flow">
+      <svg viewBox="0 0 980 220" role="img" aria-label="Соціальний удар дає Рану; повторення поглиблює її; утретє вона застигає в Шрам назавжди. Життя за Раною відновлює Волю, відіграш Шраму дає Inspiration.">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <!-- main spine -->
+        <rect x="24" y="26" width="176" height="58" rx="11" style="fill:none;stroke:currentColor;stroke-width:1.5;opacity:.75"/>
+        <text x="112" y="60" text-anchor="middle" font-size="15" style="fill:currentColor">Соціальний удар</text>
+
+        <rect x="272" y="26" width="168" height="58" rx="11" style="fill:var(--wound-tint);stroke:var(--wound);stroke-width:1.5"/>
+        <text x="356" y="60" text-anchor="middle" font-size="15" style="fill:var(--wound);font-weight:600">РАНА ●</text>
+
+        <rect x="512" y="26" width="192" height="58" rx="11" style="fill:var(--wound-tint);stroke:var(--wound);stroke-width:1.5"/>
+        <text x="608" y="60" text-anchor="middle" font-size="15" style="fill:var(--wound);font-weight:600">Глибшає ● → ●●●</text>
+
+        <rect x="776" y="26" width="180" height="58" rx="11" style="fill:var(--scar-tint);stroke:var(--scar);stroke-width:1.5"/>
+        <text x="866" y="60" text-anchor="middle" font-size="15" style="fill:var(--scar);font-weight:600">ШРАМ — назавжди</text>
+
+        <!-- spine arrows -->
+        <line x1="204" y1="55" x2="266" y2="55" style="stroke:currentColor;stroke-width:1.6;opacity:.55" marker-end="url(#ar)"/>
+        <text x="235" y="45" text-anchor="middle" font-size="11" style="fill:currentColor;opacity:.7">влучив</text>
+        <line x1="444" y1="55" x2="506" y2="55" style="stroke:currentColor;stroke-width:1.6;opacity:.55" marker-end="url(#ar)"/>
+        <text x="475" y="45" text-anchor="middle" font-size="11" style="fill:currentColor;opacity:.7">знову</text>
+        <line x1="708" y1="55" x2="770" y2="55" style="stroke:currentColor;stroke-width:1.6;opacity:.55" marker-end="url(#ar)"/>
+        <text x="739" y="45" text-anchor="middle" font-size="11" style="fill:currentColor;opacity:.7">утретє</text>
+
+        <!-- reward branches -->
+        <line x1="356" y1="84" x2="356" y2="145" style="stroke:var(--boon);stroke-width:1.6;opacity:.7" marker-end="url(#ar)"/>
+        <line x1="866" y1="84" x2="866" y2="145" style="stroke:var(--boon);stroke-width:1.6;opacity:.7" marker-end="url(#ar)"/>
+
+        <rect x="272" y="148" width="168" height="54" rx="11" style="fill:var(--boon-tint);stroke:var(--boon);stroke-width:1.5"/>
+        <text x="356" y="172" text-anchor="middle" font-size="14" style="fill:var(--boon);font-weight:600">+1 Воля</text>
+        <text x="356" y="190" text-anchor="middle" font-size="11.5" style="fill:currentColor;opacity:.75">живеш за Потягом</text>
+
+        <rect x="776" y="148" width="180" height="54" rx="11" style="fill:var(--boon-tint);stroke:var(--boon);stroke-width:1.5"/>
+        <text x="866" y="172" text-anchor="middle" font-size="14" style="fill:var(--boon);font-weight:600">+ Inspiration</text>
+        <text x="866" y="190" text-anchor="middle" font-size="11.5" style="fill:currentColor;opacity:.75">відіграєш Шрам</text>
+      </svg>
+      <figcaption>Прийом влучає → ти береш <b>Рану</b>. Те саме почуття повторюється — Рана <b>глибшає</b>.
+        Утретє вона <b>застигає в Шрам</b> (назавжди, і робить тебе імунним до тієї Рани). По дорозі емоції платять:
+        жити за Раною → відновлюєш <b>Волю</b>; відіграти Шрам → <b>Inspiration</b>. Окремо, поза цим ланцюгом:
+        розкрити вразливість у грі → <b>Нитка</b>. А <b>Дари</b> (світлі емоції) ГМ дає вручну за яскраві моменти.</figcaption>
+    </figure>
+
+    <div class="example">
+      <h3>Приклад однією аркою</h3>
+      <p>Ліра програє словесний двобій капітанові — його погроза влучає, і вона бере <b>Fear</b> до нього
+        (● −1 на спаси vs страх, і вона не може до нього наблизитись). Наступного дня він тисне знову — Рана
+        глибшає до <b>●●</b>. Тікати вона не хоче (а це Потяг Жаху), тож <b>спалює Волю</b>, щоб таки підійти й
+        відповісти. Але жах повертається <b>втретє</b> — і застигає в <b>The Cold</b>: тепер її не залякати
+        (+2 vs страх), проте вона розучилась відкриватися (−2 тепло/Insight). Відтоді щоразу, як Ліра холодно
+        відштовхує того, хто до неї тягнеться, вона <b>дістає Inspiration</b> — грає свій Шрам. А коли ГМ бачить,
+        як вона все ж наважується на теплий момент, — дає їй <b>Дар Valor</b> за подолання.
+        Один удар пройшов увесь шлях: <b>страх → загартування → риса характеру → сюжетний двигун</b>.</p>
+    </div>
+  </section>
+
+  <!-- ─────────── PRIMER ─────────── -->
+  <section id="primer">
+    <h2>Кодекс гравця <span class="no">коротко, своїми словами</span></h2>
+    <p class="sub prose">Те саме без жаргону — щоб за столом було ясно, що робити.</p>
+    <div class="note prose">
+      <ul class="clean">
+        <li><b>Що таке Рана.</b> Емоційний стан від програшу чи тиску. Дає тобі модифікатори (−рівень), <b>тягне</b> поводитись певним чином (Потяг) і тримається до кінця дня.</li>
+        <li><b>Що з нею робити.</b> Хочеш — <b>гоїш</b> дією з рядка «Гоїться». Хочеш — <b>живеш за Потягом</b> і за це відновлюєш Волю. Не хочеш коритися твердому блоку (Fear не пускає ближче, Obsession не дає вдарити) — <b>спали Волю</b> й зроби попри все.</li>
+        <li><b>Куди вона веде.</b> Та сама Рана <b>втретє</b> застигає в <b>Шрам</b> — назавжди. Це вже не про один бій, а про те, ким став твій герой.</li>
+        <li><b>Що таке Шрам.</b> Постійна риса: <b>перевага + ціна</b>. Відіграєш його в сцені → <b>Inspiration</b>.</li>
+        <li><b>Дари.</b> Світлі емоції (Valor, Devotion, Resolve, Hope) — їх дає <b>ГМ</b> за відвагу, любов, тріумф, подолання. Тимчасові бонуси; на ●●● — сильний хід за 1 Волю.</li>
+        <li><b>Три нагороди — за гру, не за кубик.</b> <b>Нитка</b> (розкрив вразливість → +5 проти когось) · <b>Воля</b> (=майстерність; на ультимати й пробивання блоків; живеш за Раною → +1) · <b>Inspiration</b> (відіграв Шрам → перевага).</li>
+        <li><b>Нічого не рахуєш руками.</b> Вибрав ціль у бою — модуль сам додасть усі доречні бонуси/штрафи від твоїх емоцій і бондів саме до неї.</li>
+      </ul>
+    </div>
+  </section>
 
   <!-- ─────────── RESOURCES ─────────── -->
   <section id="resources">
