@@ -153,6 +153,26 @@
   .example h3{font-family:var(--font-display);letter-spacing:.03em;font-size:19px;margin:0 0 10px;}
   .example p{margin:0;font-size:15.5px;line-height:1.6;}
   .example b{color:var(--ink);}
+  .emo--scar .ult{--edge-tint:var(--scar-tint);}
+  .ult .k{margin-left:2px;}
+
+  /* In-game interface mockup */
+  .ui{max-width:600px;background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    box-shadow:var(--shadow);overflow:hidden;}
+  .ui-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;
+    border-bottom:1px solid var(--line);background:var(--panel-2);}
+  .ui-bar .t{font-family:var(--font-display);letter-spacing:.03em;font-size:16px;}
+  .ui-wp{font-family:var(--font-ui);font-size:12.5px;color:var(--muted);letter-spacing:.04em;white-space:nowrap;}
+  .ui-wp b{font-size:15px;letter-spacing:2px;color:var(--boon);}
+  .ui-sec{padding:11px 16px;border-bottom:1px solid var(--line);}
+  .ui-sec .lab{font-family:var(--font-ui);font-size:11px;text-transform:uppercase;letter-spacing:.09em;margin-bottom:8px;}
+  .ui-row{display:flex;align-items:center;gap:9px;padding:5px 0;font-size:13.5px;flex-wrap:wrap;}
+  .ui-row .nm{font-weight:700;}
+  .ui-row .meta{color:var(--muted);font-size:12px;flex:1;min-width:120px;}
+  .ui-trk{letter-spacing:2px;font-size:13px;}
+  .ui-btn{font-family:var(--font-ui);font-size:11px;font-weight:600;border-radius:7px;padding:3px 9px;
+    border:1px solid currentColor;background:transparent;white-space:nowrap;cursor:default;}
+  .ui-target{padding:11px 16px;background:var(--wound-tint);font-size:12.5px;line-height:1.5;}
   code{font-family:ui-monospace,"SFMono-Regular",Menlo,monospace;font-size:.86em;
     background:var(--panel-2);padding:1px 6px;border-radius:5px;border:1px solid var(--line);}
   footer{border-top:1px solid var(--line);padding-top:22px;color:var(--muted);font-size:14px;}
@@ -174,6 +194,7 @@
   <nav class="toc" aria-label="Розділи">
     <a href="#flow">Потік</a>
     <a href="#primer">Кодекс гравця</a>
+    <a href="#ui">Інтерфейс</a>
     <a href="#resources">Ресурси</a>
     <a href="#emotions">Емоції</a>
     <a href="#compulsion">Компульсії</a>
@@ -258,12 +279,69 @@
         <li><b>Що таке Рана.</b> Емоційний стан від програшу чи тиску. Дає тобі модифікатори (−рівень), <b>тягне</b> поводитись певним чином (Потяг) і тримається до кінця дня.</li>
         <li><b>Що з нею робити.</b> Хочеш — <b>гоїш</b> дією з рядка «Гоїться». Хочеш — <b>живеш за Потягом</b> і за це відновлюєш Волю. Не хочеш коритися твердому блоку (Fear не пускає ближче, Obsession не дає вдарити) — <b>спали Волю</b> й зроби попри все.</li>
         <li><b>Куди вона веде.</b> У кожної Рани трекер <b>○○○</b>: кожен повтор — +1 позначка. Відпочинок знімає біль, але не позначку; по-справжньому гоїть лише дія «Гоїться». Дійшло до <b>3-ї позначки</b> — Рана застигає в <b>Шрам</b> назавжди. Це вже не про один бій, а про те, ким став твій герой.</li>
-        <li><b>Що таке Шрам.</b> Постійна риса: <b>перевага + ціна</b>. Відіграєш його в сцені → <b>Inspiration</b>.</li>
+        <li><b>Що таке Шрам.</b> Постійна риса: <b>перевага + ціна</b>. Відіграєш його → <b>Inspiration</b>. Деякі шрами мають ще й <b>активний ультимат за Волю</b> (напр. Cruelty → Berserk).</li>
+        <li><b>Де ультимати.</b> Сильні ходи — на <b>Дарах</b> (●●●, за Волю) і на <b>Шрамах</b>. Сама Рана ультимату не дає — вона тільки болить і рахується.</li>
         <li><b>Дари.</b> Світлі емоції (Valor, Devotion, Resolve, Hope) — їх дає <b>ГМ</b> за відвагу, любов, тріумф, подолання. Тимчасові бонуси; на ●●● — сильний хід за 1 Волю.</li>
         <li><b>Три нагороди — за гру, не за кубик.</b> <b>Нитка</b> (розкрив вразливість → +5 проти когось) · <b>Воля</b> (=майстерність; на ультимати й пробивання блоків; живеш за Раною → +1) · <b>Inspiration</b> (відіграв Шрам → перевага).</li>
         <li><b>Нічого не рахуєш руками.</b> Вибрав ціль у бою — модуль сам додасть усі доречні бонуси/штрафи від твоїх емоцій і бондів саме до неї.</li>
       </ul>
     </div>
+  </section>
+
+  <!-- ─────────── UI MOCKUP ─────────── -->
+  <section id="ui">
+    <h2>Інтерфейс <span class="no">як це в Хроніці</span></h2>
+    <p class="sub prose">Емоційний шар живе на окремій панелі в Хроніці персонажа. Зверху — Воля,
+      далі Рани з їхнім трекером, потім Шрами й Дари з кнопками-ходами, а внизу — що модуль
+      авто-додав проти вибраної цілі. Кнопки бачить власник (свій лист) і ГМ (будь-чий).</p>
+    <div class="ui">
+      <div class="ui-bar">
+        <span class="t">Ліра · Емоційний стан</span>
+        <span class="ui-wp">Воля <b>●●</b><span style="opacity:.3;font-size:15px;letter-spacing:2px">○</span> 2/3</span>
+      </div>
+      <div class="ui-sec">
+        <div class="lab" style="color:var(--wound)">Рани</div>
+        <div class="ui-row">
+          <span class="nm" style="color:var(--wound)">Fear</span>
+          <span class="meta">до: Капітан · Потяг: тікати · −2</span>
+          <span class="ui-trk" style="color:var(--wound)">●●<span style="opacity:.3">○</span></span>
+          <button class="ui-btn" style="color:var(--muted)">Гоїти</button>
+          <button class="ui-btn" style="color:var(--boon)">Піддатись · +Воля</button>
+        </div>
+        <div class="ui-row">
+          <span class="nm" style="color:var(--wound)">Wrath</span>
+          <span class="meta">до: Дарен · Потяг: вдарити · −1</span>
+          <span class="ui-trk" style="color:var(--wound)">●<span style="opacity:.3">○○</span></span>
+          <button class="ui-btn" style="color:var(--muted)">Гоїти</button>
+          <button class="ui-btn" style="color:var(--boon)">Піддатись · +Воля</button>
+        </div>
+      </div>
+      <div class="ui-sec">
+        <div class="lab" style="color:var(--scar)">Шрами</div>
+        <div class="ui-row">
+          <span class="nm" style="color:var(--scar)">The Cold</span>
+          <span class="meta">+2 vs страх/чар · −2 тепло</span>
+          <button class="ui-btn" style="color:var(--scar)">Відіграти → Inspiration</button>
+        </div>
+        <div class="ui-row">
+          <span class="nm" style="color:var(--scar)">Cruelty</span>
+          <span class="meta">+2 Intim · +рукопаш · ⚡ Berserk</span>
+          <button class="ui-btn" style="color:var(--scar)">Berserk · 1 Воля</button>
+        </div>
+      </div>
+      <div class="ui-sec">
+        <div class="lab" style="color:var(--boon)">Дари</div>
+        <div class="ui-row">
+          <span class="nm" style="color:var(--boon)">Valor ●●</span>
+          <span class="meta">перевага vs страх</span>
+          <button class="ui-btn" style="color:var(--boon)">⚡ Heroic Surge · 1 Воля</button>
+        </div>
+      </div>
+      <div class="ui-target">🎯 Ціль <b>Капітан</b> — модуль авто-додав до кидків: <b>Fear</b> (не наблизитись, −2 vs страх) · бонд <b>Enemy</b> +2 Power. Гравець нічого не рахує руками.</div>
+    </div>
+    <p class="prose" style="margin-top:16px;color:var(--muted);font-size:14.5px">
+      Трекер <b>○○○</b> поряд із кожною Раною росте сам при повторі; «Гоїти» обнуляє його, 3-тя позначка перетворює
+      Рану на Шрам. «Піддатись» повертає Волю. Дари й активні ходи Шрамів світяться, лише коли є Воля.</p>
   </section>
 
   <!-- ─────────── RESOURCES ─────────── -->
@@ -298,7 +376,7 @@
       <span><b>Штраф/бонус = рівень:</b> ● −1 · ●● −2 · ●●● −3</span>
       <span><b>Гострий ефект</b> спадає на довгому відпочинку</span>
       <span><b>Трекер ○○○:</b> 3-тя позначка → Шрам</span>
-      <span><b>●●●</b> відмикає Ультимат (без втрати контролю)</span>
+      <span><b>Ультимати</b> — на Дарах (●●●, за Волю) і Шрамах, <b>не</b> на Ранах</span>
     </div>
     <div class="note prose" style="margin:0 0 28px">
       <h3>Трекер Рани <span class="k" style="font-family:var(--font-ui)">коли вона застигає</span></h3>
@@ -332,7 +410,6 @@
         <div class="lines">
           <p class="line"><span class="k">Потяг</span> ескалювати, вдарити, змусити його відчути те, що відчуваєш ти</p>
           <p class="line"><span class="k">Модифікатори (×рівень)</span> <b>+</b> атаки · Intimidation · Athletics · прийоми&nbsp;Влади; <b>−</b> AC · спаскидки · Stealth · Perception · обережні&nbsp;скіли · концентрація</p>
-          <div class="ult"><span class="dot">●●●</span> <span class="name">Berserk</span> — обери одну свою атаку → авто-<b>кріт</b>; і <b>резист шкоди</b> від однієї атаки по тобі. (без втрати контролю — ти лишаєшся собою)</div>
           <p class="line"><span class="k">Гоїться</span> вилити — зламати щось, почати бійку, сказати те, що ковтав → лишає Дар <b>Resolve</b>.</p>
         </div>
       </article>
@@ -350,7 +427,6 @@
         <div class="lines">
           <p class="line"><span class="k">Потяг</span> поквитатися з némesis'ом, підривати й топити його за будь-якої нагоди</p>
           <p class="line"><span class="k">Модифікатори (×рівень)</span> <b>−</b> ініціатива · Perception (одержимий помстою); <b>авто +</b> усе проти цілі</p>
-          <div class="ult"><span class="dot">●●●</span> <span class="name">Vendetta</span> — перевага на все проти цілі, завада проти всіх інших, <b>Help бонусною дією</b> проти неї.</div>
           <p class="line"><span class="k">Гоїться</span> реальний удар по них · або щире примирення.</p>
         </div>
       </article>
@@ -527,6 +603,7 @@
           Тепер б'єш і тоді, коли не треба — просто бо можеш.»</blockquote>
         <div class="lines">
           <p class="line"><span class="k">Перевага</span> +2 Intimidation; <b>+2 попадання і шкода врукопашну</b>; +2 порятунок vs залякування/страх</p>
+          <div class="ult"><span class="dot">⚡</span> <span class="name">Berserk</span> <span class="k" style="color:var(--scar)">1 Воля</span> — обери одну свою атаку → авто-<b>кріт</b>; і <b>резист шкоди</b> від однієї атаки по тобі.</div>
           <p class="line"><span class="k">Ціна</span> −2 Persuasion · Deception · Insight (люди чують це в тобі)</p>
           <p class="line"><span class="k">Прибирається</span> арка милосердя — пощадити / допомогти тому, кого міг розчавити</p>
           <p class="line"><span class="k">Відіграш → Inspiration</span> перегнув палицю, вдарив жорсткіше, ніж треба було</p>
@@ -543,6 +620,7 @@
         <blockquote class="ex">«Скільки б років не минуло, від одного його імені в тебе холоне всередині.»</blockquote>
         <div class="lines">
           <p class="line"><span class="k">Перевага</span> +2 та Help бонусом проти némesis'а</p>
+          <div class="ult"><span class="dot">⚡</span> <span class="name">Vendetta</span> <span class="k" style="color:var(--scar)">1 Воля</span> — цей хід: перевага на все проти némesis'а, завада проти всіх інших.</div>
           <p class="line"><span class="k">Ціна</span> −2 усі соц-роли проти нього; палиш Волю, щоб проминути шанс йому нашкодити</p>
           <p class="line"><span class="k">Прибирається</span> némesis падає · або щире примирення</p>
           <p class="line"><span class="k">Відіграш → Inspiration</span> проминув власну вигоду заради шпильки némesis'у</p>
