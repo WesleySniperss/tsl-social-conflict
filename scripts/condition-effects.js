@@ -133,6 +133,62 @@ const CONDITION_META = {
     leanIn: "Pursue your grudge at real cost → restore 1 Willpower.",
     clears: "Land a real blow on them, a genuine reconciliation, or consciously forgive.",
   },
+
+  // ── The four Boons (positive emotions, Phase 2c). GM-given; `isBoon: true`.
+  // They do NOT count toward Overwhelmed, don't compel or calcify. Each scales
+  // by tier and its ●●● unlocks an ultimate (1 Willpower).
+  valor: {
+    label:  "Valor",
+    icon:   "icons/svg/upgrade.svg",
+    isBoon: true,
+    signature: "Courage flares — you stand tall, and fear can't reach you.",
+    ultimate: { name: "Heroic Surge", text: "Spend 1 Willpower: an extra action or attack this turn with advantage; allies within reach get +1." },
+    tiers: [
+      { label: "Steady",     text: "Advantage on saving throws vs fear.", dnd5e: [], a5e: [] },
+      { label: "Emboldened", text: "Advantage on saves vs fear; you cannot be Frightened.", dnd5e: [], a5e: [] },
+      { label: "Fearless",   text: "Immune to fear; allies who can see you share the save advantage vs fear.", dnd5e: [], a5e: [] },
+    ],
+    clears: "Fades when the danger passes and the blood cools (GM's call).",
+  },
+  devotion: {
+    label:  "Devotion",
+    icon:   "icons/svg/heal.svg",
+    isBoon: true,
+    signature: "Love as strength — you fight harder for {source} than for yourself.",
+    ultimate: { name: "Shield Them", text: "Spend 1 Willpower: as a reaction, put yourself between {source} and a threat, with advantage." },
+    tiers: [
+      { label: "Warmed",     text: "+1 to any action to protect or aid {source}, and to saves while near them.", dnd5e: [], a5e: [] },
+      { label: "Devoted",    text: "+2 to protect or aid {source}, and to saves near them.", dnd5e: [], a5e: [] },
+      { label: "Unyielding", text: "+3 to protect or aid {source}; you'll take a blow meant for them without hesitation.", dnd5e: [], a5e: [] },
+    ],
+    clears: "Fades if the bond breaks, or the moment that kindled it passes (GM).",
+  },
+  resolve: {
+    label:  "Resolve",
+    icon:   "icons/svg/statue.svg",
+    isBoon: true,
+    signature: "Centred and unshakeable — nothing moves you off your mark.",
+    ultimate: { name: "Unbreakable", text: "Spend 1 Willpower: automatically succeed one saving throw vs fear, charm, or compulsion." },
+    tiers: [
+      { label: "Composed",  text: "+1 to saving throws; you can't be cowed off your position.", dnd5e: [], a5e: [] },
+      { label: "Resolute",  text: "+2 to saving throws; immune to being cowed or intimidated.", dnd5e: [], a5e: [] },
+      { label: "Immovable", text: "+3 to saving throws; you shrug off the first attempt each scene to sway, frighten, or charm you.", dnd5e: [], a5e: [] },
+    ],
+    clears: "Fades once the trial is over and you let your guard down (GM).",
+  },
+  hope: {
+    label:  "Hope",
+    icon:   "icons/svg/sun.svg",
+    isBoon: true,
+    signature: "Uplift — you believe it can still go right, and it's contagious.",
+    ultimate: { name: "Rally", text: "Spend 1 Willpower: allies who hear you gain advantage on their next roll." },
+    tiers: [
+      { label: "Heartened", text: "+1 to your ability and skill checks.", dnd5e: [], a5e: [] },
+      { label: "Hopeful",   text: "+2 to your checks; an ally you encourage shrugs off Despair.", dnd5e: [], a5e: [] },
+      { label: "Radiant",   text: "+3 to your checks; your hope spreads — nearby allies get +1 too.", dnd5e: [], a5e: [] },
+    ],
+    clears: "Fades when the darkness returns and the moment dims (GM).",
+  },
 };
 
 // Spells/abilities that clear TSL conditions from their targets
@@ -355,14 +411,17 @@ class TSLConditionEffects {
     return !!actor?.effects?.some?.(e => !e.disabled && TSLConditionEffects._condOf(e) === condId);
   }
 
-  /** How many TSL conditions this actor carries (Overwhelmed at 4+). */
+  /** Is this emotion a positive Boon (vs a Wound)? */
+  static isBoon(condId) { return !!CONDITION_META[condId]?.isBoon; }
+
+  /** How many WOUNDS this actor carries (Overwhelmed at 4+). Boons don't count. */
   static countConditions(actor) {
     if (!actor) return 0;
     const seen = new Set();
     for (const e of actor.effects) {
       if (e.disabled) continue;
       const c = TSLConditionEffects._condOf(e);
-      if (c && CONDITION_META[c]) seen.add(c);
+      if (c && CONDITION_META[c] && !CONDITION_META[c].isBoon) seen.add(c);
     }
     return seen.size;
   }
