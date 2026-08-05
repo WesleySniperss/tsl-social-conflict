@@ -41,26 +41,17 @@ const _midiDisChk  = ()     => ({ key: "flags.midi-qol.disadvantage.ability.chec
 //   `clears`    — the DRAMATIC action that lifts it. Long rest is the slow
 //                 fallback; short rests don't touch it.
 const CONDITION_META = {
-  smitten: {
-    label:  "Smitten",
-    icon:   "icons/svg/regen.svg",
-    urge:   "Please {source}. Be near them. Earn the look you ache for.",
-    signature: "You orbit {source} — you can't willingly act against them, and they sway you with ease.",
-    // A social LOCK on one person. No clean numeric hook (it's all target-
-    // conditional), so it stays honest rules text — its bite is relational.
-    tiers: [
-      { label: "Fond",     text: "You give {source} the benefit of every doubt — disadvantage to see through their lies or to refuse a small request from them.", dnd5e: [], a5e: [] },
-      { label: "Devoted",  text: "You cannot willingly harm or work against {source}; pushing yourself to do so costs a String. They roll with advantage to persuade or command you.", dnd5e: [], a5e: [] },
-      { label: "Obsessed", text: "The breaking point: you take one reasonable wish of {source}'s as your own, and you'll shield them even from your own allies. The GM plays the beat.", dnd5e: [], a5e: [] },
-    ],
-    leanIn: "Bend your plans to be near {source} or win their favour, at real cost → take a String on them.",
-    clears: "Confess it — to them, or out loud to someone else — or let them break your heart.",
-  },
+  // ── The five Wounds (Phase 2b remap): angry→Wrath, scared→Fear,
+  // hopeless→Despair keep their ids; obsessed(Obsession) & spiteful(Grudge)
+  // replace the retired smitten/guilty wounds. Each carries the finalized
+  // `ultimate` (1 Willpower) + `scar` (the Scar it calcifies into).
   angry: {
-    label:  "Angry",
+    label:  "Wrath",
     icon:   "icons/svg/fire.svg",
-    urge:   "Escalate. Strike. Make them feel what you feel — cold words won't do.",
+    urge:   "Escalate. Strike. Make {source} feel what you feel — cold words won't do.",
     signature: "The red mist — a rage trade: you hit harder and guard less.",
+    ultimate: { name: "Fury", text: "Spend 1 Willpower: an extra melee attack this turn, but −2 AC until your next turn." },
+    scar: "cruelty",
     tiers: [
       { label: "Simmering", text: "Disadvantage on any roll to stay measured, de-escalate, or show restraint.", dnd5e: [], a5e: [] },
       { label: "Burning",   text: "You attack the problem: advantage on forceful, aggressive actions against the source (attacks, Intimidation, Power maneuvers), disadvantage on careful or subtle ones — and your guard drops (−1 AC).",
@@ -68,14 +59,16 @@ const CONDITION_META = {
       { label: "Seeing red", text: "The leash slips — you lash out at whoever is nearest, ally or not. Your guard is wide open: −2 AC, and attackers press their advantage. The GM plays the moment.",
         dnd5e: [ _acMalusDnd(-2) ], a5e: [ _acMalusA5e(-2), _grantAtkA5e() ] },
     ],
-    leanIn: "Let the anger drive you into something rash or cruel → take a String on whoever lit the fuse.",
+    leanIn: "Let the anger drive you into something rash or cruel → restore 1 Willpower.",
     clears: "Vent it: break something, start the fight, or finally say the words you've been swallowing.",
   },
   scared: {
-    label:  "Scared",
+    label:  "Fear",
     icon:   "icons/svg/terror.svg",
-    urge:   "Get away. Give ground. Anything to make the threat stop.",
+    urge:   "Get away. Give ground. Avoid {source} at any cost.",
     signature: "Frightened of {source} — you flinch at everything and can't close the distance.",
+    ultimate: { name: "Adrenaline", text: "Spend 1 Willpower: Dash + Disengage as one action, and +2 AC (the body saves itself)." },
+    scar: "cold",
     tiers: [
       { label: "Uneasy", text: "Disadvantage on rolls to hold your ground or call {source}'s bluff.", dnd5e: [], a5e: [] },
       { label: "Frightened", text: "While {source} is in sight, disadvantage on your attacks and checks, and you cannot willingly move toward them.",
@@ -83,34 +76,21 @@ const CONDITION_META = {
       { label: "Panicked", text: "You break — flee or freeze, drop what you're holding, take the nearest exit. The GM plays it.",
         dnd5e: [ _midiDisAtk(), _midiDisChk() ], a5e: [ _disA5e("attack"), _disA5e("abilityCheck"), _disA5e("skillCheck") ] },
     ],
-    leanIn: "Let fear pull you into flight or a bad concession → take a String on the source of your fear.",
+    leanIn: "Let fear pull you into flight or a bad concession → restore 1 Willpower.",
     clears: "Flee the source and catch your breath somewhere safe — or face it with an ally at your side.",
   },
-  guilty: {
-    label:  "Guilty",
-    icon:   "icons/svg/net.svg",
-    urge:   "Make it right. You owe {source}, and it shows in every word.",
-    signature: "The debt — you can't lie to or refuse the one you wronged, and you can't spend Strings against them.",
-    tiers: [
-      { label: "Sheepish", text: "Disadvantage to deceive, deny, or press {source}; any String you hold on them can't be spent against them.", dnd5e: [], a5e: [] },
-      { label: "Indebted", text: "You can't refuse a reasonable request from {source} without spending a String, and you can't fully strike them — disadvantage on attacks against them.",
-        dnd5e: [ ..._atkMalusDnd(-1) ], a5e: [ _disA5e("attack") ] },
-      { label: "Confessing", text: "It spills — you admit the thing you've been hiding, or over-give to make amends. The GM plays it.",
-        dnd5e: [ ..._atkMalusDnd(-2) ], a5e: [ _disA5e("attack") ] },
-    ],
-    leanIn: "Let the guilt move you to confess or over-give to {source}, at cost → take a String on them.",
-    clears: "Confess, or make real amends to the one you wronged.",
-  },
   hopeless: {
-    label:  "Hopeless",
+    label:  "Despair",
     icon:   "icons/svg/degen.svg",
     urge:   "Why bother. Let it go. Nothing you do will matter now.",
-    signature: "The weight — your ceiling is gone: no spark, no luck, nothing extra.",
+    signature: "The weight — your ceiling is gone: no spark, no expertise, nothing extra (but you can still crit).",
+    ultimate: { name: "Nothing to Lose", text: "Spend 1 Willpower: advantage on everything this turn, ignoring danger and provocations; next turn you act at −2 (spent)." },
+    scar: "hollow",
     tiers: [
       { label: "Weary", text: "Disadvantage on any roll driven by hope, ambition, or standing up for yourself.", dnd5e: [], a5e: [] },
       { label: "Sinking", text: "The weight settles: −1 to all your ability and skill checks, you gain no benefit from Inspiration, and you roll no expertise dice — nothing extra comes.",
         dnd5e: [ _chkMalusDnd(-1) ], a5e: [ _noExpertA5e() ] },
-      { label: "Given up", text: "You stop — yield, sink, or walk away from what mattered. −2 to checks, you roll no expertise dice, and nothing you do can crit. The GM plays it.",
+      { label: "Given up", text: "You stop — yield, sink, or walk away from what mattered. −2 to checks, you roll no expertise dice. The GM plays it.",
         dnd5e: [ _chkMalusDnd(-2) ], a5e: [ _noExpertA5e(), _disA5e("abilityCheck"), _disA5e("skillCheck") ] },
     ],
     leanIn: "Let despair make you give up or accept the worst, at cost → gain Inspiration (a fumble of the soul that feeds the story).",
@@ -157,9 +137,9 @@ const CONDITION_META = {
 
 // Spells/abilities that clear TSL conditions from their targets
 const CLEARING_SPELLS = {
-  "calm emotions":       ["smitten", "angry", "scared"],
-  "greater restoration": ["smitten", "angry", "scared", "guilty", "hopeless"],
-  "remove curse":        ["guilty", "hopeless"],
+  "calm emotions":       ["obsessed", "angry", "scared"],
+  "greater restoration": ["angry", "scared", "hopeless", "obsessed", "spiteful"],
+  "remove curse":        ["spiteful", "hopeless"],
   "heroism":             ["scared"],
 };
 
@@ -183,7 +163,7 @@ class TSLConditionEffects {
 
   /** Every wound id, in a stable order — for the token HUD registration. */
   static get ORDER() {
-    return ["angry", "scared", "guilty", "hopeless", "smitten"];
+    return ["angry", "spiteful", "obsessed", "scared", "hopeless"];
   }
 
   /**

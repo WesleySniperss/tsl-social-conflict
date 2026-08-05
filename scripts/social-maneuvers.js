@@ -433,10 +433,10 @@ const TRIAD_ANSWER = {
 
 /** TSL Conditions offered by "Hold the Line", by the school of the incoming maneuver. */
 const HOLD_LINE_CONDITIONS = {
-  power:     ["angry", "scared"],
-  attention: ["smitten", "guilty"],
+  power:     ["angry", "spiteful"],
+  attention: ["obsessed", "hopeless"],
   order:     ["scared", "hopeless"],
-  general:   ["angry", "guilty"],
+  general:   ["angry", "scared"],
 };
 
 /**
@@ -452,12 +452,12 @@ const CONDITION_OPENINGS = {
   // single Humiliate (which plants Angry) makes the next Humiliate +2, a
   // self-reinforcing spiral. Taunt→Humiliate stays the intended chain via
   // the Provoked combo, not via the wound.
-  instigate:      { angry:    "their temper is already lit" },
-  sow_doubt:      { scared:   "their fear makes every doubt land", angry: "fury makes them careless" },
-  flatter:        { smitten:  "their heart is already open" },
-  love_bombing:   { smitten:  "their heart is already open", hopeless: "in the dark, any warmth will do" },
-  guilt_trip:     { guilty:   "their guilt spills into every answer" },
-  logic_exploit:  { guilty:   "their guilt spills into every answer" },
+  instigate:      { angry:    "their temper is already lit", spiteful: "their grudge makes them rash" },
+  sow_doubt:      { scared:   "their fear makes every jab land", angry: "fury makes them careless" },
+  flatter:        { obsessed: "they already orbit you" },
+  love_bombing:   { obsessed: "they already orbit you", hopeless: "in the dark, any warmth will do" },
+  guilt_trip:     { obsessed: "a fixated heart weighs every word" },
+  logic_exploit:  { scared:   "their fear makes them over-explain" },
   gaslight:       { scared:   "their fear makes every doubt land" },
   sweeten_deal:   { hopeless: "in the dark, any offer glows" },
 };
@@ -758,7 +758,7 @@ class SocialManeuverRoller {
       // never consumed (wounds clear through drama, not through use)
       opening = findOpening(targetActor, maneuver);
       if (opening) {
-        const condLabel = { smitten: "Smitten", angry: "Angry", scared: "Scared", guilty: "Guilty", hopeless: "Hopeless" }[opening.cond] ?? opening.cond;
+        const condLabel = (typeof TSLConditionEffects !== "undefined" && TSLConditionEffects.getMeta(opening.cond)?.label) || opening.cond;
         bonusReasons.push({ label: `opening — they're ${condLabel} (${opening.flavor})`, value: 2 });
       }
       // Rock-paper-scissors of schools against the defender's ruling nature:
@@ -1269,7 +1269,7 @@ class SocialManeuverRoller {
           heldTheLine = true;
           const count = await TSLConditionEffects.applyOne(targetActor, choice, sourceActor.name);
           const esc = foundry.utils.escapeHTML;
-          const condLabel = { smitten: "Smitten", angry: "Angry", scared: "Scared", guilty: "Guilty", hopeless: "Hopeless" }[choice] ?? choice;
+          const condLabel = (typeof TSLConditionEffects !== "undefined" && TSLConditionEffects.getMeta(choice)?.label) || choice;
           await ChatMessage.create({
             speaker: ChatMessage.getSpeaker({ actor: targetActor }),
             content: `<div class="tsl-maneuver-card tsl-mv--immune"><div class="tsl-mv-outcome tsl-mv-outcome--immune">🛡 ${esc(targetActor.name)} holds the line — the words land, but they swallow them: <b>${condLabel}</b>.${count >= 4 ? " <b>Overwhelmed — they must yield or flee.</b>" : ""}</div></div>`,
@@ -1342,18 +1342,17 @@ class SocialManeuverRoller {
           content: `<div class="tsl-maneuver-card tsl-mv--immune"><div class="tsl-mv-outcome tsl-mv-outcome--immune">❤ The shame sticks — <b>${escW(targetActor.name)}</b> carries ${hadTier ? "a <b>deepening</b>" : "a lasting"} <b>${escW(wLbl)}</b> wound.</div></div>`,
         });
       }
-      // The cost of closeness: turning POWER on someone you love wounds YOU.
-      // Your own bond type decides — and the Guilt opens doors against you.
+      // The cost of closeness: turning POWER on someone you love costs YOU.
+      // (The old "Guilty" wound is retired; the hold is now a String they gain
+      // over you — you hurt someone who cares, and they can use it against you.)
       const myBond2 = TSLBondStore.find(sourceActorId, targetActorId);
       const myMeta2 = myBond2 ? SocialArchetypeManager.getBondType(myBond2.type) : null;
-      if (maneuver.group === "power" && myMeta2?.guilt
-          && typeof TSLConditionEffects !== "undefined"
-          && !TSLConditionEffects.hasCondition(sourceActor, "guilty")) {
-        await TSLConditionEffects.applyOne(sourceActor, "guilty", targetActor.name);
+      if (maneuver.group === "power" && myMeta2?.guilt && typeof TSLStringStore !== "undefined") {
+        await TSLStringStore.add(targetActorId, sourceActorId, 1);
         const esc2 = foundry.utils.escapeHTML;
         await ChatMessage.create({
           speaker: ChatMessage.getSpeaker({ actor: sourceActor }),
-          content: `<div class="tsl-maneuver-card tsl-mv--immune"><div class="tsl-mv-outcome tsl-mv-outcome--immune">💔 It worked — and it cost: turning power on ${esc2(targetActor.name)} leaves <b>${esc2(sourceActor.name)} Guilty</b>.</div></div>`,
+          content: `<div class="tsl-maneuver-card tsl-mv--immune"><div class="tsl-mv-outcome tsl-mv-outcome--immune">💔 It worked — and it cost: turning power on someone who cares for you leaves you exposed. <b>${esc2(targetActor.name)} gains a String on ${esc2(sourceActor.name)}.</b></div></div>`,
         });
       }
     } else {
@@ -1416,7 +1415,7 @@ class SocialManeuverRoller {
   static async promptHoldLine(targetActor, maneuver) {
     const statusLabel = SOCIAL_CONDITIONS[maneuver.applyOnSuccess]?.label ?? maneuver.applyOnSuccess;
     const pair = HOLD_LINE_CONDITIONS[maneuver.group] ?? HOLD_LINE_CONDITIONS.general;
-    const condName = (id) => ({ smitten: "Smitten", angry: "Angry", scared: "Scared", guilty: "Guilty", hopeless: "Hopeless" }[id] ?? id);
+    const condName = (id) => ({ angry: "Wrath", scared: "Fear", hopeless: "Despair", obsessed: "Obsession", spiteful: "Grudge" }[id] ?? id);
     return new Promise(resolve => {
       new Dialog({
         title: `${targetActor.name} — hold the line?`,

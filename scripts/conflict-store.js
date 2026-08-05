@@ -12,11 +12,11 @@ const PARTICIPANT_COLORS = [
 ];
 
 const CONDITIONS = [
-  { id: "smitten",  label: "Smitten",  color: "#e8557a", clears: "confess it, or let them break your heart" },
-  { id: "angry",    label: "Angry",    color: "#e85555", clears: "vent it — break something, start the fight, say the words" },
-  { id: "scared",   label: "Scared",   color: "#9b6ee8", clears: "flee to safety, or face it with an ally beside you" },
-  { id: "guilty",   label: "Guilty",   color: "#e8a855", clears: "confess, or make real amends" },
-  { id: "hopeless", label: "Hopeless", color: "#5588e8", clears: "someone must rekindle you — you can't clear this alone" },
+  { id: "angry",    label: "Wrath",     color: "#e85555", clears: "vent it — break something, start the fight, say the words" },
+  { id: "spiteful", label: "Grudge",    color: "#c0453f", clears: "strike them, reconcile, or consciously forgive" },
+  { id: "obsessed", label: "Obsession", color: "#e8557a", clears: "have them and find it hollow, or a friend's hard truth" },
+  { id: "scared",   label: "Fear",      color: "#9b6ee8", clears: "flee to safety, or face it with an ally beside you" },
+  { id: "hopeless", label: "Despair",   color: "#5588e8", clears: "someone must rekindle you — you can't clear this alone" },
 ];
 
 const MOVES = [

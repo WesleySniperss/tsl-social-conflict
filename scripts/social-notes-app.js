@@ -398,9 +398,9 @@ class SocialFencingApp extends _SocialAppBase {
       "Patience": "Their tolerance for the whole exchange. Failures burn it; at 0 they walk away. Starts at 4 + their WIS mod (floor 2) — patience is a Wisdom thing.",
       "social DC": "The hidden difficulty you roll against: 10 + their WIS save + INT save (proficiency baked in), or their passive Insight if higher. Only the GM ever sees the number.",
       "support skill": "A SECOND skill whose FULL modifier is added on top of the maneuver's main d20 roll (e.g. Read Them = Insight + Investigation). The bigger rolls are balanced by the save-based DC.",
-      "opening": "A condition on your target that makes a matching maneuver stronger. Two kinds, same ⊕ mark: a status you set up this exchange (Provoked, Desperate…) that a finisher cashes, or a lasting emotional wound they carry (Angry, Smitten, Guilty, Scared, Hopeless) that certain maneuvers press for +2.",
+      "opening": "A condition on your target that makes a matching maneuver stronger. Two kinds, same ⊕ mark: a status you set up this exchange (Provoked, Desperate…) that a finisher cashes, or a lasting emotional wound they carry (Wrath, Grudge, Obsession, Fear, Despair) that certain maneuvers press for +2.",
       "String": "A hold on a person — earned by opening up in character or by breaking through their Resolve. No passive effect; it is only ever spent, for +5 on ANY roll against them (even an attack).",
-      "the Answer": "On a bad fumble OR hitting an immunity, the archetype strikes back in its triad's language: Power → you're Rattled · Emotion → you're Guilty · Reason → they take a String on you.",
+      "the Answer": "On a bad fumble OR hitting an immunity, the archetype strikes back in its triad's language: Power → you're Rattled · Emotion → you're Beholden · Reason → they take a String on you.",
       "Hold the Line": "When a maneuver lands on YOU, refuse its effect by taking a fitting emotional Condition instead. The words still cut; only their power is refused.",
       "Overwhelmed": "Carrying four emotional Conditions — you must yield or flee.",
       "swayed": "You WON the exchange — Resolve broken to 0. They concede the point / do the thing you were after (the GM frames it); the bond toward you deepens +1; you gain a String on them. Any fencing statuses on them LINGER — they still bite if talk turns to a fight.",
@@ -465,7 +465,7 @@ class SocialFencingApp extends _SocialAppBase {
         <details class="tsl-codex-sub" open>
           <summary class="tsl-codex-sub-title">Step 1 · Put a condition on them</summary>
           <ul class="tsl-codex-how tsl-codex-combo">${setupRows}</ul>
-          <div class="tsl-codex-hint-sm">Lasting emotional wounds (Angry / Smitten / Guilty / Scared / Hopeless) also come from Hold the Line, sincere Feelings moves, or a bad fumble — and stay until the story heals them.</div>
+          <div class="tsl-codex-hint-sm">Lasting emotional wounds (Wrath / Grudge / Obsession / Fear / Despair) also come from Hold the Line, sincere Feelings moves, or a bad fumble — and stay until the story heals them.</div>
         </details>
         <details class="tsl-codex-sub" open>
           <summary class="tsl-codex-sub-title">Step 2 · Press it — when they're X, these gain ⊕</summary>
@@ -575,11 +575,11 @@ class SocialFencingApp extends _SocialAppBase {
           <li><b>She sizes him up.</b> <b>Read Them</b> (Insight + Investigation). It lands: a <b>tell</b> is whispered to her — <i>“he keeps glancing back at the guards.”</i> She notes her guess in her Bond: <i>read as Broker</i>, and gains a String.</li>
           <li><b>She sets him up.</b> <b>Taunt</b> — a jeer for the room. It lands: he's now <b>${SOCIAL_CONDITIONS.provoked?.label ?? "Provoked"}</b>. On its own, <i>no damage</i> — it's a <b>set-up</b>.</li>
           <li><b>The chip changes.</b> Because he carries that condition, <b>Humiliate</b> now shows a <b>⊕</b> — an ${term("opening")}. Hover it to see the payout: the set-up is <i>cashed</i> for extra Resolve damage.</li>
-          <li><b>She presses it.</b> Humiliate lands: normal damage <b>plus</b> the opening. His Resolve drops hard, ${SOCIAL_CONDITIONS.provoked?.label ?? "Provoked"} is <b>spent</b> (⊕ gone), and the public unmaking leaves him <b>Angry</b> — a lasting wound.</li>
+          <li><b>She presses it.</b> Humiliate lands: normal damage <b>plus</b> the opening. His Resolve drops hard, ${SOCIAL_CONDITIONS.provoked?.label ?? "Provoked"} is <b>spent</b> (⊕ gone), and the public unmaking leaves him a lasting <b>Wrath</b> wound.</li>
           <li><b>He answers.</b> She overreaches on the next move and fumbles — his nature bites back and she's left <b>Rattled</b>. Blades cut both ways.</li>
           <li><b>How it ends.</b> One more landed maneuver takes his Resolve to <b>0</b>: he's <b>swayed</b>. He curses, unbars the gate, and their bond shifts a step. (Had her fumbles instead emptied <i>his</i> Patience first, he'd have called the guards and won the scene.)</li>
         </ol>
-        <div class="tsl-codex-hint-sm"><b>The two kinds of ⊕, in one line:</b> a <b>status you applied</b> (like ${SOCIAL_CONDITIONS.provoked?.label ?? "Provoked"}) is <i>spent</i> when a finisher cashes it — one shot. A <b>lasting wound</b> they carry (Angry, Smitten, Guilty, Scared, Hopeless) is <i>never</i> spent: it keeps giving +2 until the story heals it. Both look the same on the chip; press ⊕ when you see it.</div>
+        <div class="tsl-codex-hint-sm"><b>The two kinds of ⊕, in one line:</b> a <b>status you applied</b> (like ${SOCIAL_CONDITIONS.provoked?.label ?? "Provoked"}) is <i>spent</i> when a finisher cashes it — one shot. A <b>lasting wound</b> they carry (Wrath, Grudge, Obsession, Fear, Despair) is <i>never</i> spent: it keeps giving +2 until the story heals it. Both look the same on the chip; press ⊕ when you see it.</div>
       </section>`;
 
     const how = quickStart + comboReference + reference + gm;
@@ -621,7 +621,7 @@ class SocialFencingApp extends _SocialAppBase {
 
     // Wound dossiers, generated from the data — each wound is now a DISTINCT
     // mechanic that ESCALATES through three tiers (Light ● → Deep ●● → ●●●).
-    const woundDossier = ["angry", "smitten", "guilty", "scared", "hopeless"].map(id => {
+    const woundDossier = ["angry", "spiteful", "obsessed", "scared", "hopeless"].map(id => {
       const m = TSLConditionEffects.getMeta?.(id);
       if (!m) return "";
       const s = (t) => esc((t ?? "").replace(/\{source\}/g, "them"));
@@ -639,7 +639,7 @@ class SocialFencingApp extends _SocialAppBase {
     const statuses = `
       <section class="tsl-notes-section">
         <div class="tsl-notes-section-title">Statuses & wounds</div>
-        <div class="tsl-codex-hint-sm"><b>Two kinds of condition, and the card keeps them apart.</b> <b>States</b> (below) are the <b>fleeting</b> layer — a maneuver sets one up, it lasts a round or two, and a finisher <b>spends</b> it. <b>Wounds</b> (❤ — Angry, Smitten, Guilty, Scared, Hopeless) are the <b>lasting</b> layer — they come from Hold the Line or betrayal, and they don't just sit there: they <b>push the one who carries them</b>. Never worry which is which mid-roll — both show ⊕.</div>
+        <div class="tsl-codex-hint-sm"><b>Two kinds of condition, and the card keeps them apart.</b> <b>States</b> (below) are the <b>fleeting</b> layer — a maneuver sets one up, it lasts a round or two, and a finisher <b>spends</b> it. <b>Wounds</b> (❤ — Wrath, Grudge, Obsession, Fear, Despair) are the <b>lasting</b> layer — they come from Hold the Line or betrayal, and they don't just sit there: they <b>push the one who carries them</b>. Never worry which is which mid-roll — both show ⊕.</div>
         <details class="tsl-codex-sub" open>
           <summary class="tsl-codex-sub-title">States — fleeting set-ups (this fight)</summary>
           <div class="tsl-codex-hint-sm">Each arms a ⊕ opening and is <b>spent</b> when a finisher cashes it. <b>Defiant</b> is the odd one — a wall, not an opening, broken only by a successful <b>Read Them</b>.</div>
@@ -647,7 +647,7 @@ class SocialFencingApp extends _SocialAppBase {
         </details>
         <details class="tsl-codex-sub" open>
           <summary class="tsl-codex-sub-title">Wounds — they push you (VtM-style)</summary>
-          <div class="tsl-codex-hint-sm">Each Wound is a <b>different kind of thing</b> — a charm (Smitten), a rage trade (Angry), a fright (Scared), a debt (Guilty), a grey weight (Hopeless) — and it <b>escalates</b> through three tiers: <b>● Light → ●● Deep → ●●● Breaking point</b>. Pressed again, it <b>deepens</b> rather than stacking a new one; at the top tier it takes the wheel for a beat. <b>Give in</b> at a cost and you refuel (a String, or Inspiration). Four Wounds = <b>Overwhelmed</b> (yield or flee). Set the tier on your own character in the <b>Fencing</b> tab (▲/▼).</div>
+          <div class="tsl-codex-hint-sm">Each Wound is a <b>different kind of thing</b> — a rage trade (Wrath), a cold vendetta (Grudge), a fixation (Obsession), a fright (Fear), a grey weight (Despair) — and it <b>escalates</b> through three tiers: <b>● Light → ●● Deep → ●●● Breaking point</b>. Pressed again, it <b>deepens</b> rather than stacking a new one; at the top tier it takes the wheel for a beat. <b>Give in</b> at a cost and you refuel <b>1 Willpower</b> (or Inspiration, for despair). Four Wounds = <b>Overwhelmed</b> (yield or flee). Set the tier on your own character in the <b>Fencing</b> tab (▲/▼).</div>
           <div class="tsl-codex-combo-list">${woundDossier}</div>
         </details>
       </section>`;
@@ -949,7 +949,7 @@ class SocialFencingApp extends _SocialAppBase {
       : "";
     return `
       <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title" data-tooltip="Lasting emotional Wounds on ${esc(this._actor.name)} (Angry / Scared / Guilty / Hopeless / Smitten). From Hold the Line, sincere Feelings moves or betrayal — they open doors (+2) until the story heals them. Four = Overwhelmed. A whole layer apart from the fleeting fencing States.">❤ Wounds</div>
+        <div class="tsl-notes-section-title" data-tooltip="Lasting emotional Wounds on ${esc(this._actor.name)} (Wrath / Grudge / Obsession / Fear / Despair). From Hold the Line, sincere Feelings moves or betrayal — they open doors (+2) until the story heals them. Four = Overwhelmed. A whole layer apart from the fleeting fencing States.">❤ Wounds</div>
         <div class="tsl-cond-grid">${btns}</div>
         ${overwhelmed}
         ${active ? `<button class="tsl-cond-clear tsl-wound-clear" data-tooltip="Remove all Wounds from ${esc(this._actor.name)}.">Clear all wounds</button>` : ""}

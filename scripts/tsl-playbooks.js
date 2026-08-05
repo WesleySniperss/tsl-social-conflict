@@ -88,7 +88,7 @@ const TSL_PLAYBOOKS = [
       },
       {
         id: "pb_wicked_charm", name: "Wicked Charm", icon: "fa-mask", stat: "Grace", target: true,
-        desc: "Turn the bad name into allure. On 10+: they gain the Smitten Condition (GM toggles). On 7-9: so do you.",
+        desc: "Turn the bad name into allure. On 10+: they gain the Obsession Wound (GM toggles). On 7-9: so do you.",
       },
     ],
   },
