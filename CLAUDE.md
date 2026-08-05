@@ -88,7 +88,7 @@ tsl-social-conflict/
 - Move effects share the fx schema handled generically in `ConflictStore.recordRoll`: `onStrong`/`onWeak: { strings, stringsOnYou, reveal, resolve }` — basic moves (read/speak/provoke) use the same fields
 
 ### Track defaults + auto-start (no ceremony)
-- Resolve = 3 + WIS mod, Patience = 4 + CHA mod — **floor 3, NO upper cap** (v1.44; the v1.43 3–6 cap was removed at the user's request). An average target (low WIS) still folds in ~2 cashed damage-combos (Taunt→Humiliate = 3 each), but an iron-willed NPC scales up and is meant to be harder (`suggestTracks`)
+- **Resolve = WIS + CHA mod (floor 1), Patience = 4 + WIS mod (floor 2)** (v1.69; was 3+CHA/4+WIS floor 3). Resolve is deliberately low — a mook (~1) folds in one hit, a boss (~8) in ~2 heavy finishers — because the real weight is the maneuver's SCHOOL (General 1 / archetype 2 / Humiliate 3), not the HP bar (`suggestTracks`)
 - **No "Start Encounter" step** — `SocialEncounterManager.ensureActive()` lazily starts tracks from these defaults on the FIRST maneuver against a target (called at the top of `applyOutcome`), unless a prior exchange already resolved. The GM only nudges/resets tracks in Chronicle→Fencing.
 - **Fencing tab = a GM status board**: this actor's tracks (adjust/Reset only) + status toggles + a scene-wide "who has what" overview (`_buildStatusBoard` walks canvas tokens; portrait · name · status dots · R/P or outcome).
 - Player ownership resolves via token fallback (`_participantActor`/`_ownsParticipant`) so unlinked-token participants can still act & target (fixes players unable to pick targets).
@@ -212,7 +212,7 @@ TSL stats mapped to D&D abilities:
 - The maneuver console's target row has a **Map** button → `_startPick(onPick, "target")`; `_startPick` is now generalized to take an `onPick(actor)` callback (default adds a Bond via `_defaultBondPick`).
 - Each expanded Bond has a **Their dossier** subsection (`_buildBondDossier`) editing the TARGET actor's profiling points (Desire/Fear/Weakness/Mask/Line) with the PROFILE_POINTS hints — writes to the target's flags, gated by GM/owner. Hidden in `conflictMode === "tsl"`.
 - The console bar shows a **visible bonus breakdown** (`.tsl-fc-breakdown`): base skill, String, each bonusReason, ADV reasons, DC mods — plain language, not just tooltips.
-- Track tooltips state the scaling: Resolve = 3 + WIS, Patience = 4 + CHA (3–8).
+- Track tooltips state the scaling: Resolve = WIS + CHA (floor 1), Patience = 4 + WIS (floor 2).
 
 ### Statuses render as named colored tags
 - `SOCIAL_CONDITIONS[*].color`; conflict cards and the scene board show `.tsl-status-tag`/`.tsl-board-tag` (name + color) instead of icon-only dots (the old `icons/svg` dots read as blank squares).
@@ -350,6 +350,13 @@ TSL stats mapped to D&D abilities:
   - **`frenzy`** — the breaking point: carry it and get pushed again (or hit Overwhelmed) → you lose the leash for one beat (Angry lashes out · Scared flees · Smitten obeys · Guilty confesses · Hopeless gives up); GM plays it.
 - `_buildEffect` now renders the full dossier (Urge / Fight it / Give in / Breaking point / Clears), with `{source}` filled to the wound's cause. `TSLConditionEffects.getMeta(id)` exposes it; the conflict card's Wound-pip tooltip and a data-generated Codex "Wounds — they push you" block both read from it.
 - These are GM-adjudicated rules text (no fragile automation) with ONE concrete mechanical hook — the String economy: Wounds now BANK Strings when you play them and SPEND Strings when you fight them, a self-fuelling loop that ties the emotional layer into the module's existing resource. Balance watch: leaning into wounds is another String faucet; if it farms, gate lean-in to once per scene per wound.
+
+### v1.69.0 — balance pass: Resolve = WIS+CHA, damage by school (Phase 1 of the emotional-layer rebuild)
+This is the first CODE step of the big emotional-layer redesign (whose full spec lives in `docs/emotions-design.html` / the living artifact). It ships the settled BALANCE numbers; the wounds/scars/Willpower engine follows in later phases.
+- **Social health rebalanced so a conflict is ~2 hits, not a stuffy HP grind.** `SocialEncounterManager.suggestTracks`: **Resolve = WIS mod + CHA mod (floor 1)** — both mental stats defend (self-possession + force of personality), kept low so a mook (~1) folds in one hit and a boss (~8) still breaks in ~2 heavy finishers. **Patience = 4 + WIS (floor 2)** — the walk-away clock. (Was Resolve 3+CHA / Patience 4+WIS, floor 3.)
+- **Real weight moved to the maneuver SCHOOL, not the HP bar** (`SOCIAL_MANEUVERS` resolveDamage): **General = 1** (safe chip, no vuln/imm), **archetype schools = 2**, **Humiliate = 3** (the heavy public unmaking). **Minimum damage 1 for every maneuver** — the former 0-damage setups (Taunt/Lie/Play Weak/Charm/Undermine) now chip 1 too — with **one exception: Read Them = 0** (pure recon: whispers a tell + String, slips through Defiant). successText lines updated to the new numbers (Humiliate −3, the archetype 2s, +"Resolve −1" on the setups).
+- Rationale worked out with the user: setup→finisher (Taunt→Humiliate = 3 + 1 combo = 4) breaks Resolve 3–4 in ~2 rolls, while naive General-spam is slower — so combos/reads are rewarded, and tough NPCs need the heavy archetype schools, not more HP.
+- Harness: tracks test now asserts WIS+CHA (tough 11/9, avg 2/5, floors R1/P2); Humiliate+Provoked = 4; the "no String for chipping" and General-basics-effects tests topped-up/retuned for the new damage. Pipeline clean.
 
 ### v1.68.0 — effects that actually play; map-only zoom; TWO relationship windows
 The user: "Ефекти все ще ніякі… надто швидкі, їх не видно. Масштаб має бути карти, а не вікна. І нехай там буде два вікна — одне щоб бачили лише сцену, інше відносини між усіма."

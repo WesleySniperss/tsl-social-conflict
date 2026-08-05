@@ -37,15 +37,15 @@ class SocialEncounterManager {
 
   /**
    * Suggested track values derived from the actor's sheet (dnd5e/a5e):
-   *   Resolve  = 3 + CHA mod — force of personality: conviction holds your
-   *              ground and won't be talked out of its position.
-   *   Patience = 4 + WIS mod — temperance and self-possession: patience is a
-   *              Wisdom thing, and it's how long they'll suffer the exchange.
-   *   (The Social DC already leans on WIS+INT, so every mental stat now
-   *    defends: WIS → DC & Patience, INT → DC, CHA → Resolve.)
-   * NO upper cap (floor 3 only): an average target folds in ~2 cashed combos
-   * as intended, but a genuinely strong-willed NPC scales up and is meant to
-   * be harder. GM can still nudge either track in the Chronicle.
+   *   Resolve  = WIS + CHA mod (floor 1) — social HP defended by BOTH mental
+   *              stats: WIS (self-possession) + CHA (force of personality).
+   *              Kept low on purpose: a mook (~1) folds in one hit, a boss
+   *              (~8) still breaks in ~2 heavy finishers. The real damage comes
+   *              from the maneuver SCHOOL (General 1 / archetype 2 / Humiliate 3),
+   *              not from a stuffy HP tank.
+   *   Patience = 4 + WIS mod (floor 2) — the clock: how long they'll suffer the
+   *              exchange before walking away.
+   * GM can still nudge either track in the Chronicle.
    */
   static suggestTracks(actor) {
     const abilities = actor?.system?.abilities ?? {};
@@ -53,11 +53,11 @@ class SocialEncounterManager {
       const v = abilities[k]?.mod;
       return typeof v === "number" ? v : 0;
     };
-    const floor = (v) => Math.max(3, v);
+    const cha = mod("cha"), wis = mod("wis");
     return {
-      resolve:  floor(3 + mod("cha")),
-      patience: floor(4 + mod("wis")),
-      hint: `Resolve 3 + CHA (${mod("cha") >= 0 ? "+" : ""}${mod("cha")}), Patience 4 + WIS (${mod("wis") >= 0 ? "+" : ""}${mod("wis")}), floor 3, no cap`,
+      resolve:  Math.max(1, wis + cha),
+      patience: Math.max(2, 4 + wis),
+      hint: `Resolve WIS+CHA (${wis + cha >= 0 ? "+" : ""}${wis + cha}, floor 1), Patience 4 + WIS (${wis >= 0 ? "+" : ""}${wis}, floor 2)`,
     };
   }
 
