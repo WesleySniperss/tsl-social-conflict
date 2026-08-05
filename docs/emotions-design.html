@@ -173,6 +173,24 @@
   .ui-btn{font-family:var(--font-ui);font-size:11px;font-weight:600;border-radius:7px;padding:3px 9px;
     border:1px solid currentColor;background:transparent;white-space:nowrap;cursor:default;}
   .ui-target{padding:11px 16px;background:var(--wound-tint);font-size:12.5px;line-height:1.5;}
+
+  /* Maneuvers reference */
+  .mv-legend{font-size:13px;color:var(--muted);background:var(--panel-2);border:1px solid var(--line);
+    border-radius:10px;padding:13px 16px;margin-bottom:24px;line-height:1.7;}
+  .mv-legend b{color:var(--ink);}
+  .mv-school{margin-bottom:24px;}
+  .mv-school-h{font-family:var(--font-display);letter-spacing:.05em;font-size:16px;margin:0 0 4px;
+    color:var(--c);text-transform:uppercase;}
+  .mv-row{display:flex;gap:13px;align-items:flex-start;padding:10px 0;border-bottom:1px dashed var(--line);}
+  .mv-row:last-child{border-bottom:none;}
+  .mv-dmg{flex:none;width:30px;height:30px;border-radius:8px;display:grid;place-items:center;
+    font-family:var(--font-ui);font-weight:700;font-size:15px;color:var(--c);border:1.5px solid var(--c);
+    background:color-mix(in srgb,var(--c) 13%,transparent);}
+  .mv-info{min-width:0;}
+  .mv-info .mv-top{font-size:15px;margin-bottom:2px;}
+  .mv-skill{font-family:var(--font-ui);font-size:11.5px;color:var(--muted);letter-spacing:.02em;margin-left:7px;}
+  .mv-cond{font-size:13px;color:var(--muted);line-height:1.55;}
+  .mv-cond b{color:var(--ink);}
   code{font-family:ui-monospace,"SFMono-Regular",Menlo,monospace;font-size:.86em;
     background:var(--panel-2);padding:1px 6px;border-radius:5px;border:1px solid var(--line);}
   footer{border-top:1px solid var(--line);padding-top:22px;color:var(--muted);font-size:14px;}
@@ -202,6 +220,7 @@
     <a href="#bonds">Бонди</a>
     <a href="#engine">Двигун</a>
     <a href="#outcome">Вікно результату</a>
+    <a href="#maneuvers">Прийоми</a>
     <a href="#stacking">Стакання</a>
   </nav>
 
@@ -815,6 +834,81 @@
           <tr><td><b>Нагороди за відіграш</b></td><td>Пішов за <b>Потягом Рани</b> → <b>+1 Воля</b> (відновив). Відіграв <b>Шрам</b> → <b>Inspiration</b>. Розкрив вразливість → <b>+Нитка</b>. Усе за <i>гру</i>, не за кубик.</td></tr>
         </tbody>
       </table>
+    </div>
+  </section>
+
+  <!-- ─────────── MANEUVERS ─────────── -->
+  <section id="maneuvers">
+    <h2>Прийоми <span class="no">15 · довідник з умовами</span></h2>
+    <p class="sub prose">Кожен прийом, його шкода й <b>усі особливі умови</b>. Логіка шкоди: <b>General = 1</b>
+      (безпечний чіп, без вразл/імун), <b>архетипні школи = 2</b> (справжня зброя, але ризикують),
+      <b>Humiliate = 3</b> (найважчий і найгучніший).</p>
+    <div class="mv-legend">
+      <b>Позначки:</b> число зліва — <b>шкода Resolve</b> · ▸ накладає статус (сетап) · ◆ фінішер (кешує статус за бонус) ·
+      ⊕ б'є лежачого (+1 по цілі з будь-яким статусом) · ⚠ ризик (промах = <b>−2 Patience</b>) · ❤ садить рану ·
+      🔎 шепоче tell (реконка) · 🧵 дає Нитки · 👁 умова сцени · ◎ вразливий архетип · ✕ імунний архетип.
+      Мінімум шкоди будь-якого прийому — <b>1</b>.
+    </div>
+
+    <div class="mv-school" style="--c:var(--muted)">
+      <h3 class="mv-school-h">General — базові, без вразл/імун</h3>
+      <div class="mv-row"><span class="mv-dmg">1</span><div class="mv-info">
+        <div class="mv-top"><b>Read Them</b><span class="mv-skill">Insight + Investigation</span></div>
+        <div class="mv-cond">Скаутинг: 🔎 шепоче <b>tell</b> + 🧵1. Єдиний, що <b>проходить крізь Defiant і ламає стіну</b> при успіху.</div></div></div>
+      <div class="mv-row"><span class="mv-dmg">1</span><div class="mv-info">
+        <div class="mv-top"><b>Mock</b><span class="mv-skill">Deception + Performance</span></div>
+        <div class="mv-cond">Жарт із лезом. ⊕ <b>б'є лежачого</b> — +1, якщо на цілі є будь-який статус. ✕ Exalted.</div></div></div>
+      <div class="mv-row"><span class="mv-dmg">1</span><div class="mv-info">
+        <div class="mv-top"><b>Taunt</b><span class="mv-skill">Performance + Intimidation</span></div>
+        <div class="mv-cond">Наживка. ▸ <b>Provoked</b> (сетап під Humiliate). ✕ Tyrant, Hermit.</div></div></div>
+      <div class="mv-row"><span class="mv-dmg">1</span><div class="mv-info">
+        <div class="mv-top"><b>Persuade</b><span class="mv-skill">Persuasion + Insight</span></div>
+        <div class="mv-cond">Чесний заклик — жодних трюків і ризиків. Найбезпечніший.</div></div></div>
+      <div class="mv-row"><span class="mv-dmg">1</span><div class="mv-info">
+        <div class="mv-top"><b>Intimidate</b><span class="mv-skill">Intimidation + Insight</span></div>
+        <div class="mv-cond">Особиста погроза наодинці. ⚠ <b>промах −2 Patience</b> — не підкріпив загрозу, маєш дурний вигляд.</div></div></div>
+      <div class="mv-row"><span class="mv-dmg">1</span><div class="mv-info">
+        <div class="mv-top"><b>Lie</b><span class="mv-skill">Deception + Persuasion</span></div>
+        <div class="mv-cond">Чиста брехня-важіль. 🧵1 (брехня дає лівер).</div></div></div>
+    </div>
+
+    <div class="mv-school" style="--c:var(--wound)">
+      <h3 class="mv-school-h">Триада Влади</h3>
+      <div class="mv-row"><span class="mv-dmg">2</span><div class="mv-info">
+        <div class="mv-top"><b>Flatter</b><span class="mv-skill">Persuasion + Deception</span></div>
+        <div class="mv-cond">Влада через захоплення. ▸ <b>Enthralled</b>. ◎ Tyrant.</div></div></div>
+      <div class="mv-row"><span class="mv-dmg">1</span><div class="mv-info">
+        <div class="mv-top"><b>Play Weak</b><span class="mv-skill">Deception + Performance</span></div>
+        <div class="mv-cond">Глибока наживка. 🧵2 (показав горло — рахуєш, що вони видали). ◎ Machiavellian · ✕ Duelist.</div></div></div>
+      <div class="mv-row"><span class="mv-dmg">3</span><div class="mv-info">
+        <div class="mv-top"><b>Humiliate</b><span class="mv-skill">Intimidation + Performance</span></div>
+        <div class="mv-cond">Публічне знищення — зламати перед свідками, чия повага тримає. ⚠ <b>промах −2 Patience</b> (осоромишся сам) · ❤ садить <b>Angry</b>-рану (поглиблюється при повторі) · ◆ <b>кешує Provoked</b> (+1) · 👁 <b>потрібні свідки</b> · ◎ Duelist · ✕ Hermit.</div></div></div>
+    </div>
+
+    <div class="mv-school" style="--c:var(--scar)">
+      <h3 class="mv-school-h">Триада Емоцій</h3>
+      <div class="mv-row"><span class="mv-dmg">1</span><div class="mv-info">
+        <div class="mv-top"><b>Charm</b><span class="mv-skill">Performance + Persuasion</span></div>
+        <div class="mv-cond">Облога солодкістю. ▸ <b>Enthralled</b> + 🧵1. ◆ <b>кешує Desperate</b> (+1 шкоди). ◎ Exalted · ✕ Martyr.</div></div></div>
+      <div class="mv-row"><span class="mv-dmg">2</span><div class="mv-info">
+        <div class="mv-top"><b>Stir Jealousy</b><span class="mv-skill">Performance + Deception</span></div>
+        <div class="mv-cond">Тепло, спрямоване повз них. ▸ <b>Desperate</b>. 👁 <b>треба суперник</b> — реальний або вигаданий. ◎ Martyr · ✕ Caretaker.</div></div></div>
+      <div class="mv-row"><span class="mv-dmg">2</span><div class="mv-info">
+        <div class="mv-top"><b>Guilt Trip</b><span class="mv-skill">Persuasion + Insight</span></div>
+        <div class="mv-cond">Вага всього, що ти дав. ▸ <b>Beholden</b>. ◆ <b>кешує Enthralled</b> (+🧵). ◎ Caretaker · ✕ Machiavellian.</div></div></div>
+    </div>
+
+    <div class="mv-school" style="--c:#4a9ec8">
+      <h3 class="mv-school-h">Триада Розуму</h3>
+      <div class="mv-row"><span class="mv-dmg">1</span><div class="mv-info">
+        <div class="mv-top"><b>Undermine</b><span class="mv-skill">Deception + Insight</span></div>
+        <div class="mv-cond">Смикнути нитку віри. ▸ <b>Rattled</b> (DC звабити −5). ◎ Dogmatic · ✕ Broker.</div></div></div>
+      <div class="mv-row"><span class="mv-dmg">2</span><div class="mv-info">
+        <div class="mv-top"><b>Cross-Examine</b><span class="mv-skill">Investigation + Insight</span></div>
+        <div class="mv-cond">Різ ученого — знайти хибу й розкрити. 🔎 tell + 🧵1. ◆ <b>кешує Beholden</b> (+🧵). ◎ Hermit · ✕ Dogmatic, Machiavellian.</div></div></div>
+      <div class="mv-row"><span class="mv-dmg">2</span><div class="mv-info">
+        <div class="mv-top"><b>Bargain</b><span class="mv-skill">Persuasion + Insight</span></div>
+        <div class="mv-cond">Кожен дар — ланка. 🧵2 (угода й ланцюг). ◆ <b>кешує Desperate</b> (+🧵). ◎ Broker · ✕ Dogmatic.</div></div></div>
     </div>
   </section>
 
