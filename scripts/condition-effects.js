@@ -116,6 +116,43 @@ const CONDITION_META = {
     leanIn: "Let despair make you give up or accept the worst, at cost → gain Inspiration (a fumble of the soul that feeds the story).",
     clears: "You cannot clear this alone — someone must rekindle you: comfort, an embrace, a speech that lands.",
   },
+
+  // ── New emotions (Phase 2b) — defined here, wired in a later step. Their
+  // numeric bite is largely target-conditional ("vs {source}"), so for now
+  // it lives as rules text; the auto-apply-by-target engine formalizes it.
+  // `ultimate` (name/text, costs 1 Willpower) and `scar` (the Scar it calcifies
+  // into) are the finalized design fields; the surviving wounds gain them in
+  // the remap step.
+  obsessed: {
+    label:  "Obsession",
+    icon:   "icons/svg/heal.svg",
+    urge:   "Be near {source}, please them, put them above all else.",
+    signature: "Fixated on one person — you can't strike them, and they sway you with ease.",
+    ultimate: { name: "One-Track", text: "Spend 1 Willpower: advantage on any action for {source}'s sake this turn — but you do nothing else." },
+    scar: "bound_heart",
+    tiers: [
+      { label: "Preoccupied", text: "Your mind keeps drifting to {source}: −1 Perception & Insight.", dnd5e: [], a5e: [] },
+      { label: "Fixated", text: "−2 Perception & Insight; you cannot use maneuvers against {source}, and they persuade or command you with advantage.", dnd5e: [], a5e: [] },
+      { label: "Consumed", text: "−3 Perception & Insight; you abandon duty or safety for {source}. The GM plays the beat.", dnd5e: [], a5e: [] },
+    ],
+    leanIn: "Drop what matters to be near or win {source} → restore 1 Willpower.",
+    clears: "Have them and find it hollow, or a hard reality-check from a friend.",
+  },
+  spiteful: {
+    label:  "Grudge",
+    icon:   "icons/svg/blood.svg",
+    urge:   "Get even with {source}; undermine and oppose them at every turn.",
+    signature: "A cold vendetta against one person — you strike harder at them and struggle to let it go.",
+    ultimate: { name: "Reckoning", text: "Spend 1 Willpower: this turn your damage to {source} is doubled, but you roll at disadvantage against everyone else." },
+    scar: "vendetta",
+    tiers: [
+      { label: "Nettled", text: "Consumed by the grudge: −1 initiative & Perception; disadvantage to cooperate with or praise {source}.", dnd5e: [], a5e: [] },
+      { label: "Vengeful", text: "−2 initiative & Perception; advantage on actions against {source}, disadvantage to work with them or let it go.", dnd5e: [], a5e: [] },
+      { label: "Consumed", text: "−3 initiative & Perception; you'll sabotage your own side to land a blow on {source}. The GM plays it.", dnd5e: [], a5e: [] },
+    ],
+    leanIn: "Pursue your grudge at real cost → restore 1 Willpower.",
+    clears: "Land a real blow on them, a genuine reconciliation, or consciously forgive.",
+  },
 };
 
 // Spells/abilities that clear TSL conditions from their targets
@@ -131,6 +168,17 @@ class TSLConditionEffects {
   /** The VtM-style dossier for a wound (urge / resist / leanIn / frenzy / clears). */
   static getMeta(condId) {
     return CONDITION_META[condId] ?? null;
+  }
+
+  /**
+   * Give in to a Wound's compulsion (act on its Potyah at real cost) → refuel
+   * 1 Willpower (the VtM loop: living your nature pays). The one exception is
+   * despair/hopeless, whose lean-in feeds Inspiration instead (diffuse, not
+   * tied to a person) — the caller grants that. Returns the new Willpower.
+   */
+  static async giveIn(actor, condId) {
+    if (!actor || !CONDITION_META[condId] || typeof TSLWillpower === "undefined") return null;
+    return TSLWillpower.restore(actor, 1);
   }
 
   /** Every wound id, in a stable order — for the token HUD registration. */
