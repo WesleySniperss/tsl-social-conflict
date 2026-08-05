@@ -457,6 +457,7 @@ class TSLConditionEffects {
     const onLongRest = (actor) => {
       TSLConditionEffects._clearFromActor(actor);
       if (typeof TSLBondStore !== "undefined") TSLBondStore.clearSignatures?.(actor.id);
+      if (typeof TSLWillpower !== "undefined") TSLWillpower.refresh(actor);   // Willpower back to full
     };
     // dnd5e
     Hooks.on("dnd5e.restCompleted", (actor, result) => {
@@ -522,4 +523,79 @@ class TSLConditionEffects {
       await actor.deleteEmbeddedDocuments("ActiveEffect", toDelete);
     }
   }
+}
+
+// ─── Willpower — the emotional-layer resource (Phase 2 of the rebuild) ───────
+// A pool = the actor's PROFICIENCY bonus, refilled on a LONG REST. Spent to
+// activate an Ultimate (Wound/Boon/Scar) or to override a Wound's hard block;
+// restored by GIVING IN to a Wound's compulsion. Stored on the actor flag
+// tsl-social-conflict.willpower (the CURRENT value; absent = full).
+const WP_SCOPE = "tsl-social-conflict";
+
+class TSLWillpower {
+  /** Max Willpower = proficiency bonus (falls back to a level/CR estimate). */
+  static getMax(actor) {
+    const p = actor?.system?.attributes?.prof;
+    if (typeof p === "number" && p > 0) return p;
+    const d = actor?.system?.details ?? {};
+    const lvl = Number(d.level ?? d.cr ?? 1) || 1;
+    return Math.max(2, 2 + Math.floor((lvl - 1) / 4));
+  }
+
+  /** Current Willpower (defaults to full when the flag is unset). */
+  static get(actor) {
+    const max = TSLWillpower.getMax(actor);
+    const v = actor?.getFlag?.(WP_SCOPE, "willpower");
+    return typeof v === "number" ? Math.max(0, Math.min(v, max)) : max;
+  }
+
+  static async set(actor, n) {
+    const val = Math.max(0, Math.min(TSLWillpower.getMax(actor), n | 0));
+    return actor?.setFlag?.(WP_SCOPE, "willpower", val);
+  }
+
+  /** Spend n — returns false (and changes nothing) if you can't afford it. */
+  static async spend(actor, n = 1) {
+    if (TSLWillpower.get(actor) < n) return false;
+    await TSLWillpower.set(actor, TSLWillpower.get(actor) - n);
+    return true;
+  }
+
+  /** Regain n (e.g. giving in to a Wound's compulsion), capped at max. */
+  static async restore(actor, n = 1) {
+    await TSLWillpower.set(actor, TSLWillpower.get(actor) + n);
+    return TSLWillpower.get(actor);
+  }
+
+  /** Long rest → back to full. */
+  static async refresh(actor) {
+    return TSLWillpower.set(actor, TSLWillpower.getMax(actor));
+  }
+}
+
+// ─── Wound tracker — the ○○○ counter: 3 strikes and it calcifies to a Scar ──
+// Per-wound occurrence count on the actor flag tsl-social-conflict.woundTrack
+// ({ <woundId>: 0..3 }). A long rest eases the acute effect but NOT this count;
+// a genuine heal RESETS it; reaching 3 means the Wound is ready to calcify.
+const WOUND_CALCIFY_AT = 3;
+
+class TSLWoundTracker {
+  static all(actor) { return { ...(actor?.getFlag?.(WP_SCOPE, "woundTrack") ?? {}) }; }
+  static get(actor, woundId) { return Math.max(0, (TSLWoundTracker.all(actor)[woundId] | 0)); }
+
+  /** +by ticks (capped at the calcify threshold); returns the new count. */
+  static async bump(actor, woundId, by = 1) {
+    const t = TSLWoundTracker.all(actor);
+    t[woundId] = Math.min(WOUND_CALCIFY_AT, Math.max(0, (t[woundId] | 0) + by));
+    await actor?.setFlag?.(WP_SCOPE, "woundTrack", t);
+    return t[woundId];
+  }
+
+  /** A genuine heal clears the strikes for this wound. */
+  static async reset(actor, woundId) {
+    const t = TSLWoundTracker.all(actor);
+    if (woundId in t) { delete t[woundId]; await actor?.setFlag?.(WP_SCOPE, "woundTrack", t); }
+  }
+
+  static shouldCalcify(actor, woundId) { return TSLWoundTracker.get(actor, woundId) >= WOUND_CALCIFY_AT; }
 }
