@@ -971,10 +971,13 @@ class SocialFencingApp extends _SocialAppBase {
           <button class="tsl-wound-ease" data-boon-ease="${id}" data-tooltip="Lower one tier — below the first it fades">▼</button>
           <button class="tsl-wound-deepen" data-boon-deepen="${id}" data-tooltip="Raise one tier — up to ●●●" ${tier >= 3 ? "disabled" : ""}>▲</button>
         </span>` : "";
+      const wp = ctx.willpower?.cur ?? 0;
+      const ultBtn = (tier >= 3 && m.ultimate)
+        ? `<button class="tsl-ult-btn" data-ult="${id}" data-tooltip="${esc(m.ultimate.name)} — spend 1 Willpower: ${esc(m.ultimate.text)}" ${wp < 1 ? "disabled" : ""}>⚡</button>` : "";
       return `<div class="tsl-wound-row tsl-boon-row ${on ? "on" : ""}">
         <button class="tsl-cond-toggle tsl-boon-toggle ${on ? "active" : ""}" data-boon="${id}" data-tooltip="${tip}">
           <img src="${m.icon}" alt=""><span>${esc(m.label)}</span>${dots}
-        </button>${steps}
+        </button>${steps}${ultBtn}
       </div>`;
     }).join("");
     const active = Object.values(ctx.activeBoons ?? {}).filter(Boolean).length;
@@ -1006,10 +1009,13 @@ class SocialFencingApp extends _SocialAppBase {
           <button class="tsl-wound-ease" data-wound-ease="${id}" data-tooltip="Ease one tier — below Light it heals">▼</button>
           <button class="tsl-wound-deepen" data-wound-deepen="${id}" data-tooltip="Press deeper — up to the breaking point" ${tier >= 3 ? "disabled" : ""}>▲</button>
         </span>` : "";
+      const wp = ctx.willpower?.cur ?? 0;
+      const ultBtn = (tier >= 3 && m.ultimate)
+        ? `<button class="tsl-ult-btn" data-ult="${id}" data-tooltip="${esc(m.ultimate.name)} — spend 1 Willpower: ${esc(m.ultimate.text)}" ${wp < 1 ? "disabled" : ""}>⚡</button>` : "";
       return `<div class="tsl-wound-row ${on ? "on" : ""}">
         <button class="tsl-cond-toggle tsl-wound-toggle ${on ? "active" : ""}" data-wound="${id}" data-tooltip="${tip}">
           <img src="${m.icon}" alt=""><span>${esc(m.label)}</span>${dots}
-        </button>${steps}
+        </button>${steps}${ultBtn}
       </div>`;
     }).join("");
     const active = Object.values(ctx.activeWounds).filter(Boolean).length;
@@ -1658,6 +1664,27 @@ class SocialFencingApp extends _SocialAppBase {
         const d = Number(btn.dataset.wp);
         if (d < 0) await TSLWillpower.spend(this._actor, -d);
         else       await TSLWillpower.restore(this._actor, d);
+        this.render(true);
+      });
+    });
+
+    // ⚡ Activate an Ultimate (a ●●● Wound / Boon) — spend 1 Willpower + post it
+    el.querySelectorAll(".tsl-ult-btn[data-ult]").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        if (typeof TSLWillpower === "undefined" || typeof TSLConditionEffects === "undefined") return;
+        const id = btn.dataset.ult;
+        const m = TSLConditionEffects.getMeta(id);
+        if (!m?.ultimate) return;
+        if (!(await TSLWillpower.spend(this._actor, 1))) {
+          ui.notifications?.warn?.(`${this._actor.name}: no Willpower left.`);
+          return;
+        }
+        const esc = foundry.utils.escapeHTML;
+        await ChatMessage.create({
+          speaker: ChatMessage.getSpeaker({ actor: this._actor }),
+          content: `<div class="tsl-maneuver-card tsl-mv--success"><div class="tsl-mv-outcome tsl-mv-outcome--success">⚡ <b>${esc(this._actor.name)}</b> unleashes <b>${esc(m.ultimate.name)}</b> <span style="opacity:.75">(${esc(m.label)}, 1 Willpower)</span> — ${esc(m.ultimate.text)}</div></div>`,
+        });
         this.render(true);
       });
     });

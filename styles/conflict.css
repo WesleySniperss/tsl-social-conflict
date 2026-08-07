@@ -3754,6 +3754,14 @@
 .tsl-boon-row .tsl-wound-steps button { background: rgba(123,216,143,0.10); color: #7bd88f; border-color: rgba(123,216,143,0.35); }
 .tsl-boon-row .tsl-wound-steps button:hover:not(:disabled) { background: rgba(123,216,143,0.22); color: #fff; }
 
+/* ⚡ Activate-Ultimate button (a ●●● Wound/Boon, spends 1 Willpower) */
+.tsl-ult-btn {
+  flex: none; width: 26px; padding: 0; line-height: 1; font-size: 13px; border-radius: 6px; cursor: pointer;
+  background: rgba(217,164,65,0.14); color: #d9a441; border: 1px solid rgba(217,164,65,0.45);
+}
+.tsl-ult-btn:hover:not(:disabled) { background: rgba(217,164,65,0.28); color: #fff; }
+.tsl-ult-btn:disabled { opacity: 0.3; cursor: default; }
+
 /* Start-conflict button in the Social Scene header (GM) */
 .tsl-viz-conflict {
   width: auto; background: rgba(232,85,122,0.12); color: #f0a9bd;

@@ -351,6 +351,12 @@ TSL stats mapped to D&D abilities:
 - `_buildEffect` now renders the full dossier (Urge / Fight it / Give in / Breaking point / Clears), with `{source}` filled to the wound's cause. `TSLConditionEffects.getMeta(id)` exposes it; the conflict card's Wound-pip tooltip and a data-generated Codex "Wounds — they push you" block both read from it.
 - These are GM-adjudicated rules text (no fragile automation) with ONE concrete mechanical hook — the String economy: Wounds now BANK Strings when you play them and SPEND Strings when you fight them, a self-fuelling loop that ties the emotional layer into the module's existing resource. Balance watch: leaning into wounds is another String faucet; if it farms, gate lean-in to once per scene per wound.
 
+### v1.75.0 — emotional engine: Ultimates fire off Willpower (the ⚡ button)
+Closes the loop on the v1.74 UI — Willpower now POWERS the ultimates instead of only being a hand-adjusted number. F5 suffices.
+- **⚡ Activate button** on any Wound OR Boon at **●●● (Breaking point)** with an `ultimate` (all of them have one). Rendered in `_buildWoundToggles` / `_buildBoonToggles` (`.tsl-ult-btn[data-ult]`, amber), shown only at tier 3, and **disabled when Willpower is 0**.
+- **Handler:** spends **1 Willpower** (`TSLWillpower.spend`; warns + aborts if you can't afford it) and posts a public chat card — "⚡ NAME unleashes ULTIMATE (Wound/Boon, 1 Willpower) — <text>" — so the table applies the effect. Then re-renders (the button greys out as Willpower drops).
+- Harness: the ⚡ button shows on a ●●● wound when Willpower ≥ 1, is `disabled` at 0 Willpower, and is absent below ●●●; existing panels still render. Pipeline clean.
+
 ### v1.74.0 — emotional engine, Phase 2 UI: Willpower panel + Boon toggles in the Chronicle
 First USER-FACING surface for the Phase-2 engine — the Chronicle → Fencing tab now shows the emotional layer (F5 suffices; only loaded files touched).
 - **Willpower panel** (`_buildWillpowerPanel`): shows the pool as ◆/◇ dots + `cur/max`, with **− / +** buttons (spend / restore by hand). Reads `TSLWillpower`; the − button drives `spend`, + drives `restore`. `_gatherContext` now carries `willpower: {cur, max}`.
