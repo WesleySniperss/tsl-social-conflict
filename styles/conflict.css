@@ -3737,6 +3737,23 @@
 .tsl-wound-steps button:hover:not(:disabled) { background: rgba(232,85,122,0.22); color: #fff; }
 .tsl-wound-steps button:disabled { opacity: 0.3; cursor: default; }
 
+/* ─── Willpower panel (Chronicle Fencing tab) ─────────────────────────── */
+.tsl-wp-panel .tsl-wp-row { display: flex; align-items: center; gap: 10px; }
+.tsl-wp-dots { font-size: 16px; letter-spacing: 3px; color: #d9a441; }
+.tsl-wp-num { font-family: var(--tsl-font-ui, sans-serif); font-size: 12px; color: var(--tsl-muted, #a89078); }
+.tsl-wp-btn {
+  width: 26px; height: 26px; padding: 0; line-height: 1; font-size: 16px; border-radius: 6px;
+  background: rgba(217,164,65,0.12); color: #d9a441; border: 1px solid rgba(217,164,65,0.4); cursor: pointer;
+}
+.tsl-wp-btn:hover:not(:disabled) { background: rgba(217,164,65,0.24); color: #fff; }
+.tsl-wp-btn:disabled { opacity: 0.3; cursor: default; }
+
+/* ─── Boons (✦) — a warm-green accent to set them apart from the pink Wounds ── */
+.tsl-boon-tier { color: #7bd88f; }
+.tsl-boon-toggle.active { border-color: #7bd88f; }
+.tsl-boon-row .tsl-wound-steps button { background: rgba(123,216,143,0.10); color: #7bd88f; border-color: rgba(123,216,143,0.35); }
+.tsl-boon-row .tsl-wound-steps button:hover:not(:disabled) { background: rgba(123,216,143,0.22); color: #fff; }
+
 /* Start-conflict button in the Social Scene header (GM) */
 .tsl-viz-conflict {
   width: auto; background: rgba(232,85,122,0.12); color: #f0a9bd;

@@ -116,9 +116,19 @@ class SocialFencingApp extends _SocialAppBase {
       ? Object.fromEntries(TSLConditionEffects.ORDER.map(id =>
           [id, TSLConditionEffects.getTier(this._actor, id)]))
       : {};
+    // The four positive emotions (Boons) — GM-given, toggled in the Fencing tab.
+    const activeBoons = (typeof TSLConditionEffects !== "undefined")
+      ? Object.fromEntries((TSLConditionEffects.BOON_ORDER ?? []).map(id =>
+          [id, TSLConditionEffects.getTier(this._actor, id)]))
+      : {};
+    // Willpower — the emotional-layer resource (pool = proficiency bonus).
+    const willpower = (typeof TSLWillpower !== "undefined")
+      ? { cur: TSLWillpower.get(this._actor), max: TSLWillpower.getMax(this._actor) }
+      : null;
 
     return {
       isGM, canEdit, notes, archetype, encounter, activeConditions, activeWounds,
+      activeBoons, willpower,
       bonds: this._buildBondData(),
       candidates: this._buildCandidates(),
     };
@@ -909,12 +919,71 @@ class SocialFencingApp extends _SocialAppBase {
     // THIS character's own emotional Wounds — a player sets/clears their own,
     // the GM anyone's. Lives here (the token-opened Chronicle) so wounds are
     // managed in our menu, not only via the token HUD.
+    const wpHtml     = this._buildWillpowerPanel(ctx);
     const woundsHtml = this._buildWoundToggles(ctx);
+    const boonsHtml  = this._buildBoonToggles(ctx);
     // Order: the fleeting fencing STATES (used far more often) sit above the
-    // lasting WOUNDS. The GM's tracks + State toggles come from _buildGMFencing,
-    // so Wounds go LAST for them; a player has no State toggles, so just wounds.
-    if (!ctx.isGM) return consoleHtml + woundsHtml;
-    return consoleHtml + this._buildGMFencing(ctx) + woundsHtml;
+    // lasting emotional layer. Willpower → Wounds → Boons. The GM's tracks +
+    // State toggles come from _buildGMFencing.
+    if (!ctx.isGM) return consoleHtml + wpHtml + woundsHtml + boonsHtml;
+    return consoleHtml + this._buildGMFencing(ctx) + wpHtml + woundsHtml + boonsHtml;
+  }
+
+  /**
+   * Willpower panel — the emotional-layer resource, shown in the Fencing tab.
+   * Pool = proficiency bonus, refilled on a long rest. Spend it on an Ultimate
+   * or to push past a Wound's block; restore it by giving in to a Wound's urge.
+   * The − / + buttons let the owner (or GM) adjust it by hand.
+   */
+  _buildWillpowerPanel(ctx) {
+    if (!ctx.willpower) return "";
+    const { cur, max } = ctx.willpower;
+    const dots = `${"◆".repeat(Math.max(0, cur))}${"◇".repeat(Math.max(0, max - cur))}`;
+    return `
+      <section class="tsl-notes-section tsl-wp-panel">
+        <div class="tsl-notes-section-title" data-tooltip="Willpower — your composure. Pool = proficiency bonus, refilled on a long rest. Spend 1 to power an Ultimate (Wound / Boon / Scar) or push past a Wound's hard block; restore 1 by GIVING IN to a Wound's urge.">⬡ Willpower</div>
+        <div class="tsl-wp-row">
+          <button class="tsl-wp-btn" data-wp="-1" data-tooltip="Spend 1 — an Ultimate, or overriding a Wound's block" ${cur <= 0 ? "disabled" : ""}>−</button>
+          <span class="tsl-wp-dots" data-tooltip="${cur} / ${max}">${dots}</span>
+          <button class="tsl-wp-btn" data-wp="1" data-tooltip="Restore 1 — you gave in to a Wound's urge" ${cur >= max ? "disabled" : ""}>+</button>
+          <span class="tsl-wp-num">${cur}/${max}</span>
+        </div>
+      </section>`;
+  }
+
+  /**
+   * The four Boons (positive emotions) as on/off toggles for THIS character —
+   * GM-given rewards for courage, love, triumph or grit. Mirrors the ❤ Wounds
+   * menu (tier ▲/▼, dossier tooltip) but they don't count toward Overwhelmed.
+   * Handler keys on [data-boon].
+   */
+  _buildBoonToggles(ctx) {
+    if (typeof TSLConditionEffects === "undefined" || !TSLConditionEffects.BOON_ORDER) return "";
+    const esc = foundry.utils.escapeHTML;
+    const btns = TSLConditionEffects.BOON_ORDER.map(id => {
+      const m = TSLConditionEffects.getMeta(id);
+      if (!m) return "";
+      const tier = Number(ctx.activeBoons?.[id]) || 0;
+      const on   = tier > 0;
+      const tip  = TSLConditionEffects.dossier(id, tier || 1, "them");
+      const dots = on ? `<span class="tsl-wound-tier tsl-boon-tier">${"●".repeat(tier)}${"○".repeat(3 - tier)}</span>` : "";
+      const steps = on ? `<span class="tsl-wound-steps">
+          <button class="tsl-wound-ease" data-boon-ease="${id}" data-tooltip="Lower one tier — below the first it fades">▼</button>
+          <button class="tsl-wound-deepen" data-boon-deepen="${id}" data-tooltip="Raise one tier — up to ●●●" ${tier >= 3 ? "disabled" : ""}>▲</button>
+        </span>` : "";
+      return `<div class="tsl-wound-row tsl-boon-row ${on ? "on" : ""}">
+        <button class="tsl-cond-toggle tsl-boon-toggle ${on ? "active" : ""}" data-boon="${id}" data-tooltip="${tip}">
+          <img src="${m.icon}" alt=""><span>${esc(m.label)}</span>${dots}
+        </button>${steps}
+      </div>`;
+    }).join("");
+    const active = Object.values(ctx.activeBoons ?? {}).filter(Boolean).length;
+    return `
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title" data-tooltip="Positive emotions the GM grants for courage, love, triumph or grit (Valor / Devotion / Resolve / Hope). Each gives a scaling bonus and a ●●● ultimate (spend 1 Willpower). They do NOT count toward Overwhelmed.">✦ Boons</div>
+        <div class="tsl-cond-grid">${btns}</div>
+        ${active ? `<button class="tsl-cond-clear tsl-boon-clear" data-tooltip="Remove all Boons from ${esc(this._actor.name)}.">Clear all boons</button>` : ""}
+      </section>`;
   }
 
   /**
@@ -1552,6 +1621,45 @@ class SocialFencingApp extends _SocialAppBase {
         await TSLConditionEffects.removeOne(this._actor, id);
       }
       this.render(true);
+    });
+
+    // ✦ Boons toggles — GM-given positive emotions (same machinery as wounds).
+    el.querySelectorAll(".tsl-boon-toggle[data-boon]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        await TSLConditionEffects.toggleOne(this._actor, btn.dataset.boon);
+        this.render(true);
+      });
+    });
+    el.querySelectorAll("[data-boon-deepen]").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        await TSLConditionEffects.deepen(this._actor, btn.dataset.boonDeepen);
+        this.render(true);
+      });
+    });
+    el.querySelectorAll("[data-boon-ease]").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        await TSLConditionEffects.ease(this._actor, btn.dataset.boonEase);
+        this.render(true);
+      });
+    });
+    el.querySelector(".tsl-boon-clear")?.addEventListener("click", async () => {
+      for (const id of (TSLConditionEffects.BOON_ORDER ?? [])) {
+        await TSLConditionEffects.removeOne(this._actor, id);
+      }
+      this.render(true);
+    });
+
+    // ⬡ Willpower − / + (spend / restore by hand)
+    el.querySelectorAll("[data-wp]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (typeof TSLWillpower === "undefined") return;
+        const d = Number(btn.dataset.wp);
+        if (d < 0) await TSLWillpower.spend(this._actor, -d);
+        else       await TSLWillpower.restore(this._actor, d);
+        this.render(true);
+      });
     });
 
     // ── Maneuver console (owner or GM) ───────────────────────────────────────

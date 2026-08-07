@@ -222,6 +222,11 @@ class TSLConditionEffects {
     return ["angry", "spiteful", "obsessed", "scared", "hopeless"];
   }
 
+  /** Boon ids, in display order (the four positive emotions). */
+  static get BOON_ORDER() {
+    return ["valor", "devotion", "resolve", "hope"];
+  }
+
   /**
    * Console diagnostic: `TSLConditionEffects.explainHud()`.
    * Prints whether each Wound (❤) and State (⚔) actually landed in the token
@@ -448,17 +453,18 @@ class TSLConditionEffects {
     if (!meta) return "";
     const sub = (s) => (s ?? "").replace(/\{source\}/g, sourceName);
     const t = TSLConditionEffects._clampTier(tier);
-    const lines = [
-      `<b>Urge:</b> ${sub(meta.urge)}`,
-      meta.signature ? `<i>${sub(meta.signature)}</i>` : "",
-    ];
+    const boon = !!meta.isBoon;
+    const lines = [];
+    if (!boon && meta.urge) lines.push(`<b>Urge:</b> ${sub(meta.urge)}`);
+    if (meta.signature)     lines.push(`<i>${sub(meta.signature)}</i>`);
     (meta.tiers ?? []).forEach((td, i) => {
       const n = i + 1;
       const dots = "●".repeat(n) + "○".repeat(3 - n);
       lines.push(`${n === t ? "▶ " : ""}<b>${dots} ${td.label}:</b> ${sub(td.text)}`);
     });
-    lines.push(`<b>Give in:</b> ${sub(meta.leanIn)}`);
-    lines.push(`<b>Clears:</b> ${meta.clears} (Or a long rest.)`);
+    if (meta.ultimate)      lines.push(`<b>●●● ${sub(meta.ultimate.name)}:</b> ${sub(meta.ultimate.text)}`);
+    if (!boon && meta.leanIn) lines.push(`<b>Give in:</b> ${sub(meta.leanIn)}`);
+    if (meta.clears)        lines.push(`<b>${boon ? "Fades" : "Clears"}:</b> ${sub(meta.clears)}${boon ? "" : " (Or a long rest.)"}`);
     return lines.filter(Boolean).join("<br>");
   }
 
