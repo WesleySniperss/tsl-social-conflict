@@ -383,6 +383,66 @@ class SocialFencingApp extends _SocialAppBase {
 
   // ── Codex tab — the rulebook page: triads, archetypes, statuses ─────────────
 
+  /**
+   * The Feelings page — the whole emotional layer, generated from the data so
+   * it never drifts: Willpower, the five Wounds (urge / ultimate / clears /
+   * which Scar), the four Boons, the five Scars, and the Wound→Scar lifecycle.
+   */
+  _buildFeelingsCodex() {
+    if (typeof TSLConditionEffects === "undefined") {
+      return `<section class="tsl-notes-section"><p>The emotional layer isn't loaded.</p></section>`;
+    }
+    const esc = foundry.utils.escapeHTML;
+    const CE  = TSLConditionEffects;
+    const ultLine = (m) => m?.ultimate
+      ? `<div class="tsl-codex-gain">●●● ${esc(m.ultimate.name)} (1 Willpower): ${esc(m.ultimate.text)}</div>` : "";
+    const woundRows = CE.ORDER.map(id => {
+      const m = CE.getMeta(id); if (!m) return "";
+      const sc = m.scar && CE.getScarMeta(m.scar) ? ` → calcifies into <b>${esc(CE.getScarMeta(m.scar).label)}</b>` : "";
+      return `<div class="tsl-codex-combo"><b>${esc(m.label)}</b> <span class="tsl-codex-gain">${esc(m.signature ?? "")}</span>
+        <div class="tsl-codex-howto">Urge — ${esc((m.urge ?? "").replace(/\{source\}/g, "the source"))}</div>${ultLine(m)}
+        <div style="font-size:12px;opacity:.85">Give in → ${esc((m.leanIn ?? "").replace(/\{source\}/g, "them"))} · Clears: ${esc(m.clears ?? "")}${sc}</div></div>`;
+    }).join("");
+    const boonRows = (CE.BOON_ORDER ?? []).map(id => {
+      const m = CE.getMeta(id); if (!m) return "";
+      return `<div class="tsl-codex-combo"><b>${esc(m.label)}</b> <span class="tsl-codex-gain">${esc(m.signature ?? "")}</span>${ultLine(m)}</div>`;
+    }).join("");
+    const scarRows = (CE.SCAR_ORDER ?? []).map(id => {
+      const m = CE.getScarMeta(id); if (!m) return "";
+      const from = CE.getMeta(m.from)?.label ?? m.from;
+      return `<div class="tsl-codex-combo"><b>${esc(m.label)}</b> <span style="opacity:.8">(from ${esc(from)})</span>
+        <div class="tsl-codex-howto">${esc(m.ability)}</div>${ultLine(m)}
+        <div style="font-size:12px;opacity:.85">Cost: ${esc(m.cost)} · Clears: ${esc(m.clears)}</div></div>`;
+    }).join("");
+    return `
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title">The emotional layer</div>
+        <details class="tsl-codex-sub" open>
+          <summary class="tsl-codex-sub-title">⬡ Willpower — the resource</summary>
+          <div class="tsl-codex-hint-sm">Your composure. Pool = your <b>proficiency bonus</b>, refilled on a <b>long rest</b>. Spend 1 to fire an <b>Ultimate</b> (a ●●● Wound / Boon, or a Scar) or to push past a Wound's hard block. Restore 1 by <b>giving in</b> to a Wound's urge. It lives in the <b>Fencing</b> tab.</div>
+        </details>
+        <details class="tsl-codex-sub">
+          <summary class="tsl-codex-sub-title">❤ Wounds — the dark five</summary>
+          <div class="tsl-codex-hint-sm">From losing an exchange, Hold the Line, or drama. Each escalates <b>● → ●● → ●●●</b>; pressed again it <b>deepens</b>. Its <b>urge</b> pulls you — give in → +1 Willpower. Left at ●●● through a long rest it <b>calcifies into a Scar</b>; a lesser Wound eases one tier. Four Wounds = <b>Overwhelmed</b> (yield or flee).</div>
+          <div class="tsl-codex-combo-list">${woundRows}</div>
+        </details>
+        <details class="tsl-codex-sub">
+          <summary class="tsl-codex-sub-title">✦ Boons — the bright four</summary>
+          <div class="tsl-codex-hint-sm">The GM grants these for courage, love, triumph or grit. A scaling bonus + a ●●● ultimate (1 Willpower). They do <b>not</b> count toward Overwhelmed.</div>
+          <div class="tsl-codex-combo-list">${boonRows}</div>
+        </details>
+        <details class="tsl-codex-sub">
+          <summary class="tsl-codex-sub-title">🩹 Scars — the permanent five</summary>
+          <div class="tsl-codex-hint-sm">What a Wound becomes at ●●●. Permanent — lifted only by the story (never a rest). Each grants an ability and a cost, and makes you <b>immune to the Wound it came from</b>.</div>
+          <div class="tsl-codex-combo-list">${scarRows}</div>
+        </details>
+        <details class="tsl-codex-sub">
+          <summary class="tsl-codex-sub-title">The lifecycle</summary>
+          <div class="tsl-codex-hint-sm"><b>Wound → deepen (● → ●● → ●●●) → long rest.</b> At ●●● it <b>calcifies into its Scar</b> (then you're immune to that Wound); a lesser Wound <b>eases one tier</b>. So ●●● is your last chance to heal it — or fire its ⚡ Ultimate — before it's permanent. Boons fade when the moment passes; Scars lift only through their <b>Clears</b> arc.</div>
+        </details>
+      </section>`;
+  }
+
   _buildCodexTab() {
     const esc = foundry.utils.escapeHTML;
 
@@ -743,6 +803,7 @@ class SocialFencingApp extends _SocialAppBase {
       // fencing layer — in a pure-TSL world they simply do not exist.
       { id: "openings", label: "Openings", icon: "fa-plus",          html: comboReference, needs: "fencing" },
       { id: "statuses", label: "Statuses", icon: "fa-bolt",          html: statuses,       needs: "fencing" },
+      { id: "feelings", label: "Feelings", icon: "fa-heart",         html: this._buildFeelingsCodex() },
       { id: "details",  label: "Details",  icon: "fa-book",          html: reference },
       { id: "natures",  label: "Natures",  icon: "fa-masks-theater", html: natures,        needs: "fencing" },
       { id: "gm",       label: "GM",       icon: "fa-crown",         html: gm, gmOnly: true },
