@@ -125,10 +125,13 @@ class SocialFencingApp extends _SocialAppBase {
     const willpower = (typeof TSLWillpower !== "undefined")
       ? { cur: TSLWillpower.get(this._actor), max: TSLWillpower.getMax(this._actor) }
       : null;
+    // Permanent Scars this character carries (calcified Wounds).
+    const activeScars = (typeof TSLConditionEffects !== "undefined")
+      ? TSLConditionEffects.getScars(this._actor) : [];
 
     return {
       isGM, canEdit, notes, archetype, encounter, activeConditions, activeWounds,
-      activeBoons, willpower,
+      activeBoons, willpower, activeScars,
       bonds: this._buildBondData(),
       candidates: this._buildCandidates(),
     };
@@ -922,11 +925,12 @@ class SocialFencingApp extends _SocialAppBase {
     const wpHtml     = this._buildWillpowerPanel(ctx);
     const woundsHtml = this._buildWoundToggles(ctx);
     const boonsHtml  = this._buildBoonToggles(ctx);
+    const scarsHtml  = this._buildScarsSection(ctx);
     // Order: the fleeting fencing STATES (used far more often) sit above the
-    // lasting emotional layer. Willpower → Wounds → Boons. The GM's tracks +
-    // State toggles come from _buildGMFencing.
-    if (!ctx.isGM) return consoleHtml + wpHtml + woundsHtml + boonsHtml;
-    return consoleHtml + this._buildGMFencing(ctx) + wpHtml + woundsHtml + boonsHtml;
+    // lasting emotional layer. Willpower → Wounds → Boons → Scars. The GM's
+    // tracks + State toggles come from _buildGMFencing.
+    if (!ctx.isGM) return consoleHtml + wpHtml + woundsHtml + boonsHtml + scarsHtml;
+    return consoleHtml + this._buildGMFencing(ctx) + wpHtml + woundsHtml + boonsHtml + scarsHtml;
   }
 
   /**
@@ -986,6 +990,38 @@ class SocialFencingApp extends _SocialAppBase {
         <div class="tsl-notes-section-title" data-tooltip="Positive emotions the GM grants for courage, love, triumph or grit (Valor / Devotion / Resolve / Hope). Each gives a scaling bonus and a ●●● ultimate (spend 1 Willpower). They do NOT count toward Overwhelmed.">✦ Boons</div>
         <div class="tsl-cond-grid">${btns}</div>
         ${active ? `<button class="tsl-cond-clear tsl-boon-clear" data-tooltip="Remove all Boons from ${esc(this._actor.name)}.">Clear all boons</button>` : ""}
+      </section>`;
+  }
+
+  /**
+   * Permanent Scars — what a Wound becomes when left at ●●● through a long rest.
+   * Shown only when the character carries at least one (they're not a menu you
+   * fill; the GM/owner can toggle each off/on). A Scar with an active ultimate
+   * gets a ⚡ (spend 1 Willpower). Keyed on [data-scar]; violet accent.
+   */
+  _buildScarsSection(ctx) {
+    if (typeof TSLConditionEffects === "undefined" || !TSLConditionEffects.SCAR_ORDER) return "";
+    const esc = foundry.utils.escapeHTML;
+    const active = ctx.activeScars ?? [];
+    if (!active.length && !ctx.isGM) return "";   // players only see it once they have one
+    const wp = ctx.willpower?.cur ?? 0;
+    const btns = TSLConditionEffects.SCAR_ORDER.map(id => {
+      const m = TSLConditionEffects.getScarMeta(id);
+      if (!m) return "";
+      const on  = active.includes(id);
+      const tip = TSLConditionEffects.scarDossier(id);
+      const ultBtn = (on && m.ultimate)
+        ? `<button class="tsl-ult-btn" data-ult="${id}" data-tooltip="${esc(m.ultimate.name)} — spend 1 Willpower: ${esc(m.ultimate.text)}" ${wp < 1 ? "disabled" : ""}>⚡</button>` : "";
+      return `<div class="tsl-wound-row tsl-scar-row ${on ? "on" : ""}">
+        <button class="tsl-cond-toggle tsl-scar-toggle ${on ? "active" : ""}" data-scar="${id}" data-tooltip="${tip}">
+          <img src="${m.icon}" alt=""><span>${esc(m.label)}</span>
+        </button>${ultBtn}
+      </div>`;
+    }).join("");
+    return `
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title" data-tooltip="Permanent character Scars — what a Wound becomes when it's left at ●●● through a long rest. Each grants an ability and a lasting cost, and makes you immune to the Wound it came from. They lift only through the story (the 'Clears' line), never a rest.">🩹 Scars</div>
+        <div class="tsl-cond-grid">${btns}</div>
       </section>`;
   }
 
@@ -1657,6 +1693,14 @@ class SocialFencingApp extends _SocialAppBase {
       this.render(true);
     });
 
+    // 🩹 Scar toggles — permanent states (GM/owner sets or lifts one by hand).
+    el.querySelectorAll(".tsl-scar-toggle[data-scar]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        await TSLConditionEffects.toggleScar(this._actor, btn.dataset.scar);
+        this.render(true);
+      });
+    });
+
     // ⬡ Willpower − / + (spend / restore by hand)
     el.querySelectorAll("[data-wp]").forEach(btn => {
       btn.addEventListener("click", async () => {
@@ -1674,7 +1718,7 @@ class SocialFencingApp extends _SocialAppBase {
         e.stopPropagation();
         if (typeof TSLWillpower === "undefined" || typeof TSLConditionEffects === "undefined") return;
         const id = btn.dataset.ult;
-        const m = TSLConditionEffects.getMeta(id);
+        const m = TSLConditionEffects.getMeta(id) || TSLConditionEffects.getScarMeta?.(id);
         if (!m?.ultimate) return;
         if (!(await TSLWillpower.spend(this._actor, 1))) {
           ui.notifications?.warn?.(`${this._actor.name}: no Willpower left.`);

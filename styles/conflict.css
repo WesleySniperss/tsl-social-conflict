@@ -3754,6 +3754,10 @@
 .tsl-boon-row .tsl-wound-steps button { background: rgba(123,216,143,0.10); color: #7bd88f; border-color: rgba(123,216,143,0.35); }
 .tsl-boon-row .tsl-wound-steps button:hover:not(:disabled) { background: rgba(123,216,143,0.22); color: #fff; }
 
+/* Scars (🩹) — a dusk-violet accent; permanent, so no ▲/▼ tier steps */
+.tsl-scar-toggle.active { border-color: #a98be6; }
+.tsl-scar-toggle.active span { color: #c9b5f0; }
+
 /* ⚡ Activate-Ultimate button (a ●●● Wound/Boon, spends 1 Willpower) */
 .tsl-ult-btn {
   flex: none; width: 26px; padding: 0; line-height: 1; font-size: 13px; border-radius: 6px; cursor: pointer;

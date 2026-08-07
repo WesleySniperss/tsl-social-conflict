@@ -199,6 +199,47 @@ const CLEARING_SPELLS = {
   "heroism":             ["scared"],
 };
 
+// ─── Scars — permanent character states a Wound calcifies into (Phase: Scars).
+// Not tiered, not cleared by rest; only the `clears` arc lifts one. Each keys
+// back to the Wound it comes `from` (having the Scar makes you immune to that
+// Wound). Some carry an active `ultimate` (1 Willpower). Bite is mostly rules
+// text for now (target-conditional); the auto-apply engine formalizes it later.
+const SCAR_META = {
+  cruelty: {
+    label: "Cruelty", icon: "icons/svg/blood.svg", from: "angry",
+    ability: "+2 Intimidation; your social strikes land +1 harder.",
+    ultimate: { name: "Berserk", text: "Spend 1 Willpower: one of your attacks this turn auto-crits, and you resist the damage of one attack against you." },
+    cost: "−2 Persuasion, Deception & Insight — people sense the cruelty in you.",
+    clears: "An arc of mercy: spare or aid those you could have crushed.",
+  },
+  vendetta: {
+    label: "Vendetta", icon: "icons/svg/skull.svg", from: "spiteful",
+    ability: "+2 and Help as a bonus action against your némesis.",
+    ultimate: { name: "Vendetta", text: "Spend 1 Willpower: this turn, advantage on everything against your némesis, disadvantage against everyone else." },
+    cost: "−2 on all social rolls against them; spend a String to pass up a chance to oppose them.",
+    clears: "The némesis falls, or a genuine reconciliation.",
+  },
+  bound_heart: {
+    label: "Bound Heart", icon: "icons/svg/heal.svg", from: "obsessed",
+    ability: "+2 to protect or aid the one you love, and to saves protecting them; the frenzy has passed — you CAN act against them now.",
+    cost: "−2 to act against them in a fight.",
+    clears: "Betrayal, death, or an arc of letting go.",
+  },
+  cold: {
+    label: "The Cold", icon: "icons/svg/frozen.svg", from: "scared",
+    ability: "+2 to saving throws vs fear and charm — you feel less.",
+    cost: "−2 Insight (empathy) & Persuasion (warmth); you can't raise a bond above ●●.",
+    clears: "Someone breaks through the ice — a bond deepened to ●●●.",
+  },
+  hollow: {
+    label: "The Hollow", icon: "icons/svg/degen.svg", from: "hopeless",
+    ability: "Immune to fear and charm — nothing reaches you.",
+    cost: "You begin dying with 1 failed death save; −1 to all checks.",
+    clears: "Someone restores your sense of meaning (a speech, a bond).",
+  },
+};
+const SCAR_ORDER = ["cruelty", "vendetta", "bound_heart", "cold", "hollow"];
+
 class TSLConditionEffects {
 
   /** The VtM-style dossier for a wound (urge / resist / leanIn / frenzy / clears). */
@@ -215,6 +256,82 @@ class TSLConditionEffects {
   static async giveIn(actor, condId) {
     if (!actor || !CONDITION_META[condId] || typeof TSLWillpower === "undefined") return null;
     return TSLWillpower.restore(actor, 1);
+  }
+
+  // ── Scars — permanent states a Wound calcifies into ──────────────────────────
+
+  static get SCAR_ORDER() { return SCAR_ORDER.slice(); }
+  static getScarMeta(scarId) { return SCAR_META[scarId] ?? null; }
+  /** The Scar a given Wound calcifies into (or null). */
+  static scarForWound(woundId) { return CONDITION_META[woundId]?.scar ?? null; }
+
+  /** Tooltip / effect-description HTML for a Scar. */
+  static scarDossier(scarId) {
+    const m = SCAR_META[scarId];
+    if (!m) return "";
+    const lines = [];
+    if (m.ability)  lines.push(`<b>Ability:</b> ${m.ability}`);
+    if (m.ultimate) lines.push(`<b>●●● ${m.ultimate.name}:</b> ${m.ultimate.text}`);
+    if (m.cost)     lines.push(`<b>Cost:</b> ${m.cost}`);
+    if (m.clears)   lines.push(`<b>Clears:</b> ${m.clears}`);
+    return lines.filter(Boolean).join("<br>");
+  }
+
+  static _buildScarEffect(scarId) {
+    const m = SCAR_META[scarId];
+    return {
+      name: m.label,
+      img: m.icon, icon: m.icon,
+      origin: TSL_EFFECT_FLAG,
+      description: TSLConditionEffects.scarDossier(scarId),
+      statuses: [`tsl-scar-${scarId}`],
+      flags: { [TSL_EFFECT_FLAG]: { scar: scarId } },
+      changes: [],   // automation is a later pass — the bite is rules text for now
+      // NO duration/restType: Scars are permanent (only the `clears` arc lifts one).
+    };
+  }
+
+  static hasScar(actor, scarId) {
+    return !!actor?.effects?.some?.(e => !e.disabled &&
+      (e.flags?.[TSL_EFFECT_FLAG]?.scar === scarId || [...(e.statuses ?? [])].includes(`tsl-scar-${scarId}`)));
+  }
+
+  static getScars(actor) {
+    const out = new Set();
+    for (const e of (actor?.effects ?? [])) {
+      if (e.disabled) continue;
+      const s = e.flags?.[TSL_EFFECT_FLAG]?.scar;
+      if (s && SCAR_META[s]) out.add(s);
+      for (const st of (e.statuses ?? [])) if (typeof st === "string" && st.startsWith("tsl-scar-")) out.add(st.slice("tsl-scar-".length));
+    }
+    return [...out].filter(id => SCAR_META[id]);
+  }
+
+  static async applyScar(actor, scarId) {
+    if (!actor || !SCAR_META[scarId] || TSLConditionEffects.hasScar(actor, scarId)) return;
+    await actor.createEmbeddedDocuments("ActiveEffect", [TSLConditionEffects._buildScarEffect(scarId)]);
+  }
+
+  static async removeScar(actor, scarId) {
+    const ids = (actor?.effects ?? [])
+      .filter(e => e.flags?.[TSL_EFFECT_FLAG]?.scar === scarId || [...(e.statuses ?? [])].includes(`tsl-scar-${scarId}`))
+      .map(e => e.id);
+    if (ids.length) await actor.deleteEmbeddedDocuments("ActiveEffect", ids);
+  }
+
+  static async toggleScar(actor, scarId) {
+    if (!actor || !SCAR_META[scarId]) return;
+    if (TSLConditionEffects.hasScar(actor, scarId)) await TSLConditionEffects.removeScar(actor, scarId);
+    else await TSLConditionEffects.applyScar(actor, scarId);
+  }
+
+  /** A Wound calcifies: the Wound is spent, its Scar becomes permanent. */
+  static async calcify(actor, woundId) {
+    const scarId = CONDITION_META[woundId]?.scar;
+    if (!scarId || !SCAR_META[scarId]) return null;
+    await TSLConditionEffects.removeOne(actor, woundId);
+    await TSLConditionEffects.applyScar(actor, scarId);
+    return scarId;
   }
 
   /** Every wound id, in a stable order — for the token HUD registration. */
@@ -360,6 +477,10 @@ class TSLConditionEffects {
    */
   static async applyOne(actor, condId, sourceName = "Social Fencing") {
     if (!actor || !CONDITION_META[condId]) return 0;
+    // A calcified Scar makes you immune to the Wound it came from — the trauma
+    // has already set; you can't take that Wound fresh again.
+    const scarId = CONDITION_META[condId]?.scar;
+    if (scarId && TSLConditionEffects.hasScar(actor, scarId)) return 0;
     const existing = actor.effects.find(e => TSLConditionEffects._condOf(e) === condId);
     if (existing) {
       // Pressed again → the wound DEEPENS (up to the breaking point) rather than
@@ -547,10 +668,17 @@ class TSLConditionEffects {
     // TSL-style: feelings do not clear on a SHORT rest — they clear when
     // lived out (the "Clears when" line) or, slowly, over a long rest.
     // A long rest also refreshes each ●●● bond's once-per-rest signature perk.
-    const onLongRest = (actor) => {
+    const onLongRest = async (actor) => {
       TSLConditionEffects._clearFromActor(actor);
       if (typeof TSLBondStore !== "undefined") TSLBondStore.clearSignatures?.(actor.id);
       if (typeof TSLWillpower !== "undefined") TSLWillpower.refresh(actor);   // Willpower back to full
+      // Wound lifecycle: a Wound left at ●●● (Breaking point) CALCIFIES into its
+      // Scar overnight; a lesser Wound eases one tier (a night's rest recedes it).
+      for (const id of TSLConditionEffects.ORDER) {
+        const t = TSLConditionEffects.getTier(actor, id);
+        if (t >= 3 && TSLConditionEffects.scarForWound(id)) await TSLConditionEffects.calcify(actor, id);
+        else if (t >= 1) await TSLConditionEffects.ease(actor, id);
+      }
     };
     // dnd5e
     Hooks.on("dnd5e.restCompleted", (actor, result) => {
