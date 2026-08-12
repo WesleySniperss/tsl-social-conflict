@@ -177,6 +177,24 @@ async function migrateTokenChronicles() {
 Hooks.once("ready", () => {
   console.log("TSL | Social Conflict ready hook firing");
 
+  // Register the real-time socket FIRST — before any data migration below that
+  // could throw. This is the channel that carries PLAYER actions to the GM
+  // (maneuver outcomes, moves, kiss, yield). If a later migration step errored,
+  // an un-registered listener meant the GM silently received nothing a player
+  // did, while the GM's own direct actions still worked — the "GM outcome menu
+  // only fires when the GM rolls for themselves" bug. Never let it be skipped.
+  try {
+    console.log("TSL | Registering TSLSocket...");
+    if (typeof TSLSocket !== "undefined") {
+      TSLSocket.register();
+      console.log("TSL | TSLSocket registered");
+    } else {
+      console.warn("TSL | TSLSocket class not found");
+    }
+  } catch (err) {
+    console.error("TSL | Error registering TSLSocket:", err);
+  }
+
   // Register our statuses into the token HUD's palette. Two rules learned the
   // hard way on a5e:
   //   1) SINGLE status per effect. a5e only treats an effect as "active"
@@ -232,13 +250,19 @@ Hooks.once("ready", () => {
   // Bring statuses applied by OLDER versions up to the current automation —
   // world actors now, scene token actors (incl. unlinked) once canvas is up.
   // Then rescue pre-1.9.5 token-local chronicles into the shared world actor.
-  syncExistingConditionEffects(game.actors?.contents ?? []);
-  migrateTokenChronicles();
+  // Each guarded on its own: a failure in one migration must never cascade and
+  // take down the rest of the ready hook (the socket is already registered above).
+  try { syncExistingConditionEffects(game.actors?.contents ?? []); }
+  catch (err) { console.error("TSL | syncExistingConditionEffects failed:", err); }
+  try { migrateTokenChronicles(); }
+  catch (err) { console.error("TSL | migrateTokenChronicles failed:", err); }
   // A bond is one shared relationship — fill in any missing mirror so both
   // sides show it (safe/idempotent; only creates gaps, never overwrites).
-  if (typeof TSLBondStore !== "undefined") TSLBondStore.reconcileAll?.();
+  try { if (typeof TSLBondStore !== "undefined") TSLBondStore.reconcileAll?.(); }
+  catch (err) { console.error("TSL | TSLBondStore.reconcileAll failed:", err); }
   // Bonds reach into combat: recompute proximity auras as people move.
-  if (typeof TSLBondAuras !== "undefined") TSLBondAuras.register();
+  try { if (typeof TSLBondAuras !== "undefined") TSLBondAuras.register(); }
+  catch (err) { console.error("TSL | TSLBondAuras.register failed:", err); }
   Hooks.on("canvasReady", () => {
     // Defensive: if another module rebuilt the status palette after our ready
     // hook, re-add any missing Wounds so they stay selectable on the token HUD.
@@ -263,18 +287,6 @@ Hooks.once("ready", () => {
       (canvas.tokens?.placeables ?? []).map(t => t.actor).filter(Boolean)
     );
   });
-
-  try {
-    console.log("TSL | Registering TSLSocket...");
-    if (typeof TSLSocket !== "undefined") {
-      TSLSocket.register();
-      console.log("TSL | TSLSocket registered");
-    } else {
-      console.warn("TSL | TSLSocket class not found");
-    }
-  } catch (err) {
-    console.error("TSL | Error registering TSLSocket:", err);
-  }
 
   try {
     console.log("TSL | Registering TSLConditionEffects...");
