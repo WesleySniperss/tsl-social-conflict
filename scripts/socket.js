@@ -24,6 +24,23 @@ class TSLSocket {
   }
 
   /**
+   * TEMP diagnostic: drop a persistent, unmissable breadcrumb into the chat log
+   * (whispered to the GM) at each link of the player→socket→GM→menu chain.
+   * Unlike ui.notifications it does not auto-dismiss, so the GM can read the
+   * whole trail after one reproduction. Remove with TSL_DEBUG_RELAY once fixed.
+   */
+  static _diag(text) {
+    if (!TSL_DEBUG_RELAY) return;
+    try {
+      const gmIds = game.users.filter(u => u.isGM).map(u => u.id);
+      ChatMessage.create({
+        content: `<div style="font-family:monospace;font-size:11px;color:#c98aa8;border-left:3px solid #c98aa8;padding-left:6px">🔧 TSL RELAY — ${text}</div>`,
+        whisper: gmIds,
+      });
+    } catch (e) { console.warn("TSL | diag whisper failed:", e); }
+  }
+
+  /**
    * Emit a message to all other clients.
    * @param {string} type  - Message type
    * @param {object} data  - Payload
@@ -73,7 +90,7 @@ class TSLSocket {
         // A player performed an action — only the GM client executes it
         console.log(`TSL RELAY | GM_ACTION received from ${senderId}:`, data?.action);
         if (game.user.isGM) {
-          if (TSL_DEBUG_RELAY) ui.notifications?.info(`TSL: received '${data?.action}' from a player`);
+          TSLSocket._diag(`② GM received '${data?.action}' over the module socket`);
           TSLGMActions.handle(data);
         }
         break;
@@ -96,7 +113,7 @@ class TSLGMActions {
       return TSLGMActions.handle({ action, args });
     }
     console.log(`TSL RELAY | request(${action}) — player, emitting over socket`);
-    if (TSL_DEBUG_RELAY) ui.notifications?.info(`TSL: '${action}' sent to the GM`);
+    TSLSocket._diag(`① player ${game.user.name} is relaying '${action}' to the GM`);
     TSLSocket.emit("GM_ACTION", { action, args });
   }
 

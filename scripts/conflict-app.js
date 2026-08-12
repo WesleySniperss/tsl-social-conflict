@@ -1002,7 +1002,7 @@ class TSLConflictApp extends _TSLAppBase {
     });
     if (!payload) {   // system dialog cancelled OR roll read-back failed — nothing spent
       console.warn("TSL RELAY | _doManeuverRoll: rollManeuver returned no payload — nothing sent to the GM");
-      ui.notifications?.warn("TSL: the roll produced no result (cancelled, or the system roll couldn't be read) — nothing was sent to the GM.");
+      if (typeof TSLSocket !== "undefined") TSLSocket._diag(`✗ ${game.user.name}'s roll (conflict window) produced NO result — cancelled, or the system roll couldn't be read. Nothing sent to the GM.`);
       return;
     }
     if (payload.spentStringPostRoll) {

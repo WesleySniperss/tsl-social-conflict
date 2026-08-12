@@ -1200,7 +1200,7 @@ class SocialManeuverRoller {
     if (!sourceActor || !targetActor || !maneuver) {
       console.warn("TSL RELAY | applyOutcome EARLY RETURN — could not resolve on the GM client:",
         { sourceActorId, hasSource: !!sourceActor, targetActorId, hasTarget: !!targetActor, maneuverId, hasManeuver: !!maneuver });
-      ui.notifications?.warn(`TSL: a player's maneuver arrived but its actor/target could not be resolved on your client (see console).`);
+      if (typeof TSLSocket !== "undefined") TSLSocket._diag(`✗ GM reached applyOutcome but could NOT resolve source/target/maneuver (src:${!!sourceActor} tgt:${!!targetActor} mv:${!!maneuver}) — aborted, no menu`);
       return;
     }
 
@@ -1214,10 +1214,16 @@ class SocialManeuverRoller {
     let outcomeType = payload.outcomeType;
     if (relation !== "immune" && relation !== "blocked") {
       console.log("TSL RELAY | applyOutcome opening the GM outcome menu (promptOutcome)");
+      if (typeof TSLSocket !== "undefined") {
+        let dec = true;
+        try { dec = game.settings.get("tsl-social-conflict", "gmDecidesOutcome") !== false; } catch {}
+        TSLSocket._diag(`③ GM adjudicating — opening the outcome menu (gmDecidesOutcome=${dec})`);
+      }
       outcomeType = await SocialManeuverRoller.promptOutcome(
         sourceActor, targetActor, maneuver, payload.total, payload.dc, payload.outcomeType);
     } else {
       console.log(`TSL RELAY | applyOutcome skipped the menu — deterministic outcome (relation=${relation})`);
+      if (typeof TSLSocket !== "undefined") TSLSocket._diag(`③ GM reached applyOutcome, but outcome is deterministic (relation=${relation}) — no menu by design`);
     }
     payload.outcomeType = outcomeType;   // keep the shared log in sync
 
