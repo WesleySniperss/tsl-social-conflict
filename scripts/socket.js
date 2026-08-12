@@ -21,6 +21,19 @@ class TSLSocket {
     game.socket.on(SOCKET_NAME, (payload) => {
       TSLSocket._handleMessage(payload);
     });
+    console.log(`TSL | socket listener attached on ${game.user?.name} (isGM=${game.user?.isGM})`);
+
+    // TEMP self-test: confirm the listener is up on THIS client, then fire a
+    // ping. Every client that RECEIVES the ping reports it. This tells us
+    // whether custom module-socket events actually travel player↔GM in this
+    // world (vs. our GM_ACTION relay silently going nowhere). Auto-runs on
+    // load — the GM just reads chat, no reproduction needed.
+    if (TSL_DEBUG_RELAY) {
+      setTimeout(() => {
+        TSLSocket._diag(`✅ listener REGISTERED on this client: ${game.user?.name} (isGM=${game.user?.isGM})`);
+        TSLSocket.emit("RELAY_TEST", { from: game.user?.name });
+      }, 4000);
+    }
   }
 
   /**
@@ -84,6 +97,13 @@ class TSLSocket {
         // A maneuver resolved somewhere — animate it for everyone
         if (typeof TSLSceneVisualizer !== "undefined") TSLSceneVisualizer.pulse(data);
         if (typeof TSLConflictApp !== "undefined") TSLConflictApp.pulse?.(data);
+        break;
+
+      case "RELAY_TEST":
+        // Self-test ping: prove that a custom module-socket event reached THIS
+        // client from another. Report it (whispered to the GM).
+        console.log(`TSL RELAY | RELAY_TEST received from ${data?.from} by ${game.user?.name}`);
+        TSLSocket._diag(`🛰️ module socket DELIVERS: '${data?.from}'s ping arrived at ${game.user?.name} (isGM=${game.user?.isGM})`);
         break;
 
       case "GM_ACTION":
