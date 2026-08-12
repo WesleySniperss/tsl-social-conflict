@@ -1869,7 +1869,11 @@ class SocialFencingApp extends _SocialAppBase {
     const payload = await SocialManeuverRoller.rollManeuver(src, tgt, maneuver, {
       leverage, situational: mods.situational, mode: mods.mode, offerString: true,
     });
-    if (!payload) return;   // system dialog cancelled — nothing spent
+    if (!payload) {   // system dialog cancelled OR roll read-back failed — nothing spent
+      console.warn("TSL RELAY | _doFenceRoll: rollManeuver returned no payload — nothing sent to the GM");
+      ui.notifications?.warn("TSL: the roll produced no result (cancelled, or the system roll couldn't be read) — nothing was sent to the GM.");
+      return;
+    }
     if (payload.spentStringPostRoll) {
       const held = TSLStringStore.getList(src.id).filter(e => e.targetActorId === tgt.id);
       if (held.length) await TSLStringStore.removeEntry(src.id, held[0].id);

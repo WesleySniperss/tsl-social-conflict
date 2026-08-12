@@ -1192,11 +1192,17 @@ class SocialManeuverRoller {
    */
   static async applyOutcome(payload) {
     if (!game.user.isGM) return;
+    console.log("TSL RELAY | applyOutcome (GM) reached", payload?.sourceActorId, "->", payload?.targetActorId, payload?.maneuverId);
     const { sourceActorId, targetActorId, maneuverId, relation, consumed, combo, leverage, spentString } = payload;
     const sourceActor = game.actors.get(sourceActorId);
     const targetActor = game.actors.get(targetActorId);
     const maneuver    = SocialManeuverRoller.getManeuver(maneuverId);
-    if (!sourceActor || !targetActor || !maneuver) return;
+    if (!sourceActor || !targetActor || !maneuver) {
+      console.warn("TSL RELAY | applyOutcome EARLY RETURN — could not resolve on the GM client:",
+        { sourceActorId, hasSource: !!sourceActor, targetActorId, hasTarget: !!targetActor, maneuverId, hasManeuver: !!maneuver });
+      ui.notifications?.warn(`TSL: a player's maneuver arrived but its actor/target could not be resolved on your client (see console).`);
+      return;
+    }
 
     // No "Start Encounter" ceremony — the first maneuver against a target
     // brings its Resolve/Patience tracks to life from sheet defaults.
@@ -1207,8 +1213,11 @@ class SocialManeuverRoller {
     // (the dice's verdict is pre-selected). Deterministic walls skip this.
     let outcomeType = payload.outcomeType;
     if (relation !== "immune" && relation !== "blocked") {
+      console.log("TSL RELAY | applyOutcome opening the GM outcome menu (promptOutcome)");
       outcomeType = await SocialManeuverRoller.promptOutcome(
         sourceActor, targetActor, maneuver, payload.total, payload.dc, payload.outcomeType);
+    } else {
+      console.log(`TSL RELAY | applyOutcome skipped the menu — deterministic outcome (relation=${relation})`);
     }
     payload.outcomeType = outcomeType;   // keep the shared log in sync
 

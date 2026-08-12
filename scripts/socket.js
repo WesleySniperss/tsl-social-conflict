@@ -11,6 +11,11 @@ console.log("TSL | Loading socket.js...");
 
 const SOCKET_NAME = "module.tsl-social-conflict";
 
+// Temporary diagnostic for the "GM outcome menu never fires when a player rolls"
+// report. Surfaces each link of the player→socket→GM→menu chain as an on-screen
+// notification so one reproduction shows exactly where it breaks. Remove once fixed.
+const TSL_DEBUG_RELAY = true;
+
 class TSLSocket {
   static register() {
     game.socket.on(SOCKET_NAME, (payload) => {
@@ -66,7 +71,11 @@ class TSLSocket {
 
       case "GM_ACTION":
         // A player performed an action — only the GM client executes it
-        if (game.user.isGM) TSLGMActions.handle(data);
+        console.log(`TSL RELAY | GM_ACTION received from ${senderId}:`, data?.action);
+        if (game.user.isGM) {
+          if (TSL_DEBUG_RELAY) ui.notifications?.info(`TSL: received '${data?.action}' from a player`);
+          TSLGMActions.handle(data);
+        }
         break;
 
       default:
@@ -82,14 +91,23 @@ class TSLSocket {
  */
 class TSLGMActions {
   static request(action, args = {}) {
-    if (game.user.isGM) return TSLGMActions.handle({ action, args });
+    if (game.user.isGM) {
+      console.log(`TSL RELAY | request(${action}) — GM, handling directly`);
+      return TSLGMActions.handle({ action, args });
+    }
+    console.log(`TSL RELAY | request(${action}) — player, emitting over socket`);
+    if (TSL_DEBUG_RELAY) ui.notifications?.info(`TSL: '${action}' sent to the GM`);
     TSLSocket.emit("GM_ACTION", { action, args });
   }
 
   static async handle({ action, args }) {
     if (!game.user.isGM) return;
     // With two GM clients connected, only the designated active GM executes
-    if (game.users.activeGM && !game.users.activeGM.isSelf) return;
+    if (game.users.activeGM && !game.users.activeGM.isSelf) {
+      console.warn(`TSL RELAY | handle(${action}) SKIPPED — this GM is not the active GM (activeGM=${game.users.activeGM?.name})`);
+      if (TSL_DEBUG_RELAY) ui.notifications?.warn(`TSL: '${action}' ignored — another GM is the active GM`);
+      return;
+    }
     try {
       switch (action) {
         case "moveRoll": {
