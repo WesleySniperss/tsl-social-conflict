@@ -1000,11 +1000,7 @@ class TSLConflictApp extends _TSLAppBase {
     const payload = await SocialManeuverRoller.rollManeuver(srcActor, tgtActor, maneuver, {
       leverage, situational: mods.situational, mode: mods.mode, offerString: true,
     });
-    if (!payload) {   // system dialog cancelled OR roll read-back failed — nothing spent
-      console.warn("TSL RELAY | _doManeuverRoll: rollManeuver returned no payload — nothing sent to the GM");
-      if (typeof TSLSocket !== "undefined") TSLSocket._diag(`✗ ${game.user.name}'s roll (conflict window) produced NO result — cancelled, or the system roll couldn't be read. Nothing sent to the GM.`);
-      return;
-    }
+    if (!payload) return;   // system dialog cancelled — nothing spent
     if (payload.spentStringPostRoll) {
       const held = TSLStringStore.getList(srcActor.id).filter(e => e.targetActorId === tgtActor.id);
       if (held.length) await TSLStringStore.removeEntry(srcActor.id, held[0].id);

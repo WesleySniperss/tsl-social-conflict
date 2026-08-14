@@ -6,56 +6,23 @@
  * their actions travel as GM_ACTION messages, the GM client executes
  * them (TSLGMActions) and broadcasts the authoritative state back.
  *
- * ROOT CAUSE of the dead relay (fixed v1.77.5): Foundry's server only relays
- * custom `game.socket.emit("module.<id>")` events to other clients for modules
- * that declare **`"socket": true`** in their manifest. This module never had it,
- * so every player→GM message (and every GM→player broadcast) silently went
- * nowhere — the GM outcome menu never fired on a player's roll. Adding the flag
- * to module.json (and RESTARTING the world — a browser reload is not enough)
- * makes this raw channel work. socketlib requires the exact same flag.
+ * IMPORTANT: this whole channel only works because module.json declares
+ * `"socket": true` — Foundry's server relays custom `module.<id>` socket
+ * events to other clients ONLY for modules that set that flag. Without it every
+ * player→GM message and GM→player broadcast is silently dropped (the relay
+ * looks dead even though the code is correct). Changing the flag needs a full
+ * world restart, not a browser reload.
  */
 
 console.log("TSL | Loading socket.js...");
 
 const SOCKET_NAME = "module.tsl-social-conflict";
 
-// Temporary diagnostic for the player→GM relay bug. Leaves a persistent
-// breadcrumb (whispered to the GM) at each link of the chain, plus an auto
-// self-test ping on load, so it's obvious in chat whether the relay delivers.
-// Remove (set false) once the fix is confirmed in play.
-const TSL_DEBUG_RELAY = true;
-
 class TSLSocket {
   static register() {
     game.socket.on(SOCKET_NAME, (payload) => {
       TSLSocket._handleMessage(payload);
     });
-    console.log(`TSL | socket listener attached on ${game.user?.name} (isGM=${game.user?.isGM})`);
-
-    // TEMP self-test: confirm the listener is up on THIS client, then ping.
-    // Any client that RECEIVES the ping reports it — so after the world restart
-    // the GM can see 🛰️ in chat and know the relay is finally delivering.
-    if (TSL_DEBUG_RELAY) {
-      setTimeout(() => {
-        TSLSocket._diag(`✅ listener REGISTERED on this client: ${game.user?.name} (isGM=${game.user?.isGM})`);
-        TSLSocket.emit("RELAY_TEST", { from: game.user?.name });
-      }, 4000);
-    }
-  }
-
-  /**
-   * TEMP diagnostic: drop a persistent, unmissable breadcrumb into the chat log
-   * (whispered to the GM). Unlike ui.notifications it does not auto-dismiss.
-   */
-  static _diag(text) {
-    if (!TSL_DEBUG_RELAY) return;
-    try {
-      const gmIds = game.users.filter(u => u.isGM).map(u => u.id);
-      ChatMessage.create({
-        content: `<div style="font-family:monospace;font-size:11px;color:#c98aa8;border-left:3px solid #c98aa8;padding-left:6px">🔧 TSL RELAY — ${text}</div>`,
-        whisper: gmIds,
-      });
-    } catch (e) { console.warn("TSL | diag whisper failed:", e); }
   }
 
   /**
@@ -104,20 +71,9 @@ class TSLSocket {
         if (typeof TSLConflictApp !== "undefined") TSLConflictApp.pulse?.(data);
         break;
 
-      case "RELAY_TEST":
-        // Self-test ping: prove that a custom module-socket event reached THIS
-        // client from another. Report it (whispered to the GM).
-        console.log(`TSL RELAY | RELAY_TEST received from ${data?.from} by ${game.user?.name}`);
-        TSLSocket._diag(`🛰️ module socket DELIVERS: '${data?.from}'s ping arrived at ${game.user?.name} (isGM=${game.user?.isGM})`);
-        break;
-
       case "GM_ACTION":
         // A player performed an action — only the GM client executes it
-        console.log(`TSL RELAY | GM_ACTION received from ${senderId}:`, data?.action);
-        if (game.user.isGM) {
-          if (TSL_DEBUG_RELAY) TSLSocket._diag(`② GM received '${data?.action}' over the module socket`);
-          TSLGMActions.handle(data);
-        }
+        if (game.user.isGM) TSLGMActions.handle(data);
         break;
 
       default:
@@ -133,22 +89,14 @@ class TSLSocket {
  */
 class TSLGMActions {
   static request(action, args = {}) {
-    if (game.user.isGM) {
-      console.log(`TSL RELAY | request(${action}) — GM, handling directly`);
-      return TSLGMActions.handle({ action, args });
-    }
-    console.log(`TSL RELAY | request(${action}) — player, emitting over socket`);
-    if (TSL_DEBUG_RELAY) TSLSocket._diag(`① player ${game.user.name} is relaying '${action}' to the GM`);
+    if (game.user.isGM) return TSLGMActions.handle({ action, args });
     TSLSocket.emit("GM_ACTION", { action, args });
   }
 
   static async handle({ action, args }) {
     if (!game.user.isGM) return;
     // With two GM clients connected, only the designated active GM executes
-    if (game.users.activeGM && !game.users.activeGM.isSelf) {
-      console.warn(`TSL RELAY | handle(${action}) SKIPPED — this GM is not the active GM (activeGM=${game.users.activeGM?.name})`);
-      return;
-    }
+    if (game.users.activeGM && !game.users.activeGM.isSelf) return;
     try {
       switch (action) {
         case "moveRoll": {

@@ -1141,7 +1141,13 @@ class SocialManeuverRoller {
         title: `${sourceActor.name} → ${targetActor.name}: ${maneuver.name}`,
         content: `<div class="tsl-rollmods">
           <p>Total <b>${total}</b> vs DC <b>${dc}</b> — margin <b>${margin >= 0 ? "+" : ""}${margin}</b>.</p>
-          <p class="notes">You have the final word on whether it lands. The computed grade is pre-selected.</p>
+          <p class="notes">You have the final word on whether it lands. The computed grade is pre-selected — pick what fits the fiction.</p>
+          <ul style="list-style:none;margin:8px 0 0;padding:8px 0 0;border-top:1px solid rgba(128,128,128,0.35);font-size:12px;line-height:1.45">
+            <li style="margin:5px 0"><b>★ Clean hit</b> — a decisive success (beat the number by 5+): it lands with extra bite, <b>+1 Resolve</b> damage on top of the maneuver's effect.</li>
+            <li style="margin:5px 0"><b>✓ Success</b> — it lands: apply the maneuver's normal effect (Resolve damage, and any status — they may Hold the Line and take an emotional wound instead).</li>
+            <li style="margin:5px 0"><b>✗ Failure</b> — it misses: nothing lands and the target holds firm, losing <b>1 Patience</b> (the walk-away clock).</li>
+            <li style="margin:5px 0"><b>⚔ They answer</b> — a bad miss (missed by 5+): the target turns it back on <em>you</em> in their own style — you're left <b>Rattled</b> (Power), <b>Beholden</b> (Emotion), or hand them a <b>String</b> against you (Reason).</li>
+          </ul>
         </div>`,
         buttons: {
           crit:    { label: "★ Clean hit", callback: () => resolve("crit") },
@@ -1192,15 +1198,13 @@ class SocialManeuverRoller {
    */
   static async applyOutcome(payload) {
     if (!game.user.isGM) return;
-    console.log("TSL RELAY | applyOutcome (GM) reached", payload?.sourceActorId, "->", payload?.targetActorId, payload?.maneuverId);
     const { sourceActorId, targetActorId, maneuverId, relation, consumed, combo, leverage, spentString } = payload;
     const sourceActor = game.actors.get(sourceActorId);
     const targetActor = game.actors.get(targetActorId);
     const maneuver    = SocialManeuverRoller.getManeuver(maneuverId);
     if (!sourceActor || !targetActor || !maneuver) {
-      console.warn("TSL RELAY | applyOutcome EARLY RETURN — could not resolve on the GM client:",
+      console.warn("TSL | applyOutcome: could not resolve source/target/maneuver on the GM client",
         { sourceActorId, hasSource: !!sourceActor, targetActorId, hasTarget: !!targetActor, maneuverId, hasManeuver: !!maneuver });
-      if (typeof TSLSocket !== "undefined") TSLSocket._diag(`✗ GM reached applyOutcome but could NOT resolve source/target/maneuver (src:${!!sourceActor} tgt:${!!targetActor} mv:${!!maneuver}) — aborted, no menu`);
       return;
     }
 
@@ -1213,17 +1217,8 @@ class SocialManeuverRoller {
     // (the dice's verdict is pre-selected). Deterministic walls skip this.
     let outcomeType = payload.outcomeType;
     if (relation !== "immune" && relation !== "blocked") {
-      console.log("TSL RELAY | applyOutcome opening the GM outcome menu (promptOutcome)");
-      if (typeof TSLSocket !== "undefined") {
-        let dec = true;
-        try { dec = game.settings.get("tsl-social-conflict", "gmDecidesOutcome") !== false; } catch {}
-        TSLSocket._diag(`③ GM adjudicating — opening the outcome menu (gmDecidesOutcome=${dec})`);
-      }
       outcomeType = await SocialManeuverRoller.promptOutcome(
         sourceActor, targetActor, maneuver, payload.total, payload.dc, payload.outcomeType);
-    } else {
-      console.log(`TSL RELAY | applyOutcome skipped the menu — deterministic outcome (relation=${relation})`);
-      if (typeof TSLSocket !== "undefined") TSLSocket._diag(`③ GM reached applyOutcome, but outcome is deterministic (relation=${relation}) — no menu by design`);
     }
     payload.outcomeType = outcomeType;   // keep the shared log in sync
 
@@ -1436,8 +1431,11 @@ class SocialManeuverRoller {
         title: `${targetActor.name} — hold the line?`,
         content: `<div class="tsl-rollmods">
           <p>The maneuver lands: <b>${targetActor.name}</b> would become <b>${statusLabel}</b> and lose Resolve.</p>
-          <p class="notes">They may HOLD THE LINE instead — the words still cut, but they take an
-          emotional Condition and refuse the effect. Four Conditions = Overwhelmed. Ask the table.</p>
+          <p class="notes">They may HOLD THE LINE instead — the words still cut, but they refuse the effect by carrying an emotional wound. Ask the table (the GM decides for NPCs).</p>
+          <ul style="list-style:none;margin:8px 0 0;padding:8px 0 0;border-top:1px solid rgba(128,128,128,0.35);font-size:12px;line-height:1.45">
+            <li style="margin:5px 0"><b>Accept ${statusLabel}</b> — take the fencing status and the Resolve hit now. It fades on its own (scene / a few rounds).</li>
+            <li style="margin:5px 0"><b>Hold — take a wound</b> — keep your Resolve and shrug off the status, but gain a <em>lasting</em> emotional wound that only heals through the story (a long rest, or acting it out). It also opens matching future maneuvers (+2). At <b>4 wounds</b> you're Overwhelmed and must yield or flee.</li>
+          </ul>
         </div>`,
         buttons: {
           accept: { icon: '<i class="fas fa-check"></i>', label: `Accept ${statusLabel}`, callback: () => resolve(null) },
