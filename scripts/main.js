@@ -116,8 +116,16 @@ async function syncExistingConditionEffects(actors) {
       // any such effect back to a single status id.
       const curStatuses = [...(eff.statuses ?? [])];
       const badStatuses = curStatuses.length !== 1 || curStatuses[0] !== `tsl-${id}`;
-      const stale = JSON.stringify(eff.changes ?? []) !== JSON.stringify(fx.changes)
-        || (eff.description ?? "") !== fx.description;
+      // Compare CANONICALLY, not by raw JSON: Foundry stores change `value` as a
+      // string and fills in `priority`, while buildConditionEffect emits numbers
+      // and often no priority — a raw JSON compare is ALWAYS unequal, so the
+      // effect got re-updated on every canvasReady (spamming re-renders, which
+      // tripped mini-tracker's context-menu teardown). Match key|mode|value and
+      // whitespace-normalised description; ignore priority.
+      const canonChanges = (cs) => (cs ?? []).map(c => `${c.key}|${c.mode}|${String(c.value)}`).join("§");
+      const canonText = (s) => (s ?? "").replace(/\s+/g, " ").trim();
+      const stale = canonChanges(eff.changes) !== canonChanges(fx.changes)
+        || canonText(eff.description) !== canonText(fx.description);
       if (!stale && !badStatuses) continue;
       try {
         const patch = { changes: fx.changes, description: fx.description };

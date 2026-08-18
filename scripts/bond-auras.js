@@ -293,10 +293,17 @@ class TSLBondAuras {
     }
     // Only write when something actually changed — token drags fire a lot.
     // (An effect from before the icon existed gets the status added here.)
+    // Compare CANONICALLY: Foundry stores change `value` as a string and adds
+    // `priority`, so a raw JSON compare against our freshly-built numeric changes
+    // is ALWAYS unequal — which re-wrote the aura on every drag/canvasReady and
+    // spammed updateActiveEffect (tripping other modules' re-render, e.g.
+    // mini-tracker's context-menu teardown). Match key|mode|value only.
+    const canonChanges = (cs) => (cs ?? []).map(c => `${c.key}|${c.mode}|${String(c.value)}`).join("§");
+    const canonText = (s) => (s ?? "").replace(/\s+/g, " ").trim();
     const hasStatus = existing.statuses?.has?.(BOND_AURA_STATUS)
       ?? (existing.statuses ?? []).includes?.(BOND_AURA_STATUS);
-    if (JSON.stringify(existing.changes ?? []) !== JSON.stringify(changes)
-        || (existing.description ?? "") !== description || !hasStatus) {
+    if (canonChanges(existing.changes) !== canonChanges(changes)
+        || canonText(existing.description) !== canonText(description) || !hasStatus) {
       const patch = { changes, description };
       if (!hasStatus) { patch.statuses = [BOND_AURA_STATUS]; patch.img = BOND_AURA_IMG; }
       await existing.update(patch);
