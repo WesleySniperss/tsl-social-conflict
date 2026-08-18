@@ -93,6 +93,14 @@ Hooks.once("vtools.ready", () => {
   }
 });
 
+// Effects already examined this SESSION — so the canvasReady sweep never
+// re-touches the same effect. A migration that (for an unlinked token's
+// synthetic effect) doesn't fully round-trip must not re-fire on every scene
+// load: that update storm was making other modules re-render every time
+// (e.g. mini-tracker's context-menu teardown crashed on each one). One look
+// per effect per session; a genuine fix still lands once.
+const _syncedConditionEffects = new Set();
+
 /**
  * Refresh already-applied fencing statuses to the CURRENT combat automation.
  * Effects created by older module versions (or bare HUD toggles) carry stale
@@ -110,6 +118,12 @@ async function syncExistingConditionEffects(actors) {
       if (SOCIAL_CONDITIONS[id]?.nativeAlias) continue;
       const eff = SocialArchetypeManager.getActiveCondition(actor, id);
       if (!eff?.update) continue;
+      // One examination per effect per session — bounds any imperfect
+      // round-trip to a single write instead of one on every canvasReady.
+      if (eff.uuid) {
+        if (_syncedConditionEffects.has(eff.uuid)) continue;
+        _syncedConditionEffects.add(eff.uuid);
+      }
       const fx = SocialArchetypeManager.buildConditionEffect(id);
       // Old versions folded native links (charmed/fixated/rattled) into the
       // status set, making the effect un-removable from a5e's HUD. Normalise
