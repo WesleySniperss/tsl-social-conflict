@@ -37,15 +37,15 @@ class SocialEncounterManager {
 
   /**
    * Suggested track values derived from the actor's sheet (dnd5e/a5e):
-   *   Resolve  = CHA + CON mod (floor 1) — the will to not concede: CHA (force
-   *              of personality) + CON (grit/stubbornness). Kept low on purpose:
-   *              a mook (~1) folds in one hit, a boss (~8) still breaks in ~2
-   *              heavy finishers. The real damage comes from the maneuver SCHOOL
-   *              (General 1 / archetype 2 / Humiliate 3), not from a stuffy HP tank.
+   *   Resolve  = CHA mod (floor 1) — force of personality: the will to not
+   *              concede. Kept low on purpose: a mook (~1) folds in one hit, a
+   *              boss (~5-6) breaks in ~2 heavy finishers. The real damage comes
+   *              from the maneuver SCHOOL (General 1 / archetype 2 / Humiliate 3),
+   *              not from a stuffy HP tank.
    *   Patience = WIS + CHA mod (floor 2) — composure + social poise: your pool
    *              to keep dueling before you're worn down and disengage.
-   * (No single stat triple-dips: DC = WIS + INT, Resolve = CHA + CON,
-   *  Patience = WIS + CHA — every mental axis defends a different thing.)
+   * (No single stat triple-dips: DC = WIS + INT, Resolve = CHA,
+   *  Patience = WIS + CHA.)
    * GM can still nudge either track in the Chronicle.
    */
   static suggestTracks(actor) {
@@ -54,15 +54,15 @@ class SocialEncounterManager {
       const v = abilities[k]?.mod;
       return typeof v === "number" ? v : 0;
     };
-    const cha = mod("cha"), wis = mod("wis"), con = mod("con");
-    // Every mental axis defends a DIFFERENT thing (no single stat triple-dips):
-    //   Resolve = CHA + CON — force of personality + grit: the will to not concede.
+    const cha = mod("cha"), wis = mod("wis");
+    // Every axis defends a DIFFERENT thing (no single stat triple-dips):
+    //   Resolve = CHA — force of personality: the will to not concede.
     //   Patience = WIS + CHA — composure + social poise: your pool to keep dueling.
     //   Social DC = WIS + INT (getSocialDC) — insight + reason: hard to read/fool.
     return {
-      resolve:  Math.max(1, cha + con),
+      resolve:  Math.max(1, cha),
       patience: Math.max(2, wis + cha),
-      hint: `Resolve CHA+CON (${cha + con >= 0 ? "+" : ""}${cha + con}, floor 1), Patience WIS+CHA (${wis + cha >= 0 ? "+" : ""}${wis + cha}, floor 2)`,
+      hint: `Resolve CHA (${cha >= 0 ? "+" : ""}${cha}, floor 1), Patience WIS+CHA (${wis + cha >= 0 ? "+" : ""}${wis + cha}, floor 2)`,
     };
   }
 

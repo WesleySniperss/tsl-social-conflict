@@ -351,6 +351,9 @@ TSL stats mapped to D&D abilities:
 - `_buildEffect` now renders the full dossier (Urge / Fight it / Give in / Breaking point / Clears), with `{source}` filled to the wound's cause. `TSLConditionEffects.getMeta(id)` exposes it; the conflict card's Wound-pip tooltip and a data-generated Codex "Wounds — they push you" block both read from it.
 - These are GM-adjudicated rules text (no fragile automation) with ONE concrete mechanical hook — the String economy: Wounds now BANK Strings when you play them and SPEND Strings when you fight them, a self-fuelling loop that ties the emotional layer into the module's existing resource. Balance watch: leaning into wounds is another String faucet; if it farms, gate lean-in to once per scene per wound.
 
+### v1.78.1 — Resolve = CHA only (drop CON)
+- The user's call right after v1.78.0: Resolve should be pure **force of personality**, so CON is out. **Resolve = CHA mod (floor 1)** (was CHA+CON). Patience = WIS+CHA and DC = WIS+INT stay. Now CHA is in Resolve+Patience (2×), WIS in Patience+DC (2×), INT in DC (1×), CON unused. Boss Resolve caps ~5-6 (CHA+5/6); if that folds tough NPCs too fast, add a small flat base later. `suggestTracks` + every track tooltip / Codex / glossary / README updated.
+
 ### v1.78.0 — de-dip the defensive stats (Phase 1 of the "real duel" redesign)
 - Design review found WIS **triple-dipped** on defense (it fed Resolve, Patience, AND the DC), so social toughness ≈ one stat. Rebalanced so every mental axis defends a DIFFERENT thing (user locked Patience = WIS+CHA; the rest derived to avoid re-concentration):
   - **Resolve = CHA + CON** (floor 1) — the will to not concede: force of personality + grit. (Was WIS+CHA.)
