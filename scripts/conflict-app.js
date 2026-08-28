@@ -328,7 +328,7 @@ class TSLConflictApp extends _TSLAppBase {
         <div class="tsl-enc-track" data-tooltip="Resolve — their will to not concede. Starts at CHA modifier (floor 1) — force of personality; kept low, weight is the school. Successful maneuvers chip it (1–3 by school, +1 on a vulnerability); break it to 0 → swayed.">
           <span class="tsl-enc-track-label">RES</span>${pips(enc.resolve, enc.maxResolve, "resolve")}
         </div>
-        <div class="tsl-enc-track" data-tooltip="Patience — their composure/pool to keep dueling. Starts at WIS + CHA modifier (floor 2) — self-possession + social poise. Failures and triggered immunities burn it; at 0 they walk away.">
+        <div class="tsl-enc-track" data-tooltip="Patience — composure AND defence pool. Starts at WIS + CHA modifier (floor 2). Spend it to parry incoming hits (1 blocks 1 Resolve) or riposte; run it out defending and they're worn down → break off (walk away).">
           <span class="tsl-enc-track-label">PAT</span>${pips(enc.patience, enc.maxPatience, "patience")}
         </div>
       </div>`;
@@ -716,7 +716,7 @@ class TSLConflictApp extends _TSLAppBase {
     const points = SocialArchetypeManager.getCharacterNotes(tgtActor).points;
     const META = [
       { id: "desire",   label: "Desire",   icon: "fa-gem",         fx: "Advantage; +1 Resolve on success." },
-      { id: "fear",     label: "Fear",     icon: "fa-ghost",       fx: "+3; a failed threat burns 1 Patience." },
+      { id: "fear",     label: "Fear",     icon: "fa-ghost",       fx: "+3 to the roll (hard leverage)." },
       { id: "weakness", label: "Weakness", icon: "fa-heart-crack", fx: "A neutral maneuver counts as a vulnerability." },
     ];
     const avail = META.filter(l => (points[l.id] ?? "").trim());

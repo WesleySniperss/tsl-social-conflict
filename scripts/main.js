@@ -70,6 +70,15 @@ Hooks.once("init", () => {
     default: true,
   });
 
+  game.settings.register("tsl-social-conflict", "enableParry", {
+    name: "Active defence (parry / riposte)",
+    hint: "When a maneuver's Resolve hit lands, ask (GM dialog) how the defender meets it: TAKE it, spend Patience to PARRY (1 Patience blocks 1 Resolve), or RIPOSTE (block it all and deal 1 Resolve back, for one extra Patience). A school the target is VULNERABLE to can't be parried. Turn off to apply Resolve damage straight, with no defence step.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
+  });
+
   game.settings.register("tsl-social-conflict", "enableKiss", {
     name: "Enable “Finally Kiss” move",
     hint: "Show the Thirsty Sword Lesbians special move that ends a conflict with a mutual kiss (+1 attitude both ways). Always available in TSL-only mode.",

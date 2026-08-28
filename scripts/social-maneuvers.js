@@ -32,7 +32,9 @@ const MANEUVER_GROUPS = [
 // vulnerabilityTags ∩ archetype.vulnerabilities → Advantage, +1 Resolve damage
 // immunityTags      ∩ archetype.immunities      → auto-fail, target Defiant
 // reveals: true       → success whispers a TELL of their nature to the roller
-// failPatience        → Patience burned on a failure (default 1)
+// failPatience        → DEPRECATED (v1.79): a miss no longer drains Patience;
+//                       Patience is now the defender's parry pool. Any remaining
+//                       `failPatience` values on maneuvers are inert.
 
 const SOCIAL_MANEUVERS = [
 
@@ -78,7 +80,7 @@ const SOCIAL_MANEUVERS = [
     example:      "\"A brave face, for the man who fainted at his own knighting. Does the memory still sting — or only your pride?\"",
     successText:  "The barb lands where it hurts. Resolve −1 (−2 if they were off balance).",
     failText:     "The joke dies in the air. Patience −1.",
-    immuneText:   "They cannot imagine being the punchline. Target becomes Defiant.",
+    immuneText:   "They cannot imagine being the punchline.",
     applyOnSuccess: null,
     grantStrings: 0,
     resolveDamage: 1,
@@ -101,7 +103,7 @@ const SOCIAL_MANEUVERS = [
     example:      "\"You're shaking. Good. Go on — say the thing you've been swallowing all night. I dare you.\"",
     successText:  "They lose their cool — Provoked: the next maneuver against them gains +2. Resolve −1.",
     failText:     "They remain unmoved. Patience −1.",
-    immuneText:   "They answer with cold control. Target becomes Defiant.",
+    immuneText:   "They answer with cold control.",
     applyOnSuccess: "provoked",
     grantStrings: 0,
     resolveDamage: 1,
@@ -214,7 +216,7 @@ const SOCIAL_MANEUVERS = [
     example:      "\"You've completely outmaneuvered me — I don't even see how you did it. You'll have to explain it to me slowly; I clearly can't keep pace with someone like you.\"",
     successText:  "They lunge at the opening and show you everything. You gain 2 Strings on them. Resolve −1.",
     failText:     "They circle the bait, unconvinced. Patience −1.",
-    immuneText:   "Weakness earns only their contempt. Target becomes Defiant.",
+    immuneText:   "Weakness earns only their contempt.",
     applyOnSuccess: null,
     grantStrings: 2,
     resolveDamage: 1,
@@ -236,7 +238,7 @@ const SOCIAL_MANEUVERS = [
     example:      "\"Tell them. Tell this whole room what you did at the river while your men drowned. Say it aloud — every one of us is waiting.\"",
     successText:  "The room turns on them. Resolve −3 — and the shame doesn't wash off: they carry an Angry wound (it deepens if you shame them again).",
     failText:     "The gauntlet lies ignored, and the room saw you drop it. Patience −2.",
-    immuneText:   "They walk away from the theatrics. Target becomes Defiant.",
+    immuneText:   "They walk away from the theatrics.",
     applyOnSuccess: null,
     grantStrings: 0,
     resolveDamage: 3,
@@ -265,7 +267,7 @@ const SOCIAL_MANEUVERS = [
     example:      "\"I've thought of nothing but this all week. When you walk into a room, everything else just… goes quiet. Stay a while. Talk to me.\"",
     successText:  "The gates open — Enthralled (cannot act against you; your Persuasion maneuvers gain Advantage). They confide: you gain 1 String. Resolve −1.",
     failText:     "The display leaves them cold.",
-    immuneText:   "Your sweetness deepens their contempt. Target becomes Defiant.",
+    immuneText:   "Your sweetness deepens their contempt.",
     applyOnSuccess: "smitten",
     grantStrings: 1,
     resolveDamage: 1,
@@ -288,7 +290,7 @@ const SOCIAL_MANEUVERS = [
     example:      "\"Kaelen listens as though every word I say matters — so rare, in a man. Don't fret over it, though; I know I'm hardly a priority of yours.\"",
     successText:  "The thought of someone else in your favor gnaws at them. They talk faster, lean closer, work to win you back — Desperate (the next Flatter or Charm against them gains Advantage). Resolve −2.",
     failText:     "They call the bluff — they don't believe in your other admirers. Patience −1.",
-    immuneText:   "They'd rather you gave the attention to someone who needs it. Target becomes Defiant.",
+    immuneText:   "They'd rather you gave the attention to someone who needs it.",
     applyOnSuccess: "desperate",
     grantStrings: 0,
     resolveDamage: 2,
@@ -310,7 +312,7 @@ const SOCIAL_MANEUVERS = [
     example:      "\"I gave up everything so that you could have your chance at this. I've never once asked you to repay it — which is why I cannot fathom how you'd refuse me now.\"",
     successText:  "The weight settles on their shoulders — Beholden (your next maneuver against them gains Advantage). Resolve −2.",
     failText:     "They shrug the weight off. Patience −1.",
-    immuneText:   "Shame needs a conscience. Target becomes Defiant.",
+    immuneText:   "Shame needs a conscience.",
     applyOnSuccess: "guilted",
     grantStrings: 0,
     resolveDamage: 2,
@@ -335,7 +337,7 @@ const SOCIAL_MANEUVERS = [
     example:      "\"That isn't how it happened, and I think you know it. You've been forgetting things lately — small things. Perhaps sit down before you say something you'll regret.\"",
     successText:  "Their certainty frays — Rattled: the DC to sway them drops by 5 for the scene. Resolve −1.",
     failText:     "The weave holds firm. Patience −1.",
-    immuneText:   "Feelings aren't entries in their books. Target becomes Defiant.",
+    immuneText:   "Feelings aren't entries in their books.",
     applyOnSuccess: "rattled",
     grantStrings: 0,
     resolveDamage: 1,
@@ -357,7 +359,7 @@ const SOCIAL_MANEUVERS = [
     example:      "\"You swore you'd never met the man. Yet here is your own seal on his letter, dated the very night you claim you were a hundred miles away. So which is lying — you, or the wax?\"",
     successText:  "The flaw betrays them — a tell of their nature is whispered to you, you gain 1 String, and their certainty bleeds. Resolve −2.",
     failText:     "Your argument doesn't land. Patience −1.",
-    immuneText:   "They dismiss the reasoning outright. Target becomes Defiant.",
+    immuneText:   "They dismiss the reasoning outright.",
     applyOnSuccess: null,
     grantStrings: 1,
     reveals: true,
@@ -381,7 +383,7 @@ const SOCIAL_MANEUVERS = [
     example:      "\"Give me the ledger, and the guard captain never hears your name. One page, and you walk out of here a free man. Do we have a deal?\"",
     successText:  "They accept the terms — and the chain. You gain 2 Strings; the obligation weighs. Resolve −2.",
     failText:     "Your price is wrong. Patience −1.",
-    immuneText:   "They recoil from the offer as corruption itself. Target becomes Defiant.",
+    immuneText:   "They recoil from the offer as corruption itself.",
     applyOnSuccess: null,
     grantStrings: 2,
     resolveDamage: 2,
@@ -874,10 +876,9 @@ class SocialManeuverRoller {
       strings ? `+${strings} String${strings > 1 ? "s" : ""}` : null,
       maneuver.reveals ? "a tell" : null,
     ].filter(Boolean).join(" · ") || "pressure";
-    const burn = (maneuver.failPatience ?? 1) + (a.leverage === "fear" ? 1 : 0);
     const miss = [
-      `−${burn} their Patience`,
-      a.answerRisk ? `badly — their answer (${a.answerRisk})` : null,
+      "nothing lands",
+      a.answerRisk ? `badly → their answer (${a.answerRisk})` : null,
     ].filter(Boolean).join(" · ");
     return { hit, miss };
   }
@@ -1091,7 +1092,7 @@ class SocialManeuverRoller {
       : (total <= a.dc - 5 ? "botch" : "failure");
     const outcomeText =
       a.relation === "blocked" ? "They are Defiant — only Read Them gets through, and a successful read breaks the wall." :
-      a.relation === "immune"  ? (maneuver.immuneText ?? "Target becomes Defiant.") :
+      a.relation === "immune"  ? (maneuver.immuneText ?? "This isn't the way to them — it slides off, and they're unmoved.") :
       outcomeType === "crit"   ? `Clean through the guard. ${maneuver.successText}` :
       outcomeType === "botch"  ? `${maneuver.failText} The opening is yours no longer — they answer.` :
       success ? maneuver.successText : maneuver.failText;
@@ -1136,18 +1137,18 @@ class SocialManeuverRoller {
     if (!on || proposed === "immune") return proposed;
     const esc = foundry.utils.escapeHTML;
     const margin = total - dc;
+    const tips = {
+      crit:    "A decisive success (beat the number by 5+): it lands with extra bite — +1 Resolve on top of the maneuver's effect.",
+      success: "It lands: apply the maneuver's normal effect (Resolve damage, and any status). The defender may parry the hit or Hold the Line.",
+      failure: "It misses: nothing lands. Patience is untouched — a miss no longer wears them down.",
+      botch:   "A bad miss (5+ under): the target turns it back on you in their own style — you're left Rattled (Power), Beholden (Emotion), or hand them a String (Reason).",
+    };
     return new Promise(resolve => {
       new Dialog({
         title: `${sourceActor.name} → ${targetActor.name}: ${maneuver.name}`,
         content: `<div class="tsl-rollmods">
           <p>Total <b>${total}</b> vs DC <b>${dc}</b> — margin <b>${margin >= 0 ? "+" : ""}${margin}</b>.</p>
-          <p class="notes">You have the final word on whether it lands. The computed grade is pre-selected — pick what fits the fiction.</p>
-          <ul style="list-style:none;margin:8px 0 0;padding:8px 0 0;border-top:1px solid rgba(128,128,128,0.35);font-size:12px;line-height:1.45">
-            <li style="margin:5px 0"><b>★ Clean hit</b> — a decisive success (beat the number by 5+): it lands with extra bite, <b>+1 Resolve</b> damage on top of the maneuver's effect.</li>
-            <li style="margin:5px 0"><b>✓ Success</b> — it lands: apply the maneuver's normal effect (Resolve damage, and any status — they may Hold the Line and take an emotional wound instead).</li>
-            <li style="margin:5px 0"><b>✗ Failure</b> — it misses: nothing lands and the target holds firm, losing <b>1 Patience</b> (the walk-away clock).</li>
-            <li style="margin:5px 0"><b>⚔ They answer</b> — a bad miss (missed by 5+): the target turns it back on <em>you</em> in their own style — you're left <b>Rattled</b> (Power), <b>Beholden</b> (Emotion), or hand them a <b>String</b> against you (Reason).</li>
-          </ul>
+          <p class="notes">You have the final word — the computed grade is pre-selected. Hover a button for what it does.</p>
         </div>`,
         buttons: {
           crit:    { label: "★ Clean hit", callback: () => resolve("crit") },
@@ -1157,6 +1158,13 @@ class SocialManeuverRoller {
         },
         default: proposed,
         close: () => resolve(proposed),
+        render: (html) => {
+          const root = html instanceof HTMLElement ? html : html?.[0];
+          root?.querySelectorAll("button[data-button]").forEach(b => {
+            const t = tips[b.dataset.button];
+            if (t) b.setAttribute("data-tooltip", t);
+          });
+        },
       }).render(true);
     });
   }
@@ -1228,7 +1236,7 @@ class SocialManeuverRoller {
       const a = SocialManeuverRoller.assess(sourceActor, targetActor, maneuver, { leverage });
       const outcomeText =
         relation === "blocked" ? "They are Defiant — only Read Them gets through, and a successful read breaks the wall." :
-        relation === "immune"  ? (maneuver.immuneText ?? "Target becomes Defiant.") :
+        relation === "immune"  ? (maneuver.immuneText ?? "This isn't the way to them — it slides off, and they're unmoved.") :
         outcomeType === "crit"    ? `Clean through the guard. ${maneuver.successText}` :
         outcomeType === "botch"   ? `${maneuver.failText} The opening is yours no longer — they answer.` :
         (outcomeType === "success") ? maneuver.successText : maneuver.failText;
@@ -1261,13 +1269,13 @@ class SocialManeuverRoller {
       await SocialEncounterManager.markLeverageUsed(targetActor, leverage);
 
     if (outcomeType === "immune") {
-      // Archetype immunity raises the wall; an existing Defiant wall just wastes the attempt
+      // Pressing an immunity is a FREE deflection for the target — it simply
+      // isn't the way to them. Costs them no Patience; the cost is on the
+      // ATTACKER: the approach is walled (Defiant) and earns their Answer.
       if (relation === "immune") {
         await SocialArchetypeManager.applyCondition(targetActor, "defiant", sourceActor);
-        // ...and the wrong lever earns their Answer outright
         await SocialManeuverRoller._applyAnswer(sourceActor, targetActor);
       }
-      await SocialEncounterManager.adjustPatience(targetActor, -1, sourceActorId);
     } else if (outcomeType === "success" || outcomeType === "crit") {
       // Hold the Line: the words landed — the defender may refuse the STATUS
       // and the Resolve hit by taking an emotional wound (a TSL Condition)
@@ -1330,6 +1338,34 @@ class SocialManeuverRoller {
         if (combo.strings > 0)
           await TSLStringStore.add(sourceActorId, targetActorId, combo.strings);
       }
+      // The DEFENDER meets the blow (the second blade): spend Patience to blunt
+      // it — 1 Patience blocks 1 Resolve — or RIPOSTE (block all + 1 back, one
+      // extra Patience). A VULNERABLE school slips past their guard: no parry.
+      if (damage > 0 && relation !== "vulnerable" && SocialManeuverRoller._defenseEnabled()) {
+        const patience = SocialEncounterManager.getEncounter(targetActor)?.patience ?? 0;
+        if (patience > 0) {
+          const def   = await SocialManeuverRoller.promptDefense(targetActor, sourceActor, maneuver, damage, patience);
+          const block = Math.max(0, Math.min(def?.block ?? 0, damage, patience));
+          const spend = block + (def?.riposte ? 1 : 0);
+          if (spend > 0) await SocialEncounterManager.adjustPatience(targetActor, -spend, sourceActorId);
+          damage -= block;
+          const escD = foundry.utils.escapeHTML;
+          if (def?.riposte) {
+            // Full block AND a counter — the attacker's own Resolve takes 1.
+            await SocialEncounterManager.ensureActive(sourceActor);
+            await SocialEncounterManager.adjustResolve(sourceActor, -1, targetActorId);
+            await ChatMessage.create({
+              speaker: ChatMessage.getSpeaker({ actor: targetActor }),
+              content: `<div class="tsl-maneuver-card tsl-mv--success"><div class="tsl-mv-outcome tsl-mv-outcome--success">⚔ ${escD(targetActor.name)} answers in kind — <b>${escD(sourceActor.name)}</b> takes Resolve −1.</div></div>`,
+            });
+          } else if (block > 0) {
+            await ChatMessage.create({
+              speaker: ChatMessage.getSpeaker({ actor: targetActor }),
+              content: `<div class="tsl-maneuver-card tsl-mv--immune"><div class="tsl-mv-outcome tsl-mv-outcome--immune">⚔ ${escD(targetActor.name)} turns the ${escD(maneuver.name)} aside${damage > 0 ? ` — only ${damage} Resolve slips through` : " — Resolve held"}.</div></div>`,
+            });
+          }
+        }
+      }
       if (damage > 0)
         await SocialEncounterManager.adjustResolve(targetActor, -damage, sourceActorId);
       // (No String for merely CHIPPING Resolve — that flooded the economy.
@@ -1366,9 +1402,10 @@ class SocialManeuverRoller {
         });
       }
     } else {
-      // Heavy plays (failPatience) and failed threats (fear) burn extra Patience
-      const burn = (maneuver.failPatience ?? 1) + (leverage === "fear" ? 1 : 0);
-      await SocialEncounterManager.adjustPatience(targetActor, -burn, sourceActorId);
+      // A miss no longer drains their Patience — Patience is now the DEFENDER's
+      // pool, spent only to parry (v1.79). Walking away means "worn down from
+      // defending," not "the attacker kept missing." (So `failPatience` and the
+      // `fear` fail-clause no longer bite here; the botch Answer stays.)
       // A BAD miss (5+ under) earns their Answer — one rule, one table
       if (outcomeType === "botch") {
         await SocialManeuverRoller._applyAnswer(sourceActor, targetActor);
@@ -1431,11 +1468,7 @@ class SocialManeuverRoller {
         title: `${targetActor.name} — hold the line?`,
         content: `<div class="tsl-rollmods">
           <p>The maneuver lands: <b>${targetActor.name}</b> would become <b>${statusLabel}</b> and lose Resolve.</p>
-          <p class="notes">They may HOLD THE LINE instead — the words still cut, but they refuse the effect by carrying an emotional wound. Ask the table (the GM decides for NPCs).</p>
-          <ul style="list-style:none;margin:8px 0 0;padding:8px 0 0;border-top:1px solid rgba(128,128,128,0.35);font-size:12px;line-height:1.45">
-            <li style="margin:5px 0"><b>Accept ${statusLabel}</b> — take the fencing status and the Resolve hit now. It fades on its own (scene / a few rounds).</li>
-            <li style="margin:5px 0"><b>Hold — take a wound</b> — keep your Resolve and shrug off the status, but gain a <em>lasting</em> emotional wound that only heals through the story (a long rest, or acting it out). It also opens matching future maneuvers (+2). At <b>4 wounds</b> you're Overwhelmed and must yield or flee.</li>
-          </ul>
+          <p class="notes">They may HOLD THE LINE — refuse the effect by carrying an emotional wound. Ask the table (the GM decides for NPCs). Hover a button for what it does.</p>
         </div>`,
         buttons: {
           accept: { icon: '<i class="fas fa-check"></i>', label: `Accept ${statusLabel}`, callback: () => resolve(null) },
@@ -1444,6 +1477,86 @@ class SocialManeuverRoller {
         },
         default: "accept",
         close: () => resolve(null),
+        render: (html) => {
+          const root = html instanceof HTMLElement ? html : html?.[0];
+          const holdTip = "Keep your Resolve and shrug off the status, but gain a LASTING emotional wound that heals only through the story (a long rest, or acting it out). It opens matching future maneuvers (+2). At 4 wounds you're Overwhelmed.";
+          const tips = { accept: `Take the ${statusLabel} status and the Resolve hit now. It fades on its own (scene / a few rounds).`, holdA: holdTip, holdB: holdTip };
+          root?.querySelectorAll("button[data-button]").forEach(b => {
+            const t = tips[b.dataset.button];
+            if (t) b.setAttribute("data-tooltip", t);
+          });
+        },
+      }).render(true);
+    });
+  }
+
+  static _defenseEnabled() {
+    try { return game.settings.get("tsl-social-conflict", "enableParry") !== false; }
+    catch { return true; }
+  }
+
+  /**
+   * The defender MEETS a landed blow (Phase 2 — the second blade). A hit of
+   * `damage` Resolve is coming; the defender may spend Patience to blunt it —
+   * 1 Patience blocks 1 Resolve — or commit fully and RIPOSTE (block it all and
+   * deal 1 Resolve back), which costs one extra Patience. GM-side, asked out
+   * loud for PCs (like Hold the Line). Every option's mechanics live in a hover
+   * tooltip so the buttons stay clean. Returns { block, riposte }.
+   */
+  static async promptDefense(defenderActor, attackerActor, maneuver, damage, patience) {
+    const maxBlock = Math.min(damage, patience);        // most they can turn aside
+    if (maxBlock <= 0) return { block: 0, riposte: false };
+    const esc = foundry.utils.escapeHTML;
+    const buttons = {}, tips = {};
+
+    buttons.take = { label: "Take it" };
+    tips.take = `Let it land — −${damage} Resolve. No Patience spent. If Resolve reaches 0, you're swayed.`;
+    // Partial parries: spend n < full to soften the blow (1 Patience blocks 1).
+    for (let n = 1; n < maxBlock; n++) {
+      buttons[`b${n}`] = { label: `Parry −${n}` };
+      tips[`b${n}`] = `Turn part of it aside — −${damage - n} Resolve. Costs ${n} Patience.`;
+    }
+    // Full parry: turn the whole blow aside (only if you can afford all of it).
+    if (maxBlock >= damage) {
+      buttons.parry = { label: "Parry (full)" };
+      tips.parry = `Turn it fully aside — no Resolve lost. Costs ${damage} Patience.`;
+    } else {
+      // Can't cover it all — the biggest partial you can manage.
+      buttons.parry = { label: `Parry −${maxBlock}` };
+      tips.parry = `Parry as much as you can — −${damage - maxBlock} Resolve. Costs ${maxBlock} Patience.`;
+    }
+    // Riposte: full block AND cut back for 1 Resolve — one extra Patience.
+    const canRiposte = patience >= damage + 1;
+    if (canRiposte) {
+      buttons.riposte = { label: "Riposte" };
+      tips.riposte = `Turn it aside and cut back — no Resolve lost, and ${esc(attackerActor?.name ?? "they")} takes 1 Resolve. Costs ${damage + 1} Patience.`;
+    }
+
+    return new Promise(resolve => {
+      const pick = {
+        take:    { block: 0, riposte: false },
+        parry:   { block: maxBlock, riposte: false },
+        riposte: { block: damage, riposte: true },
+      };
+      for (let n = 1; n < maxBlock; n++) pick[`b${n}`] = { block: n, riposte: false };
+      for (const [k, b] of Object.entries(buttons)) b.callback = () => resolve(pick[k]);
+
+      new Dialog({
+        title: `${defenderActor.name} — meet the blow`,
+        content: `<div class="tsl-rollmods">
+          <p>${esc(attackerActor?.name ?? "They")}'s <b>${esc(maneuver.name)}</b> finds an opening — <b>${damage}</b> Resolve incoming.</p>
+          <p class="notes">Hover each option for what it costs. Patience is your composure — spend it to defend; empty it and you break off.</p>
+        </div>`,
+        buttons,
+        default: "take",
+        close: () => resolve({ block: 0, riposte: false }),
+        render: (html) => {
+          const root = html instanceof HTMLElement ? html : html?.[0];
+          root?.querySelectorAll("button[data-button]").forEach(b => {
+            const t = tips[b.dataset.button];
+            if (t) b.setAttribute("data-tooltip", t);
+          });
+        },
       }).render(true);
     });
   }

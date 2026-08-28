@@ -468,7 +468,7 @@ class SocialFencingApp extends _SocialAppBase {
     // looks the name up in GLOSSARY; a second arg overrides the tip.
     const GLOSSARY = {
       "Resolve": "Their will to not concede. Successful maneuvers chip it; break it to 0 and they're swayed. Starts at CHA mod (floor 1) — force of personality. Kept low on purpose: the weight is the maneuver's school (General 1 · archetype 2 · Humiliate 3), not the HP bar.",
-      "Patience": "Their composure — the pool to keep dueling before they're worn down and disengage. Failures burn it; at 0 they walk away. Starts at WIS + CHA mod (floor 2) — self-possession + social poise.",
+      "Patience": "Their composure AND defence pool. Spend it to parry a hit (1 Patience blocks 1 Resolve) or riposte; run it out defending and they're worn down → break off (walk away). Starts at WIS + CHA mod (floor 2) — self-possession + social poise.",
       "social DC": "The hidden difficulty you roll against: 10 + their WIS save + INT save (proficiency baked in), or their passive Insight if higher. Only the GM ever sees the number.",
       "support skill": "A SECOND skill whose FULL modifier is added on top of the maneuver's main d20 roll (e.g. Read Them = Insight + Investigation). The bigger rolls are balanced by the save-based DC.",
       "opening": "A condition on your target that makes a matching maneuver stronger. Two kinds, same ⊕ mark: a status you set up this exchange (Provoked, Desperate…) that a finisher cashes, or a lasting emotional wound they carry (Wrath, Grudge, Obsession, Fear, Despair) that certain maneuvers press for +2.",
@@ -477,7 +477,7 @@ class SocialFencingApp extends _SocialAppBase {
       "Hold the Line": "When a maneuver lands on YOU, refuse its effect by taking a fitting emotional Condition instead. The words still cut; only their power is refused.",
       "Overwhelmed": "Carrying four emotional Conditions — you must yield or flee.",
       "swayed": "You WON the exchange — Resolve broken to 0. They concede the point / do the thing you were after (the GM frames it); the bond toward you deepens +1; you gain a String on them. Any fencing statuses on them LINGER — they still bite if talk turns to a fight.",
-      "walk away": "You LOST the exchange — their Patience emptied to 0. They end it on their terms, the bond cools −1, they gain a String on you, and their own agenda advances.",
+      "walk away": "Their Patience ran out — worn down from defending (parrying), they break off the exchange. You drove them from the field but never won their mind: the bond cools −1, they gain a String on you, and their own agenda advances.",
       "leverage": "A read dossier unlocks their Desire, Fear or Weakness — each playable once per exchange for a strong edge.",
       "bond": "ONE shared relationship between two people, with a TYPE and a STRENGTH (0–3 ●). Record it on either side and it appears on both. It is your weapon (+● on its school), their guard (DC up or down), and a set of skill edges and costs (±● — you can't threaten a friend, can't lie to family, can't charm an enemy).",
       "Advantage": "Roll two d20 and keep the higher.",
@@ -554,7 +554,7 @@ class SocialFencingApp extends _SocialAppBase {
           <li><b>Pick a maneuver.</b> Grouped in four schools (General holds the basics). Hover any chip to see exactly what it does to <b>this</b> target. Each rolls a main skill + a ${term("support skill")}.</li>
           <li><b>Roll it.</b> On A5E the system's own roll dialog opens (advantage, expertise dice) with your fencing bonuses pre-filled. You never see the ${term("social DC", "The number you must beat is hidden — 10 + WIS save + INT save, or passive Insight if higher. Only the GM sees it.")} — only the GM does.</li>
           <li><b>The GM calls it.</b> After the dice, the GM has the final word on whether you got through — clean hit, hit, miss, or fumble.</li>
-          <li><b>See what it did.</b> A hit chips their ${term("Resolve")} or lands a status; a miss burns their ${term("Patience")}. Break their Resolve → ${term("swayed")}; empty their Patience → they ${term("walk away")}.</li>
+          <li><b>See what it did.</b> A hit chips their ${term("Resolve")} (they may parry, spending ${term("Patience")}) or lands a status; a bad miss lets them <b>Answer</b>. Break their Resolve → ${term("swayed")}; wear their Patience out → they ${term("walk away")}.</li>
         </ol>
       </section>`;
 
@@ -612,7 +612,7 @@ class SocialFencingApp extends _SocialAppBase {
           // only" worlds there are no Feelings moves, and promising them reads
           // like documentation from a different game.
           ...(tslOn ? [`Or win honestly: the 2d6 <b>Feelings</b> moves (Speak from the Heart, Read the Room) chip Resolve and reveal nature <b>without</b> manipulation.`] : []),
-          `${term("leverage", GLOSSARY.leverage)} (once each per exchange): once you've filled a point of their dossier, you may play it — <b>Desire</b> (Advantage, +1 damage), <b>Fear</b> (+3, but a failed threat burns their Patience), <b>Weakness</b> (an ordinary approach lands like a weak spot). The buttons sit under the roll bar.`,
+          `${term("leverage", GLOSSARY.leverage)} (once each per exchange): once you've filled a point of their dossier, you may play it — <b>Desire</b> (Advantage, +1 damage), <b>Fear</b> (+3 to the roll — hard leverage), <b>Weakness</b> (an ordinary approach lands like a weak spot). The buttons sit under the roll bar.`,
         ])}
       </section>`;
 
@@ -762,7 +762,7 @@ class SocialFencingApp extends _SocialAppBase {
         const combo = m.combos ? ` · cashes ${Object.keys(m.combos).map(c => `<b>${esc(SOCIAL_CONDITIONS[c]?.label ?? c)}</b>`).join("/")} for more` : "";
         const kick = m.kickWhileDown ? ` · <b>+1</b> vs a target already off balance` : "";
         const hit  = `${dmg}${st}${wnd}${str}${kick}${combo}`;
-        const miss = `<b>−${m.failPatience ?? 1}</b> Patience`;
+        const miss = `nothing lands. A <b>bad</b> miss (5+ under) → <b>they Answer</b> (the blow turns back on you).`;
         const how = m.howto   ? `<div class="tsl-codex-howto">▸ ${esc(m.howto)}</div>` : "";
         const ex  = m.example ? `<div class="tsl-codex-example">${esc(m.example)}</div>` : "";
         return `<div class="tsl-codex-combo">
@@ -781,7 +781,8 @@ class SocialFencingApp extends _SocialAppBase {
         <summary class="tsl-codex-sub-title">Where the numbers come from</summary>
         <div class="tsl-codex-combo"><b>Your roll</b> — a d20 + the move's <b>main skill</b>, with its <b>support skill's</b> full modifier added on top (plus any situation bonus). On A5E this opens the system's own check dialog.</div>
         <div class="tsl-codex-combo"><b>Resolve</b> <span class="tsl-codex-gain">their will to not concede</span> — <b>CHA</b> modifier (never below 1): force of personality. Kept low — the weight is the maneuver's school. Break it to 0 and they are <b>swayed</b>.</div>
-        <div class="tsl-codex-combo"><b>Patience</b> <span class="tsl-codex-gain">their composure to keep dueling</span> — <b>WIS + CHA</b> modifier (never below 2): self-possession + social poise. Empty it and they <b>walk away</b>.</div>
+        <div class="tsl-codex-combo"><b>Patience</b> <span class="tsl-codex-gain">composure — and your defence pool</span> — <b>WIS + CHA</b> modifier (never below 2). Spend it to <b>parry</b> incoming hits (see below). Empty it defending and you're worn down — you <b>break off</b> (walk away).</div>
+        <div class="tsl-codex-combo"><b>How a duel goes</b> <span class="tsl-codex-gain">the second blade</span> — when a hit lands, the defender chooses: <b>take it</b> (lose Resolve), <b>parry</b> (spend Patience — 1 blocks 1 Resolve), or <b>riposte</b> (block it all and deal 1 Resolve back, one extra Patience). Two ways to lose: your <b>Resolve</b> breaks (convinced → swayed) or your <b>Patience</b> runs out from defending (worn down → break off). A school they're <b>weak</b> to slips past their guard (no parry); one they're <b>immune</b> to slides off — no purchase.</div>
         <div class="tsl-codex-combo"><b>Social DC</b> <span class="tsl-codex-gain">how hard they are to move</span> — the higher of their passive Insight, or <b>10 + their WIS save + INT save</b> (two mental saves — proficiency baked in, so a save-hardened target really resists). ${game.user.isGM ? "You set/see it; players don't." : "You never see the number — difficulty is learned by trying."}</div>
         <div class="tsl-codex-combo"><b>Strings</b> <span class="tsl-codex-gain">trump cards</span> — spend one for <b>+5</b> on any roll against that person. Earned by opening your heart in play, or by breaking their Resolve.</div>
         <div class="tsl-codex-hint-sm">Press a move their <b>nature is immune</b> to and it backfires — no effect, and they turn <b>Defiant</b> (maneuver-proof until a successful <b>Read Them</b> cracks it).</div>
@@ -1173,7 +1174,7 @@ class SocialFencingApp extends _SocialAppBase {
       const tracks = enc.active
         ? `<div class="tsl-fc-tracks">
              <span class="tsl-fc-tk" data-tooltip="Resolve = CHA mod (floor 1) — force of personality. Kept low; weight is the school. Successful maneuvers chip it; break it (0) to sway them."><b>RES</b>${pips(enc.resolve, enc.maxResolve, "resolve")}</span>
-             <span class="tsl-fc-tk" data-tooltip="Patience = WIS + CHA mod (floor 2) — self-possession + social poise. Failures burn it; at 0 they walk away."><b>PAT</b>${pips(enc.patience, enc.maxPatience, "patience")}</span>
+             <span class="tsl-fc-tk" data-tooltip="Patience = WIS + CHA mod (floor 2) — composure + defence pool. Spend it to parry/riposte; run it out defending and they break off (walk away)."><b>PAT</b>${pips(enc.patience, enc.maxPatience, "patience")}</span>
            </div>`
         : enc.outcome
           ? `<div class="tsl-chr-outcome tsl-chr-outcome--${enc.outcome}">${enc.outcome === "swayed" ? "💔 Swayed" : "🚪 Walked away"}</div>`
@@ -1391,7 +1392,7 @@ class SocialFencingApp extends _SocialAppBase {
       ? `${track("Resolve", encounter.resolve, encounter.maxResolve, "resolve",
             "Their will to not concede — starts at CHA modifier (floor 1), force of personality. Maneuver successes reduce it (by school: 1–3, +1 on a vulnerability). At 0 they are swayed.")}
          ${track("Patience", encounter.patience, encounter.maxPatience, "patience",
-            "Their composure — starts at WIS + CHA modifier (floor 2), self-possession + social poise. Failures and triggered immunities reduce it. At 0 they walk away.")}
+            "Their composure AND defence pool — starts at WIS + CHA modifier (floor 2). Spent to parry incoming hits (1 blocks 1 Resolve) or riposte; run out defending → worn down → break off (walk away).")}
          <button class="tsl-notes-enc-btn tsl-notes-enc-btn--end" data-enc-action="end" data-tooltip="Clear the tracks. The next maneuver will start fresh ones.">Reset tracks</button>`
       : encounter.outcome
         ? `<div class="tsl-chr-outcome tsl-chr-outcome--${encounter.outcome}">
