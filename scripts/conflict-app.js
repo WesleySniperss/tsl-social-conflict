@@ -325,10 +325,10 @@ class TSLConflictApp extends _TSLAppBase {
       const pips = (val, max, cls) => Array.from({ length: max }, (_, i) =>
         `<span class="tsl-enc-pip tsl-enc-pip--${cls} ${i < val ? "filled" : ""}"></span>`).join("");
       return `<div class="tsl-enc-tracks">
-        <div class="tsl-enc-track" data-tooltip="Resolve — their will. Starts at WIS + CHA modifier (floor 1) — self-possession + force of personality; kept low, weight is the school. Successful maneuvers chip it (1–3 by school, +1 on a vulnerability); break it to 0 → swayed.">
+        <div class="tsl-enc-track" data-tooltip="Resolve — their will to not concede. Starts at CHA + CON modifier (floor 1) — force of personality + grit; kept low, weight is the school. Successful maneuvers chip it (1–3 by school, +1 on a vulnerability); break it to 0 → swayed.">
           <span class="tsl-enc-track-label">RES</span>${pips(enc.resolve, enc.maxResolve, "resolve")}
         </div>
-        <div class="tsl-enc-track" data-tooltip="Patience — their tolerance. Starts at 4 + WIS modifier (floor 2) — patience is a Wisdom thing. Failures and triggered immunities burn it; at 0 they walk away.">
+        <div class="tsl-enc-track" data-tooltip="Patience — their composure/pool to keep dueling. Starts at WIS + CHA modifier (floor 2) — self-possession + social poise. Failures and triggered immunities burn it; at 0 they walk away.">
           <span class="tsl-enc-track-label">PAT</span>${pips(enc.patience, enc.maxPatience, "patience")}
         </div>
       </div>`;
