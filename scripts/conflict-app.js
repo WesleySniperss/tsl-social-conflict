@@ -276,7 +276,7 @@ class TSLConflictApp extends _TSLAppBase {
       // GM sees all five as toggles; a player sees only the Wounds actually carried.
       const woundBtns = (isGM ? CONDITIONS : activeConds).map(pip).join("");
       const woundsRow = (isGM || activeConds.length)
-        ? `<div class="tsl-wounds-row" data-tooltip="Lasting emotional Wounds — from Hold the Line, sincere moves or betrayal. They open doors (+2) until the story heals them. Four = Overwhelmed. NOT the fleeting States above.">
+        ? `<div class="tsl-wounds-row" data-tooltip="Lasting emotional Wounds — from Hold the Line, sincere moves or betrayal. They open doors (+2) until the story heals them. Wounds weighing 4+ (sum of tiers) = Overwhelmed: no parrying, no holding the line. NOT the fleeting States above.">
              <span class="tsl-row-label tsl-row-label--wound">❤ Wounds</span>${woundBtns}
            </div>`
         : "";
@@ -291,7 +291,7 @@ class TSLConflictApp extends _TSLAppBase {
             held ? `holds ${held}` : null,
             inc ? `${inc} on them` : null,
           ].filter(Boolean).join(" · ");
-          strChip = `<span class="tsl-str-chip" data-tooltip="Strings — ${parts}. No passive bonus: a String is only ever SPENT — burn one for +${STRING_SPEND_BONUS} on any roll against them (the gamble on a miss, or the 🎭+5 anytime). Earned by OPENING UP in play or by breaking through their Resolve.">
+          strChip = `<span class="tsl-str-chip" data-tooltip="Strings — ${parts}. No passive bonus: a String is only ever SPENT — burn one for +${STRING_SPEND_BONUS} on any roll against them (the gamble on a miss, or the 🎭+5 anytime). Earned by OPENING UP in play, by maneuvers that hand you a lever (reads, Lie, Play Weak, Bargain…), or by winning an exchange.">
             <i class="fas fa-masks-theater"></i>${held || inc}</span>`;
         }
       }
@@ -314,21 +314,19 @@ class TSLConflictApp extends _TSLAppBase {
       const enc = encounters?.[p.actorId];
       if (!enc?.active) {
         if (enc?.outcome) {
-          const tip = enc.outcome === "swayed"
-            ? "Swayed = you WON. Their Resolve hit 0: they concede the point / do what you were after (GM frames it), the bond deepens +1, and you gain a String on them."
-            : "Walked away = you LOST. Their Patience hit 0: they end the talk on their terms, the bond cools −1, they gain a String on you, and their agenda advances.";
+          const tip = foundry.utils.escapeHTML(SocialEncounterManager.outcomeTip(enc.outcome));
           return `<div class="tsl-enc-done tsl-enc-done--${enc.outcome}" data-tooltip="${tip}">${
-            enc.outcome === "swayed" ? "💔 Swayed" : "🚪 Walked away"}</div>`;
+            enc.outcome === "swayed" ? "💔 Swayed" : "🚪 Broke off"}</div>`;
         }
         return "";
       }
       const pips = (val, max, cls) => Array.from({ length: max }, (_, i) =>
         `<span class="tsl-enc-pip tsl-enc-pip--${cls} ${i < val ? "filled" : ""}"></span>`).join("");
       return `<div class="tsl-enc-tracks">
-        <div class="tsl-enc-track" data-tooltip="Resolve — their will to not concede. Starts at CHA modifier (floor 1) — force of personality; kept low, weight is the school. Successful maneuvers chip it (1–3 by school, +1 on a vulnerability); break it to 0 → swayed.">
+        <div class="tsl-enc-track" data-tooltip="Resolve — the will to not concede. Starts at CHA modifier (floor 1) — force of personality; kept low, weight is the school. Landed maneuvers chip it (1–3 by school, +1 on a vulnerability); at 0 → swayed (concedes).">
           <span class="tsl-enc-track-label">RES</span>${pips(enc.resolve, enc.maxResolve, "resolve")}
         </div>
-        <div class="tsl-enc-track" data-tooltip="Patience — composure AND defence pool. Starts at WIS + CHA modifier (floor 2). Spend it to parry incoming hits (1 blocks 1 Resolve) or riposte; run it out defending and they're worn down → break off (walk away).">
+        <div class="tsl-enc-track" data-tooltip="Patience — composure. Starts at WIS + CHA modifier (floor 2). Spent by your OWN misses and by every parry you make (1 blocks 1 Resolve); at 0 → you break off and lose the exchange (no concession).">
           <span class="tsl-enc-track-label">PAT</span>${pips(enc.patience, enc.maxPatience, "patience")}
         </div>
       </div>`;
@@ -340,7 +338,9 @@ class TSLConflictApp extends _TSLAppBase {
     const renderStatuses = (p, idx) => {
       if (!showFencing) return "";
       const esc0   = foundry.utils.escapeHTML;
-      const active = new Set(SocialArchetypeManager.getActiveConditions(game.actors.get(p.actorId)).map(c => c.id));
+      const live   = SocialArchetypeManager.getActiveConditions(game.actors.get(p.actorId));
+      const active = new Set(live.map(c => c.id));
+      const deep   = new Set(live.filter(c => c.charges > 1).map(c => c.id));
       const label  = `<span class="tsl-row-label tsl-row-label--state" data-tooltip="Fleeting fencing states — set up by maneuvers, gone in a round or two. Different from the lasting Wounds (❤).">States</span>`;
       const tip = (meta) => `<b>${esc0(meta.label)}</b><br>${esc0(meta.description)}${meta.combat ? `<br><b>Combat:</b> ${esc0(meta.combat)}` : ""}`;
       // GM can set/clear any State right here; a player sees only the live ones.
@@ -348,14 +348,14 @@ class TSLConflictApp extends _TSLAppBase {
         const chips = SOCIAL_CONDITION_ORDER.map(id => {
           const meta = SOCIAL_CONDITIONS[id];
           return `<button class="tsl-state-toggle ${active.has(id) ? "active" : ""}" data-participant="${idx}" data-state="${id}"
-                    style="--st-color:${meta.color ?? "#806858"}" data-tooltip="${tip(meta)}">${esc0(meta.label)}</button>`;
+                    style="--st-color:${meta.color ?? "#806858"}" data-tooltip="${tip(meta)}">${esc0(meta.label)}${deep.has(id) ? " ×2" : ""}</button>`;
         }).join("");
         return `<div class="tsl-status-row tsl-status-row--states">${label}${chips}</div>`;
       }
       if (!active.size) return "";
       const tags = SOCIAL_CONDITION_ORDER.filter(id => active.has(id)).map(id => {
         const meta = SOCIAL_CONDITIONS[id];
-        return `<span class="tsl-status-tag" style="--st-color:${meta.color ?? "#806858"}" data-tooltip="${tip(meta)}">${esc0(meta.label)}</span>`;
+        return `<span class="tsl-status-tag" style="--st-color:${meta.color ?? "#806858"}" data-tooltip="${tip(meta)}${deep.has(id) ? "<br>×2 — it runs deep (a bond): two uses left" : ""}">${esc0(meta.label)}${deep.has(id) ? " ×2" : ""}</span>`;
       }).join("");
       return `<div class="tsl-status-row tsl-status-row--states">${label}${tags}</div>`;
     };
@@ -471,9 +471,11 @@ class TSLConflictApp extends _TSLAppBase {
                 .map(l => esc(l)).join("<br>")
             : null;
           const tip = [
-            `<b>${esc(m.name)}</b> · ${esc(m.skill)} ${mod >= 0 ? "+" : ""}${mod}${m.skill2 ? ` + ${esc(m.skill2)} (support)` : ""}`,
+            `<b>${esc(m.name)}</b> · ${esc(m.skill)} ${mod >= 0 ? "+" : ""}${mod}${m.skill2 ? ` + ${esc(m.skill2)} (support: +prof if trained)` : ""}`,
             esc(m.description),
             m.howto ? `▸ <i>${esc(m.howto)}</i>` : null,
+            m.edge ? `<b>Strong:</b> ${esc(m.edge)}` : null,
+            m.risk ? `<b>Weak:</b> ${esc(m.risk)}` : null,
             liveBlock,
             liveBlock ? null : comboTip,
             liveBlock ? null : (ar.vulnerable.length ? `◎ Cuts deep: ${esc(ar.vulnerable.map(x => x.label).join(", "))}` : null),
@@ -486,7 +488,7 @@ class TSLConflictApp extends _TSLAppBase {
             </button>`;
         }).join("");
         const schoolTip = SOCIAL_TRIADS[g.id]?.hint
-          ?? "Safe basics anyone can use — the read, the jab, the taunt. No archetype traps here.";
+          ?? "The basics anyone reaches for — read, jab, goad, persuade, threaten, lie. No weak spots to find; only Mock and Taunt can hit a wall. Persuade is sincere (can't be parried), Intimidate hits hard but a miss costs 2, a Lie that misses badly gets you caught.";
         return `<div class="tsl-chip-group" style="--triad-color:${color}">
           <div class="tsl-chip-group-label" data-tooltip="${esc(schoolTip)}">${esc(short)}</div>
           <div class="tsl-chip-grid">${chips}</div>
@@ -573,12 +575,14 @@ class TSLConflictApp extends _TSLAppBase {
       let hint = "", hintCls = "dim";
       if (a.relation === "blocked")        { hint = a.relationReason; hintCls = "imm"; }
       else if (seeRel && a.relation === "immune")     { hint = `${readPrefix}${a.relationReason} — ${isGuess ? "if you're right, it fails and they turn Defiant." : "it fails, they turn Defiant."}`; hintCls = "imm"; }
-      else if (seeRel && a.relation === "vulnerable") { hint = `${readPrefix}this should cut deep — Advantage & +1 Resolve damage${isGuess ? " (if your read is right)" : ""}.`; hintCls = "vuln"; }
+      else if (seeRel && a.relation === "vulnerable") { hint = `${readPrefix}this should cut deep — Advantage & +1 Resolve damage, and it can't be parried${isGuess ? " (if your read is right)" : ""}.`; hintCls = "vuln"; }
+      else if (a.selfLast)                 { hint = `⚠ Your composure is nearly gone — miss now and you break off (−${a.missCost} Patience).`; hintCls = "imm"; }
       else if (a.combo)                    { hint = `⊕ Opening — ${a.combo.label}.`; hintCls = "vuln"; }
       else if (a.opening)                  { hint = `⊕ Opening — ${a.opening.flavor} (+2).`; hintCls = "vuln"; }
-      else if (a.lastExchange)             { hint = "⚠ Their patience is at its end — one more misstep ends this."; hintCls = "imm"; }
+      else if (a.lastExchange)             { hint = "⚔ They're at the end of their composure — one more parry and they break off."; hintCls = "vuln"; }
       else if (seeRel && a.answerRisk)     { hint = `${readPrefix}fumble badly here and their answer comes — ${a.answerRisk}${isGuess ? " (if your read is right)" : ""}.`; hintCls = "imm"; }
-      else if (a.patienceThin)             { hint = "⏳ Their patience wears thin — they're getting harder to reach."; }
+      else if (a.patienceThin)             { hint = "⏳ They're wearing thin — parrying is costing them."; }
+      else if (a.selfThin)                 { hint = "⏳ Your own composure is wearing thin — pick your shots."; }
       else if (a.advantage)                { hint = a.advantageReasons[a.advantageReasons.length - 1]; hintCls = "vuln"; }
       else if (isGM && !a.arch)            { hint = "No archetype set — open their Chronicle to arm weak spots."; }
       else if (!seeRel)                    { hint = "Their nature is a riddle — read tells, then note your guess in your Bond ('Read as')."; }
@@ -589,7 +593,7 @@ class TSLConflictApp extends _TSLAppBase {
           <img class="tsl-bar-portrait" src="${activeP.img}" alt="">
           <div class="tsl-bar-core">
             <span class="tsl-bar-move">${esc(move.name)} ${relMark}${advMark}</span>
-            <span class="tsl-bar-roll">${esc(move.skill)} ${a.skillMod >= 0 ? "+" : "−"} ${Math.abs(a.skillMod)} ${extraChip}
+            <span class="tsl-bar-roll"><span${a.leanSkill ? ` data-tooltip="${esc(`Includes +${a.leanSkill.value} from your ${a.leanSkill.triad} dots (Social Leanings on your sheet) — ${a.leanSkill.why}.`)}"` : ""}>${esc(move.skill)} ${a.skillMod >= 0 ? "+" : "−"} ${Math.abs(a.skillMod)}${a.leanSkill ? `<sup class="tsl-lean-sup">◆</sup>` : ""}</span> ${extraChip}
               ${dcHtml}</span>
           </div>
           ${blocked ? "" : `<button class="tsl-roll-btn" style="--active-color:${activeColor}">Roll</button>`}
@@ -611,13 +615,14 @@ class TSLConflictApp extends _TSLAppBase {
         const label = r.outcome === "crit"    ? "★ Clean hit"
                     : r.outcome === "success" ? "Success"
                     : r.outcome === "immune"  ? "✕ Walled off"
-                    : r.outcome === "botch"   ? "⚔ They answer"
+                    : r.outcome === "botch"   ? (r.natural === 1 ? "Natural 1 — ⚔ They answer" : "⚔ They answer")
+                    : r.natural === 1         ? "Natural 1 — Failure"
                     : "Failure";
         return `<div class="tsl-dice-overlay"><div class="tsl-dice-panel tsl-dice-panel--maneuver">
           <div class="tsl-dice-move"><i class="fas ${r.icon}"></i> ${r.moveName}</div>
           <div class="tsl-dice-total" data-outcome="${oc}">${r.total}</div>
           <div class="tsl-dice-breakdown">${game.user.isGM ? `vs DC ${r.dc}` : "vs ?"}</div>
-          <div class="tsl-dice-outcome" data-outcome="${oc}">${label}</div>
+          <div class="tsl-dice-outcome" data-outcome="${oc}" data-tooltip="${foundry.utils.escapeHTML(SocialManeuverRoller.gradeTip(r.outcome, r.natural))}">${label}</div>
           <button class="tsl-dice-close">Continue</button>
         </div></div>`;
       }
@@ -716,7 +721,7 @@ class TSLConflictApp extends _TSLAppBase {
     const points = SocialArchetypeManager.getCharacterNotes(tgtActor).points;
     const META = [
       { id: "desire",   label: "Desire",   icon: "fa-gem",         fx: "Advantage; +1 Resolve on success." },
-      { id: "fear",     label: "Fear",     icon: "fa-ghost",       fx: "+3 to the roll (hard leverage)." },
+      { id: "fear",     label: "Fear",     icon: "fa-ghost",       fx: "+3 to the roll (hard leverage) — but if it misses, you lose 1 extra Patience." },
       { id: "weakness", label: "Weakness", icon: "fa-heart-crack", fx: "A neutral maneuver counts as a vulnerability." },
     ];
     const avail = META.filter(l => (points[l.id] ?? "").trim());
@@ -906,9 +911,9 @@ class TSLConflictApp extends _TSLAppBase {
       buttons[`t${i}`] = {
         label: o.name,
         callback: async () => {
-          await TSLStringStore.add(p.actorId, o.actorId, 1);
+          const got = await TSLStringStore.add(p.actorId, o.actorId, 1);
           await ChatMessage.create({
-            content: `<div class="tsl-maneuver-card tsl-mv--success"><div class="tsl-mv-outcome tsl-mv-outcome--success">💖 ${esc(p.name)} opens their heart — and a truth shared is a thread: <b>a String on ${esc(o.name)}</b>.</div></div>`,
+            content: `<div class="tsl-maneuver-card tsl-mv--success"><div class="tsl-mv-outcome tsl-mv-outcome--success">💖 ${esc(p.name)} opens their heart — and a truth shared is a thread: ${got ? `<b>a String on ${esc(o.name)}</b>` : `but they already hold the most Strings one person can (${STRING_CAP}) on ${esc(o.name)}`}.</div></div>`,
           });
           ConflictStore.addLog(`💖 ${p.name} opened up — String on ${o.name}`, "kiss");
           ConflictStore._broadcast();
@@ -1016,6 +1021,7 @@ class TSLConflictApp extends _TSLAppBase {
       total: payload.total,
       dc: payload.dc,
       outcome: payload.outcomeType,
+      natural: payload.natural,
     };
     this._selectedMove   = null;
     this._selectedTarget = null;

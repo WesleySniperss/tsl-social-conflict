@@ -13,6 +13,13 @@ console.log("TSL | Loading string-store.js...");
 
 const STRING_FLAG = "tsl-social-conflict";
 
+/**
+ * The most Strings one person can hold on ANOTHER (v1.81). A String is a +5
+ * trump card on any roll against them — or +5 to your AC / a save against
+ * them — so they must stay scarce: a few deep levers, not a stack.
+ */
+const STRING_CAP = 3;
+
 class TSLStringStore {
 
   // ── Read ─────────────────────────────────────────────────────────────────────
@@ -36,8 +43,19 @@ class TSLStringStore {
     await actor.setFlag(STRING_FLAG, "stringList", list);
   }
 
-  /** Add a new string entry. Returns the new entry. */
+  /** How many Strings `actorId` holds on `targetActorId`. */
+  static countOn(actorId, targetActorId) {
+    return TSLStringStore.getList(actorId).filter(e => e.targetActorId === targetActorId).length;
+  }
+
+  /** Is this holder already at the cap on that person? */
+  static isCapped(actorId, targetActorId) {
+    return !!targetActorId && TSLStringStore.countOn(actorId, targetActorId) >= STRING_CAP;
+  }
+
+  /** Add a new string entry. Returns the new entry (null when at the cap). */
   static async addEntry(actorId, label = "", targetActorId = null) {
+    if (TSLStringStore.isCapped(actorId, targetActorId)) return null;
     const list  = TSLStringStore.getList(actorId);
     const entry = { id: foundry.utils.randomID(), label, targetActorId };
     list.push(entry);
@@ -61,13 +79,18 @@ class TSLStringStore {
 
   // ── Convenience wrappers (called from conflict-store.js) ─────────────────────
 
-  /** Add `count` entries pre-labelled with the target actor's name. */
+  /**
+   * Add `count` entries pre-labelled with the target actor's name, up to the
+   * cap. Returns how many were actually added (0 when already holding 3).
+   */
   static async add(actorId, targetActorId, count = 1) {
     const targetActor = game.actors.get(targetActorId);
     const label = targetActor?.name ?? "";
+    let added = 0;
     for (let i = 0; i < count; i++) {
-      await TSLStringStore.addEntry(actorId, label, targetActorId);
+      if (await TSLStringStore.addEntry(actorId, label, targetActorId)) added++;
     }
+    return added;
   }
 
   /**

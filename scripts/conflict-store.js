@@ -26,7 +26,7 @@ const MOVES = [
     icon: "fa-comment-dots",
     stat: "Passion",
     target: true,
-    desc: "On 10+: they must act on it or gain a Condition; if their tracks are running, sincerity chips 1 Resolve. On 7-9: they act on it but you gain a Condition — and they gain a String on you.",
+    desc: "On 10+: they must act on it or gain a Condition; if their tracks are running, sincerity chips 1 Resolve — and sincerity can't be parried. On 7-9: they act on it but you gain a Condition — and they gain a String on you.",
     onStrong: { resolve: 1 },
     onWeak:   { stringsOnYou: 1 },
   },
@@ -53,7 +53,7 @@ const MOVES = [
     icon: "fa-fire",
     stat: "Nerve",
     target: true,
-    desc: "On 10+: they act rashly, you gain +1 forward; if their tracks are running, the outburst chips 1 Resolve. On 7-9: they act rashly but so do you.",
+    desc: "On 10+: they act rashly, you gain +1 forward; if their tracks are running, the outburst chips 1 Resolve — it comes from inside them, so it can't be parried. On 7-9: they act rashly but so do you.",
     onStrong: { resolve: 1 },
   },
   {
@@ -195,13 +195,17 @@ class ConflictStore {
     // single click, and Hold the Line wounds show up on the pips too.
     const actor = game.actors.get(p.actorId);
     if (actor && typeof TSLConditionEffects !== "undefined") {
-      if (p.conditions[conditionId]) TSLConditionEffects.applyOne(actor, conditionId, "the conflict");
-      else TSLConditionEffects._clearConditions(actor, [conditionId]);
-    }
-
-    const active = Object.values(p.conditions).filter(Boolean).length;
-    if (active >= 4) {
-      ConflictStore.addLog(`⚠ ${p.name} is Overwhelmed — must yield or flee.`, "warn");
+      // Overwhelmed is the WEIGHT of the Wounds (sum of tiers ≥ 4), read off
+      // the actor once the effect has actually landed.
+      const wasOver = TSLConditionEffects.isOverwhelmed(actor);
+      (async () => {
+        if (p.conditions[conditionId]) await TSLConditionEffects.applyOne(actor, conditionId, "the conflict");
+        else await TSLConditionEffects._clearConditions(actor, [conditionId]);
+        if (!wasOver && TSLConditionEffects.isOverwhelmed(actor) && ConflictStore.state) {
+          ConflictStore.addLog(`⚠ ${p.name} is Overwhelmed — no more parrying or holding the line: yield or flee.`, "warn");
+          ConflictStore._broadcast();
+        }
+      })();
     }
 
     ConflictStore._broadcast();
@@ -244,6 +248,8 @@ class ConflictStore {
           ConflictStore.addLog(`👁 ${p.name} studies ${target.name} — a tell is whispered`, "info");
         }
         if (fx.resolve) {
+          // Deliberately NOT routed through the parry step: sincerity (Speak
+          // from the Heart) and their own outburst (Provoke) can't be parried.
           const tgtActor = game.actors.get(tgt);
           if (SocialEncounterManager.getEncounter(tgtActor).active) {
             SocialEncounterManager.adjustResolve(tgtActor, -fx.resolve, src);

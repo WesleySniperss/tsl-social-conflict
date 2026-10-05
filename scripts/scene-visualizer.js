@@ -13,7 +13,7 @@
  * (colour = school, thickness = strength). When a maneuver resolves anywhere,
  * a "social pulse" is broadcast to every client and animated here: a beam
  * actor → target, a flash on the one hit, a floating result, and — if the
- * blow ended the exchange — the swayed / walked drama.
+ * blow ended the exchange — the swayed / broke-off drama.
  *
  * ZOOM scales the MAP inside a fixed viewport (the window keeps its size; the
  * map scrolls when zoomed past the viewport). Resize the window for more map.
@@ -151,7 +151,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
       enc, conds, wounds,
       hasBond: TSLBondStore.getList(actor.id).length > 0,
       overwhelmed: (typeof TSLConditionEffects !== "undefined")
-        && TSLConditionEffects.countConditions(actor) >= 4,
+        && TSLConditionEffects.isOverwhelmed(actor),   // Wounds weighing 4+ (sum of tiers)
     };
   }
 
@@ -314,7 +314,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
              <span class="tsl-viz-tr tsl-viz-tr--r">R ${nd.enc.resolve}</span><span class="tsl-viz-tr tsl-viz-tr--p">P ${nd.enc.patience}</span>
            </div>`
         : nd.enc.outcome
-          ? `<div class="tsl-viz-outcome tsl-viz-outcome--${nd.enc.outcome}">${nd.enc.outcome === "swayed" ? "swayed" : "walked"}</div>`
+          ? `<div class="tsl-viz-outcome tsl-viz-outcome--${nd.enc.outcome}" data-tooltip="${foundry.utils.escapeHTML(SocialEncounterManager.outcomeTip(nd.enc.outcome))}">${nd.enc.outcome === "swayed" ? "swayed" : "broke off"}</div>`
           : "";
       const stateTags = nd.conds.map(c =>
         `<span class="tsl-viz-dot tsl-viz-dot--state" style="--dot:${c.meta.color ?? "#9b6ee8"}" data-tooltip="⚔ <b>${esc(c.meta.label)}</b> — ${esc(c.meta.description ?? "")}"></span>`
@@ -490,7 +490,9 @@ class TSLSceneVisualizer extends _TSLVizBase {
 
   /**
    * Animate a resolved maneuver on BOTH windows that are open.
-   * { srcId, tgtId, group, outcome, damage, resolved }.
+   * { srcId, tgtId, group, outcome, damage, resolved, resolvedSrc } —
+   * `resolved` ends the TARGET's exchange, `resolvedSrc` the ATTACKER's
+   * (their own misses or a riposte broke them off).
    */
   static pulse(data) {
     for (const key of ["scene", "world"]) {
@@ -500,7 +502,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
     }
   }
 
-  _playPulse({ srcId, tgtId, group, outcome, damage, resolved } = {}) {
+  _playPulse({ srcId, tgtId, group, outcome, damage, resolved, resolvedSrc } = {}) {
     const root = this.element?.[0];
     const stage = root?.querySelector(".tsl-viz-canvas");   // the scaled coord space
     const svg   = root?.querySelector(".tsl-viz-svg");
@@ -558,26 +560,32 @@ class TSLSceneVisualizer extends _TSLVizBase {
       setTimeout(() => float.remove(), 3000);
     }
 
-    // Resolution drama: this blow ended the exchange. Swayed = a warm break;
-    // walked = the node greys out and drifts. Held long enough to read.
-    if (resolved && tgtNode) {
-      tgtNode.classList.add(`resolve-${resolved}`);
-      setTimeout(() => tgtNode.classList.remove(`resolve-${resolved}`), 3200);
-      if (tgt) {
-        const burst = document.createElement("div");
-        burst.className = `tsl-viz-burst tsl-viz-burst--${resolved}`;
-        burst.style.left = `${tgt.x}px`;
-        burst.style.top  = `${tgt.y}px`;
-        stage.appendChild(burst);
-        setTimeout(() => burst.remove(), 1800);
-        const word = document.createElement("div");
-        word.className = `tsl-viz-resolveword tsl-viz-resolveword--${resolved}`;
-        word.textContent = resolved === "swayed" ? "SWAYED" : "WALKED AWAY";
-        word.style.left = `${tgt.x}px`;
-        word.style.top  = `${tgt.y}px`;
-        stage.appendChild(word);
-        setTimeout(() => word.remove(), 3400);
-      }
-    }
+    // Resolution drama: this blow ended an exchange — for the target, the
+    // attacker, or both. Swayed = a warm break; broke off = the node greys out
+    // and drifts. Held long enough to read.
+    if (resolved)    this._playResolution(stage, tgtNode, tgt, resolved);
+    if (resolvedSrc) this._playResolution(stage,
+      stage.querySelector(`.tsl-viz-node[data-actor-id="${srcId}"]`), src, resolvedSrc);
+  }
+
+  /** The swayed / broke-off climax on one node (stored id "walked" = broke off). */
+  _playResolution(stage, node, pos, resolved) {
+    if (!node) return;
+    node.classList.add(`resolve-${resolved}`);
+    setTimeout(() => node.classList.remove(`resolve-${resolved}`), 3200);
+    if (!pos) return;
+    const burst = document.createElement("div");
+    burst.className = `tsl-viz-burst tsl-viz-burst--${resolved}`;
+    burst.style.left = `${pos.x}px`;
+    burst.style.top  = `${pos.y}px`;
+    stage.appendChild(burst);
+    setTimeout(() => burst.remove(), 1800);
+    const word = document.createElement("div");
+    word.className = `tsl-viz-resolveword tsl-viz-resolveword--${resolved}`;
+    word.textContent = resolved === "swayed" ? "SWAYED" : "BROKE OFF";
+    word.style.left = `${pos.x}px`;
+    word.style.top  = `${pos.y}px`;
+    stage.appendChild(word);
+    setTimeout(() => word.remove(), 3400);
   }
 }

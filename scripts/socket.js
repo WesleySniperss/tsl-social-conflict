@@ -122,6 +122,25 @@ class TSLGMActions {
           ConflictStore.resolveYield(args.pIdx);
           break;
 
+        case "woundToBond": {
+          // A Wound about someone settled overnight into a relationship — the GM
+          // writes the shared bond (both actors) and tells the table.
+          const { bearerId, sourceId, bondType, woundId } = args;
+          const res = await TSLBondStore.deepenFromWound(bearerId, sourceId, bondType);
+          const bearer = game.actors.get(bearerId), source = game.actors.get(sourceId);
+          if (!res || !bearer || !source) break;
+          const esc   = foundry.utils.escapeHTML;
+          const wound = TSLConditionEffects.getMeta(woundId)?.label ?? woundId;
+          const type  = SocialArchetypeManager.getBondType(res.type).label;
+          await ChatMessage.create({
+            speaker: ChatMessage.getSpeaker({ actor: bearer }),
+            content: `<div class="tsl-maneuver-card tsl-mv--immune"><div class="tsl-mv-outcome tsl-mv-outcome--immune">❤ → ♥ Overnight, <b>${esc(bearer.name)}</b>'s ${esc(wound)} settles into something lasting: ${res.created
+              ? `a new bond with <b>${esc(source.name)}</b> — <b>${esc(type)}</b> ●.`
+              : `their bond with <b>${esc(source.name)}</b> (${esc(type)}) deepens to ${"●".repeat(res.strength)}.`}</div></div>`,
+          });
+          break;
+        }
+
         default:
           console.warn(`TSL | Unknown GM action: ${action}`);
       }

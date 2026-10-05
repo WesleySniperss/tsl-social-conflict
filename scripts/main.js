@@ -54,7 +54,16 @@ Hooks.once("init", () => {
 
   game.settings.register("tsl-social-conflict", "gmDecidesOutcome", {
     name: "GM adjudicates every maneuver",
-    hint: "After each maneuver roll the GM confirms whether it beat the hidden difficulty — clean hit, success, failure or a fumble — with the computed result pre-selected (one click). The GM always has the final word on success. Turn off to resolve automatically against the DC.",
+    hint: "After a maneuver roll the GM confirms whether it beat the hidden difficulty — clean hit, success, failure or a fumble — with the computed result pre-selected (one click). By default only close calls are asked (next setting). Turn off to resolve automatically against the DC.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
+  });
+
+  game.settings.register("tsl-social-conflict", "gmConfirmCloseOnly", {
+    name: "…only on close calls",
+    hint: "With the setting above on, the GM is asked only when the total lands within 2 of the hidden DC (or on a natural 1) — clear hits and clear misses apply at once. Turn off to confirm every single roll.",
     scope: "world",
     config: true,
     type: Boolean,
@@ -63,7 +72,7 @@ Hooks.once("init", () => {
 
   game.settings.register("tsl-social-conflict", "enableHoldLine", {
     name: "Hold the Line",
-    hint: "When a maneuver lands a status, ask (GM dialog) whether the defender holds the line: refuse the status and the Resolve hit by taking an emotional TSL Condition instead. Four Conditions = Overwhelmed.",
+    hint: "When a maneuver lands a state, the defender may hold the line: refuse the STATE by carrying an emotional Wound instead (the Resolve hit still has to be met — taken or parried). A Wound already at ●●● can't take more. Wounds weighing 4+ (sum of tiers) = Overwhelmed: no parrying, no holding the line. Offered in the same 'meet the blow' window as the parry.",
     scope: "world",
     config: true,
     type: Boolean,
@@ -72,11 +81,37 @@ Hooks.once("init", () => {
 
   game.settings.register("tsl-social-conflict", "enableParry", {
     name: "Active defence (parry / riposte)",
-    hint: "When a maneuver's Resolve hit lands, ask (GM dialog) how the defender meets it: TAKE it, spend Patience to PARRY (1 Patience blocks 1 Resolve), or RIPOSTE (block it all and deal 1 Resolve back, for one extra Patience). A school the target is VULNERABLE to can't be parried. Turn off to apply Resolve damage straight, with no defence step.",
+    hint: "When a maneuver's Resolve hit lands, ask (GM dialog) how the defender meets it: TAKE it, spend their own Patience to PARRY (1 Patience blocks 1 Resolve), or RIPOSTE (block it all and knock 1 Patience off the attacker, for one extra Patience). Patience is each side's composure — misses and parries both spend it, and whoever runs out first breaks off and loses the exchange. A school the target is VULNERABLE to can't be parried. Turn off to apply Resolve damage straight, with no defence step.",
     scope: "world",
     config: true,
     type: Boolean,
     default: true,
+  });
+
+  game.settings.register("tsl-social-conflict", "npcDefenseAuto", {
+    name: "NPCs defend on their own",
+    hint: "When a blow lands on an NPC, it meets it by its Defence stance (Chronicle → Profile, GM) — no window for you. The default stance follows its nature: Power natures are Proud (riposte), Emotion natures Measured, Reason natures Guarded. Player characters always decide for themselves. Turn off to decide every NPC blow yourself.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
+  });
+
+  game.settings.register("tsl-social-conflict", "emotionalLayer", {
+    name: "Emotional layer",
+    hint: "How much of the emotional layer the table uses. FULL: Wounds plus Willpower, Ultimates, Give in, Boons, Scars and the bonds' ●● abilities / ●●● signatures. BASIC: only the Wounds (tiers, urges, how they heal) — fewer moving parts; a Wound left at ●●● just eases instead of scarring (a Wound about someone still becomes a bond).",
+    scope: "world",
+    config: true,
+    type: String,
+    choices: {
+      full:  "Full — Wounds, Willpower, Boons, Scars, bond abilities",
+      basic: "Basic — Wounds only",
+    },
+    default: "full",
+    onChange: () => {
+      SocialFencingDialog?._instances?.forEach(app => app.render(true));
+      TSLConflictApp?.instance?.render(true);
+    },
   });
 
   game.settings.register("tsl-social-conflict", "enableKiss", {
@@ -205,6 +240,30 @@ async function migrateTokenChronicles() {
   }
 }
 
+/**
+ * Rebuild "Social Leanings" effects written by versions that used long skill
+ * names (system.skills.insight…) — a5e keys skills by 3-letter ids, so those
+ * effects never did anything there. GM client, idempotent: an effect already
+ * on the right keys is left alone.
+ */
+async function resyncTriadBonusEffects() {
+  if (!game.user?.isGM) return;
+  const scope = "tsl-social-conflict";
+  const stale = /^system\.skills\.(insight|intimidation|deception)\./;
+  for (const actor of game.actors?.contents ?? []) {
+    const eff = actor.effects?.find?.(e => e.flags?.[scope]?.triadBonus);
+    // Rebuild old-key effects AND ones still carrying the pre-1.81 description
+    // (the bonus is explained in the effect itself now).
+    if (!eff || !((eff.changes ?? []).some(c => stale.test(c.key ?? "")) || !String(eff.description ?? "").includes("maneuvers included"))) continue;
+    try {
+      await SocialArchetypeManager.syncTriadBonusEffect(actor);
+      console.log(`TSL | Rebuilt Social Leanings on ${actor.name} (skill keys)`);
+    } catch (err) {
+      console.warn(`TSL | Could not rebuild Social Leanings on ${actor.name}:`, err);
+    }
+  }
+}
+
 Hooks.once("ready", () => {
   console.log("TSL | Social Conflict ready hook firing");
 
@@ -287,6 +346,8 @@ Hooks.once("ready", () => {
   catch (err) { console.error("TSL | syncExistingConditionEffects failed:", err); }
   try { migrateTokenChronicles(); }
   catch (err) { console.error("TSL | migrateTokenChronicles failed:", err); }
+  try { resyncTriadBonusEffects(); }
+  catch (err) { console.error("TSL | resyncTriadBonusEffects failed:", err); }
   // A bond is one shared relationship — fill in any missing mirror so both
   // sides show it (safe/idempotent; only creates gaps, never overwrites).
   try { if (typeof TSLBondStore !== "undefined") TSLBondStore.reconcileAll?.(); }

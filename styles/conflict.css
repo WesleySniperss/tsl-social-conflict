@@ -3766,6 +3766,25 @@
 .tsl-ult-btn:hover:not(:disabled) { background: rgba(217,164,65,0.28); color: #fff; }
 .tsl-ult-btn:disabled { opacity: 0.3; cursor: default; }
 
+/* ❤ Give in — act on a Wound's urge for 1 Willpower (content-sized, never stretched) */
+.tsl-givein-btn {
+  flex: none; width: auto; padding: 0 7px; line-height: 1; font-size: 10px; border-radius: 6px; cursor: pointer;
+  font-family: var(--tsl-font-title, 'Cinzel', serif); letter-spacing: 0.3px; white-space: nowrap;
+  background: rgba(232,85,122,0.10); color: #f0a9bd; border: 1px solid rgba(232,85,122,0.40);
+}
+.tsl-givein-btn:hover { background: rgba(232,85,122,0.24); color: #fff; }
+
+/* Your own composure, shown in the fence bar right above the Roll button */
+.tsl-fc-self {
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+  font-size: 11px; color: var(--tsl-notes-muted, #a89078);
+  padding: 3px 2px 0;
+}
+.tsl-fc-self-label { font-family: var(--tsl-font-title, 'Cinzel', serif); letter-spacing: 0.3px; flex: none; }
+.tsl-fc-self .tsl-notes-pips, .tsl-fc-self .tsl-notes-pip { flex: none; }
+.tsl-fc-self-cost { margin-left: auto; font-style: italic; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tsl-fc-self--idle .tsl-fc-self-cost { margin-left: 4px; }
+
 /* Start-conflict button in the Social Scene header (GM) */
 .tsl-viz-conflict {
   width: auto; background: rgba(232,85,122,0.12); color: #f0a9bd;
@@ -3933,3 +3952,89 @@ details.tsl-codex-sub > summary:hover { filter: brightness(1.15); }
   border: 1px solid rgba(255,255,255,0.14); border-radius: 5px; cursor: pointer;
 }
 .tsl-viz-zoom-btn:hover { color: #f0dfc8; border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.06); }
+
+/* ═══ v1.81 — explanations, bond-aware states, one defence window ═══════════ */
+
+/* Archetype cards: where the nature comes from + its strong / weak sides */
+.tsl-arch-sides { display: flex; flex-direction: column; gap: 3px; margin: 5px 0 4px; }
+.tsl-arch-psych {
+  font-size: 11.5px; line-height: 1.4; font-style: italic;
+  color: var(--tsl-notes-muted, #b58598); cursor: help;
+}
+.tsl-arch-psych i { font-size: 10px; margin-right: 4px; opacity: 0.75; }
+.tsl-arch-side { font-size: 12px; line-height: 1.4; color: var(--tsl-notes-text, #e8d8c8); }
+.tsl-arch-side b { font-family: 'Cinzel', serif; font-weight: 400; }
+.tsl-arch-side--strong b { color: #e8888f; }   /* what they resist */
+.tsl-arch-side--weak b   { color: #7bd88f; }   /* what opens them */
+
+/* Codex → Moves: strong / weak lines */
+.tsl-codex-side { font-size: 12px; line-height: 1.4; margin: 1px 0; }
+.tsl-codex-side b { font-family: 'Cinzel', serif; font-weight: 400; }
+.tsl-codex-side--strong b { color: #7bd88f; }
+.tsl-codex-side--weak b   { color: #e8888f; }
+
+/* Codex → Statuses: how bonds bend each state */
+.tsl-codex-status-bonds {
+  font-size: 11px; line-height: 1.4; margin-top: 2px;
+  color: var(--tsl-notes-muted, #b58598);
+}
+.tsl-codex-status-bonds b { color: #f0a9bd; font-family: 'Cinzel', serif; font-weight: 400; }
+
+/* Content / safety note */
+.tsl-codex-safety {
+  border-left: 2px solid rgba(217,164,65,0.6);
+  padding: 4px 8px; margin: 4px 0 6px;
+  background: rgba(217,164,65,0.06); border-radius: 0 5px 5px 0;
+}
+
+/* Profile: the dots' skill bonus, made explicit */
+.tsl-chr-lean {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 5px;
+  margin-top: 6px; font-size: 11.5px; color: var(--tsl-notes-muted, #b58598);
+}
+.tsl-chr-lean-label { font-family: 'Cinzel', serif; letter-spacing: 0.3px; }
+.tsl-chr-lean-chip {
+  width: auto; padding: 1px 7px; border-radius: 10px; cursor: help;
+  border: 1px solid rgba(217,164,65,0.45); background: rgba(217,164,65,0.10); color: #e8c27a;
+}
+.tsl-chr-lean-note { font-style: italic; opacity: 0.85; }
+.tsl-chr-lean--empty { font-style: italic; }
+.tsl-lean-sup { color: #e8c27a; font-size: 8px; margin-left: 1px; cursor: help; }
+
+/* Chronicle: the weight of carried Wounds */
+.tsl-wound-load {
+  font-size: 11px; color: var(--tsl-notes-muted, #b58598);
+  margin-top: 4px; cursor: help;
+}
+
+/* The single "meet the blow" defence window */
+.tsl-meet .tsl-meet-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 4px 0; border-top: 1px dashed rgba(127,127,127,0.35);
+}
+.tsl-meet .tsl-meet-label {
+  flex: 0 0 72px; font-family: 'Cinzel', serif; font-size: 12px; opacity: 0.85;
+}
+.tsl-meet .tsl-meet-opt {
+  display: inline-flex; align-items: center; gap: 4px; width: auto;
+  padding: 2px 8px; border-radius: 6px; cursor: help;
+  border: 1px solid rgba(127,127,127,0.35); white-space: nowrap;
+}
+.tsl-meet .tsl-meet-opt input { margin: 0; }
+.tsl-meet .tsl-meet-opt:has(input:checked) { border-color: #e8a855; background: rgba(232,168,85,0.12); }
+
+/* ═══ v1.82 — NPC defence stance (Chronicle → Profile, GM) ═══════════════ */
+.tsl-stance-row {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px;
+  margin-top: 8px;
+}
+.tsl-stance-label {
+  font-family: 'Cinzel', serif; font-size: 12px; cursor: help; white-space: nowrap;
+  color: var(--tsl-notes-text, #e8d8c8);
+}
+.tsl-stance-label i { font-size: 10px; margin-right: 4px; opacity: 0.75; }
+.tsl-stance-row select { width: 100%; min-width: 0; }
+.tsl-stance-hint {
+  font-size: 11.5px; font-style: italic; line-height: 1.4; margin-top: 3px;
+  color: var(--tsl-notes-muted, #b58598);
+}

@@ -1,9 +1,13 @@
 /**
  * tsl-social-conflict | condition-effects.js
  *
- * Applies TSL conflict conditions as Active Effects on actors after a conflict ends.
- * Effects are removed on Short Rest (or Long Rest).
- * A5E: each condition also adds +1 Strife.
+ * The emotional layer as Active Effects: Wounds (5, tiered ● → ●●●), Boons (4),
+ * Scars (5, permanent), plus Willpower.
+ *   Long rest — each Wound eases one tier (a Light one heals); one left at ●●●
+ *               calcifies into its Scar instead. Boons fade. Willpower refills.
+ *               Short rests don't touch feelings.
+ *   A5E — a conflict-window ending (Yield / Kiss) adds +1 Strife per Wound the
+ *         participant carries out of it.
  */
 
 console.log("TSL | Loading condition-effects.js...");
@@ -36,10 +40,10 @@ const _midiDisChk  = ()     => ({ key: "flags.midi-qol.disadvantage.ability.chec
 //                 dnd5e[], a5e[] } — the effect at that depth + its automation.
 //                 Pressing a Wound already carried DEEPENS it (up a tier), it
 //                 doesn't just stack a second one.
-//   `leanIn`    — the refuel: give in to the urge at cost → a String (Inspiration
-//                 for Hopeless). Playing your nature pays, VtM-style.
-//   `clears`    — the DRAMATIC action that lifts it. Long rest is the slow
-//                 fallback; short rests don't touch it.
+//   `leanIn`    — the refuel: give in to the urge at cost → 1 Willpower
+//                 (Inspiration for Despair). Playing your nature pays, VtM-style.
+//   `clears`    — the DRAMATIC action that lifts it. A long rest only eases it
+//                 one tier (●●● calcifies into a Scar); short rests don't touch it.
 const CONDITION_META = {
   // ── The five Wounds (Phase 2b remap): angry→Wrath, scared→Fear,
   // hopeless→Despair keep their ids; obsessed(Obsession) & spiteful(Grudge)
@@ -109,7 +113,9 @@ const CONDITION_META = {
     urge:   "Be near {source}, please them, put them above all else.",
     signature: "Fixated on one person — you can't strike them, and they sway you with ease.",
     ultimate: { name: "One-Track", text: "Spend 1 Willpower: advantage on any action for {source}'s sake this turn — but you do nothing else." },
-    scar: "bound_heart",
+    // A Wound ABOUT someone settles into your relationship with them (v1.81):
+    // left at ●●● through a long rest it becomes / deepens a bond toward its source.
+    bond: "crush",
     tiers: [
       { label: "Preoccupied", text: "Your mind keeps drifting to {source}: −1 Perception & Insight.", dnd5e: [], a5e: [] },
       { label: "Fixated", text: "−2 Perception & Insight; you cannot use maneuvers against {source}, and they persuade or command you with advantage.", dnd5e: [], a5e: [] },
@@ -124,7 +130,7 @@ const CONDITION_META = {
     urge:   "Get even with {source}; undermine and oppose them at every turn.",
     signature: "A cold vendetta against one person — you strike harder at them and struggle to let it go.",
     ultimate: { name: "Reckoning", text: "Spend 1 Willpower: this turn your damage to {source} is doubled, but you roll at disadvantage against everyone else." },
-    scar: "vendetta",
+    bond: "enemy",
     tiers: [
       { label: "Nettled", text: "Consumed by the grudge: −1 initiative & Perception; disadvantage to cooperate with or praise {source}.", dnd5e: [], a5e: [] },
       { label: "Vengeful", text: "−2 initiative & Perception; advantage on actions against {source}, disadvantage to work with them or let it go.", dnd5e: [], a5e: [] },
@@ -163,8 +169,10 @@ const CONDITION_META = {
     ],
     clears: "Fades if the bond breaks, or the moment that kindled it passes (GM).",
   },
+  // id stays `resolve` (saved effects use it) — the LABEL is Conviction so it
+  // never reads like the Resolve track.
   resolve: {
-    label:  "Resolve",
+    label:  "Conviction",
     icon:   "icons/svg/statue.svg",
     isBoon: true,
     signature: "Centred and unshakeable — nothing moves you off your mark.",
@@ -212,7 +220,11 @@ const SCAR_META = {
     cost: "−2 Persuasion, Deception & Insight — people sense the cruelty in you.",
     clears: "An arc of mercy: spare or aid those you could have crushed.",
   },
+  // RETIRED (v1.81): a Grudge now settles into an Enemy bond, an Obsession into
+  // a Crush — these two scars only duplicated those relationships. Kept so an
+  // actor that already carries one can still read and remove it.
   vendetta: {
+    retired: true,
     label: "Vendetta", icon: "icons/svg/skull.svg", from: "spiteful",
     ability: "+2 and Help as a bonus action against your némesis.",
     ultimate: { name: "Vendetta", text: "Spend 1 Willpower: this turn, advantage on everything against your némesis, disadvantage against everyone else." },
@@ -220,6 +232,7 @@ const SCAR_META = {
     clears: "The némesis falls, or a genuine reconciliation.",
   },
   bound_heart: {
+    retired: true,
     label: "Bound Heart", icon: "icons/svg/heal.svg", from: "obsessed",
     ability: "+2 to protect or aid the one you love, and to saves protecting them; the frenzy has passed — you CAN act against them now.",
     cost: "−2 to act against them in a fight.",
@@ -234,13 +247,24 @@ const SCAR_META = {
   hollow: {
     label: "The Hollow", icon: "icons/svg/degen.svg", from: "hopeless",
     ability: "Immune to fear and charm — nothing reaches you.",
-    cost: "You begin dying with 1 failed death save; −1 to all checks.",
+    cost: "Nothing reaches you — not even hope: you gain no benefit from Inspiration, and −1 to all checks.",
     clears: "Someone restores your sense of meaning (a speech, a bond).",
   },
 };
-const SCAR_ORDER = ["cruelty", "vendetta", "bound_heart", "cold", "hollow"];
+// Scars are about YOU (what a Wound made of you); Wounds about a PERSON become bonds.
+const SCAR_ORDER = ["cruelty", "cold", "hollow"];
 
 class TSLConditionEffects {
+
+  /**
+   * FULL emotional layer (default) = Wounds + Willpower, Ultimates, Give in,
+   * Boons, Scars and bond abilities/signatures. BASIC (world setting
+   * `emotionalLayer`) = the Wounds alone — fewer moving parts for the table.
+   */
+  static isFullLayer() {
+    try { return game.settings.get("tsl-social-conflict", "emotionalLayer") !== "basic"; }
+    catch { return true; }
+  }
 
   /** The VtM-style dossier for a wound (urge / resist / leanIn / frenzy / clears). */
   static getMeta(condId) {
@@ -248,14 +272,26 @@ class TSLConditionEffects {
   }
 
   /**
-   * Give in to a Wound's compulsion (act on its Potyah at real cost) → refuel
-   * 1 Willpower (the VtM loop: living your nature pays). The one exception is
-   * despair/hopeless, whose lean-in feeds Inspiration instead (diffuse, not
-   * tied to a person) — the caller grants that. Returns the new Willpower.
+   * Give in to a Wound's compulsion (act on its urge, at real cost) → refuel
+   * 1 Willpower (the VtM loop: living your nature pays). Despair is the one
+   * exception: its lean-in feeds Inspiration instead (diffuse, not tied to a
+   * person). Only a Wound you actually carry can be given in to.
+   * Returns { gained: "willpower" | "inspiration" | "none", willpower? } or null.
    */
   static async giveIn(actor, condId) {
-    if (!actor || !CONDITION_META[condId] || typeof TSLWillpower === "undefined") return null;
-    return TSLWillpower.restore(actor, 1);
+    const meta = CONDITION_META[condId];
+    if (!actor || !meta || meta.isBoon || !TSLConditionEffects.hasCondition(actor, condId)) return null;
+    if (condId === "hopeless") {
+      if (foundry.utils.getProperty(actor, "system.attributes.inspiration") === false) {
+        await actor.update({ "system.attributes.inspiration": true });
+        return { gained: "inspiration" };
+      }
+      return { gained: "none" };
+    }
+    if (typeof TSLWillpower === "undefined") return { gained: "none" };
+    const before = TSLWillpower.get(actor);
+    const after  = await TSLWillpower.restore(actor, 1);
+    return { gained: after > before ? "willpower" : "none", willpower: after };
   }
 
   // ── Scars — permanent states a Wound calcifies into ──────────────────────────
@@ -325,13 +361,38 @@ class TSLConditionEffects {
     else await TSLConditionEffects.applyScar(actor, scarId);
   }
 
-  /** A Wound calcifies: the Wound is spent, its Scar becomes permanent. */
+  /**
+   * A Wound left at ●●● through a long rest CALCIFIES. A Wound about YOU
+   * becomes a permanent Scar; a Wound about a PERSON (Obsession, Grudge)
+   * settles into your relationship with them instead — a Crush / an Enemy
+   * bond toward its source, or a deeper one if you already share a bond.
+   * Returns the Scar id, { bond, sourceId }, or null.
+   */
   static async calcify(actor, woundId) {
-    const scarId = CONDITION_META[woundId]?.scar;
+    const meta = CONDITION_META[woundId];
+    if (meta?.bond) return TSLConditionEffects._calcifyIntoBond(actor, woundId, meta.bond);
+    const scarId = meta?.scar;
     if (!scarId || !SCAR_META[scarId]) return null;
     await TSLConditionEffects.removeOne(actor, woundId);
     await TSLConditionEffects.applyScar(actor, scarId);
     return scarId;
+  }
+
+  static async _calcifyIntoBond(actor, woundId, bondType) {
+    const srcId = TSLConditionEffects.getWoundSource(actor, woundId);
+    const src   = srcId ? game.actors.get(srcId) : null;
+    if (!src) {
+      // About no one in particular (applied by hand) — with nobody to fix on,
+      // the feeling simply recedes a tier instead of setting.
+      await TSLConditionEffects.setTier(actor, woundId, 2);
+      return null;
+    }
+    await TSLConditionEffects.removeOne(actor, woundId);
+    // A bond is ONE shared relationship mirrored on both actors — the GM client
+    // writes it, since a player can't touch the other side's flags.
+    if (typeof TSLGMActions !== "undefined")
+      await TSLGMActions.request("woundToBond", { bearerId: actor.id, sourceId: src.id, bondType, woundId });
+    return { bond: bondType, sourceId: src.id };
   }
 
   /** Every wound id, in a stable order — for the token HUD registration. */
@@ -429,7 +490,8 @@ class TSLConditionEffects {
     const ps = state.participants;
     for (let i = 0; i < ps.length; i++) {
       const sourceName = ps.length === 2 ? ps[1 - i].name : "Social Conflict";
-      await TSLConditionEffects._applyToParticipant(ps[i], sourceName);
+      const sourceId   = ps.length === 2 ? ps[1 - i].actorId : null;
+      await TSLConditionEffects._applyToParticipant(ps[i], sourceName, sourceId);
     }
   }
 
@@ -437,35 +499,37 @@ class TSLConditionEffects {
   static async applyYieldingParticipant(participant, state) {
     const others = state.participants.filter(p => p.actorId !== participant.actorId);
     const sourceName = others.length === 1 ? others[0].name : "Social Conflict";
-    await TSLConditionEffects._applyToParticipant(participant, sourceName);
+    const sourceId   = others.length === 1 ? others[0].actorId : null;
+    await TSLConditionEffects._applyToParticipant(participant, sourceName, sourceId);
   }
 
-  static async _applyToParticipant(participant, sourceName) {
+  static async _applyToParticipant(participant, sourceName, sourceId = null) {
     const actor = game.actors.get(participant.actorId);
     if (!actor) return;
 
     const activeConditions = Object.entries(participant.conditions)
-      .filter(([_, on]) => on)
+      .filter(([id, on]) => on && CONDITION_META[id])
       .map(([id]) => id);
 
     if (!activeConditions.length) return;
 
-    const effects = activeConditions.map(condId =>
-      TSLConditionEffects._buildEffect(condId, sourceName, participant.actorId)
-    );
+    // A card pip already put its Wound on the actor the moment it was toggled
+    // (ConflictStore.toggleCondition → applyOne) — only add what's missing, or
+    // every carried Wound would end the conflict duplicated.
+    for (const condId of activeConditions) {
+      if (!TSLConditionEffects.hasCondition(actor, condId))
+        await TSLConditionEffects.applyOne(actor, condId, sourceName, sourceId);
+    }
 
-    await actor.createEmbeddedDocuments("ActiveEffect", effects);
-
-    // A5E: add Strife for each condition
-    if (game.system.id === "a5e-for-dnd5e") {
-      const currentStrife = actor.system?.attributes?.strife?.value ?? 0;
-      await actor.update({
-        "system.attributes.strife.value": currentStrife + activeConditions.length
-      });
+    // A5E (system id "a5e"): +1 Strife for each Wound carried out of the
+    // conflict. Strife is a plain number at system.attributes.strife.
+    if (game.system.id === "a5e") {
+      const cur = Number(foundry.utils.getProperty(actor, "system.attributes.strife")) || 0;
+      await actor.update({ "system.attributes.strife": cur + activeConditions.length });
     }
 
     ui.notifications.info(
-      `${participant.name} carries ${activeConditions.length} condition(s) from the conflict.`
+      `${participant.name} carries ${activeConditions.length} Wound(s) out of the conflict.`
     );
   }
 
@@ -475,24 +539,32 @@ class TSLConditionEffects {
    * Skips silently if the same condition is already carried.
    * Returns how many TSL conditions the actor now carries (4+ = Overwhelmed).
    */
-  static async applyOne(actor, condId, sourceName = "Social Fencing") {
+  /**
+   * Apply (or deepen) one Wound. `sourceActorId` — the person it's ABOUT (who
+   * caused it), remembered on the effect so a Wound about someone can later
+   * settle into a relationship with them. Returns the actor's wound LOAD
+   * (sum of tiers; 4+ = Overwhelmed).
+   */
+  static async applyOne(actor, condId, sourceName = "Social Fencing", sourceActorId = null) {
     if (!actor || !CONDITION_META[condId]) return 0;
     // A calcified Scar makes you immune to the Wound it came from — the trauma
     // has already set; you can't take that Wound fresh again.
     const scarId = CONDITION_META[condId]?.scar;
-    if (scarId && TSLConditionEffects.hasScar(actor, scarId)) return 0;
+    if (scarId && TSLConditionEffects.hasScar(actor, scarId)) return TSLConditionEffects.woundLoad(actor);
+    const src = sourceActorId && sourceActorId !== actor.id ? sourceActorId : null;
     const existing = actor.effects.find(e => TSLConditionEffects._condOf(e) === condId);
     if (existing) {
       // Pressed again → the wound DEEPENS (up to the breaking point) rather than
       // stacking a duplicate; refresh the source it ties you to.
       const cur = TSLConditionEffects._clampTier(existing.flags?.[TSL_EFFECT_FLAG]?.tier ?? 1);
-      if (cur < 3) await TSLConditionEffects.setTier(actor, condId, cur + 1, sourceName);
+      if (cur < 3) await TSLConditionEffects.setTier(actor, condId, cur + 1, sourceName, src);
+      else if (src && existing.update) await existing.update({ [`flags.${TSL_EFFECT_FLAG}.sourceActorId`]: src });
     } else {
       await actor.createEmbeddedDocuments("ActiveEffect", [
-        TSLConditionEffects._buildEffect(condId, sourceName, actor.id, 1),
+        TSLConditionEffects._buildEffect(condId, sourceName, src, 1),
       ]);
     }
-    return TSLConditionEffects.countConditions(actor);
+    return TSLConditionEffects.woundLoad(actor);
   }
 
   /**
@@ -540,7 +612,24 @@ class TSLConditionEffects {
   /** Is this emotion a positive Boon (vs a Wound)? */
   static isBoon(condId) { return !!CONDITION_META[condId]?.isBoon; }
 
-  /** How many WOUNDS this actor carries (Overwhelmed at 4+). Boons don't count. */
+  /**
+   * The total WEIGHT of the Wounds this actor carries: the sum of their tiers
+   * (● = 1, ●● = 2, ●●● = 3). Boons don't count.
+   */
+  static woundLoad(actor) {
+    return TSLConditionEffects.ORDER.reduce((s, id) => s + TSLConditionEffects.getTier(actor, id), 0);
+  }
+
+  /**
+   * Overwhelmed (v1.81): Wounds weighing 4 or more (two Deep ones, or a
+   * Breaking point and one more). Mechanical now: an Overwhelmed character
+   * can't parry and can't hold the line — they must yield or flee.
+   */
+  static isOverwhelmed(actor) {
+    return TSLConditionEffects.woundLoad(actor) >= 4;
+  }
+
+  /** How many distinct WOUNDS this actor carries. Boons don't count. */
   static countConditions(actor) {
     if (!actor) return 0;
     const seen = new Set();
@@ -583,9 +672,11 @@ class TSLConditionEffects {
       const dots = "●".repeat(n) + "○".repeat(3 - n);
       lines.push(`${n === t ? "▶ " : ""}<b>${dots} ${td.label}:</b> ${sub(td.text)}`);
     });
-    if (meta.ultimate)      lines.push(`<b>●●● ${sub(meta.ultimate.name)}:</b> ${sub(meta.ultimate.text)}`);
-    if (!boon && meta.leanIn) lines.push(`<b>Give in:</b> ${sub(meta.leanIn)}`);
-    if (meta.clears)        lines.push(`<b>${boon ? "Fades" : "Clears"}:</b> ${sub(meta.clears)}${boon ? "" : " (Or a long rest.)"}`);
+    // Ultimates and Give in belong to the FULL layer (they run on Willpower)
+    const full = TSLConditionEffects.isFullLayer();
+    if (full && meta.ultimate)        lines.push(`<b>●●● ${sub(meta.ultimate.name)}:</b> ${sub(meta.ultimate.text)}`);
+    if (full && !boon && meta.leanIn) lines.push(`<b>Give in:</b> ${sub(meta.leanIn)}`);
+    if (meta.clears)        lines.push(`<b>${boon ? "Fades" : "Clears"}:</b> ${sub(meta.clears)}${boon ? " (A long rest ends it too.)" : " (A long rest only eases it one tier — left at ●●●, it calcifies into a Scar.)"}`);
     return lines.filter(Boolean).join("<br>");
   }
 
@@ -599,22 +690,33 @@ class TSLConditionEffects {
    * Set a wound to an exact tier — creating it if absent, updating name /
    * dossier / automation / tier flag if present.
    */
-  static async setTier(actor, condId, tier, sourceName) {
+  static async setTier(actor, condId, tier, sourceName, sourceActorId = null) {
     if (!actor || !CONDITION_META[condId]) return;
     const t = TSLConditionEffects._clampTier(tier);
     const existing = actor.effects.find(x => TSLConditionEffects._condOf(x) === condId);
     if (!existing) {
       await actor.createEmbeddedDocuments("ActiveEffect", [
-        TSLConditionEffects._buildEffect(condId, sourceName ?? "Social Fencing", actor.id, t),
+        TSLConditionEffects._buildEffect(condId, sourceName ?? "Social Fencing", sourceActorId, t),
       ]);
       return;
     }
     const f    = existing.flags?.[TSL_EFFECT_FLAG] ?? {};
-    const data = TSLConditionEffects._buildEffect(condId, sourceName ?? f.source ?? "them", f.sourceActorId ?? actor.id, t);
+    // Older versions stored the BEARER's id here — never treat that as the source.
+    const prevSrc = f.sourceActorId && f.sourceActorId !== actor.id ? f.sourceActorId : null;
+    const src  = sourceActorId ?? prevSrc;
+    const data = TSLConditionEffects._buildEffect(condId, sourceName ?? f.source ?? "them", src, t);
     await existing.update({
       name: data.name, description: data.description, changes: data.changes,
       [`flags.${TSL_EFFECT_FLAG}.tier`]: t,
+      [`flags.${TSL_EFFECT_FLAG}.sourceActorId`]: src,
     });
+  }
+
+  /** The actor a Wound is ABOUT (who caused it), if known. */
+  static getWoundSource(actor, condId) {
+    const e = actor?.effects?.find?.(x => !x.disabled && TSLConditionEffects._condOf(x) === condId);
+    const src = e?.flags?.[TSL_EFFECT_FLAG]?.sourceActorId ?? null;
+    return src && src !== actor.id ? src : null;
   }
 
   /** Press a wound deeper (create at Light if absent, up to Breaking point). */
@@ -633,7 +735,7 @@ class TSLConditionEffects {
     await TSLConditionEffects.setTier(actor, condId, cur - 1);
   }
 
-  static _buildEffect(condId, sourceName, actorId, tier = 1) {
+  static _buildEffect(condId, sourceName, sourceActorId = null, tier = 1) {
     const meta = CONDITION_META[condId];
     const t    = TSLConditionEffects._clampTier(tier);
     const td   = meta.tiers[t - 1];
@@ -652,9 +754,8 @@ class TSLConditionEffects {
         [TSL_EFFECT_FLAG]: {
           condition:     condId,
           source:        sourceName,
-          sourceActorId: actorId ?? null,
+          sourceActorId: sourceActorId ?? null,   // who it is ABOUT (null if unknown)
           tier:          t,
-          restType:      "short",
         }
       },
       // Automation scales with the tier (empty at Light) — per system.
@@ -664,41 +765,49 @@ class TSLConditionEffects {
 
   // ── Rest hooks ────────────────────────────────────────────────────────────────
 
+  /**
+   * What a LONG rest does to the emotional layer — one pass, in order, every
+   * step awaited (the old version fired a "delete every wound" sweep without
+   * waiting and then tried to ease the same effects mid-deletion, so lesser
+   * wounds simply vanished instead of easing):
+   *   Wounds — ●●● calcifies into its Scar; ●● eases to ●; ● heals.
+   *   Boons  — fade (the moment that kindled them has passed).
+   *   Willpower refills; each ●●● bond's once-per-rest signature refreshes.
+   * Short rests don't touch feelings at all.
+   */
+  static async onLongRest(actor) {
+    if (!actor) return;
+    for (const id of TSLConditionEffects.ORDER) {
+      const t = TSLConditionEffects.getTier(actor, id);
+      // ●●● calcifies — into a Scar (a Wound about you) or a bond (a Wound about
+      // someone). In the BASIC layer there are no Scars: a Wound about you just eases.
+      const scars = TSLConditionEffects.isFullLayer();
+      if (t >= 3 && ((scars && TSLConditionEffects.scarForWound(id)) || CONDITION_META[id]?.bond)) await TSLConditionEffects.calcify(actor, id);
+      else if (t >= 1) await TSLConditionEffects.ease(actor, id);
+    }
+    await TSLConditionEffects._clearBoons(actor);
+    if (typeof TSLBondStore !== "undefined") await TSLBondStore.clearSignatures?.(actor.id);
+    if (typeof TSLWillpower !== "undefined") await TSLWillpower.refresh(actor);
+  }
+
   static registerRestHooks() {
-    // TSL-style: feelings do not clear on a SHORT rest — they clear when
-    // lived out (the "Clears when" line) or, slowly, over a long rest.
-    // A long rest also refreshes each ●●● bond's once-per-rest signature perk.
-    const onLongRest = async (actor) => {
-      TSLConditionEffects._clearFromActor(actor);
-      if (typeof TSLBondStore !== "undefined") TSLBondStore.clearSignatures?.(actor.id);
-      if (typeof TSLWillpower !== "undefined") TSLWillpower.refresh(actor);   // Willpower back to full
-      // Wound lifecycle: a Wound left at ●●● (Breaking point) CALCIFIES into its
-      // Scar overnight; a lesser Wound eases one tier (a night's rest recedes it).
-      for (const id of TSLConditionEffects.ORDER) {
-        const t = TSLConditionEffects.getTier(actor, id);
-        if (t >= 3 && TSLConditionEffects.scarForWound(id)) await TSLConditionEffects.calcify(actor, id);
-        else if (t >= 1) await TSLConditionEffects.ease(actor, id);
-      }
-    };
     // dnd5e
     Hooks.on("dnd5e.restCompleted", (actor, result) => {
-      if (result.longRest) onLongRest(actor);
+      if (result?.longRest) TSLConditionEffects.onLongRest(actor);
     });
     // A5E
     Hooks.on("a5e.actorRest", (actor, result) => {
-      if (result?.restType === "long") onLongRest(actor);
+      if (result?.restType === "long") TSLConditionEffects.onLongRest(actor);
       // A5E handles strife reduction itself on rest — no extra work needed
     });
   }
 
-  static async _clearFromActor(actor) {
-    const toDelete = actor.effects
-      .filter(e => e.flags?.[TSL_EFFECT_FLAG]?.restType === "short")
+  /** Remove every Boon from this actor (a long rest ends them). */
+  static async _clearBoons(actor) {
+    const toDelete = (actor?.effects ?? [])
+      .filter(e => CONDITION_META[TSLConditionEffects._condOf(e)]?.isBoon)
       .map(e => e.id);
-
-    if (toDelete.length) {
-      await actor.deleteEmbeddedDocuments("ActiveEffect", toDelete);
-    }
+    if (toDelete.length) await actor.deleteEmbeddedDocuments("ActiveEffect", toDelete);
   }
 
   // ── Spell/ability clearing ────────────────────────────────────────────────────
@@ -733,11 +842,9 @@ class TSLConditionEffects {
   }
 
   static async _clearConditions(actor, conditionIds) {
+    // Match our flag OR a HUD-toggled wound's status id (via _condOf)
     const toDelete = actor.effects
-      .filter(e => {
-        const flag = e.flags?.[TSL_EFFECT_FLAG]?.condition;
-        return flag && conditionIds.includes(flag);
-      })
+      .filter(e => conditionIds.includes(TSLConditionEffects._condOf(e)))
       .map(e => e.id);
 
     if (toDelete.length) {
@@ -792,31 +899,4 @@ class TSLWillpower {
   static async refresh(actor) {
     return TSLWillpower.set(actor, TSLWillpower.getMax(actor));
   }
-}
-
-// ─── Wound tracker — the ○○○ counter: 3 strikes and it calcifies to a Scar ──
-// Per-wound occurrence count on the actor flag tsl-social-conflict.woundTrack
-// ({ <woundId>: 0..3 }). A long rest eases the acute effect but NOT this count;
-// a genuine heal RESETS it; reaching 3 means the Wound is ready to calcify.
-const WOUND_CALCIFY_AT = 3;
-
-class TSLWoundTracker {
-  static all(actor) { return { ...(actor?.getFlag?.(WP_SCOPE, "woundTrack") ?? {}) }; }
-  static get(actor, woundId) { return Math.max(0, (TSLWoundTracker.all(actor)[woundId] | 0)); }
-
-  /** +by ticks (capped at the calcify threshold); returns the new count. */
-  static async bump(actor, woundId, by = 1) {
-    const t = TSLWoundTracker.all(actor);
-    t[woundId] = Math.min(WOUND_CALCIFY_AT, Math.max(0, (t[woundId] | 0) + by));
-    await actor?.setFlag?.(WP_SCOPE, "woundTrack", t);
-    return t[woundId];
-  }
-
-  /** A genuine heal clears the strikes for this wound. */
-  static async reset(actor, woundId) {
-    const t = TSLWoundTracker.all(actor);
-    if (woundId in t) { delete t[woundId]; await actor?.setFlag?.(WP_SCOPE, "woundTrack", t); }
-  }
-
-  static shouldCalcify(actor, woundId) { return TSLWoundTracker.get(actor, woundId) >= WOUND_CALCIFY_AT; }
 }

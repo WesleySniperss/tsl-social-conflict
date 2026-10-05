@@ -202,6 +202,40 @@ class TSLBondStore {
   }
 
   /**
+   * How an exchange's END moves the loser's bond toward the winner (v1.81).
+   * Strength means warmth for most types — being swayed draws you closer (+1),
+   * breaking off cools it (−1). But for a HOSTILE bond (Enemy, Rival) strength
+   * is the heat of the hostility, so it runs the other way: being swayed by
+   * them eases it (−1), breaking off from them hardens it (+1).
+   * Returns { delta, hostile, type, strength } (strength after the change).
+   */
+  static async shiftAfterExchange(loserId, winnerId, outcome) {
+    const bond    = TSLBondStore.find(loserId, winnerId);
+    const type    = bond ? SocialArchetypeManager.getBondType(bond.type).id : null;
+    const hostile = type === "enemy" || type === "rival";
+    const delta   = (outcome === "swayed" ? 1 : -1) * (hostile ? -1 : 1);
+    const strength = await TSLBondStore.shiftAttitude(loserId, winnerId, delta);
+    return { delta, hostile, type, strength };
+  }
+
+  /**
+   * A Wound about someone settled overnight (v1.81): it becomes a bond of
+   * `bondType` toward them (strength ●), or — if they already share a bond —
+   * deepens it by one. Mirrored like every bond. GM side (writes both actors).
+   * Returns { created, type, strength }.
+   */
+  static async deepenFromWound(bearerId, sourceId, bondType) {
+    if (!bearerId || !sourceId || bearerId === sourceId) return null;
+    const bond = TSLBondStore.find(bearerId, sourceId);
+    if (bond) {
+      const strength = await TSLBondStore.shiftAttitude(bearerId, sourceId, +1);
+      return { created: false, type: SocialArchetypeManager.getBondType(bond.type).id, strength };
+    }
+    await TSLBondStore.add(bearerId, sourceId, { type: bondType, attitude: 1 });
+    return { created: true, type: bondType, strength: 1 };
+  }
+
+  /**
    * A successful read (Read Them / Cross-Examine) — GM side.
    * Creates/updates the source's bond: perceived archetype becomes the real one.
    */

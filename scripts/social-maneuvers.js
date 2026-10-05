@@ -24,7 +24,8 @@ const MANEUVER_GROUPS = [
 // ─── Maneuver data ────────────────────────────────────────────────────────────
 //
 // Each SCHOOL has a mechanical identity, and every maneuver a distinct role:
-//   General — safe basics: the scout, the jab, the setup (no vuln/imm drama)
+//   General — the basics: read, jab, goad, plus three plain tones of pressure —
+//             Persuade (sincere: unparryable), Intimidate (hard, risky), Lie (a lever, can get you caught)
 //   Power   — domination: tempo and pressure; hits harder, risks harder
 //   Emotion — hearts: statuses that chain into combos
 //   Order   — ledgers: economy (Strings), information, field control
@@ -32,9 +33,11 @@ const MANEUVER_GROUPS = [
 // vulnerabilityTags ∩ archetype.vulnerabilities → Advantage, +1 Resolve damage
 // immunityTags      ∩ archetype.immunities      → auto-fail, target Defiant
 // reveals: true       → success whispers a TELL of their nature to the roller
-// failPatience        → DEPRECATED (v1.79): a miss no longer drains Patience;
-//                       Patience is now the defender's parry pool. Any remaining
-//                       `failPatience` values on maneuvers are inert.
+// failPatience        → how much of the ATTACKER's own Patience (composure) a
+//                       miss costs (default 1). Risky moves cost more to fumble.
+// skill2              → the SUPPORT skill: if you're trained in it, your
+//                       proficiency bonus rides on top of the main roll.
+// failText            → flavour only — the card appends the real Patience cost.
 
 const SOCIAL_MANEUVERS = [
 
@@ -54,8 +57,10 @@ const SOCIAL_MANEUVERS = [
     description:  "The scout. Watch the seams of their public face — no pressure, just attention.",
     howto:        "Say little, ask something easy, and watch HOW they answer, not what they say — the flicker before the words.",
     example:      "\"Your hand keeps drifting to that ring. Someone gave it to you — someone you've since lost. That's what all this bluster is really about, isn't it?\"",
+    edge:         "Safe information: no damage to parry, slips through a Defiant wall (and cracks it), whispers a tell and earns a String.",
+    risk:         "Moves nothing on its own. And real people hide well — one flinch proves little; trust a pattern of tells, not a single one.",
     successText:  "A tell of their nature is whispered to you — deduce the archetype and note your guess in your Bond. You gain 1 String.",
-    failText:     "The mask holds. Patience −1.",
+    failText:     "The mask holds.",
     immuneText:   null,
     applyOnSuccess: null,
     grantStrings: 1,
@@ -74,12 +79,14 @@ const SOCIAL_MANEUVERS = [
     skill2:          "Performance",
     skillKeys2:      { dnd5e: "prf", "a5e-for-dnd5e": "performance" },
     vulnerabilityTags: [],
-    immunityTags:      ["sow doubt", "criticism"],   // Exalted
+    immunityTags:      ["sow doubt", "criticism"],   // Idol
     description:  "The jab. A joke with a razor in it — and it cuts twice as deep into someone already off balance. Kick them while they're down.",
     howto:        "Land a joke at their expense for the room to hear — sharpest right after they've already stumbled.",
     example:      "\"A brave face, for the man who fainted at his own knighting. Does the memory still sting — or only your pride?\"",
+    edge:         "Cheap pressure that bites harder on anyone already off balance (+1 against a target with any state).",
+    risk:         "Only 1 Resolve, and a joke needs an audience that laughs — against a proud ego it backfires.",
     successText:  "The barb lands where it hurts. Resolve −1 (−2 if they were off balance).",
-    failText:     "The joke dies in the air. Patience −1.",
+    failText:     "The joke dies in the air.",
     immuneText:   "They cannot imagine being the punchline.",
     applyOnSuccess: null,
     grantStrings: 0,
@@ -101,8 +108,10 @@ const SOCIAL_MANEUVERS = [
     description:  "The bait. Needle their self-control until they lash out and commit to something rash — leaving themselves wide open. You WANT them to take the swing; the value is the mistake, not the words.",
     howto:        "Jab a nerve so they REACT instead of think — you're not trying to wound them, you're trying to make them do something stupid you can punish.",
     example:      "\"You're shaking. Good. Go on — say the thing you've been swallowing all night. I dare you.\"",
+    edge:         "The set-up: Provoked gives the next maneuver +2, and Humiliate cashes it for an extra point.",
+    risk:         "Little damage by itself; the cold-blooded don't take the bait.",
     successText:  "They lose their cool — Provoked: the next maneuver against them gains +2. Resolve −1.",
-    failText:     "They remain unmoved. Patience −1.",
+    failText:     "They remain unmoved.",
     immuneText:   "They answer with cold control.",
     applyOnSuccess: "provoked",
     grantStrings: 0,
@@ -120,15 +129,18 @@ const SOCIAL_MANEUVERS = [
     skillKeys2:      { dnd5e: "ins", "a5e-for-dnd5e": "insight" },
     vulnerabilityTags: [],
     immunityTags:      [],
-    description:  "The honest appeal. Reason, common ground, a fair case — no tricks, no threats. The safe basic: just make them want to say yes.",
+    description:  "The honest appeal. Reason, common ground, a fair case — no tricks, no threats. Slow, but it can't be fenced off: an honest case isn't parried, only weighed.",
     howto:        "Make your case plainly — appeal to what they actually care about and give them a real reason to agree.",
     example:      "\"We want the same thing here — the town safe, the road open. Help me hold the gate and everyone goes home tonight. What do you say?\"",
-    successText:  "Your case lands. Resolve −1.",
-    failText:     "They aren't convinced. Patience −1.",
+    edge:         "Sincerity can't be parried: its Resolve always lands — the steady way to sway someone who walls up everything else. No nature walls it.",
+    risk:         "Only 1 Resolve a hit: an honest case moves people slowly.",
+    successText:  "Your case lands — and an honest case can't be fenced off. Resolve −1.",
+    failText:     "They aren't convinced.",
     immuneText:   null,
     applyOnSuccess: null,
     grantStrings: 0,
     resolveDamage: 1,
+    unparryable: true,   // sincerity isn't parried — only weighed
   },
 
   {
@@ -142,16 +154,18 @@ const SOCIAL_MANEUVERS = [
     skillKeys2:      { dnd5e: "ins", "a5e-for-dnd5e": "insight" },
     vulnerabilityTags: [],
     immunityTags:      [],
-    description:  "The plain threat. Comply, or face what comes — quiet, personal, no crowd. HIGH-RISK basic: a threat you can't back up makes you look weak, so a miss costs double Patience. (Not Humiliate — that one's public and scars.)",
+    description:  "The plain threat. Comply, or face what comes — quiet, personal, no crowd. HIGH-RISK basic: it hits hard (−2), but a threat you can't back up makes you look weak, so a miss costs YOU 2 Patience. (Not Humiliate — that one's public and scars.)",
     howto:        "State the stakes and mean it — what you'll do if they don't bend. Only reach for it when you can back it up.",
     example:      "\"I know which window is your daughter's. Sign the writ, and I forget the address. It's a small thing to ask.\"",
-    successText:  "The threat lands cold. Resolve −1.",
-    failText:     "They call your bluff — and now you look weak. Patience −2.",
+    edge:         "The hardest basic: −2 Resolve, and no nature is immune to it.",
+    risk:         "A threat you can't back up makes you look weak — a miss costs YOU 2 Patience.",
+    successText:  "The threat lands cold. Resolve −2.",
+    failText:     "They call your bluff — and now you look weak.",
     immuneText:   null,
     applyOnSuccess: null,
     grantStrings: 0,
-    resolveDamage: 1,
-    failPatience: 2,   // a threat that misses makes you look weak
+    resolveDamage: 2,
+    failPatience: 2,   // a threat that misses makes you look weak — costs YOUR composure
   },
 
   {
@@ -168,12 +182,16 @@ const SOCIAL_MANEUVERS = [
     description:  "The bald falsehood. A false promise, an invented ally, a fact that never was — believe it, and they hand you a lever. (Not Mock's jab or Undermine's slow doubt: a clean, confident lie.)",
     howto:        "Tell them one untrue thing that changes their maths, keep it simple, and let them act on it.",
     example:      "\"The magistrate already has your partner's signed confession — an hour ago. You're the only one who can still cut a deal.\"",
+    edge:         "Pressure AND a lever: −1 Resolve and a String, against anyone.",
+    risk:         "Get caught and it turns on you: a bad miss hands THEM a String on you — now they know you lie. And any lie can be checked later.",
     successText:  "They swallow it whole — you gain 1 String, a lever the lie hands you. Resolve −1.",
-    failText:     "They see straight through it. Patience −1.",
+    failText:     "They see straight through it.",
+    caughtText:   "Caught in the lie — now they know what you are.",
     immuneText:   null,
     applyOnSuccess: null,
     grantStrings: 1,
     resolveDamage: 1,
+    caughtOnBotch: true,   // a bad miss = caught lying: they take a String on you
   },
 
   // ── Triad of Power — domination: hits harder, risks harder ─────────────────
@@ -192,8 +210,10 @@ const SOCIAL_MANEUVERS = [
     description:  "Hold up the reflection they wish were true. Power through worship — they kneel to their own image.",
     howto:        "Praise the person they most wish they were — specific, and just believable enough that they want it to be true.",
     example:      "\"There's not another commander alive who'd have held that line. Your people followed you into hell and back — because you are worth following.\"",
-    successText:  "They fall for their own reflection — Enthralled (cannot act against you; your Persuasion maneuvers gain Advantage). Resolve −2.",
-    failText:     "The mirror shows the flattery for what it is. Patience −1.",
+    edge:         "No nature walls it; Enthralled turns your next maneuver against them into Advantage.",
+    risk:         "A Reason-ruled mind sees the mirror for what it is (−2), and feeding an ego makes it bigger first.",
+    successText:  "They fall for their own reflection — Enthralled: your next maneuver against them gains Advantage, and until then they can't act against you. Resolve −2.",
+    failText:     "The mirror shows the flattery for what it is.",
     immuneText:   null,
     applyOnSuccess: "smitten",
     grantStrings: 0,
@@ -209,13 +229,15 @@ const SOCIAL_MANEUVERS = [
     skillKeys:       { dnd5e: "dec", "a5e-for-dnd5e": "deception" },
     skill2:          "Performance",
     skillKeys2:      { dnd5e: "prf", "a5e-for-dnd5e": "performance" },
-    vulnerabilityTags: ["deceive", "feigned weakness"],  // Machiavellian → Advantage
+    vulnerabilityTags: ["deceive", "feigned weakness"],  // Schemer → Advantage
     immunityTags:      ["scorn for weakness"],            // Duelist
     description:  "The deep bait. Show them your throat and count what they reveal reaching for it.",
     howto:        "Play small, cornered, harmless — let them lower their guard to help or to gloat, and note what they let slip.",
     example:      "\"You've completely outmaneuvered me — I don't even see how you did it. You'll have to explain it to me slowly; I clearly can't keep pace with someone like you.\"",
+    edge:         "The richest bait: two Strings for what they reveal reaching for you.",
+    risk:         "Only 1 Resolve — it's for leverage, not for winning; the proud despise weakness and it backfires.",
     successText:  "They lunge at the opening and show you everything. You gain 2 Strings on them. Resolve −1.",
-    failText:     "They circle the bait, unconvinced. Patience −1.",
+    failText:     "They circle the bait, unconvinced.",
     immuneText:   "Weakness earns only their contempt.",
     applyOnSuccess: null,
     grantStrings: 2,
@@ -236,8 +258,10 @@ const SOCIAL_MANEUVERS = [
     description:  "The public unmaking. Shame them before the people whose respect holds them up — strip that away and their will caves. Not a bait like Taunt: here the DAMAGE is the point, and it's heavy.",
     howto:        "Break their STANDING in front of witnesses — make the whole room watch them fall, and their confidence falls with it.",
     example:      "\"Tell them. Tell this whole room what you did at the river while your men drowned. Say it aloud — every one of us is waiting.\"",
+    edge:         "The heaviest blow (−3), and it leaves a lasting Wrath wound; Provoked makes it −4.",
+    risk:         "A miss costs you 2 Patience; the shamed come back angry; someone who doesn't care about the room shrugs it off.",
     successText:  "The room turns on them. Resolve −3 — and the shame doesn't wash off: they carry an Angry wound (it deepens if you shame them again).",
-    failText:     "The gauntlet lies ignored, and the room saw you drop it. Patience −2.",
+    failText:     "The gauntlet lies ignored, and the room saw you drop it.",
     immuneText:   "They walk away from the theatrics.",
     applyOnSuccess: null,
     grantStrings: 0,
@@ -260,12 +284,14 @@ const SOCIAL_MANEUVERS = [
     skillKeys:       { dnd5e: "prf", "a5e-for-dnd5e": "performance" },
     skill2:          "Persuasion",
     skillKeys2:      { dnd5e: "per", "a5e-for-dnd5e": "persuasion" },
-    vulnerabilityTags: ["love bombing"],              // Exalted → Advantage
+    vulnerabilityTags: ["love bombing"],              // Idol → Advantage
     immunityTags:      ["persuade", "sympathy"],      // Martyr
     description:  "Lay siege with sweetness. Adoration as a weapon — they open the gates themselves.",
     howto:        "Pour warm, undivided attention on them until being near you feels like the best thing in the room.",
     example:      "\"I've thought of nothing but this all week. When you walk into a room, everything else just… goes quiet. Stay a while. Talk to me.\"",
-    successText:  "The gates open — Enthralled (cannot act against you; your Persuasion maneuvers gain Advantage). They confide: you gain 1 String. Resolve −1.",
+    edge:         "Enthralled plus a String — they confide in you; a Desperate target clings (+1 damage).",
+    risk:         "Only 1 Resolve; to someone who distrusts kindness, sweetness backfires.",
+    successText:  "The gates open — Enthralled: your next maneuver against them gains Advantage, and until then they can't act against you. They confide: you gain 1 String. Resolve −1.",
     failText:     "The display leaves them cold.",
     immuneText:   "Your sweetness deepens their contempt.",
     applyOnSuccess: "smitten",
@@ -288,8 +314,10 @@ const SOCIAL_MANEUVERS = [
     description:  "Warmth, aimed anywhere but at them. Make it clear you're wanted elsewhere — praise a rival present OR conjure one who isn't ('others would leap at this'), hint you're spoiled for choice. The rival can be real or invented; what bites is the fear of losing you to someone. They chase what they think they're losing.",
     howto:        "Turn your warmth toward someone else — real or invented — so they scramble to win your attention back.",
     example:      "\"Kaelen listens as though every word I say matters — so rare, in a man. Don't fret over it, though; I know I'm hardly a priority of yours.\"",
+    edge:         "−2 Resolve and Desperate: the next Flatter or Charm gets Advantage, and Bargain cashes it for a String.",
+    risk:         "Needs a believable rival; someone who gives rather than takes won't compete.",
     successText:  "The thought of someone else in your favor gnaws at them. They talk faster, lean closer, work to win you back — Desperate (the next Flatter or Charm against them gains Advantage). Resolve −2.",
-    failText:     "They call the bluff — they don't believe in your other admirers. Patience −1.",
+    failText:     "They call the bluff — they don't believe in your other admirers.",
     immuneText:   "They'd rather you gave the attention to someone who needs it.",
     applyOnSuccess: "desperate",
     grantStrings: 0,
@@ -306,12 +334,14 @@ const SOCIAL_MANEUVERS = [
     skill2:          "Insight",
     skillKeys2:      { dnd5e: "ins", "a5e-for-dnd5e": "insight" },
     vulnerabilityTags: ["guilt", "obligation"],       // Caretaker → Advantage
-    immunityTags:      ["shameless"],                 // Machiavellian
+    immunityTags:      ["shameless"],                 // Schemer
     description:  "Lay out everything you gave and everything they cost you — and let the weight of it crush.",
     howto:        "Quietly recount what you gave and what it cost you, until carrying that debt becomes their problem.",
     example:      "\"I gave up everything so that you could have your chance at this. I've never once asked you to repay it — which is why I cannot fathom how you'd refuse me now.\"",
+    edge:         "−2 Resolve and Beholden: your next maneuver gets Advantage; an Enthralled target pays a String.",
+    risk:         "Needs a conscience — the shameless are untouched, and it works best on those who already owe you.",
     successText:  "The weight settles on their shoulders — Beholden (your next maneuver against them gains Advantage). Resolve −2.",
-    failText:     "They shrug the weight off. Patience −1.",
+    failText:     "They shrug the weight off.",
     immuneText:   "Shame needs a conscience.",
     applyOnSuccess: "guilted",
     grantStrings: 0,
@@ -330,14 +360,16 @@ const SOCIAL_MANEUVERS = [
     skillKeys:       { dnd5e: "dec", "a5e-for-dnd5e": "deception" },
     skill2:          "Insight",
     skillKeys2:      { dnd5e: "ins", "a5e-for-dnd5e": "insight" },
-    vulnerabilityTags: ["gaslighting", "exploiting dogma"],  // Dogmatic → Advantage
+    vulnerabilityTags: ["gaslighting", "exploiting dogma"],  // Zealot → Advantage
     immunityTags:      ["ledger mind"],                       // Broker
     description:  "Field control. Pull one thread of what they believe and let the whole cloth loosen.",
     howto:        "Pick one thing they're sure of and calmly make them doubt it — 'are you certain that's how it went?'",
     example:      "\"That isn't how it happened, and I think you know it. You've been forgetting things lately — small things. Perhaps sit down before you say something you'll regret.\"",
-    successText:  "Their certainty frays — Rattled: the DC to sway them drops by 5 for the scene. Resolve −1.",
-    failText:     "The weave holds firm. Patience −1.",
-    immuneText:   "Feelings aren't entries in their books.",
+    edge:         "Rattled: the next maneuver against them faces DC −5 — the best opener against a hard target, and Invoke Authority cashes it.",
+    risk:         "Only 1 Resolve; it fails against anyone who keeps records — doubt dies against a ledger.",
+    successText:  "Their certainty frays — Rattled: the next maneuver against them faces DC −5. Resolve −1.",
+    failText:     "The weave holds firm.",
+    immuneText:   "They check the ledger — it says otherwise.",
     applyOnSuccess: "rattled",
     grantStrings: 0,
     resolveDamage: 1,
@@ -353,12 +385,14 @@ const SOCIAL_MANEUVERS = [
     skill2:          "Insight",
     skillKeys2:      { dnd5e: "ins", "a5e-for-dnd5e": "insight" },
     vulnerabilityTags: ["information deficit", "logic puzzles"],  // Hermit → Advantage
-    immunityTags:      ["bribes", "emotions", "pure logic"],      // Dogmatic, Machiavellian
+    immunityTags:      ["bribes", "emotions", "pure logic"],      // Zealot, Schemer
     description:  "The scholar's cut. Find the flaw in their reasoning and pry it open — it hurts AND it teaches.",
     howto:        "Ask precise, patient questions until a contradiction shows — then press on that exact crack.",
     example:      "\"You swore you'd never met the man. Yet here is your own seal on his letter, dated the very night you claim you were a hundred miles away. So which is lying — you, or the wax?\"",
+    edge:         "Damage AND information: −2 Resolve, a whispered tell and a String.",
+    risk:         "Rolls Investigation — hard for a pure charmer; a mind at home in argument out-talks you and it backfires.",
     successText:  "The flaw betrays them — a tell of their nature is whispered to you, you gain 1 String, and their certainty bleeds. Resolve −2.",
-    failText:     "Your argument doesn't land. Patience −1.",
+    failText:     "Your argument doesn't land.",
     immuneText:   "They dismiss the reasoning outright.",
     applyOnSuccess: null,
     grantStrings: 1,
@@ -377,17 +411,44 @@ const SOCIAL_MANEUVERS = [
     skill2:          "Insight",
     skillKeys2:      { dnd5e: "ins", "a5e-for-dnd5e": "insight" },
     vulnerabilityTags: ["deal", "greed"],             // Broker → Advantage
-    immunityTags:      ["bribes"],                    // Dogmatic
+    immunityTags:      ["bribes"],                    // Zealot
     description:  "Every gift is a link. Put a concrete offer on the table and watch it close around their wrist.",
     howto:        "Put a concrete offer on the table — 'I'll do X if you do Y' — and let the deal do the persuading.",
     example:      "\"Give me the ledger, and the guard captain never hears your name. One page, and you walk out of here a free man. Do we have a deal?\"",
+    edge:         "The economy move: −2 Resolve and two Strings; a Desperate target pays one more.",
+    risk:         "Every deal is a promise you'll be held to; to the incorruptible, an offer is a bribe and it backfires.",
     successText:  "They accept the terms — and the chain. You gain 2 Strings; the obligation weighs. Resolve −2.",
-    failText:     "Your price is wrong. Patience −1.",
+    failText:     "Your price is wrong.",
     immuneText:   "They recoil from the offer as corruption itself.",
     applyOnSuccess: null,
     grantStrings: 2,
     resolveDamage: 2,
     combos: { desperate: { label: "A desperate soul signs anything", strings: 1 } },
+  },
+
+  {
+    id:    "invoke_authority",
+    name:  "Invoke Authority",
+    skill: "Persuasion",
+    icon:  "fa-stamp",
+    group: "order",
+    skillKeys:       { dnd5e: "per", "a5e-for-dnd5e": "persuasion" },
+    skill2:          "History",
+    skillKeys2:      { dnd5e: "his", "a5e-for-dnd5e": "history" },
+    vulnerabilityTags: ["authority"],                 // Zealot → Advantage
+    immunityTags:      ["sovereign"],                 // Tyrant
+    description:  "Name a power above you both — a law, an order, a seal, a precedent — and make yielding to it the only proper thing to do. Not your will against theirs: the rule's.",
+    howto:        "Put the higher name on the table and step behind it: 'it isn't me asking — it's the law / the Duke / the Guild'.",
+    example:      "\"This is the Duke's seal. The bridge tolls were his to set, and tonight he has set them aside for us. You wouldn't defy your own lord's hand — would you?\"",
+    edge:         "−2 Resolve, and the classic follow-up to doubt: a Rattled target grabs the certainty you offer (+1).",
+    risk:         "Needs a real higher name in the fiction — a bluffed one can be checked; someone who IS the authority laughs it off and it backfires.",
+    successText:  "The higher name settles it — they yield to the rule, not to you. Resolve −2.",
+    failText:     "They don't recognise the authority — or don't believe you speak for it.",
+    immuneText:   "\"There is no authority here but mine.\"",
+    applyOnSuccess: null,
+    grantStrings: 0,
+    resolveDamage: 2,
+    combos: { rattled: { label: "Shaken by doubt, they grab the certainty you offer", resolveDamage: 1 } },
   },
 ];
 
@@ -462,6 +523,7 @@ const CONDITION_OPENINGS = {
   logic_exploit:  { scared:   "their fear makes them over-explain" },
   gaslight:       { scared:   "their fear makes every doubt land" },
   sweeten_deal:   { hopeless: "in the dark, any offer glows" },
+  invoke_authority: { scared: "fear makes them cling to the rules" },
 };
 
 /** First open wound on the target that this maneuver can walk through. */
@@ -485,7 +547,7 @@ class SocialManeuverRoller {
   static chipLegend(isGM) {
     const items = isGM
       ? [
-          "<b>◎</b> their weak spot — cuts deep (Advantage, +1 damage)",
+          "<b>◎</b> their weak spot — cuts deep (Advantage, +1 damage, can't be parried)",
           "<b>✕</b> bounces off / they're walled",
           "<b>▲</b> their nature yields to this school (+2)",
           "<b>⊕</b> an opening is live — a condition on them makes this maneuver stronger (a status you set up, or a lasting emotional wound they carry)",
@@ -530,6 +592,10 @@ class SocialManeuverRoller {
       // trained character actually rolls better than an untrained one.
       const mult = Number(entry.proficient ?? entry.prof ?? entry.proficiency ?? 0);
       if (mult > 0) v += Math.floor(SocialManeuverRoller.getProfBonus(actor) * mult);
+      // …and the triad-dot "Social Leanings" bonus, which the system's own
+      // roll adds from bonuses.check — so the number we show (and roll on the
+      // module's own path) matches what the sheet rolls.
+      v += SocialArchetypeManager.leanSkillBonus(actor, key);
       return v;
     }
     return 0;
@@ -540,9 +606,64 @@ class SocialManeuverRoller {
     return SocialManeuverRoller._modForKeys(actor, maneuver.skillKeys);
   }
 
-  /** The SECONDARY skill modifier — added as a bonus on top (0 if none). */
-  static getSkillMod2(actor, maneuver) {
-    return SocialManeuverRoller._modForKeys(actor, maneuver.skillKeys2);
+  /**
+   * The EXPLICIT part of the triad dots inside the primary skill: how much of
+   * `getSkillMod` comes from the actor's "Social Leanings" effect, and which
+   * triad gave it — so the bars can say "incl. +2 Power leaning".
+   */
+  static getLeanInSkill(actor, maneuver) {
+    const key = maneuver?.skillKeys?.dnd5e;   // dnd5e and a5e share the 3-letter keys
+    const value = SocialArchetypeManager.leanSkillBonus(actor, key);
+    if (!value) return null;
+    const triadId = Object.entries(SocialArchetypeManager.TRIAD_SKILLS).find(([, m]) => m.key === key)?.[0];
+    const label = (SOCIAL_TRIADS[triadId]?.label ?? "").replace("Triad of ", "");
+    return { value, triad: label, why: SocialArchetypeManager.TRIAD_SKILLS[triadId]?.why ?? "" };
+  }
+
+  /**
+   * The SUPPORT skill's contribution: your proficiency bonus if you're trained
+   * in it (half, rounded down, for half-proficiency), else 0. Only the TRAINING
+   * counts — the ability modifier is not added a second time, so a maneuver
+   * whose two skills share an ability (most CHA pairs) doesn't count CHA twice
+   * and the d20 still matters against an ordinary target.
+   */
+  static getSupportBonus(actor, maneuver) {
+    const keys = maneuver?.skillKeys2;
+    if (!keys) return 0;
+    const cand = [...new Set([keys[game.system.id], keys["a5e-for-dnd5e"], keys["dnd5e"]].filter(Boolean))];
+    for (const key of cand) {
+      const entry = actor?.system?.skills?.[key];
+      if (!entry) continue;
+      // dnd5e: `proficient` = the multiplier (0 / 0.5 / 1 / 2); a5e: a number
+      // (0 / 1 …); older shapes may only carry prof.multiplier.
+      const raw  = entry.proficient ?? entry.prof?.multiplier ?? 0;
+      const mult = typeof raw === "boolean" ? (raw ? 1 : 0) : (Number(raw) || 0);
+      if (mult <= 0) return 0;
+      const prof = SocialManeuverRoller.getProfBonus(actor);
+      return mult >= 1 ? prof : Math.floor(prof / 2);
+    }
+    return 0;
+  }
+
+  /** Hover text for a roll grade on the dice overlays (the dice's verdict). */
+  static gradeTip(outcome, natural = null) {
+    const nat = natural === 1 ? "A natural 1 always misses, whatever the total. " : "";
+    return {
+      crit:    "Clean hit — beat the difficulty by 5+: the maneuver lands with +1 Resolve damage. (The GM confirms the final grade.)",
+      success: "Hit — the maneuver lands; the defender meets it in one window: take or parry the blow with their own Patience, and accept the state or Hold the Line against it. (The GM confirms the final grade.)",
+      failure: `${nat}Miss — nothing lands, and the attacker loses Patience (their own composure).`,
+      botch:   `${nat}Bad miss — 5+ under: the attacker loses Patience AND the target answers in their own style (Rattled · Beholden · a String on you).`,
+      immune:  "Walled off — this approach slides off their nature: no effect, it costs the attacker like a miss, and they turn Defiant.",
+    }[outcome] ?? "";
+  }
+
+  /**
+   * What a failed maneuver costs the ATTACKER's own composure (Patience):
+   * the maneuver's `failPatience` (default 1), +1 if they pressed a Fear —
+   * a threat that misses backfires on the one who made it.
+   */
+  static missCost(maneuver, leverage = null) {
+    return (maneuver?.failPatience ?? 1) + (leverage === "fear" ? 1 : 0);
   }
 
   static getPassiveInsight(actor) {
@@ -662,24 +783,38 @@ class SocialManeuverRoller {
     try { dcTable = Number(game.settings.get("tsl-social-conflict", "socialDcBonus")) || 0; } catch (e) {}
     if (dcTable) dcMods.push({ label: "table difficulty", value: dcTable });
     // (Strings give no passive DC change — they are only ever spent, never held for an edge.)
-    // A wearing conversation hardens people: past half Patience the door is closing
-    const enc = SocialEncounterManager.getEncounter(targetActor);
+    // Composure on both sides — what's left of each Patience (no DC effect:
+    // a worn-down defender is closer to breaking off, not harder to reach).
+    const enc    = SocialEncounterManager.getEncounter(targetActor);
+    const srcEnc = SocialEncounterManager.getEncounter(sourceActor);
     const patienceThin = enc.active && enc.patience <= Math.floor(enc.maxPatience / 2);
     const lastExchange = enc.active && enc.patience === 1;
-    if (patienceThin) dcMods.push({ label: "their patience wears thin", value: 1 });
+    const missCost     = SocialManeuverRoller.missCost(maneuver, leverage);
+    const selfThin     = srcEnc.active && srcEnc.patience <= Math.floor(srcEnc.maxPatience / 2);
+    const selfLast     = srcEnc.active && srcEnc.patience <= missCost;
     // (No "home ground" DC bump: a school pressed against its OWN school is
     //  even — 0. A defender's nature instead defends through the rock-paper-
     //  scissors of schools below: +2 for you, −2, or nothing.)
     const dc = dcMods.reduce((sum, m) => sum + m.value, dcBase);
 
-    // ── Hard walls: Defiant target / Enthralled attacker ────────────────────────
+    // ── Hard walls: a finished exchange / Defiant target / Enthralled attacker ──
     // Cold Reading slips through Defiant (observing is not influencing) —
     // the wall turn stays playable: you study them while they fume.
     let relation = "neutral";
     let relationReason = null;
     const smittenSelf = SocialArchetypeManager.getActiveCondition(sourceActor, "smitten");
     const smittenBy   = smittenSelf?.flags?.[scope]?.sourceActorId === targetActor.id;
-    if (cond("defiant") && !maneuver.worksThroughDefiant) {
+    const doneLabel   = (o) => o === "swayed" ? "conceded" : "broken off";
+    if (enc.outcome) {
+      // Once someone is swayed or breaks off, their exchange is OVER — no more
+      // maneuvers (and no farming Strings off a finished conversation) until
+      // the GM resets it or play moves to another scene.
+      relation = "blocked";
+      relationReason = `${targetActor.name} has ${doneLabel(enc.outcome)} — this exchange is over (the GM can reset it in their Chronicle → Fencing).`;
+    } else if (srcEnc.outcome) {
+      relation = "blocked";
+      relationReason = `You've ${doneLabel(srcEnc.outcome)} — you're out of this exchange (the GM can reset it in your Chronicle → Fencing).`;
+    } else if (cond("defiant") && !maneuver.worksThroughDefiant) {
       relation = "blocked";
       relationReason = "Defiant — walled off from maneuvers. A successful Read Them breaks the wall.";
     } else if (smittenBy) {
@@ -711,13 +846,13 @@ class SocialManeuverRoller {
     if (advantage) advantageReasons.push(relationReason);
 
     if (relation !== "blocked" && relation !== "immune") {
-      // Two skills, always: the maneuver rolls its PRIMARY on the d20, and its
-      // SECONDARY skill's FULL modifier rides on top as a flat bonus (Read Them
-      // = Insight + Investigation). The higher rolls this produces are balanced
-      // by the social DC, which now leans on the target's WIS/INT SAVE mods.
+      // Two skills, always: the maneuver rolls its PRIMARY on the d20; if you're
+      // TRAINED in its support skill, your proficiency bonus rides on top (Read
+      // Them = Insight, + prof if you know Investigation). Training, not the
+      // ability again — so a CHA + CHA pair doesn't count CHA twice.
       if (maneuver.skill2) {
-        const s2 = SocialManeuverRoller.getSkillMod2(sourceActor, maneuver);
-        if (s2) bonusReasons.push({ label: `${maneuver.skill2} (support skill)`, value: s2 });
+        const s2 = SocialManeuverRoller.getSupportBonus(sourceActor, maneuver);
+        if (s2) bonusReasons.push({ label: `${maneuver.skill2} (trained support)`, value: s2 });
       }
       if (leverage === "desire" && !advantage) {
         advantage = true;
@@ -726,10 +861,16 @@ class SocialManeuverRoller {
       if (leverage === "fear") {
         bonusReasons.push({ label: "Pressing their Fear", value: 3 });
       }
-      if (!advantage && maneuver.skill === "Persuasion" && condBy("smitten")) {
+      // Enthralled is a one-shot now: the charmer's NEXT maneuver against them
+      // rolls with Advantage and spends it (a deep, bond-fed charm lasts two).
+      if (!advantage && condBy("smitten")) {
         advantage = true;
-        advantageReasons.push("Enthralled by you — Persuasion flows easy");
+        advantageReasons.push("Enthralled by you — they lean into whatever you say");
+        consumes.push("smitten");
       }
+      // Rattled is a one-shot too: the DC −5 above helps exactly one maneuver
+      // (from anyone), then fades.
+      if (cond("rattled")) consumes.push("rattled");
       if (!advantage && condBy("guilted")) {
         advantage = true;
         advantageReasons.push("Beholden to you — they owe you an answer");
@@ -843,12 +984,21 @@ class SocialManeuverRoller {
       ? TRIAD_ANSWER[defTriad]?.risk ?? null
       : null;
 
+    // How the state this maneuver would apply lands, given who they are to
+    // you (their bond toward you): deep (two uses) / won't take / plain.
+    const stateFx = maneuver.applyOnSuccess
+      ? SocialArchetypeManager.stateBondFx(targetActor, sourceActor, maneuver.applyOnSuccess)
+      : { mode: null };
+    // The triad-dot part already inside the skill number — shown, not hidden.
+    const leanSkill = SocialManeuverRoller.getLeanInSkill(sourceActor, maneuver);
+
     const bonus = bonusReasons.reduce((s, b) => s + b.value, 0);
     return {
       arch, relation, relationReason,
       advantage, advantageReasons,
       bonus, bonusReasons, combo, kick, opening, answerRisk,
-      patienceThin, lastExchange,
+      patienceThin, lastExchange, missCost, selfThin, selfLast,
+      stateFx, leanSkill,
       dc, dcBase, dcMods, skillMod, consumes, leverage,
     };
   }
@@ -867,18 +1017,25 @@ class SocialManeuverRoller {
       + (a.leverage === "desire" ? 1 : 0)
       + (a.kick ? 1 : 0);
     const strings = (maneuver.grantStrings ?? 0) + (a.combo?.strings ?? 0);
-    const applies = maneuver.applyOnSuccess
+    const label   = maneuver.applyOnSuccess
       ? SOCIAL_CONDITIONS[maneuver.applyOnSuccess]?.label ?? maneuver.applyOnSuccess
       : null;
+    // The bond decides how the state lands: deep (×2) or not at all.
+    const applies = !label ? null
+      : a.stateFx?.mode === "resist" ? `${label} won't take (${a.stateFx.label})`
+      : a.stateFx?.mode === "deep"   ? `they're ${label} ×2 (${a.stateFx.label})`
+      : `they're ${label}`;
     const hit = [
-      dmg ? `−${dmg} Resolve` : null,
-      applies ? `they're ${applies}` : null,
+      dmg ? `−${dmg} Resolve${maneuver.unparryable && a.relation !== "vulnerable" ? " (can't be parried)" : ""}` : null,
+      applies,
       strings ? `+${strings} String${strings > 1 ? "s" : ""}` : null,
       maneuver.reveals ? "a tell" : null,
     ].filter(Boolean).join(" · ") || "pressure";
+    const cost = a.missCost ?? SocialManeuverRoller.missCost(maneuver, a.leverage);
     const miss = [
-      "nothing lands",
+      `you lose ${cost} Patience`,
       a.answerRisk ? `badly → their answer (${a.answerRisk})` : null,
+      maneuver.caughtOnBotch ? "badly → caught lying: they take a String on you" : null,
     ].filter(Boolean).join(" · ");
     return { hit, miss };
   }
@@ -905,9 +1062,9 @@ class SocialManeuverRoller {
 
     // Relation — follows the read (truth for GM, theory for a player); a live
     // Defiant wall is a visible status so it always shows.
-    if (a.relation === "blocked")           out.push("✕ Walled off right now — nothing gets through");
-    else if (showArch && a.relation === "immune")     out.push("✕ Bounces off them — auto-fails, they turn Defiant");
-    else if (showArch && a.relation === "vulnerable") out.push("◎ Cuts deep here — Advantage & +1 Resolve damage");
+    if (a.relation === "blocked")           out.push(`✕ ${a.relationReason ?? "Walled off right now — nothing gets through"}`);
+    else if (showArch && a.relation === "immune")     out.push("✕ Bounces off them — it fails, costs you like a miss, and they turn Defiant");
+    else if (showArch && a.relation === "vulnerable") out.push("◎ Cuts deep here — Advantage, +1 Resolve damage, and it can't be parried");
 
     // Opening from a set-up status (observable — safe for players)
     if (a.combo) {
@@ -918,6 +1075,15 @@ class SocialManeuverRoller {
     }
     if (a.opening) out.push(`⊕ Opening — +2 (${a.opening.flavor})`);
     if (a.kick)    out.push("⊕ Opening — they have a status: +1 Resolve damage");
+    if (maneuver.unparryable && a.relation !== "blocked" && a.relation !== "immune") out.push("✦ Sincere — its Resolve can't be parried");
+    // What they are to you bends the state this maneuver applies
+    if (a.stateFx?.mode) {
+      const st = SOCIAL_CONDITIONS[maneuver.applyOnSuccess]?.label ?? maneuver.applyOnSuccess;
+      out.push(a.stateFx.mode === "deep"
+        ? `♥ ${a.stateFx.label} — ${st} runs deep: it lasts two uses (${a.stateFx.why})`
+        : `♥ ${a.stateFx.label} — ${st} won't take from you (${a.stateFx.why})`);
+    }
+    if (a.leanSkill) out.push(`${maneuver.skill} includes +${a.leanSkill.value} from your ${a.leanSkill.triad} leaning`);
 
     // Flat bonuses. The counter (▲/▽) follows the read (truth or theory);
     // blind-side is truth-only (it reads the target's real dots, which a theory
@@ -1014,7 +1180,7 @@ class SocialManeuverRoller {
   /**
    * Roll the maneuver and post the chat card. NO side effects here —
    * pass the returned payload to applyOutcome (GM) or the GM_ACTION relay.
-   * options.stringBonus  — +2 if the roller spent a String on this target
+   * options.stringBonus  — a String already spent on this target (+5)
    * options.situational  — flat modifier from the pre-roll dialog
    * options.mode         — "normal" | "adv" | "dis" from the pre-roll dialog
    */
@@ -1039,7 +1205,7 @@ class SocialManeuverRoller {
     let wantAdv = a.advantage || options.mode === "adv";
     let wantDis = options.mode === "dis";
 
-    let roll, rawDice, total;
+    let roll, rawDice, total, natural = null;
     let systemRoll = false;
     if (SocialManeuverRoller.usesSystemDialog(sourceActor)) {
       // The SYSTEM rolls the skill (its dialog owns advantage/expertise/
@@ -1056,9 +1222,13 @@ class SocialManeuverRoller {
       roll = msg?.rolls?.[0] ?? null;
       if (!roll) return null;                    // dialog cancelled — nothing spent
       total    = roll.total;
-      rawDice  = roll.dice?.[0]?.results?.map(r => r.result) ?? [];
+      const results = roll.dice?.[0]?.results ?? [];
+      rawDice  = results.map(r => r.result);
       wantAdv  = rawDice.length > 1;             // display only — the system already resolved it
       wantDis  = false;
+      // The die that COUNTS (kh/kl mark the other one inactive)
+      const live = results.filter(r => r.active !== false && !r.discarded).map(r => r.result);
+      natural  = live.length ? live[0] : (rawDice[0] ?? null);
     } else {
       const die = wantAdv && wantDis ? "1d20" : wantAdv ? "2d20kh1" : wantDis ? "2d20kl1" : "1d20";
       const mod = a.skillMod + stringBonus + a.bonus + situational;
@@ -1066,15 +1236,21 @@ class SocialManeuverRoller {
       await roll.evaluate();
       rawDice = roll.dice[0].results.map(r => r.result);
       total   = roll.total;
+      natural = wantAdv && !wantDis ? Math.max(...rawDice)
+              : wantDis && !wantAdv ? Math.min(...rawDice)
+              : rawDice[0];
     }
 
     const isWalled = a.relation === "immune" || a.relation === "blocked";
-    let   success  = !isWalled && total >= a.dc;
+    // A natural 1 always misses — however big the bonus, a fumble is a fumble.
+    const nat1     = natural === 1;
+    let   success  = !isWalled && !nat1 && total >= a.dc;
 
-    // The post-roll gamble: on a miss the roller may burn a String for +2 —
+    // The post-roll gamble: on a miss the roller may burn a String for +5 —
     // decided AFTER seeing the die, against a difficulty they cannot see.
+    // (Not offered on a natural 1: no thread can save a fumble.)
     let spentStringPostRoll = false;
-    if (!isWalled && !success && options.offerString) {
+    if (!isWalled && !success && !nat1 && options.offerString) {
       const held = TSLStringStore.getList(sourceActor.id)
         .filter(e => e.targetActorId === targetActor.id).length;
       if (held > 0 && await SocialManeuverRoller.promptStringBurn(total, maneuver, held)) {
@@ -1090,12 +1266,6 @@ class SocialManeuverRoller {
     const outcomeType = isWalled ? "immune"
       : success ? (total >= a.dc + 5 ? "crit" : "success")
       : (total <= a.dc - 5 ? "botch" : "failure");
-    const outcomeText =
-      a.relation === "blocked" ? "They are Defiant — only Read Them gets through, and a successful read breaks the wall." :
-      a.relation === "immune"  ? (maneuver.immuneText ?? "This isn't the way to them — it slides off, and they're unmoved.") :
-      outcomeType === "crit"   ? `Clean through the guard. ${maneuver.successText}` :
-      outcomeType === "botch"  ? `${maneuver.failText} The opening is yours no longer — they answer.` :
-      success ? maneuver.successText : maneuver.failText;
 
     // The card is NOT posted here — it is posted by the GM in applyOutcome,
     // AFTER the GM confirms the outcome (so the shared card always reflects
@@ -1111,6 +1281,7 @@ class SocialManeuverRoller {
       combo:         isWalled ? null : a.combo,
       leverage:      a.leverage,
       total,
+      natural,
       dc: a.dc,
       spentString: stringBonus > 0,
       spentStringPostRoll,
@@ -1131,23 +1302,30 @@ class SocialManeuverRoller {
    * ("crit"|"success"|"failure"|"botch"). Skipped (returns proposed) when the
    * setting is off or the outcome is deterministic (walled).
    */
-  static async promptOutcome(sourceActor, targetActor, maneuver, total, dc, proposed) {
-    let on = true;
+  static async promptOutcome(sourceActor, targetActor, maneuver, total, dc, proposed, opts = {}) {
+    let on = true, closeOnly = true;
     try { on = game.settings.get("tsl-social-conflict", "gmDecidesOutcome") !== false; } catch {}
+    try { closeOnly = game.settings.get("tsl-social-conflict", "gmConfirmCloseOnly") !== false; } catch {}
     if (!on || proposed === "immune") return proposed;
     const esc = foundry.utils.escapeHTML;
     const margin = total - dc;
+    // Fewer windows: by default the GM is asked only on a CLOSE call (within 2
+    // of the DC) or a natural 1 — a clear result simply applies.
+    if (closeOnly && opts.natural !== 1 && Math.abs(margin) > 2) return proposed;
+    const cost = opts.missCost ?? SocialManeuverRoller.missCost(maneuver);
     const tips = {
       crit:    "A decisive success (beat the number by 5+): it lands with extra bite — +1 Resolve on top of the maneuver's effect.",
-      success: "It lands: apply the maneuver's normal effect (Resolve damage, and any status). The defender may parry the hit or Hold the Line.",
-      failure: "It misses: nothing lands. Patience is untouched — a miss no longer wears them down.",
-      botch:   "A bad miss (5+ under): the target turns it back on you in their own style — you're left Rattled (Power), Beholden (Emotion), or hand them a String (Reason).",
+      success: "It lands: apply the maneuver's normal effect (Resolve damage, and any state). The defender then meets it in one window — take or parry the blow, accept the state or Hold the Line against it.",
+      failure: `It misses: nothing lands, and the attacker loses ${cost} Patience — their own composure.`,
+      botch:   `A bad miss (5+ under): the attacker loses ${cost} Patience AND the target turns it back on them in their own style — Rattled (Power), Beholden (Emotion), or a String on them (Reason).`,
     };
+    const natNote = opts.natural === 1
+      ? `<p class="notes"><b>Natural 1</b> — an automatic miss, whatever the total.</p>` : "";
     return new Promise(resolve => {
       new Dialog({
         title: `${sourceActor.name} → ${targetActor.name}: ${maneuver.name}`,
         content: `<div class="tsl-rollmods">
-          <p>Total <b>${total}</b> vs DC <b>${dc}</b> — margin <b>${margin >= 0 ? "+" : ""}${margin}</b>.</p>
+          <p>Total <b>${total}</b> vs DC <b>${dc}</b> — margin <b>${margin >= 0 ? "+" : ""}${margin}</b>.</p>${natNote}
           <p class="notes">You have the final word — the computed grade is pre-selected. Hover a button for what it does.</p>
         </div>`,
         buttons: {
@@ -1216,17 +1394,32 @@ class SocialManeuverRoller {
       return;
     }
 
-    // No "Start Encounter" ceremony — the first maneuver against a target
-    // brings its Resolve/Patience tracks to life from sheet defaults.
+    // No "Start Encounter" ceremony — the first maneuver between two people
+    // brings BOTH sides' tracks to life from sheet defaults: each side has its
+    // own composure (Patience) to spend, the attacker on misses, the defender
+    // on parries.
     await SocialEncounterManager.ensureActive(targetActor);
-    const encBefore = SocialEncounterManager.getEncounter(targetActor);
+    await SocialEncounterManager.ensureActive(sourceActor);
+    const encBefore    = SocialEncounterManager.getEncounter(targetActor);
+    const srcEncBefore = SocialEncounterManager.getEncounter(sourceActor);
+    // A finished exchange takes no more maneuvers — the client checks this
+    // before rolling, but two people acting at once can race past it.
+    if (encBefore.outcome || srcEncBefore.outcome) {
+      const who = encBefore.outcome ? targetActor.name : sourceActor.name;
+      ui.notifications?.info?.(`TSL: ${who}'s exchange is already over — ${maneuver.name} has no effect.`);
+      return;
+    }
+
+    // What a miss costs the ATTACKER's own composure (Fear leverage backfires +1).
+    const missCost = SocialManeuverRoller.missCost(maneuver, leverage);
 
     // The GM has the final word: confirm the grade against the hidden DC
     // (the dice's verdict is pre-selected). Deterministic walls skip this.
     let outcomeType = payload.outcomeType;
     if (relation !== "immune" && relation !== "blocked") {
       outcomeType = await SocialManeuverRoller.promptOutcome(
-        sourceActor, targetActor, maneuver, payload.total, payload.dc, payload.outcomeType);
+        sourceActor, targetActor, maneuver, payload.total, payload.dc, payload.outcomeType,
+        { natural: payload.natural, missCost });
     }
     payload.outcomeType = outcomeType;   // keep the shared log in sync
 
@@ -1234,12 +1427,15 @@ class SocialManeuverRoller {
     // built from the truth-side assessment, before any one-shot burns away.
     if (payload.card) {
       const a = SocialManeuverRoller.assess(sourceActor, targetActor, maneuver, { leverage });
+      const missed   = outcomeType === "failure" || outcomeType === "botch";
+      const costLine = ` ${sourceActor.name} loses ${missCost} Patience.`;
+      const nat1     = payload.natural === 1 && missed ? "A natural 1. " : "";
       const outcomeText =
-        relation === "blocked" ? "They are Defiant — only Read Them gets through, and a successful read breaks the wall." :
-        relation === "immune"  ? (maneuver.immuneText ?? "This isn't the way to them — it slides off, and they're unmoved.") :
+        relation === "blocked" ? "Walled off — nothing gets through." :
+        relation === "immune"  ? `${maneuver.immuneText ?? "This isn't the way to them — it slides off, and they're unmoved."}${costLine}` :
         outcomeType === "crit"    ? `Clean through the guard. ${maneuver.successText}` :
-        outcomeType === "botch"   ? `${maneuver.failText} The opening is yours no longer — they answer.` :
-        (outcomeType === "success") ? maneuver.successText : maneuver.failText;
+        outcomeType === "botch"   ? `${nat1}${maneuver.failText}${costLine} The opening is yours no longer — they answer.` :
+        (outcomeType === "success") ? maneuver.successText : `${nat1}${maneuver.failText}${costLine}`;
       // A landed blow shows WHO you hit: a veiled archetype reaction (evidence,
       // never a name). Skipped for Read Them — its clue is the private whisper.
       const reaction = (!maneuver.reveals && (outcomeType === "success" || outcomeType === "crit"))
@@ -1260,9 +1456,10 @@ class SocialManeuverRoller {
     const wasOffBalance = SOCIAL_CONDITION_ORDER.some(id =>
       SocialArchetypeManager.getActiveCondition(targetActor, id));
 
-    // One-shot statuses that influenced this roll burn away
+    // One-shot statuses that influenced this roll spend a use (a state that
+    // runs deep through a bond has two; otherwise it burns away)
     for (const condId of consumed ?? []) {
-      await SocialArchetypeManager.removeCondition(targetActor, condId);
+      await SocialArchetypeManager.spendCondition(targetActor, condId);
     }
     // A played leverage card is spent whatever the outcome — they heard the pitch
     if (leverage)
@@ -1270,43 +1467,18 @@ class SocialManeuverRoller {
 
     if (outcomeType === "immune") {
       // Pressing an immunity is a FREE deflection for the target — it simply
-      // isn't the way to them. Costs them no Patience; the cost is on the
-      // ATTACKER: the approach is walled (Defiant) and earns their Answer.
+      // isn't the way to them. The whole cost is the ATTACKER's: the approach
+      // is walled (Defiant), it earns their Answer, and like any failed
+      // maneuver it spends the attacker's own composure.
       if (relation === "immune") {
         await SocialArchetypeManager.applyCondition(targetActor, "defiant", sourceActor);
         await SocialManeuverRoller._applyAnswer(sourceActor, targetActor);
+        await SocialEncounterManager.adjustPatience(sourceActor, -missCost, targetActorId);
       }
     } else if (outcomeType === "success" || outcomeType === "crit") {
-      // Hold the Line: the words landed — the defender may refuse the STATUS
-      // and the Resolve hit by taking an emotional wound (a TSL Condition)
-      // instead. Asked out loud at the table; the GM clicks the answer.
-      let heldTheLine = false;
-      if (maneuver.applyOnSuccess && SocialManeuverRoller._holdLineEnabled()) {
-        const choice = await SocialManeuverRoller.promptHoldLine(targetActor, maneuver);
-        if (choice) {
-          heldTheLine = true;
-          const count = await TSLConditionEffects.applyOne(targetActor, choice, sourceActor.name);
-          const esc = foundry.utils.escapeHTML;
-          const condLabel = (typeof TSLConditionEffects !== "undefined" && TSLConditionEffects.getMeta(choice)?.label) || choice;
-          await ChatMessage.create({
-            speaker: ChatMessage.getSpeaker({ actor: targetActor }),
-            content: `<div class="tsl-maneuver-card tsl-mv--immune"><div class="tsl-mv-outcome tsl-mv-outcome--immune">🛡 ${esc(targetActor.name)} holds the line — the words land, but they swallow them: <b>${condLabel}</b>.${count >= 4 ? " <b>Overwhelmed — they must yield or flee.</b>" : ""}</div></div>`,
-          });
-        }
-      }
-      if (heldTheLine) {
-        // The effect is refused, not erased: Strings/tells the ATTACKER earned
-        // still stand (they learned something), but no status, no Resolve hit.
-        if (maneuver.grantStrings > 0)
-          await TSLStringStore.add(sourceActorId, targetActorId, maneuver.grantStrings);
-        if (combo?.strings > 0)
-          await TSLStringStore.add(sourceActorId, targetActorId, combo.strings);
-        if (maneuver.reveals)
-          await SocialManeuverRoller.whisperTell(sourceActor, targetActor);
-        return SocialManeuverRoller._afterOutcome(payload, encBefore);
-      }
-      if (maneuver.applyOnSuccess)
-        await SocialArchetypeManager.applyCondition(targetActor, maneuver.applyOnSuccess, sourceActor);
+      const escS = foundry.utils.escapeHTML;
+      // What the attacker earned stands whatever the defender does with the
+      // blow — Strings, a whispered tell, a cracked wall.
       if (maneuver.grantStrings > 0)
         await TSLStringStore.add(sourceActorId, targetActorId, maneuver.grantStrings);
       // A read never hands over the archetype — it whispers a TELL. The player
@@ -1316,21 +1488,21 @@ class SocialManeuverRoller {
       // Read Them slips through the Defiant wall — and a SUCCESSFUL read
       // finds the seam and brings it down. Without this, one triggered
       // immunity walls the target off with no counter-play (game time does
-      // not tick on its own, so "1 hour" is effectively forever).
+      // not tick on its own, so the duration is effectively forever).
       if (maneuver.worksThroughDefiant
           && SocialArchetypeManager.getActiveCondition(targetActor, "defiant")) {
         await SocialArchetypeManager.removeCondition(targetActor, "defiant");
         await ChatMessage.create({
           speaker: ChatMessage.getSpeaker({ actor: targetActor }),
-          content: `<div class="tsl-maneuver-card tsl-mv--success"><div class="tsl-mv-outcome tsl-mv-outcome--success">🧱 The wall cracks — ${foundry.utils.escapeHTML(targetActor.name)} is no longer Defiant.</div></div>`,
+          content: `<div class="tsl-maneuver-card tsl-mv--success"><div class="tsl-mv-outcome tsl-mv-outcome--success">🧱 The wall cracks — ${escS(targetActor.name)} is no longer Defiant.</div></div>`,
         });
       }
-      // A vulnerability strike adds +1 to the maneuver's own damage profile
+
+      // How hard it hits. A vulnerability strike adds +1 to the maneuver's own
+      // damage profile; desire leverage, a clean hit and Mock's kick add more.
       let damage = (maneuver.resolveDamage ?? 1) + (relation === "vulnerable" ? 1 : 0);
       if (leverage === "desire") damage += 1;  // the offer does half the work
-      // A clean hit (beat the mark by 5+) cuts deeper
       if (outcomeType === "crit") damage += 1;
-      // Mock kicks them while they're down: +1 vs a target with any status
       if (maneuver.kickWhileDown && wasOffBalance) damage += 1;
       // A cashed combo pays out on top: extra damage and/or a String
       if (combo) {
@@ -1338,77 +1510,130 @@ class SocialManeuverRoller {
         if (combo.strings > 0)
           await TSLStringStore.add(sourceActorId, targetActorId, combo.strings);
       }
-      // The DEFENDER meets the blow (the second blade): spend Patience to blunt
-      // it — 1 Patience blocks 1 Resolve — or RIPOSTE (block all + 1 back, one
-      // extra Patience). A VULNERABLE school slips past their guard: no parry.
-      if (damage > 0 && relation !== "vulnerable" && SocialManeuverRoller._defenseEnabled()) {
-        const patience = SocialEncounterManager.getEncounter(targetActor)?.patience ?? 0;
-        if (patience > 0) {
-          const def   = await SocialManeuverRoller.promptDefense(targetActor, sourceActor, maneuver, damage, patience);
-          const block = Math.max(0, Math.min(def?.block ?? 0, damage, patience));
-          const spend = block + (def?.riposte ? 1 : 0);
-          if (spend > 0) await SocialEncounterManager.adjustPatience(targetActor, -spend, sourceActorId);
-          damage -= block;
-          const escD = foundry.utils.escapeHTML;
-          if (def?.riposte) {
-            // Full block AND a counter — the attacker's own Resolve takes 1.
-            await SocialEncounterManager.ensureActive(sourceActor);
-            await SocialEncounterManager.adjustResolve(sourceActor, -1, targetActorId);
+
+      // The state this maneuver applies — and how THEIR bond toward you lets it
+      // land: it runs deep (two uses) or won't take at all.
+      const stateId = maneuver.applyOnSuccess ?? null;
+      const sfx     = stateId ? SocialArchetypeManager.stateBondFx(targetActor, sourceActor, stateId) : { mode: null };
+      const offered = stateId && sfx.mode !== "resist" ? stateId : null;
+
+      // ── The defender meets the blow — ONE window (v1.81) ──────────────────
+      // The Resolve hit: take it / parry with their own Patience / riposte.
+      // The state: accept it, or Hold the Line — refuse the STATE by carrying
+      // a Wound instead (the hit itself still has to be met). A Wound already
+      // at its breaking point (●●●) can't take more; an Overwhelmed defender
+      // (Wounds weighing 4+) can neither parry nor hold the line.
+      const overwhelmed = TSLConditionEffects.isOverwhelmed(targetActor);
+      const holdOptions = offered && SocialManeuverRoller._holdLineEnabled() && !overwhelmed
+        ? (HOLD_LINE_CONDITIONS[maneuver.group] ?? HOLD_LINE_CONDITIONS.general)
+            .filter(w => TSLConditionEffects.getTier(targetActor, w) < 3)
+        : [];
+      const patience = SocialManeuverRoller._defenseEnabled()
+        ? (SocialEncounterManager.getEncounter(targetActor)?.patience ?? 0) : 0;
+      const meet = await SocialManeuverRoller.promptMeetBlow({
+        defender: targetActor, attacker: sourceActor, maneuver, damage, patience,
+        maxPatience: SocialEncounterManager.getEncounter(targetActor)?.maxPatience ?? patience,
+        unparryable: relation === "vulnerable" || !!maneuver.unparryable, overwhelmed,
+        status: offered, statusDeep: sfx.mode === "deep", holdOptions,
+        // An NPC meets the blow by its stance (no window); a PC decides.
+        stance: SocialArchetypeManager.getStance(targetActor),
+      });
+      const stNote = meet.auto ? ` <i>(${escS(SocialArchetypeManager.DEFENSE_STANCES[meet.stance]?.label ?? meet.stance)} stance)</i>` : "";
+
+      // The state first — it was in the words.
+      if (stateId) {
+        const stLabel = SOCIAL_CONDITIONS[stateId]?.label ?? stateId;
+        if (sfx.mode === "resist") {
+          await ChatMessage.create({
+            speaker: ChatMessage.getSpeaker({ actor: targetActor }),
+            content: `<div class="tsl-maneuver-card tsl-mv--immune"><div class="tsl-mv-outcome tsl-mv-outcome--immune">♥ <b>${escS(stLabel)}</b> won't take — ${escS(sfx.label)}: ${escS(sfx.why)}.</div></div>`,
+          });
+        } else if (meet.hold) {
+          const load = await TSLConditionEffects.applyOne(targetActor, meet.hold, sourceActor.name, sourceActorId);
+          const wLabel = TSLConditionEffects.getMeta(meet.hold)?.label ?? meet.hold;
+          await ChatMessage.create({
+            speaker: ChatMessage.getSpeaker({ actor: targetActor }),
+            content: `<div class="tsl-maneuver-card tsl-mv--immune"><div class="tsl-mv-outcome tsl-mv-outcome--immune">🛡 ${escS(targetActor.name)} holds the line against <b>${escS(stLabel)}</b> — and carries it as <b>${escS(wLabel)}</b> instead${stNote}.${load >= 4 ? " <b>Overwhelmed — they must yield or flee: no more parrying, no more holding the line.</b>" : ""}</div></div>`,
+          });
+        } else {
+          await SocialArchetypeManager.applyCondition(targetActor, stateId, sourceActor, { charges: sfx.mode === "deep" ? 2 : 1 });
+          if (sfx.mode === "deep") {
             await ChatMessage.create({
               speaker: ChatMessage.getSpeaker({ actor: targetActor }),
-              content: `<div class="tsl-maneuver-card tsl-mv--success"><div class="tsl-mv-outcome tsl-mv-outcome--success">⚔ ${escD(targetActor.name)} answers in kind — <b>${escD(sourceActor.name)}</b> takes Resolve −1.</div></div>`,
-            });
-          } else if (block > 0) {
-            await ChatMessage.create({
-              speaker: ChatMessage.getSpeaker({ actor: targetActor }),
-              content: `<div class="tsl-maneuver-card tsl-mv--immune"><div class="tsl-mv-outcome tsl-mv-outcome--immune">⚔ ${escD(targetActor.name)} turns the ${escD(maneuver.name)} aside${damage > 0 ? ` — only ${damage} Resolve slips through` : " — Resolve held"}.</div></div>`,
+              content: `<div class="tsl-maneuver-card tsl-mv--success"><div class="tsl-mv-outcome tsl-mv-outcome--success">♥ It runs deep — ${escS(sfx.label)}: ${escS(sfx.why)}. <b>${escS(stLabel)}</b> lasts two uses.</div></div>`,
             });
           }
         }
       }
-      if (damage > 0)
-        await SocialEncounterManager.adjustResolve(targetActor, -damage, sourceActorId);
+
+      // Then the Resolve hit, as they chose to meet it.
+      if (damage > 0) {
+        const block = Math.max(0, Math.min(meet.block ?? 0, damage, patience));
+        const spend = block + (meet.riposte ? 1 : 0);
+        if (spend > 0) await SocialEncounterManager.adjustPatience(targetActor, -spend, sourceActorId);
+        damage -= block;
+        if (meet.riposte) {
+          // Full block AND a counter — it shakes the ATTACKER's composure (a
+          // riposte throws you off balance; it doesn't make you concede).
+          await SocialEncounterManager.adjustPatience(sourceActor, -1, targetActorId);
+          await ChatMessage.create({
+            speaker: ChatMessage.getSpeaker({ actor: targetActor }),
+            content: `<div class="tsl-maneuver-card tsl-mv--success"><div class="tsl-mv-outcome tsl-mv-outcome--success">⚔ ${escS(targetActor.name)} turns it aside and answers in kind — <b>${escS(sourceActor.name)}</b> is thrown off balance: Patience −1${stNote}.</div></div>`,
+          });
+        } else if (block > 0) {
+          await ChatMessage.create({
+            speaker: ChatMessage.getSpeaker({ actor: targetActor }),
+            content: `<div class="tsl-maneuver-card tsl-mv--immune"><div class="tsl-mv-outcome tsl-mv-outcome--immune">⚔ ${escS(targetActor.name)} turns the ${escS(maneuver.name)} aside${damage > 0 ? ` — only ${damage} Resolve slips through` : " — Resolve held"}${stNote}.</div></div>`,
+          });
+        }
+        if (damage > 0)
+          await SocialEncounterManager.adjustResolve(targetActor, -damage, sourceActorId);
+      }
       // (No String for merely CHIPPING Resolve — that flooded the economy.
       // Breaking them all the way to 0 already hands the winner a String via
-      // the sway resolution; designed grants, reads, combos, opening your
-      // heart and giving in to a Wound are the other earns.)
+      // the resolution; designed grants, reads, combos, opening your heart and
+      // winning an exchange are the earns.)
+
       // Some blows leave a SCAR, not just a dent: a maneuver with
       // `woundOnSuccess` plants a lasting emotional Wound on the target
-      // (Humiliate → Angry). It DEEPENS on repeat (applyOne escalates the
-      // tier), so a campaign of shaming grows the wound — and an Angry wound
-      // opens the door for more Taunt/Humiliate. The GM can ease/swap it in
-      // the Chronicle if the fiction wants despair (Hopeless) over rage.
+      // (Humiliate → Wrath). It DEEPENS on repeat (applyOne escalates the
+      // tier), and it remembers who caused it.
       if (maneuver.woundOnSuccess && typeof TSLConditionEffects !== "undefined") {
         const hadTier = TSLConditionEffects.getTier(targetActor, maneuver.woundOnSuccess);
-        await TSLConditionEffects.applyOne(targetActor, maneuver.woundOnSuccess, sourceActor.name);
-        const escW  = foundry.utils.escapeHTML;
+        await TSLConditionEffects.applyOne(targetActor, maneuver.woundOnSuccess, sourceActor.name, sourceActorId);
         const wLbl  = TSLConditionEffects.getMeta(maneuver.woundOnSuccess)?.label ?? maneuver.woundOnSuccess;
         await ChatMessage.create({
           speaker: ChatMessage.getSpeaker({ actor: targetActor }),
-          content: `<div class="tsl-maneuver-card tsl-mv--immune"><div class="tsl-mv-outcome tsl-mv-outcome--immune">❤ The shame sticks — <b>${escW(targetActor.name)}</b> carries ${hadTier ? "a <b>deepening</b>" : "a lasting"} <b>${escW(wLbl)}</b> wound.</div></div>`,
+          content: `<div class="tsl-maneuver-card tsl-mv--immune"><div class="tsl-mv-outcome tsl-mv-outcome--immune">❤ The shame sticks — <b>${escS(targetActor.name)}</b> carries ${hadTier ? "a <b>deepening</b>" : "a lasting"} <b>${escS(wLbl)}</b> wound.</div></div>`,
         });
       }
-      // The cost of closeness: turning POWER on someone you love costs YOU.
-      // (The old "Guilty" wound is retired; the hold is now a String they gain
-      // over you — you hurt someone who cares, and they can use it against you.)
+      // The cost of closeness: turning POWER on someone you love costs YOU —
+      // they gain a String on you (you hurt someone who cares).
       const myBond2 = TSLBondStore.find(sourceActorId, targetActorId);
       const myMeta2 = myBond2 ? SocialArchetypeManager.getBondType(myBond2.type) : null;
       if (maneuver.group === "power" && myMeta2?.guilt && typeof TSLStringStore !== "undefined") {
         await TSLStringStore.add(targetActorId, sourceActorId, 1);
-        const esc2 = foundry.utils.escapeHTML;
         await ChatMessage.create({
           speaker: ChatMessage.getSpeaker({ actor: sourceActor }),
-          content: `<div class="tsl-maneuver-card tsl-mv--immune"><div class="tsl-mv-outcome tsl-mv-outcome--immune">💔 It worked — and it cost: turning power on someone who cares for you leaves you exposed. <b>${esc2(targetActor.name)} gains a String on ${esc2(sourceActor.name)}.</b></div></div>`,
+          content: `<div class="tsl-maneuver-card tsl-mv--immune"><div class="tsl-mv-outcome tsl-mv-outcome--immune">💔 It worked — and it cost: turning power on someone who cares for you leaves you exposed. <b>${escS(targetActor.name)} gains a String on ${escS(sourceActor.name)}.</b></div></div>`,
         });
       }
     } else {
-      // A miss no longer drains their Patience — Patience is now the DEFENDER's
-      // pool, spent only to parry (v1.79). Walking away means "worn down from
-      // defending," not "the attacker kept missing." (So `failPatience` and the
-      // `fear` fail-clause no longer bite here; the botch Answer stays.)
-      // A BAD miss (5+ under) earns their Answer — one rule, one table
+      // A miss costs the ATTACKER's own composure — pressing is never free
+      // (risky moves cost more: `failPatience`; a Fear that misses backfires
+      // +1). Run your Patience out and YOU break off: the exchange is lost.
+      // A BAD miss (5+ under) also earns their Answer — one rule, one table.
       if (outcomeType === "botch") {
         await SocialManeuverRoller._applyAnswer(sourceActor, targetActor);
+        // Caught in the lie: a bad miss on a Lie hands THEM a lever on you.
+        if (maneuver.caughtOnBotch) {
+          const got = await TSLStringStore.add(targetActorId, sourceActorId, 1);
+          const escC = foundry.utils.escapeHTML;
+          await ChatMessage.create({
+            speaker: ChatMessage.getSpeaker({ actor: targetActor }),
+            content: `<div class="tsl-maneuver-card tsl-mv--immune"><div class="tsl-mv-outcome tsl-mv-outcome--immune">🕵 ${escC(maneuver.caughtText ?? "Caught in the lie.")} ${got ? `<b>${escC(targetActor.name)} gains a String on ${escC(sourceActor.name)}.</b>` : ""}</div></div>`,
+          });
+        }
         // TSL's "mark XP on a miss": a spectacular social fumble feeds the
         // story. A player character who eats the Answer gains Inspiration.
         if (sourceActor.hasPlayerOwner
@@ -1421,15 +1646,18 @@ class SocialManeuverRoller {
           });
         }
       }
+      await SocialEncounterManager.adjustPatience(sourceActor, -missCost, targetActorId);
     }
 
-    return SocialManeuverRoller._afterOutcome(payload, encBefore);
+    return SocialManeuverRoller._afterOutcome(payload, encBefore, srcEncBefore);
   }
 
   /**
    * The Answer: the archetype punishes a bad misstep (botch or immunity hit)
    * in its triad's own language — the debuff lands on the ATTACKER. Public
    * card is veiled: it's evidence of their nature, not the answer sheet.
+   * Statuses know about bonds: the attacker's bond toward the one answering
+   * can make it run deep — or keep it from landing at all.
    */
   static async _applyAnswer(sourceActor, targetActor) {
     // NPC: archetype's triad. PC: the ruling triad of the dots THEY built —
@@ -1439,12 +1667,18 @@ class SocialManeuverRoller {
       ?? SocialArchetypeManager.getDefensiveProfile(targetActor).ruling;
     const answer   = triad ? TRIAD_ANSWER[triad] : null;
     if (!answer) return;
-    if (answer.status)  await SocialArchetypeManager.applyCondition(sourceActor, answer.status, targetActor);
-    if (answer.strings) await TSLStringStore.add(targetActor.id, sourceActor.id, answer.strings);
     const esc = foundry.utils.escapeHTML;
+    let tail = "";
+    if (answer.status) {
+      const res = await SocialArchetypeManager.applyStateWithBonds(sourceActor, answer.status, targetActor);
+      const st  = SOCIAL_CONDITIONS[answer.status]?.label ?? answer.status;
+      if (res.resisted)  tail = ` <i>— but it doesn't take: ${esc(res.bondLabel)} (${esc(res.why)}).</i>`;
+      else if (res.deep) tail = ` <i>— and it runs deep (${esc(res.bondLabel)}): ${esc(st)} lasts two uses.</i>`;
+    }
+    if (answer.strings) await TSLStringStore.add(targetActor.id, sourceActor.id, answer.strings);
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: targetActor }),
-      content: `<div class="tsl-maneuver-card tsl-mv--immune"><div class="tsl-mv-outcome tsl-mv-outcome--immune">⚔ ${answer.line(esc(sourceActor.name), esc(targetActor.name))}</div></div>`,
+      content: `<div class="tsl-maneuver-card tsl-mv--immune"><div class="tsl-mv-outcome tsl-mv-outcome--immune">⚔ ${answer.line(esc(sourceActor.name), esc(targetActor.name))}${tail}</div></div>`,
     });
   }
 
@@ -1453,119 +1687,152 @@ class SocialManeuverRoller {
     catch { return true; }
   }
 
-  /**
-   * Ask the table: accept the incoming status, or hold the line and take an
-   * emotional wound instead? GM clicks for NPCs; for PCs the GM asks the
-   * player out loud — the words were already spoken, only their MEANING is
-   * being decided. Resolves to a TSL condition id, or null (accept).
-   */
-  static async promptHoldLine(targetActor, maneuver) {
-    const statusLabel = SOCIAL_CONDITIONS[maneuver.applyOnSuccess]?.label ?? maneuver.applyOnSuccess;
-    const pair = HOLD_LINE_CONDITIONS[maneuver.group] ?? HOLD_LINE_CONDITIONS.general;
-    const condName = (id) => ({ angry: "Wrath", scared: "Fear", hopeless: "Despair", obsessed: "Obsession", spiteful: "Grudge" }[id] ?? id);
-    return new Promise(resolve => {
-      new Dialog({
-        title: `${targetActor.name} — hold the line?`,
-        content: `<div class="tsl-rollmods">
-          <p>The maneuver lands: <b>${targetActor.name}</b> would become <b>${statusLabel}</b> and lose Resolve.</p>
-          <p class="notes">They may HOLD THE LINE — refuse the effect by carrying an emotional wound. Ask the table (the GM decides for NPCs). Hover a button for what it does.</p>
-        </div>`,
-        buttons: {
-          accept: { icon: '<i class="fas fa-check"></i>', label: `Accept ${statusLabel}`, callback: () => resolve(null) },
-          holdA:  { icon: '<i class="fas fa-shield"></i>', label: `Hold — take ${condName(pair[0])}`, callback: () => resolve(pair[0]) },
-          holdB:  { icon: '<i class="fas fa-shield"></i>', label: `Hold — take ${condName(pair[1])}`, callback: () => resolve(pair[1]) },
-        },
-        default: "accept",
-        close: () => resolve(null),
-        render: (html) => {
-          const root = html instanceof HTMLElement ? html : html?.[0];
-          const holdTip = "Keep your Resolve and shrug off the status, but gain a LASTING emotional wound that heals only through the story (a long rest, or acting it out). It opens matching future maneuvers (+2). At 4 wounds you're Overwhelmed.";
-          const tips = { accept: `Take the ${statusLabel} status and the Resolve hit now. It fades on its own (scene / a few rounds).`, holdA: holdTip, holdB: holdTip };
-          root?.querySelectorAll("button[data-button]").forEach(b => {
-            const t = tips[b.dataset.button];
-            if (t) b.setAttribute("data-tooltip", t);
-          });
-        },
-      }).render(true);
-    });
-  }
-
   static _defenseEnabled() {
     try { return game.settings.get("tsl-social-conflict", "enableParry") !== false; }
     catch { return true; }
   }
 
   /**
-   * The defender MEETS a landed blow (Phase 2 — the second blade). A hit of
-   * `damage` Resolve is coming; the defender may spend Patience to blunt it —
-   * 1 Patience blocks 1 Resolve — or commit fully and RIPOSTE (block it all and
-   * deal 1 Resolve back), which costs one extra Patience. GM-side, asked out
-   * loud for PCs (like Hold the Line). Every option's mechanics live in a hover
-   * tooltip so the buttons stay clean. Returns { block, riposte }.
+   * ONE window for the defender (v1.81): how they meet a landed blow. Two
+   * choices side by side, mechanics on hover:
+   *   The blow  — take it / parry n (1 Patience blocks 1 Resolve) / riposte;
+   *   The state — accept it / Hold the Line: refuse the STATE by carrying a
+   *               Wound (the blow itself still has to be met).
+   * o = { defender, attacker, maneuver, damage, patience, unparryable,
+   *       overwhelmed, status, statusDeep, holdOptions }.
+   * Returns { block, riposte, hold } — hold = a Wound id or null. No window
+   * at all when there's nothing to choose (it just lands).
    */
-  static async promptDefense(defenderActor, attackerActor, maneuver, damage, patience) {
-    const maxBlock = Math.min(damage, patience);        // most they can turn aside
-    if (maxBlock <= 0) return { block: 0, riposte: false };
+  static async promptMeetBlow(o) {
     const esc = foundry.utils.escapeHTML;
-    const buttons = {}, tips = {};
+    const dmg = Math.max(0, o.damage ?? 0);
+    const P   = Math.max(0, o.patience ?? 0);
+    const canParry = dmg > 0 && P > 0 && !o.unparryable && !o.overwhelmed;
+    const maxBlock = canParry ? Math.min(dmg, P) : 0;
+    const breaks = (spend) => spend >= P
+      ? " That is the last of your Patience — you break off and lose the exchange (no concession)." : "";
 
-    buttons.take = { label: "Take it" };
-    tips.take = `Let it land — −${damage} Resolve. No Patience spent. If Resolve reaches 0, you're swayed.`;
-    // Partial parries: spend n < full to soften the blow (1 Patience blocks 1).
-    for (let n = 1; n < maxBlock; n++) {
-      buttons[`b${n}`] = { label: `Parry −${n}` };
-      tips[`b${n}`] = `Turn part of it aside — −${damage - n} Resolve. Costs ${n} Patience.`;
+    // The blow
+    const blow = [];
+    if (dmg > 0) {
+      blow.push({ key: "take", label: "Take it", pick: { block: 0, riposte: false },
+        tip: `Let it land — −${dmg} Resolve. No Patience spent. If Resolve reaches 0, you're swayed (you concede).` });
+      for (let n = 1; n < maxBlock; n++) blow.push({ key: `b${n}`, label: `Parry −${n}`, pick: { block: n, riposte: false },
+        tip: `Turn part of it aside — −${dmg - n} Resolve. Costs ${n} Patience.${breaks(n)}` });
+      if (maxBlock >= dmg) blow.push({ key: "parry", label: "Parry (full)", pick: { block: dmg, riposte: false },
+        tip: `Turn it fully aside — no Resolve lost. Costs ${dmg} Patience.${breaks(dmg)}` });
+      else if (maxBlock > 0) blow.push({ key: "parry", label: `Parry −${maxBlock}`, pick: { block: maxBlock, riposte: false },
+        tip: `Parry as much as you can — −${dmg - maxBlock} Resolve. Costs ${maxBlock} Patience.${breaks(maxBlock)}` });
+      // A riposte you can't stand behind isn't one: it needs Patience to spare.
+      if (canParry && P >= dmg + 2) blow.push({ key: "riposte", label: "Riposte", pick: { block: dmg, riposte: true },
+        tip: `Turn it aside and answer in kind — no Resolve lost, and ${esc(o.attacker?.name ?? "they")} loses 1 Patience (thrown off balance). Costs ${dmg + 1} Patience.` });
     }
-    // Full parry: turn the whole blow aside (only if you can afford all of it).
-    if (maxBlock >= damage) {
-      buttons.parry = { label: "Parry (full)" };
-      tips.parry = `Turn it fully aside — no Resolve lost. Costs ${damage} Patience.`;
-    } else {
-      // Can't cover it all — the biggest partial you can manage.
-      buttons.parry = { label: `Parry −${maxBlock}` };
-      tips.parry = `Parry as much as you can — −${damage - maxBlock} Resolve. Costs ${maxBlock} Patience.`;
+
+    // The state
+    const state = [];
+    if (o.status) {
+      const stLabel = SOCIAL_CONDITIONS[o.status]?.label ?? o.status;
+      const stDesc  = SOCIAL_CONDITIONS[o.status]?.description ?? "";
+      state.push({ key: "accept", label: `Accept ${stLabel}${o.statusDeep ? " ×2" : ""}`, hold: null,
+        tip: `Take the ${stLabel} state: ${stDesc}${o.statusDeep ? " It runs deep through your bond — it lasts TWO uses." : ""}` });
+      for (const w of o.holdOptions ?? []) {
+        const m = TSLConditionEffects.getMeta(w);
+        const tier = TSLConditionEffects.getTier(o.defender, w);
+        state.push({ key: `hold-${w}`, label: `Hold — carry ${m?.label ?? w}`, hold: w,
+          tip: `Refuse the ${stLabel} state by carrying a lasting ${m?.label ?? w} wound instead${tier ? ` (it deepens to ${"●".repeat(tier + 1)})` : ""}. The blow itself still has to be met. A Wound heals through the story — a long rest only eases it one tier — and it opens matching maneuvers against you (+2). Wounds weighing 4+ make you Overwhelmed: no more parrying or holding the line.` });
+      }
     }
-    // Riposte: full block AND cut back for 1 Resolve — one extra Patience.
-    const canRiposte = patience >= damage + 1;
-    if (canRiposte) {
-      buttons.riposte = { label: "Riposte" };
-      tips.riposte = `Turn it aside and cut back — no Resolve lost, and ${esc(attackerActor?.name ?? "they")} takes 1 Resolve. Costs ${damage + 1} Patience.`;
-    }
+
+    // An NPC with a stance meets the blow on its own — no window for the GM.
+    if (o.stance && o.stance !== "ask") return SocialManeuverRoller._autoMeet(o, o.stance);
+
+    // Nothing to choose → it simply lands.
+    if (blow.length <= 1 && state.length <= 1) return { block: 0, riposte: false, hold: null };
+
+    const radios = (name, opts, def) => opts.map(op => `
+      <label class="tsl-meet-opt" data-tooltip="${esc(op.tip)}">
+        <input type="radio" name="${name}" value="${op.key}" ${op.key === def ? "checked" : ""}> ${esc(op.label)}
+      </label>`).join("");
+    const notes = [
+      o.unparryable && dmg > 0 ? "It found their weak spot — this blow can't be parried." : null,
+      o.overwhelmed ? "Overwhelmed — they can neither parry nor hold the line." : null,
+    ].filter(Boolean).map(n => `<p class="notes"><b>${esc(n)}</b></p>`).join("");
+    const stLabel = o.status ? (SOCIAL_CONDITIONS[o.status]?.label ?? o.status) : null;
 
     return new Promise(resolve => {
-      const pick = {
-        take:    { block: 0, riposte: false },
-        parry:   { block: maxBlock, riposte: false },
-        riposte: { block: damage, riposte: true },
+      const read = (html) => {
+        const root = html instanceof HTMLElement ? html : html?.[0];
+        const bk = root?.querySelector?.('input[name="tsl-blow"]:checked')?.value ?? "take";
+        const sk = root?.querySelector?.('input[name="tsl-state"]:checked')?.value ?? "accept";
+        const b = blow.find(x => x.key === bk)?.pick ?? { block: 0, riposte: false };
+        const s = state.find(x => x.key === sk);
+        return { block: b.block, riposte: !!b.riposte, hold: s?.hold ?? null };
       };
-      for (let n = 1; n < maxBlock; n++) pick[`b${n}`] = { block: n, riposte: false };
-      for (const [k, b] of Object.entries(buttons)) b.callback = () => resolve(pick[k]);
-
       new Dialog({
-        title: `${defenderActor.name} — meet the blow`,
-        content: `<div class="tsl-rollmods">
-          <p>${esc(attackerActor?.name ?? "They")}'s <b>${esc(maneuver.name)}</b> finds an opening — <b>${damage}</b> Resolve incoming.</p>
-          <p class="notes">Hover each option for what it costs. Patience is your composure — spend it to defend; empty it and you break off.</p>
+        title: `${o.defender?.name ?? "Defender"} — meet the blow`,
+        content: `<div class="tsl-rollmods tsl-meet">
+          <p>${esc(o.attacker?.name ?? "They")}'s <b>${esc(o.maneuver?.name ?? "")}</b> lands${dmg > 0 ? ` — <b>${dmg}</b> Resolve incoming` : ""}${stLabel ? `${dmg > 0 ? ", and" : " —"} they'd be <b>${esc(stLabel)}</b>` : ""}.</p>
+          ${notes}
+          ${blow.length > 1 ? `<div class="tsl-meet-row"><span class="tsl-meet-label">The blow</span>${radios("tsl-blow", blow, "take")}</div>` : ""}
+          ${state.length > 1 ? `<div class="tsl-meet-row"><span class="tsl-meet-label">The state</span>${radios("tsl-state", state, "accept")}</div>` : ""}
+          <p class="notes">Hover an option for exactly what it costs. Patience is your composure — spend it to defend, but empty it and you break off and lose the exchange.</p>
         </div>`,
-        buttons,
-        default: "take",
-        close: () => resolve({ block: 0, riposte: false }),
-        render: (html) => {
-          const root = html instanceof HTMLElement ? html : html?.[0];
-          root?.querySelectorAll("button[data-button]").forEach(b => {
-            const t = tips[b.dataset.button];
-            if (t) b.setAttribute("data-tooltip", t);
-          });
-        },
+        buttons: { ok: { icon: '<i class="fas fa-shield-halved"></i>', label: "Meet it", callback: (html) => resolve(read(html)) } },
+        default: "ok",
+        close: () => resolve({ block: 0, riposte: false, hold: null }),
       }).render(true);
     });
   }
 
+  /**
+   * How an NPC meets a blow by its STANCE (v1.82) — the same options the
+   * window offers, chosen by a simple, explainable rule:
+   *   open     — take it, accept the state;
+   *   measured — parry only while composure stays above half; hold the line
+   *              only with a fresh wound;
+   *   guarded  — parry as much as it can; hold the line whenever it can;
+   *   proud    — riposte when it can, else parry but never to its last point;
+   *              hold the line whenever it can.
+   * Returns { block, riposte, hold, auto: true, stance }.
+   */
+  static _autoMeet(o, stance) {
+    const dmg = Math.max(0, o.damage ?? 0), P = Math.max(0, o.patience ?? 0);
+    const canParry   = dmg > 0 && P > 0 && !o.unparryable && !o.overwhelmed;
+    const maxBlock   = canParry ? Math.min(dmg, P) : 0;
+    const canRiposte = canParry && P >= dmg + 2;
+    const holds  = o.status ? (o.holdOptions ?? []) : [];
+    const tierOf = (w) => TSLConditionEffects.getTier(o.defender, w);
+    const lightest = holds.length ? [...holds].sort((a, b) => tierOf(a) - tierOf(b))[0] : null;
+    const fresh    = holds.find(w => tierOf(w) === 0) ?? null;
+    let block = 0, riposte = false, hold = null;
+    if (stance === "measured") {
+      const keep = Math.ceil((o.maxPatience ?? P) / 2);
+      block = Math.max(0, Math.min(maxBlock, P - keep));
+      hold  = fresh;
+    } else if (stance === "guarded") {
+      block = maxBlock;
+      hold  = lightest;
+    } else if (stance === "proud") {
+      if (canRiposte) { block = dmg; riposte = true; }
+      else block = Math.max(0, Math.min(maxBlock, P - 1));
+      hold = lightest;
+    }
+    return { block, riposte, hold, auto: true, stance };
+  }
+
   /** Shared-conflict bookkeeping that runs whatever the outcome was. */
-  static async _afterOutcome(payload, encBefore) {
+  static async _afterOutcome(payload, encBefore, srcEncBefore = null) {
     const { sourceActorId, targetActorId, maneuverId, outcomeType, spentString } = payload;
     const targetActor = game.actors.get(targetActorId);
+    const sourceActor = game.actors.get(sourceActorId);
     const maneuver    = SocialManeuverRoller.getManeuver(maneuverId);
+    const encNow      = SocialEncounterManager.getEncounter(targetActor);
+    const srcNow      = sourceActor ? SocialEncounterManager.getEncounter(sourceActor) : null;
+    // Did this exchange just end — and for whom? Either side can lose it now:
+    // the target swayed / broken off by parrying, or the attacker broken off
+    // by their own misses (or a riposte).
+    const resolved    = (!encBefore?.outcome && encNow?.outcome) ? encNow.outcome : null;
+    const resolvedSrc = (srcEncBefore && !srcEncBefore.outcome && srcNow?.outcome) ? srcNow.outcome : null;
 
     // Broadcast a "social pulse" to every client's Scene Visualizer: who acted
     // on whom, the school, the grade, and how much Resolve fell (the flash).
@@ -1573,15 +1840,15 @@ class SocialManeuverRoller {
     // it runs before the conflict-window gate below.
     try {
       if (typeof TSLSocket !== "undefined") {
-        const encNow = SocialEncounterManager.getEncounter(targetActor);
         const resolveDrop = Math.max(0, (encBefore?.resolve ?? 0) - (encNow?.resolve ?? 0));
         TSLSocket.broadcastPulse({
           srcId: sourceActorId, tgtId: targetActorId,
           group: maneuver?.group ?? "general",
           outcome: outcomeType, damage: resolveDrop,
-          // If this blow just decided the whole exchange, the visualiser plays
-          // the dramatic resolution (swayed = warm break · walked = fade).
-          resolved: (!encBefore?.outcome && encNow?.outcome) ? encNow.outcome : null,
+          // If this blow decided the exchange, the visualiser plays the
+          // resolution drama on whoever lost it (swayed = warm break ·
+          // broke off = fade).
+          resolved, resolvedSrc,
         });
       }
     } catch (err) { console.warn("TSL | pulse broadcast failed:", err); }
@@ -1592,20 +1859,21 @@ class SocialManeuverRoller {
     const srcIdx = state.participants.findIndex(p => p.actorId === sourceActorId);
     const tgtP   = state.participants.find(p => p.actorId === targetActorId);
     if (srcIdx === -1 || !tgtP) return;
+    const srcName = state.participants[srcIdx].name;
 
     const typeMap = { success: "hit", crit: "hit", failure: "miss", botch: "warn", immune: "warn" };
     const spendNote = spentString ? " (String spent)" : "";
     ConflictStore.addLog(
-      `${state.participants[srcIdx].name} → ${tgtP.name}: ${maneuver.name}${spendNote} — ${outcomeType}`,
+      `${srcName} → ${tgtP.name}: ${maneuver.name}${spendNote} — ${outcomeType}`,
       typeMap[outcomeType] ?? "info"
     );
 
-    // If this roll just decided the encounter, say so where everyone looks
-    const encAfter = SocialEncounterManager.getEncounter(targetActor);
-    if (!encBefore.outcome && encAfter.outcome === "swayed")
-      ConflictStore.addLog(`💔 ${tgtP.name}'s resolve is broken — they are swayed.`, "kiss");
-    else if (!encBefore.outcome && encAfter.outcome === "walked")
-      ConflictStore.addLog(`🚪 ${tgtP.name} runs out of patience and walks away.`, "warn");
+    // If this roll just decided the exchange, say so where everyone looks
+    const endLine = (name, o) => o === "swayed"
+      ? [`💔 ${name}'s resolve is broken — they are swayed.`, "kiss"]
+      : [`🚪 ${name}'s composure runs out — they break off.`, "warn"];
+    if (resolved)    ConflictStore.addLog(...endLine(tgtP.name, resolved));
+    if (resolvedSrc) ConflictStore.addLog(...endLine(srcName, resolvedSrc));
 
     // No turn advance — anyone acts from their own menu, whenever they like.
     ConflictStore._broadcast();
