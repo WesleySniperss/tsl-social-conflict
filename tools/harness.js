@@ -205,7 +205,7 @@ const EXPORTS = ["SocialArchetypeManager", "SocialManeuverRoller", "SocialEncoun
   "TSLBondStore", "SOCIAL_MANEUVERS", "SOCIAL_CONDITIONS", "SocialFencingApp", "SocialFencingDialog",
   "TSLConditionEffects", "TSLWillpower", "TSLGMActions", "TSLSocket", "ConflictStore",
   "MOVES", "TSLPlaybooks", "SOCIAL_TRIADS", "SOCIAL_CONDITION_ORDER", "SOCIAL_ARCHETYPES", "TSLConflictApp",
-  "ARCHETYPE_TELLS", "ARCHETYPE_REACTIONS"];
+  "ARCHETYPE_TELLS", "ARCHETYPE_REACTIONS", "TSLSceneVisualizer"];
 let api;
 try {
   api = new Function(combined + "\nreturn { " + EXPORTS.map((e) => `${e}: typeof ${e} !== "undefined" ? ${e} : undefined`).join(", ") + " };")();
@@ -250,7 +250,10 @@ if (process.argv.includes("--audit")) {
   process.exit(0);
 }
 
-(async () => {
+// Reusable by tools/preview.js (require() skips the test run).
+module.exports = { api, makeActor, actorStore, settingsMap };
+
+if (require.main === module) (async () => {
   try {
     const R = api;
     let pass = true;

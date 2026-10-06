@@ -852,8 +852,8 @@ class SocialFencingApp extends _SocialAppBase {
         const sides = (m.edge || m.risk) ? `
           ${m.edge ? `<div class="tsl-codex-side tsl-codex-side--strong"><b>Strong:</b> ${esc(m.edge)}${cuts}</div>` : ""}
           ${m.risk ? `<div class="tsl-codex-side tsl-codex-side--weak"><b>Weak:</b> ${esc(m.risk)}${walls}</div>` : ""}` : "";
-        return `<div class="tsl-codex-combo">
-          <b>${esc(m.name)}</b> <span class="tsl-codex-gain">rolls ${skills}</span>
+        return `<div class="tsl-codex-combo tsl-codex-move">
+          <div class="tsl-codex-move-head"><b>${esc(m.name)}</b> <span class="tsl-codex-gain">rolls ${skills}</span></div>
           <div class="tsl-codex-outcome tsl-codex-outcome--hit"><b>✓ Hit:</b> ${hit}</div>
           <div class="tsl-codex-outcome tsl-codex-outcome--miss"><b>✗ Miss:</b> ${miss}</div>
           ${sides}
@@ -931,9 +931,9 @@ class SocialFencingApp extends _SocialAppBase {
     // saves read as their absolute value.
     const bondStr = (bond) => Math.min(3, Math.abs(bond.attitude ?? 0));
     const attitudeDots = (bond) => Array.from({ length: 4 }, (_, v) =>
-      `<button class="tsl-chr-att-dot ${bondStr(bond) === v ? "active" : ""} ${v > 0 ? "pos" : "zero"}"
+      `<button class="tsl-chr-att-dot ${bondStr(bond) === v ? "active" : ""} ${v > 0 && v <= bondStr(bond) ? "filled" : ""} ${v > 0 ? "pos" : "zero"}"
               data-bond-id="${bond.id}" data-attitude="${v}" ${disabled}
-              data-tooltip="${v === 0 ? "Faded — no bond effects" : `Strength ${v}: ${"●".repeat(v)} — scales the bond's buffs and their guard`}">${v === 0 ? "·" : v}</button>`
+              data-tooltip="${v === 0 ? "Faded — no bond effects" : `Strength ${v}: ${"●".repeat(v)} — scales the bond's buffs and their guard`}">${v === 0 ? "✕" : ""}</button>`
     ).join("");
 
     // Collapsed one-line summaries; click a row to unfold its editors.
@@ -963,11 +963,15 @@ class SocialFencingApp extends _SocialAppBase {
           <div class="tsl-chr-bond-line">
             <span class="tsl-chr-bond-label" data-tooltip="Your working guess at their archetype — deduce it from the tells Read Them whispers and from what happens when you roll. Refine it as you learn; the GM plays their true nature either way.">Read as</span>
             <select class="tsl-chr-bond-arch" data-bond-id="${b.id}" ${disabled}>${archOpts(b.perceivedArchetypeId)}</select>
+          </div>
+          <div class="tsl-chr-bond-line">
+            <span class="tsl-chr-bond-label" data-tooltip="Strings you hold on them — emotional leverage, at most ${STRING_CAP} on one person. A String gives nothing while held: you SPEND it for +5.">Strings</span>
+            <span class="tsl-chr-str-pips" data-tooltip="${b.stringCount} / ${STRING_CAP}">${"●".repeat(Math.min(STRING_CAP, b.stringCount))}${"○".repeat(Math.max(0, STRING_CAP - b.stringCount))}</span>
             ${canEdit ? `
               <button class="tsl-chr-str-adj" data-bond-id="${b.id}" data-target="${b.targetActorId}" data-delta="1"  data-tooltip="${b.stringCount >= STRING_CAP ? `At the limit — you can hold at most ${STRING_CAP} Strings on one person` : `Gain a string on them (at most ${STRING_CAP} on one person)`}" ${b.stringCount >= STRING_CAP ? "disabled" : ""}>+</button>
               <button class="tsl-chr-str-adj" data-bond-id="${b.id}" data-target="${b.targetActorId}" data-delta="-1" data-tooltip="Spend / remove a string" ${b.stringCount ? "" : "disabled"}>−</button>
               <button class="tsl-chr-str-pull" data-target="${b.targetActorId}" ${b.stringCount ? "" : "disabled"}
-                data-tooltip="PULL THE STRING: burn 1 for +5 — to the roll you just made against them (ANY roll: a maneuver, an attack, a contest), OR to your AC / a save against one of THEIR attacks or effects (you know how they move). Posts a public card.">🎭+5</button>` : ""}
+                data-tooltip="PULL THE STRING: burn 1 for +5 — to the roll you just made against them (ANY roll: a maneuver, an attack, a contest), OR to your AC / a save against one of THEIR attacks or effects (you know how they move). Posts a public card.">Pull +5</button>` : ""}
           </div>
           <input type="text" class="tsl-chr-bond-notes" data-bond-id="${b.id}" value="${esc(b.notes)}"
                  placeholder="History, debts, secrets between you…" ${disabled} />
@@ -1005,7 +1009,7 @@ class SocialFencingApp extends _SocialAppBase {
           <span class="tsl-chr-bond-tag" data-tooltip="${esc(type.hint)}"><i class="fas ${type.icon}"></i> ${type.label}</span>
           ${perceived ? `<span class="tsl-chr-bond-tag" data-tooltip="Read as ${esc(perceived.label)}"><i class="fas ${SOCIAL_TRIADS[perceived.triad]?.icon ?? "fa-user"}"></i></span>` : ""}
           ${knownDot}
-          <span class="tsl-chr-att-badge tsl-chr-att-badge--${attCls}" data-tooltip="Attitude">${attText}</span>
+          <span class="tsl-chr-att-badge tsl-chr-att-badge--${attCls}" data-tooltip="Bond strength">${attText}</span>
           ${b.stringCount ? `<span class="tsl-chr-bond-strings" data-tooltip="Strings held on them"><i class="fas fa-masks-theater"></i>${b.stringCount}</span>` : ""}
           <i class="fas fa-chevron-${open ? "up" : "down"} tsl-chr-bond-chevron"></i>
         </div>

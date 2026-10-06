@@ -454,6 +454,16 @@ const SOCIAL_MANEUVERS = [
 
 // ─── Roller ────────────────────────────────────────────────────────────────────
 
+/**
+ * Options for every module Dialog: the `tsl-dialog` class swaps Foundry's
+ * parchment for the module's own dark look, so a prompt reads as part of the
+ * same table as the Chronicle and the conflict window. A fresh object each call
+ * (Foundry merges options, never trust a shared one).
+ */
+function tslDialogOptions(extra = {}) {
+  return { classes: ["dialog", "tsl-dialog"], width: 460, ...extra };
+}
+
 // A String is a TRUMP CARD: burning one is +5 — it almost always turns a
 // near miss. Earned by OPENING UP at the table and by breaking through a
 // target's Resolve. It gives NO passive edge — it is only ever SPENT (the
@@ -541,21 +551,21 @@ class SocialManeuverRoller {
   }
 
   /**
-   * A small key for the corner marks on maneuver chips. The GM sees the
-   * archetype ones (◎/✕/▲); everyone sees ⊕ (it reads off visible statuses).
+   * A one-line key for the corner marks on maneuver chips — the full meaning
+   * lives in each item's tooltip. The GM's marks follow the truth; a player's
+   * ◎/✕/▲ follow their own read of the target (the "Read as" in their Bond),
+   * ⊕ reads off visible conditions.
    */
   static chipLegend(isGM) {
-    const items = isGM
-      ? [
-          "<b>◎</b> their weak spot — cuts deep (Advantage, +1 damage, can't be parried)",
-          "<b>✕</b> bounces off / they're walled",
-          "<b>▲</b> their nature yields to this school (+2)",
-          "<b>⊕</b> an opening is live — a condition on them makes this maneuver stronger (a status you set up, or a lasting emotional wound they carry)",
-        ]
-      : [
-          "<b>⊕</b> an opening is live — a condition on them makes this maneuver stronger (a status you set up, or a lasting emotional wound they carry)",
-        ];
-    return `<div class="tsl-chip-legend">${items.join("<br>")}</div>`;
+    const byRead = isGM ? "" : " (by your read — it may be wrong)";
+    const items = [
+      ["◎", "weak spot", `Their weak spot${byRead} — cuts deep: Advantage, +1 damage, and it can't be parried.`],
+      ["✕", "walled", `It bounces off${byRead} — they're walled against this approach.`],
+      ["▲", "yields", `Their nature yields to this school${byRead} — +2.`],
+      ["⊕", "opening", "An opening is live — a condition on them makes this maneuver stronger (a state you set up, or a lasting emotional wound they carry)."],
+    ];
+    return `<div class="tsl-chip-legend">${items.map(([g, w, tip]) =>
+      `<span class="tsl-legend-item" data-tooltip="${tip}"><b>${g}</b> ${w}</span>`).join("")}</div>`;
   }
 
   /** The actor's proficiency bonus (number), with level/CR fallback. */
@@ -1127,7 +1137,7 @@ class SocialManeuverRoller {
         },
         default: "keep",
         close: () => resolve(false),
-      }).render(true);
+      }, tslDialogOptions()).render(true);
     });
   }
 
@@ -1173,7 +1183,7 @@ class SocialManeuverRoller {
         },
         default: "roll",
         close: () => resolve(null),
-      }).render(true);
+      }, tslDialogOptions()).render(true);
     });
   }
 
@@ -1343,7 +1353,7 @@ class SocialManeuverRoller {
             if (t) b.setAttribute("data-tooltip", t);
           });
         },
-      }).render(true);
+      }, tslDialogOptions()).render(true);
     });
   }
 
@@ -1715,16 +1725,16 @@ class SocialManeuverRoller {
     // The blow
     const blow = [];
     if (dmg > 0) {
-      blow.push({ key: "take", label: "Take it", pick: { block: 0, riposte: false },
+      blow.push({ key: "take", label: "Take it", cost: `−${dmg} Resolve`, pick: { block: 0, riposte: false },
         tip: `Let it land — −${dmg} Resolve. No Patience spent. If Resolve reaches 0, you're swayed (you concede).` });
-      for (let n = 1; n < maxBlock; n++) blow.push({ key: `b${n}`, label: `Parry −${n}`, pick: { block: n, riposte: false },
+      for (let n = 1; n < maxBlock; n++) blow.push({ key: `b${n}`, label: `Parry ${n}`, cost: `−${dmg - n} Resolve · −${n} Patience`, pick: { block: n, riposte: false },
         tip: `Turn part of it aside — −${dmg - n} Resolve. Costs ${n} Patience.${breaks(n)}` });
-      if (maxBlock >= dmg) blow.push({ key: "parry", label: "Parry (full)", pick: { block: dmg, riposte: false },
+      if (maxBlock >= dmg) blow.push({ key: "parry", label: "Parry", cost: `−${dmg} Patience`, pick: { block: dmg, riposte: false },
         tip: `Turn it fully aside — no Resolve lost. Costs ${dmg} Patience.${breaks(dmg)}` });
-      else if (maxBlock > 0) blow.push({ key: "parry", label: `Parry −${maxBlock}`, pick: { block: maxBlock, riposte: false },
+      else if (maxBlock > 0) blow.push({ key: "parry", label: `Parry ${maxBlock}`, cost: `−${dmg - maxBlock} Resolve · −${maxBlock} Patience`, pick: { block: maxBlock, riposte: false },
         tip: `Parry as much as you can — −${dmg - maxBlock} Resolve. Costs ${maxBlock} Patience.${breaks(maxBlock)}` });
       // A riposte you can't stand behind isn't one: it needs Patience to spare.
-      if (canParry && P >= dmg + 2) blow.push({ key: "riposte", label: "Riposte", pick: { block: dmg, riposte: true },
+      if (canParry && P >= dmg + 2) blow.push({ key: "riposte", label: "Riposte", cost: `−${dmg + 1} Patience · they −1`, pick: { block: dmg, riposte: true },
         tip: `Turn it aside and answer in kind — no Resolve lost, and ${esc(o.attacker?.name ?? "they")} loses 1 Patience (thrown off balance). Costs ${dmg + 1} Patience.` });
     }
 
@@ -1733,12 +1743,12 @@ class SocialManeuverRoller {
     if (o.status) {
       const stLabel = SOCIAL_CONDITIONS[o.status]?.label ?? o.status;
       const stDesc  = SOCIAL_CONDITIONS[o.status]?.description ?? "";
-      state.push({ key: "accept", label: `Accept ${stLabel}${o.statusDeep ? " ×2" : ""}`, hold: null,
+      state.push({ key: "accept", label: `Accept`, cost: `${stLabel}${o.statusDeep ? " ×2" : ""}`, hold: null,
         tip: `Take the ${stLabel} state: ${stDesc}${o.statusDeep ? " It runs deep through your bond — it lasts TWO uses." : ""}` });
       for (const w of o.holdOptions ?? []) {
         const m = TSLConditionEffects.getMeta(w);
         const tier = TSLConditionEffects.getTier(o.defender, w);
-        state.push({ key: `hold-${w}`, label: `Hold — carry ${m?.label ?? w}`, hold: w,
+        state.push({ key: `hold-${w}`, label: `Hold the line`, cost: `carry ${m?.label ?? w} ${"●".repeat(Math.min(3, tier + 1))}`, hold: w,
           tip: `Refuse the ${stLabel} state by carrying a lasting ${m?.label ?? w} wound instead${tier ? ` (it deepens to ${"●".repeat(tier + 1)})` : ""}. The blow itself still has to be met. A Wound heals through the story — a long rest only eases it one tier — and it opens matching maneuvers against you (+2). Wounds weighing 4+ make you Overwhelmed: no more parrying or holding the line.` });
       }
     }
@@ -1751,7 +1761,8 @@ class SocialManeuverRoller {
 
     const radios = (name, opts, def) => opts.map(op => `
       <label class="tsl-meet-opt" data-tooltip="${esc(op.tip)}">
-        <input type="radio" name="${name}" value="${op.key}" ${op.key === def ? "checked" : ""}> ${esc(op.label)}
+        <input type="radio" name="${name}" value="${op.key}" ${op.key === def ? "checked" : ""}>
+        <span class="tsl-meet-name">${esc(op.label)}</span>${op.cost ? `<span class="tsl-meet-cost">${esc(op.cost)}</span>` : ""}
       </label>`).join("");
     const notes = [
       o.unparryable && dmg > 0 ? "It found their weak spot — this blow can't be parried." : null,
@@ -1773,14 +1784,14 @@ class SocialManeuverRoller {
         content: `<div class="tsl-rollmods tsl-meet">
           <p>${esc(o.attacker?.name ?? "They")}'s <b>${esc(o.maneuver?.name ?? "")}</b> lands${dmg > 0 ? ` — <b>${dmg}</b> Resolve incoming` : ""}${stLabel ? `${dmg > 0 ? ", and" : " —"} they'd be <b>${esc(stLabel)}</b>` : ""}.</p>
           ${notes}
-          ${blow.length > 1 ? `<div class="tsl-meet-row"><span class="tsl-meet-label">The blow</span>${radios("tsl-blow", blow, "take")}</div>` : ""}
-          ${state.length > 1 ? `<div class="tsl-meet-row"><span class="tsl-meet-label">The state</span>${radios("tsl-state", state, "accept")}</div>` : ""}
-          <p class="notes">Hover an option for exactly what it costs. Patience is your composure — spend it to defend, but empty it and you break off and lose the exchange.</p>
+          ${blow.length > 1 ? `<div class="tsl-meet-row"><span class="tsl-meet-label">The blow</span><div class="tsl-meet-opts">${radios("tsl-blow", blow, "take")}</div></div>` : ""}
+          ${state.length > 1 ? `<div class="tsl-meet-row"><span class="tsl-meet-label">The state</span><div class="tsl-meet-opts">${radios("tsl-state", state, "accept")}</div></div>` : ""}
+          <p class="notes">Hover an option for the full rule. Patience is your composure — empty it and you break off and lose the exchange.</p>
         </div>`,
         buttons: { ok: { icon: '<i class="fas fa-shield-halved"></i>', label: "Meet it", callback: (html) => resolve(read(html)) } },
         default: "ok",
         close: () => resolve({ block: 0, riposte: false, hold: null }),
-      }).render(true);
+      }, tslDialogOptions()).render(true);
     });
   }
 
@@ -1885,26 +1896,36 @@ class SocialManeuverRoller {
     const arch = game.user.isGM ? a.arch : null;
     const sign = a.skillMod >= 0 ? "+" : "";
 
-    const bonusText = (d.stringBonus ? ` +${d.stringBonus} String` : "")
-                    + (d.situational ? ` ${d.situational >= 0 ? "+" : "−"}${Math.abs(d.situational)} situational` : "")
-                    + a.bonusReasons.map(b => {
-                        // Don't solve the riddle in public: veil archetype-derived
-                        // labels, and keep card labels SHORT (no parentheticals)
-                        const label = b.kind === "counter"   ? "a hidden yielding"
-                          : b.kind === "countered" ? "a hidden resistance"
-                          : b.label.split(" — ")[0].replace(/\s*\(.+\)\s*$/, "");
-                        return ` ${b.value >= 0 ? "+" : "−"}${Math.abs(b.value)} ${label}`;
-                      }).join("");
+    // What rode on top of the die — small signed chips under the roll line.
+    const bonuses = [
+      ...(d.stringBonus ? [{ value: d.stringBonus, label: "String" }] : []),
+      ...(d.situational ? [{ value: d.situational, label: "situational" }] : []),
+      ...a.bonusReasons.map(b => ({
+        value: b.value,
+        // Don't solve the riddle in public: veil archetype-derived
+        // labels, and keep card labels SHORT (no parentheticals)
+        label: b.kind === "counter"   ? "a hidden yielding"
+          : b.kind === "countered" ? "a hidden resistance"
+          : b.label.split(" — ")[0].replace(/\s*\(.+\)\s*$/, ""),
+      })),
+    ];
+    // A system-dialog roll already carries its own breakdown in the system's
+    // card — ours shows only what the module added on top of it (the String).
+    const bonusHtml = (d.systemRoll ? bonuses.filter(b => b.label === "String") : bonuses).map(b =>
+      `<span class="tsl-mv-bonus tsl-mv-bonus--${b.value >= 0 ? "pos" : "neg"}">${b.value >= 0 ? "+" : "−"}${Math.abs(b.value)} ${esc(b.label)}</span>`).join("");
     const kept = d.advantage ? Math.max(...d.rawDice)
                : d.disadvantage ? Math.min(...d.rawDice)
                : d.rawDice[0];
-    // A system-dialog roll already carries its own breakdown in the system's
-    // card — ours just shows the dice and what the module added on top.
+    let keptShown = false;   // with two equal faces, only one is "kept"
+    const die = (v) => {
+      const k = !keptShown && v === kept;
+      if (k) keptShown = true;
+      return `<span class="tsl-mv-die ${k ? "" : "tsl-mv-die--dropped"}">${v}</span>`;
+    };
     const diceText = d.systemRoll
-      ? `[${d.rawDice.join("] [")}] — system check${d.stringBonus ? ` +${d.stringBonus} String` : ""}`
-      : d.rawDice.length > 1
-        ? `[${d.rawDice.join("] [")}] → ${kept} ${sign}${a.skillMod}${bonusText}${d.disadvantage ? " (dis)" : ""}`
-        : `[${d.rawDice[0]}] ${sign}${a.skillMod}${bonusText}`;
+      ? `${d.rawDice.map(die).join("")}<span class="tsl-mv-mod">system check</span>`
+      : `${d.rawDice.map(die).join("")}${d.rawDice.length > 1 ? `<span class="tsl-mv-mod">${d.disadvantage ? "dis" : "adv"}</span>` : ""}`
+        + `<span class="tsl-mv-mod">${sign}${a.skillMod} ${esc(d.maneuver.skill ?? "")}</span>`;
 
     // Evidence without answers: the two dice already show the Advantage; the
     // reason lines must not name the archetype for everyone to read.
@@ -1942,6 +1963,7 @@ class SocialManeuverRoller {
     <span class="tsl-mv-vs" data-tooltip="The difficulty stays with the GM — the card never shows it.">vs DC ?</span>
     <span class="tsl-mv-total tsl-mv-total--${d.outcomeType}">${d.total}</span>
   </div>
+  ${bonusHtml ? `<div class="tsl-mv-bonuses">${bonusHtml}</div>` : ""}
   <div class="tsl-mv-outcome tsl-mv-outcome--${d.outcomeType}">${esc(d.outcomeText)}</div>
   ${d.reaction ? `<div class="tsl-mv-tell">${esc(d.reaction)}</div>` : ""}
 </div>`,

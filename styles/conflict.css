@@ -4038,3 +4038,268 @@ details.tsl-codex-sub > summary:hover { filter: brightness(1.15); }
   font-size: 11.5px; font-style: italic; line-height: 1.4; margin-top: 3px;
   color: var(--tsl-notes-muted, #b58598);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   v1.83 — FINISH PASS: one visual language across every window.
+   Appended last on purpose: it wins over the earlier layered passes. Foundry's
+   own <button> base (full width, 32px, centred) is neutralised explicitly on
+   everything we size by content.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Section titles: a hairline runs to the edge — structure without boxes ── */
+.tsl-fencing .tsl-notes-section-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 10.5px; letter-spacing: 0.12em;
+}
+.tsl-fencing .tsl-notes-section-title::after {
+  content: ""; flex: 1 1 auto; min-width: 12px; height: 1px;
+  background: linear-gradient(90deg, rgba(232,85,122,0.35), rgba(232,85,122,0));
+}
+.tsl-fencing .tsl-notes-section { position: relative; }
+
+/* ── Toggle pills: States, Wounds, Boons, Scars — compact, wrapping, legible ── */
+.tsl-fencing .tsl-cond-grid { display: flex; flex-wrap: wrap; gap: 5px; }
+.tsl-fencing .tsl-cond-grid > .tsl-cond-toggle,
+.tsl-fencing .tsl-cond-grid > .tsl-wound-row { flex: 0 0 auto; }
+.tsl-fencing .tsl-cond-grid .tsl-wound-row { display: inline-flex; align-items: center; gap: 3px; }
+.tsl-fencing .tsl-cond-grid .tsl-wound-row .tsl-wound-toggle { flex: 0 0 auto; }
+.tsl-fencing .tsl-cond-toggle {
+  width: auto; height: 26px; min-height: 0; margin: 0; flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: flex-start; gap: 5px;
+  padding: 0 10px 0 4px; border-radius: 13px; line-height: 1;
+  font-size: 12.5px; color: #a88f80;
+  background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: none;
+}
+.tsl-fencing .tsl-cond-toggle img {
+  width: 18px; height: 18px; border-radius: 0; object-fit: contain;
+  filter: invert(1); opacity: 0.4;
+}
+.tsl-fencing .tsl-cond-toggle:hover { color: #f0dfc8; border-color: rgba(255,255,255,0.22); background: rgba(255,255,255,0.05); }
+.tsl-fencing .tsl-cond-toggle:hover img { opacity: 0.75; }
+.tsl-fencing .tsl-cond-toggle.active {
+  color: #fff; background: rgba(232,85,122,0.16); border-color: rgba(232,85,122,0.75);
+  box-shadow: 0 0 10px rgba(232,85,122,0.18);
+}
+.tsl-fencing .tsl-cond-toggle.active img { opacity: 1; filter: invert(1); }
+.tsl-fencing .tsl-boon-toggle.active { background: rgba(123,216,143,0.13); border-color: rgba(123,216,143,0.7); box-shadow: 0 0 10px rgba(123,216,143,0.15); }
+.tsl-fencing .tsl-scar-toggle.active { background: rgba(169,139,230,0.14); border-color: rgba(169,139,230,0.7); box-shadow: 0 0 10px rgba(169,139,230,0.15); }
+.tsl-fencing .tsl-cond-toggle .tsl-wound-tier { margin-left: 2px; padding-left: 0; font-size: 8px; letter-spacing: 1px; }
+
+/* the small controls that sit beside an active pill */
+.tsl-fencing .tsl-wound-steps { flex-direction: row; gap: 2px; }
+.tsl-fencing .tsl-wound-steps button,
+.tsl-fencing .tsl-ult-btn {
+  width: 22px; height: 22px; min-height: 0; padding: 0; margin: 0; flex: 0 0 auto;
+  display: inline-grid; place-items: center; font-size: 9px; line-height: 1; border-radius: 50%;
+}
+.tsl-fencing .tsl-ult-btn { font-size: 12px; }
+.tsl-fencing .tsl-givein-btn { height: 22px; min-height: 0; margin: 0; padding: 0 9px; border-radius: 11px; font-size: 10px; }
+
+/* "Clear all" — a quiet link in the section top-right corner, not a box */
+.tsl-fencing .tsl-cond-clear {
+  position: absolute; top: -2px; right: 0; z-index: 1;
+  width: auto; height: 16px; min-height: 0; margin: 0; padding: 0 0 0 8px;
+  border: none; border-radius: 0; background: var(--tsl-notes-bg, #150c0f); box-shadow: none;
+  font-size: 11px; line-height: 16px; color: var(--tsl-notes-muted, #b58598); opacity: 0.85;
+}
+.tsl-fencing .tsl-cond-clear:hover { color: #f0a9bd; background: var(--tsl-notes-bg, #150c0f); opacity: 1; text-decoration: underline; }
+.tsl-fencing .tsl-wound-load { font-size: 11px; margin-top: 0; }
+
+/* ── Willpower: one line — title · pool · controls ── */
+.tsl-fencing .tsl-wp-panel { flex-direction: row; align-items: center; gap: 10px; }
+.tsl-fencing .tsl-wp-panel .tsl-notes-section-title { flex: 1 1 auto; min-width: 0; }
+.tsl-fencing .tsl-wp-panel .tsl-wp-row { gap: 6px; flex: 0 0 auto; }
+.tsl-fencing .tsl-wp-btn {
+  width: 22px; height: 22px; min-height: 0; padding: 0; margin: 0; flex: 0 0 auto;
+  display: inline-grid; place-items: center; border-radius: 50%; font-size: 13px; line-height: 1;
+}
+.tsl-fencing .tsl-wp-dots { font-size: 13px; letter-spacing: 2px; }
+.tsl-fencing .tsl-wp-num { font-size: 11px; min-width: 26px; text-align: right; }
+
+/* ── Solid, quiet secondary buttons (no more dashed boxes) ── */
+.tsl-fencing .tsl-chr-pick-btn,
+.tsl-enc-begin { border-style: solid; }
+.tsl-fencing .tsl-chr-pick-btn { border-color: rgba(232,85,122,0.35); background: rgba(232,85,122,0.06); }
+.tsl-fencing .tsl-chr-pick-btn:hover { background: rgba(232,85,122,0.16); }
+.tsl-fencing .tsl-bond-dossier { border-style: solid; border-color: rgba(255,255,255,0.06); background: rgba(0,0,0,0.18); }
+.tsl-fencing .tsl-notes-root .tsl-notes-enc-btn {
+  width: auto; height: 24px; min-height: 0; align-self: flex-end; padding: 0 12px; margin: 2px 0 0;
+  background: transparent; border-color: rgba(255,255,255,0.14); color: var(--tsl-notes-muted, #b58598);
+  font-size: 11px; border-radius: 12px;
+}
+.tsl-fencing .tsl-notes-root .tsl-notes-enc-btn:hover { color: #f0a9bd; border-color: rgba(232,85,122,0.5); background: rgba(232,85,122,0.08); }
+.tsl-fencing .tsl-notes-patience-adj {
+  width: 22px; height: 22px; min-height: 0; padding: 0; margin: 0;
+  display: inline-grid; place-items: center; border-radius: 50%; line-height: 1;
+}
+
+/* ── Bonds: strength is a rating (●●○), Strings have their own row ── */
+.tsl-fencing .tsl-chr-att-track { gap: 5px; }
+.tsl-fencing .tsl-chr-att-dot {
+  width: 15px; height: 15px; min-height: 0; padding: 0; margin: 0; flex: 0 0 auto;
+  display: inline-grid; place-items: center; border-radius: 50%;
+  background: transparent; border: 1px solid rgba(85,232,133,0.45); box-shadow: none;
+  font-size: 8px; line-height: 1; color: transparent;
+}
+.tsl-fencing .tsl-chr-att-dot.pos:hover:not(:disabled) { background: rgba(85,232,133,0.3); border-color: #55e885; }
+.tsl-fencing .tsl-chr-att-dot.filled,
+.tsl-fencing .tsl-chr-att-dot.pos.active { background: #55e885; border-color: #55e885; box-shadow: 0 0 6px rgba(85,232,133,0.4); }
+.tsl-fencing .tsl-chr-att-dot.zero { border-color: transparent; color: rgba(255,255,255,0.3); margin-right: 3px; }
+.tsl-fencing .tsl-chr-att-dot.zero:hover:not(:disabled) { color: #e85555; background: transparent; }
+.tsl-fencing .tsl-chr-att-dot.zero.active { color: #e85555; background: transparent; border-color: transparent; }
+.tsl-fencing .tsl-chr-str-pips { color: #e8557a; letter-spacing: 2px; font-size: 12px; flex: 0 0 auto; cursor: help; }
+.tsl-fencing .tsl-notes-root .tsl-chr-str-adj {
+  width: 22px; height: 22px; min-height: 0; padding: 0; margin: 0;
+  display: inline-grid; place-items: center; border-radius: 50%; line-height: 1; font-size: 13px;
+}
+.tsl-fencing .tsl-notes-root .tsl-chr-str-pull {
+  width: auto; height: 22px; min-height: 0; padding: 0 10px; margin: 0 0 0 auto;
+  border-radius: 11px; font-family: var(--tsl-font-title, 'Cinzel', serif); font-size: 10.5px; letter-spacing: 0.04em;
+}
+
+/* ── The conflict window: the roll bar is never below the fold ── */
+#tsl-social-conflict .tsl-conflict-root { height: auto; max-height: calc(100vh - 110px); min-height: 0; }
+#tsl-social-conflict .tsl-center { max-height: none; flex: 1 1 auto; min-height: 120px; overflow-y: auto; }
+#tsl-social-conflict .tsl-center > .tsl-bar {
+  position: sticky; bottom: 0; z-index: 2;
+  background-color: #1a1113;
+  box-shadow: 0 -10px 18px rgba(14,10,8,0.85);
+}
+#tsl-social-conflict .tsl-yield-btn {
+  width: auto; height: 24px; min-height: 0; align-self: flex-start; margin: 2px 0 0; padding: 0 12px;
+  border-radius: 12px; font-size: 11px; line-height: 1;
+}
+#tsl-social-conflict .tsl-status-row--states { gap: 3px; }
+#tsl-social-conflict .tsl-status-row--states .tsl-state-toggle {
+  height: 20px; min-height: 0; margin: 0; line-height: 1; padding: 0 7px;
+  border-color: rgba(255,255,255,0.08); color: #8f7a6c;
+}
+#tsl-social-conflict .tsl-status-row--states .tsl-state-toggle.active {
+  background: color-mix(in srgb, var(--st-color, #e8557a) 22%, transparent);
+  border-color: var(--st-color, #e8557a); color: #fff;
+}
+#tsl-social-conflict .tsl-row-label { height: 18px; line-height: 16px; }
+
+/* ── Social Scene header: one tidy row ── */
+#tsl-scene-visualizer .tsl-viz-head { flex-wrap: nowrap; gap: 6px; }
+#tsl-scene-visualizer .tsl-viz-title { white-space: nowrap; flex: 0 0 auto; }
+#tsl-scene-visualizer .tsl-viz-sub {
+  flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#tsl-scene-visualizer .tsl-viz-mode,
+#tsl-scene-visualizer .tsl-viz-conflict,
+#tsl-scene-visualizer .tsl-viz-refresh,
+#tsl-scene-visualizer .tsl-viz-zoom-btn {
+  height: 26px; min-height: 0; margin: 0; line-height: 1; flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+}
+#tsl-scene-visualizer .tsl-viz-zoom-btn,
+#tsl-scene-visualizer .tsl-viz-refresh { width: 26px; padding: 0; }
+
+/* ── Chat: the whole message wears the module look, not a dark box on parchment ── */
+.chat-message:has(.tsl-maneuver-card) {
+  background: #130e0d;
+  border-color: rgba(232,85,122,0.22);
+  color: #f0dfc8;
+}
+.chat-message:has(.tsl-maneuver-card) .message-header,
+.chat-message:has(.tsl-maneuver-card) .message-sender { color: #d9c4b2; }
+.chat-message:has(.tsl-maneuver-card) .message-metadata { color: #8f7a6c; }
+.chat-message .tsl-maneuver-card {
+  background: rgba(255,255,255,0.025); border-color: rgba(255,255,255,0.06);
+  gap: 6px;
+}
+.tsl-mv-roll { gap: 8px; }
+.tsl-mv-dice { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.tsl-mv-die {
+  display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 4px;
+  border-radius: 6px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2);
+  font-family: 'Cinzel', serif; font-weight: 700; font-size: 13px; color: #fff; line-height: 1;
+}
+.tsl-mv-die--dropped { opacity: 0.35; text-decoration: line-through; }
+.tsl-mv-mod { font-size: 13px; color: #c9b3a2; white-space: nowrap; }
+.tsl-mv-vs { color: #7a6a5e; }
+.tsl-mv-bonuses { display: flex; flex-wrap: wrap; gap: 3px 4px; }
+.tsl-mv-bonus {
+  font-size: 11px; line-height: 1; padding: 3px 7px; border-radius: 9px; white-space: nowrap;
+  background: rgba(85,232,133,0.07); color: #9fdcae; border: 1px solid rgba(85,232,133,0.2);
+}
+.tsl-mv-bonus--neg { background: rgba(232,85,85,0.07); color: #eca1a1; border-color: rgba(232,85,85,0.22); }
+
+/* ── Dialogs: the module dark look (classes: tsl-dialog) ── */
+.tsl-dialog.app.window-app { border: 1px solid rgba(232,85,122,0.35); border-radius: 8px; }
+.tsl-dialog .window-header {
+  background: #1d1114; color: #f0dfc8; border-bottom: 1px solid rgba(232,85,122,0.25);
+}
+.tsl-dialog .window-header .window-title { font-family: 'Cinzel', serif; font-size: 13px; letter-spacing: 0.04em; }
+.tsl-dialog .window-content {
+  background: #150c0f;
+  background-image: radial-gradient(ellipse at 20% 0%, rgba(232,85,122,0.10) 0%, transparent 60%);
+  color: #f0dfc8; font-family: 'EB Garamond', serif; font-size: 15px; line-height: 1.45;
+  padding: 12px 14px;
+}
+.tsl-dialog .dialog-content p { margin: 0 0 8px; }
+.tsl-dialog .dialog-content b { color: #fff; }
+.tsl-dialog .notes { color: #b58598; opacity: 1; font-size: 12.5px; }
+.tsl-dialog input, .tsl-dialog select {
+  background: rgba(255,255,255,0.04); color: #f0dfc8;
+  border: 1px solid rgba(255,255,255,0.14); border-radius: 5px;
+}
+.tsl-dialog select option { background: #1d1114; color: #f0dfc8; }
+.tsl-dialog .tsl-rollmods .form-group label { color: #d9c4b2; font-family: 'Cinzel', serif; font-size: 12px; }
+.tsl-dialog .dialog-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.tsl-dialog .dialog-button {
+  flex: 1 1 0; min-width: 0; height: 32px; margin: 0;
+  background: rgba(255,255,255,0.04); color: #e8d6c4;
+  border: 1px solid rgba(255,255,255,0.14); border-radius: 6px; box-shadow: none;
+  font-family: 'Cinzel', serif; font-size: 12px; letter-spacing: 0.03em; white-space: nowrap;
+}
+.tsl-dialog .dialog-button:hover { background: rgba(232,85,122,0.16); border-color: rgba(232,85,122,0.6); color: #fff; box-shadow: none; }
+.tsl-dialog .dialog-button.default,
+.tsl-dialog .dialog-button.bright {
+  background: rgba(232,85,122,0.22); border-color: rgba(232,85,122,0.75); color: #fff;
+}
+/* Meet the blow: options are cards with their price written on them */
+.tsl-dialog .tsl-meet .tsl-meet-row {
+  display: grid; grid-template-columns: 66px minmax(0, 1fr); align-items: start; gap: 8px;
+  padding: 9px 0; border-top: 1px solid rgba(255,255,255,0.07);
+}
+.tsl-dialog .tsl-meet .tsl-meet-label {
+  flex: none; padding-top: 8px; color: #b58598;
+  font-family: 'Cinzel', serif; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; opacity: 1;
+}
+.tsl-dialog .tsl-meet-opts { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 6px; }
+.tsl-dialog .tsl-meet .tsl-meet-opt {
+  position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  padding: 6px 9px; border-radius: 7px; cursor: pointer; white-space: normal;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);
+  transition: border-color 0.12s, background 0.12s;
+}
+.tsl-dialog .tsl-meet .tsl-meet-opt:hover { border-color: rgba(255,255,255,0.28); background: rgba(255,255,255,0.06); }
+.tsl-dialog .tsl-meet .tsl-meet-opt input { position: absolute; opacity: 0; pointer-events: none; margin: 0; }
+.tsl-dialog .tsl-meet .tsl-meet-opt:has(input:checked) {
+  border-color: #e8557a; background: rgba(232,85,122,0.16); box-shadow: inset 0 0 0 1px rgba(232,85,122,0.35);
+}
+.tsl-dialog .tsl-meet .tsl-meet-opt:has(input:focus-visible) { outline: 1px solid #f0a9bd; outline-offset: 2px; }
+.tsl-dialog .tsl-meet-name { font-family: 'Cinzel', serif; font-size: 12.5px; color: #f0dfc8; line-height: 1.2; }
+.tsl-dialog .tsl-meet-cost { font-size: 12px; color: #b58598; line-height: 1.25; }
+.tsl-dialog .tsl-meet .tsl-meet-opt:has(input:checked) .tsl-meet-cost { color: #f0c3cf; }
+
+/* chip-mark key: one line, meanings on hover */
+.tsl-chip-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11px; line-height: 1.4; }
+.tsl-chip-legend .tsl-legend-item { cursor: help; white-space: nowrap; }
+.tsl-chip-legend .tsl-legend-item b { margin-right: 2px; }
+
+/* Codex: each move is its own card, the name row reads first */
+.tsl-fencing .tsl-codex-move {
+  margin: 6px 0; padding: 8px 10px 9px; border-radius: 8px;
+  background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.07);
+  display: flex; flex-direction: column; gap: 3px;
+}
+.tsl-fencing .tsl-codex-move-head {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  padding-bottom: 4px; margin-bottom: 2px; border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.tsl-fencing .tsl-codex-move-head > b { font-family: 'Cinzel', serif; font-size: 14px; letter-spacing: 0.03em; }
+.tsl-fencing .tsl-codex-move .tsl-codex-gain { white-space: normal; }

@@ -926,7 +926,7 @@ class TSLConflictApp extends _TSLAppBase {
       content: `<div class="tsl-rollmods"><p>Award a String for emotional roleplay: a true fear spoken, a confession, the story behind the scar. Pick who the openness was aimed at.</p></div>`,
       buttons,
       default: "cancel",
-    }).render(true);
+    }, tslDialogOptions()).render(true);
   }
 
   async _doRoll(move, targetIndex) {
