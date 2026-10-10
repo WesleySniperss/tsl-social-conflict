@@ -15,7 +15,11 @@ const CONDITIONS = [
   { id: "angry",    label: "Wrath",     color: "#e85555", clears: "vent it — break something, start the fight, say the words" },
   { id: "spiteful", label: "Grudge",    color: "#c0453f", clears: "strike them, reconcile, or consciously forgive" },
   { id: "obsessed", label: "Obsession", color: "#e8557a", clears: "have them and find it hollow, or a friend's hard truth" },
+  { id: "jealous",  label: "Jealousy",  color: "#7ab85a", clears: "they choose you, plainly — or you let them go" },
   { id: "scared",   label: "Fear",      color: "#9b6ee8", clears: "flee to safety, or face it with an ally beside you" },
+  { id: "doubting", label: "Doubt",     color: "#8a9ab8", clears: "be proven right, or hear it from someone you trust" },
+  { id: "shamed",   label: "Shame",     color: "#c88a6a", clears: "be seen at your worst and accepted — or win your standing back" },
+  { id: "grieving", label: "Grief",     color: "#7a8a9a", clears: "mourn it properly, with someone beside you" },
   { id: "hopeless", label: "Despair",   color: "#5588e8", clears: "someone must rekindle you — you can't clear this alone" },
 ];
 
@@ -26,7 +30,7 @@ const MOVES = [
     icon: "fa-comment-dots",
     stat: "Passion",
     target: true,
-    desc: "On 10+: they must act on it or gain a Condition; if their tracks are running, sincerity chips 1 Resolve — and sincerity can't be parried. On 7-9: they act on it but you gain a Condition — and they gain a String on you.",
+    desc: "On 10+: they must act on it or gain a Condition; if their composure is in play, sincerity takes 1 Composure. On 7-9: they act on it but you gain a Condition — and they gain a String on you.",
     onStrong: { resolve: 1 },
     onWeak:   { stringsOnYou: 1 },
   },
@@ -53,7 +57,7 @@ const MOVES = [
     icon: "fa-fire",
     stat: "Nerve",
     target: true,
-    desc: "On 10+: they act rashly, you gain +1 forward; if their tracks are running, the outburst chips 1 Resolve — it comes from inside them, so it can't be parried. On 7-9: they act rashly but so do you.",
+    desc: "On 10+: they act rashly, you gain +1 forward; if their composure is in play, the outburst costs them 1 Composure. On 7-9: they act rashly but so do you.",
     onStrong: { resolve: 1 },
   },
   {
@@ -202,7 +206,7 @@ class ConflictStore {
         if (p.conditions[conditionId]) await TSLConditionEffects.applyOne(actor, conditionId, "the conflict");
         else await TSLConditionEffects._clearConditions(actor, [conditionId]);
         if (!wasOver && TSLConditionEffects.isOverwhelmed(actor) && ConflictStore.state) {
-          ConflictStore.addLog(`⚠ ${p.name} is Overwhelmed — no more parrying or holding the line: yield or flee.`, "warn");
+          ConflictStore.addLog(`⚠ ${p.name} is Overwhelmed — they can't hold the line any more: every state lands.`, "warn");
           ConflictStore._broadcast();
         }
       })();
@@ -248,12 +252,12 @@ class ConflictStore {
           ConflictStore.addLog(`👁 ${p.name} studies ${target.name} — a tell is whispered`, "info");
         }
         if (fx.resolve) {
-          // Deliberately NOT routed through the parry step: sincerity (Speak
-          // from the Heart) and their own outburst (Provoke) can't be parried.
+          // A sincere word (Speak from the Heart) or their own outburst
+          // (Provoke) lands straight on composure — no state, no hold.
           const tgtActor = game.actors.get(tgt);
           if (SocialEncounterManager.getEncounter(tgtActor).active) {
-            SocialEncounterManager.adjustResolve(tgtActor, -fx.resolve, src);
-            ConflictStore.addLog(`💗 The words land true — ${target.name} loses ${fx.resolve} Resolve`, "hit");
+            SocialEncounterManager.adjustComposure(tgtActor, -fx.resolve, src);
+            ConflictStore.addLog(`💗 The words land true — ${target.name} loses ${fx.resolve} Composure`, "hit");
           }
         }
       }

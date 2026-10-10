@@ -1,19 +1,21 @@
 /**
  * tsl-social-conflict | social-encounter.js
  *
- * Tracks social encounter resources, storing world-synced state on Actor flags.
+ * Tracks a social exchange, storing world-synced state on Actor flags.
  *
- * EVERY side of an exchange carries the same two tracks (v1.80):
- *   Resolve  — your will. Landed maneuvers chip it; at 0 you are SWAYED:
- *              you concede the exchange (the big loss).
- *   Patience — your composure. YOUR OWN misses spend it, and so does every
- *              parry you make; at 0 you BREAK OFF: you lose your footing and
- *              leave the exchange (a lesser loss — no concession, but the
- *              other side takes a String on you).
- * So pressing costs you (a miss spends your composure) and defending costs
- * you (a parry spends it too) — nobody wins by simply parrying everything.
+ * ONE track for everyone (v2.0): COMPOSURE — how much pressure you can take
+ * before you crack. A maneuver that lands on you takes it down; YOUR OWN miss
+ * takes yours down (pressing is never free). When it hits 0 you have LOST the
+ * exchange, and you choose how:
+ *   give in   (stored "swayed") — you concede the point / do what was asked;
+ *             the bond toward the winner deepens, and they take a String.
+ *   storm off (stored "walked") — you refuse, but it costs: you carry a Grudge
+ *             against the winner, the bond cools, and they take a String.
+ * Who chooses: a player decides in the moment; an NPC follows its nature
+ * ("When pressed": gives ground → give in, stands firm → storm off). Someone
+ * Desperate for the winner, or Enthralled by them, can't storm off from them.
  *
- * An exchange belongs to the scene it started in: once it resolves, the two
+ * An exchange belongs to the scene it started in: once it resolves, both
  * sides are out of it until the GM resets it or play moves to another scene.
  */
 
@@ -27,10 +29,8 @@ class SocialEncounterManager {
   static _emptyEncounter() {
     return {
       active: false,
-      patience: 0,
-      maxPatience: 0,
-      resolve: 0,
-      maxResolve: 0,
+      composure: 0,
+      maxComposure: 0,
       round: 0,
       outcome: null,
     };
@@ -56,10 +56,14 @@ class SocialEncounterManager {
   static getEncounter(actor) {
     const enc = actor?.getFlag(SocialEncounterManager.getFlagScope(), "encounter");
     if (!enc || SocialEncounterManager.isStale(enc)) return SocialEncounterManager._emptyEncounter();
+    // A pre-2.0 exchange carried Resolve + Patience: its Resolve becomes Composure.
+    if (enc.composure == null && enc.resolve != null) {
+      return { ...enc, composure: enc.resolve, maxComposure: enc.maxResolve ?? enc.resolve };
+    }
     return enc;
   }
 
-  /** Has this actor's exchange ended (swayed or broke off) in the current scene? */
+  /** Has this actor's exchange ended (gave in or stormed off) in the current scene? */
   static isResolved(actor) {
     return !!SocialEncounterManager.getEncounter(actor).outcome;
   }
@@ -71,17 +75,12 @@ class SocialEncounterManager {
   }
 
   /**
-   * Suggested track values derived from the actor's sheet (dnd5e/a5e):
-   *   Resolve  = CHA mod (floor 1) — force of personality: the will to not
-   *              concede. Kept low on purpose: a mook (~1) folds in one hit, a
-   *              boss (~5-6) breaks in ~2 heavy finishers. The real damage comes
-   *              from the maneuver SCHOOL (General 1 / archetype 2 / Humiliate 3),
-   *              not from a stuffy HP tank.
-   *   Patience = WIS + CHA mod (floor 2) — composure + social poise: how many
-   *              misses and parries you can afford before you break off.
-   * (No single stat triple-dips: DC = WIS + INT, Resolve = CHA,
-   *  Patience = WIS + CHA.)
-   * GM can still nudge either track in the Chronicle.
+   * Composure from the sheet: 2 + CHA mod + WIS mod (never below 2) — force of
+   * personality plus self-possession. A mook (~2) folds in a hit or two, an
+   * ordinary hero (~5–6) takes three, a hardened noble (~8–9) four or five.
+   * The weight of a blow comes from the maneuver's SCHOOL (General 1 ·
+   * archetype schools 2 · Humiliate 3), not from a bloated track.
+   * The GM can nudge it in the Chronicle.
    */
   static suggestTracks(actor) {
     const abilities = actor?.system?.abilities ?? {};
@@ -90,16 +89,16 @@ class SocialEncounterManager {
       return typeof v === "number" ? v : 0;
     };
     const cha = mod("cha"), wis = mod("wis");
+    const sum = 2 + cha + wis;
     return {
-      resolve:  Math.max(1, cha),
-      patience: Math.max(2, wis + cha),
-      hint: `Resolve CHA (${cha >= 0 ? "+" : ""}${cha}, floor 1), Patience WIS+CHA (${wis + cha >= 0 ? "+" : ""}${wis + cha}, floor 2)`,
+      composure: Math.max(2, sum),
+      hint: `Composure 2 + CHA (${cha >= 0 ? "+" : ""}${cha}) + WIS (${wis >= 0 ? "+" : ""}${wis}), never below 2`,
     };
   }
 
   /**
-   * Ensure an actor has live tracks before a maneuver touches them — no
-   * "Start Encounter" ceremony. Auto-starts from sheet defaults on the first
+   * Ensure an actor has a live track before a maneuver touches them — no
+   * "Start Encounter" ceremony. Auto-starts from the sheet on the first
    * maneuver (for BOTH sides), unless an exchange in this scene already
    * resolved. An exchange left over from another scene restarts fresh.
    */
@@ -107,18 +106,16 @@ class SocialEncounterManager {
     if (!actor) return null;
     const enc = SocialEncounterManager.getEncounter(actor);   // stale → empty
     if (enc.active || enc.outcome) return enc;
-    const s = SocialEncounterManager.suggestTracks(actor);
-    return SocialEncounterManager.startEncounter(actor, s.patience, s.resolve);
+    return SocialEncounterManager.startEncounter(actor, SocialEncounterManager.suggestTracks(actor).composure);
   }
 
-  static async startEncounter(actor, patience = 4, resolve = 3) {
+  static async startEncounter(actor, composure = 4) {
     if (!actor) return null;
+    const c = Math.max(1, composure | 0);
     const encounter = {
       active: true,
-      patience,
-      maxPatience: patience,
-      resolve,
-      maxResolve: resolve,
+      composure: c,
+      maxComposure: c,
       round: 1,
       outcome: null,
       sceneId: SocialEncounterManager._sceneId(),
@@ -148,72 +145,108 @@ class SocialEncounterManager {
   }
 
   /**
-   * Spend or restore composure. `sourceId` is the OTHER side of the exchange —
-   * if this empties the track, they are the one who wins it.
+   * Lose (or recover) composure. `sourceId` is the OTHER side of the exchange —
+   * if this breaks them, that side wins it.
    */
-  static async adjustPatience(actor, delta, sourceId = null) {
+  static async adjustComposure(actor, delta, sourceId = null) {
     if (!actor) return null;
     const encounter = SocialEncounterManager.getEncounter(actor);
     if (!encounter.active) return encounter;
-
-    encounter.patience = Math.min(Math.max(encounter.patience + delta, 0), encounter.maxPatience);
+    encounter.composure = Math.min(Math.max((encounter.composure ?? 0) + delta, 0), encounter.maxComposure ?? 0);
+    delete encounter.resolve; delete encounter.maxResolve;
+    delete encounter.patience; delete encounter.maxPatience;
     encounter.updatedAt = Date.now();
-    if (encounter.patience === 0) {
-      encounter.active = false;
-      encounter.outcome = "walked";   // stored id kept for old saves; shown as "broke off"
+    if (encounter.composure > 0) {
       await SocialEncounterManager.setEncounter(actor, encounter);
-      await SocialEncounterManager._resolveConsequences(actor, sourceId, "walked");
       return encounter;
     }
+    // Broken — decide HOW they lose, then settle it.
+    const { outcome, why } = await SocialEncounterManager._breakPoint(actor, sourceId);
+    encounter.active  = false;
+    encounter.outcome = outcome;
     await SocialEncounterManager.setEncounter(actor, encounter);
+    await SocialEncounterManager._resolveConsequences(actor, sourceId, outcome, { why });
     return encounter;
   }
 
-  static async adjustResolve(actor, delta, sourceId = null) {
-    if (!actor) return null;
-    const encounter = SocialEncounterManager.getEncounter(actor);
-    if (!encounter.active) return encounter;
+  /** Pre-2.0 names — both are just Composure now. */
+  static async adjustResolve(actor, delta, sourceId = null)  { return SocialEncounterManager.adjustComposure(actor, delta, sourceId); }
+  static async adjustPatience(actor, delta, sourceId = null) { return SocialEncounterManager.adjustComposure(actor, delta, sourceId); }
 
-    encounter.resolve = Math.min(Math.max(encounter.resolve + delta, 0), encounter.maxResolve);
-    encounter.updatedAt = Date.now();
-    if (encounter.resolve === 0) {
-      encounter.active = false;
-      encounter.outcome = "swayed";
-      await SocialEncounterManager.setEncounter(actor, encounter);
-      await SocialEncounterManager._resolveConsequences(actor, sourceId, "swayed");
-      return encounter;
-    }
-    await SocialEncounterManager.setEncounter(actor, encounter);
-    return encounter;
+  /**
+   * The moment composure breaks: give in ("swayed") or storm off ("walked")?
+   * Someone Desperate for the WINNER can't walk away from them, and someone
+   * Enthralled by the winner would never storm off from them — both only
+   * toward that person; otherwise their nature decides ("When pressed"), or —
+   * for a player character / "Decide each time" — a window.
+   */
+  static async _breakPoint(actor, sourceId) {
+    const scope  = SocialArchetypeManager.getFlagScope();
+    const winner = sourceId ? game.actors.get(sourceId) : null;
+    const desp = SocialArchetypeManager.getActiveCondition(actor, "desperate");
+    if (desp && winner && desp.flags?.[scope]?.sourceActorId === winner.id)
+      return { outcome: "swayed", why: `Desperate — they can't bear to lose ${winner.name}` };
+    const thrall = SocialArchetypeManager.getActiveCondition(actor, "smitten");
+    if (thrall && winner && thrall.flags?.[scope]?.sourceActorId === winner.id)
+      return { outcome: "swayed", why: `Enthralled — they'd never storm off from ${winner.name}` };
+    const stance = SocialArchetypeManager.getStance(actor);
+    if (stance === "yield") return { outcome: "swayed", why: null, stance };
+    if (stance === "firm")  return { outcome: "walked", why: null, stance };
+    return { outcome: await SocialEncounterManager.promptBreak(actor, winner), why: null, stance };
+  }
+
+  /** The window at the breaking point (a player, or an NPC set to decide each time). */
+  static async promptBreak(actor, winner) {
+    const esc = foundry.utils.escapeHTML;
+    const who = winner ? esc(winner.name) : "the other side";
+    return new Promise(resolve => {
+      new Dialog({
+        title: `${actor.name} — composure breaks`,
+        content: `<div class="tsl-rollmods">
+          <p><b>${esc(actor.name)}</b> can't hold out against ${who} any longer — this exchange is lost. How?</p>
+          <p class="notes">Give in: concede the point, the bond toward ${who} deepens, and they take a String. Storm off: refuse — but carry a Grudge against ${who}, the bond cools, and they still take a String.</p>
+        </div>`,
+        buttons: {
+          give:  { icon: '<i class="fas fa-handshake"></i>',   label: "Give in",    callback: () => resolve("swayed") },
+          storm: { icon: '<i class="fas fa-door-open"></i>',   label: "Storm off",  callback: () => resolve("walked") },
+        },
+        default: "give",
+        close: () => resolve("swayed"),
+      }, typeof tslDialogOptions === "function" ? tslDialogOptions() : {}).render(true);
+    });
   }
 
   /**
-   * Everything that happens the moment a track empties. GM side. `actor` is
-   * the one who LOST; `sourceId` is the side that wins the exchange.
-   *   swayed     → they concede; their bond toward the winner deepens (+1);
-   *                the winner gains a String — the concession is a hold.
-   *   walked     → (shown as "broke off") they lost their composure and left;
-   *                no concession, but the bond cools (−1) and the winner gains
-   *                a String on them.
+   * Everything that happens when composure breaks. GM side. `actor` is the one
+   * who LOST; `sourceId` is the side that wins the exchange.
+   *   swayed (gave in)    → the bond toward the winner deepens (type-aware), and
+   *                         the winner gains a String — the concession is a hold.
+   *   walked (stormed off) → the bond cools (type-aware), they carry a Grudge
+   *                         against the winner, and the winner still gains a String.
    * Either way the WINNER's agenda (if the GM gave them one) advances.
-   * NOTE: fencing statuses are NOT cleared here — they carry their own
-   * durations and REAL combat riders, so if the talk turns to blades they must
-   * still bite. They expire on their own (scene/rounds) or the GM clears them.
+   * States are NOT cleared — they carry their own durations and real combat
+   * riders, so if the talk turns to blades they still bite.
    */
-  static async _resolveConsequences(actor, sourceId, outcome) {
+  static async _resolveConsequences(actor, sourceId, outcome, ctx = {}) {
     const winner = sourceId ? game.actors.get(sourceId) : null;
     let gainedString = false;
     let shift = null;
+    let grudge = false;
 
     if (winner) {
       // The loser's bond toward the winner moves — type-aware: for an Enemy or
-      // Rival it runs the other way (swayed eases the hostility, broke off
-      // hardens it).
+      // Rival it runs the other way (giving in eases the hostility, storming
+      // off hardens it).
       shift = await TSLBondStore.shiftAfterExchange(actor.id, sourceId, outcome);
       gainedString = (await TSLStringStore.add(sourceId, actor.id, 1)) > 0;
+      // Storming off has a price: the refusal festers into a Grudge.
+      if (outcome === "walked" && typeof TSLConditionEffects !== "undefined") {
+        await TSLConditionEffects.applyOne(actor, "spiteful", winner.name, winner.id);
+        grudge = true;
+      }
     }
 
-    await SocialEncounterManager._announce(actor, outcome, { winner, gainedString, shift });
+    await SocialEncounterManager._announce(actor, outcome, { winner, gainedString, shift, grudge, why: ctx.why });
   }
 
   static async advanceRound(actor) {
@@ -226,17 +259,17 @@ class SocialEncounterManager {
     return encounter;
   }
 
-  /** Display label for a stored outcome id ("walked" is shown as "Broke off"). */
+  /** Display label for a stored outcome id. */
   static outcomeLabel(outcome) {
-    return outcome === "swayed" ? "Swayed" : outcome === "walked" ? "Broke off" : "";
+    return outcome === "swayed" ? "Gave in" : outcome === "walked" ? "Stormed off" : "";
   }
 
   /** Hover text for a finished exchange — one wording for every surface. */
   static outcomeTip(outcome) {
     const over = " The exchange is over until the GM resets it (Chronicle → Fencing) or play moves to another scene.";
     return outcome === "swayed"
-      ? `Swayed — their Resolve hit 0: they LOST the exchange and concede the point / do what was asked (the GM frames it). Their bond toward the winner deepens +1; the winner gains a String on them.${over}`
-      : `Broke off — their Patience (composure) hit 0, spent on their own misses and parries: they LOST the exchange and left it. No concession, but their bond toward the winner cools −1 and the winner gains a String on them.${over}`;
+      ? `Gave in — their composure broke and they LOST the exchange: they concede the point / do what was asked (the GM frames it). Their bond toward the winner deepens; the winner gains a String on them.${over}`
+      : `Stormed off — their composure broke and they LOST the exchange, but refused to concede: they carry a Grudge against the winner, their bond cools, and the winner gains a String on them.${over}`;
   }
 
   static async _announce(actor, outcome, opts = {}) {
@@ -266,27 +299,28 @@ class SocialEncounterManager {
 
     const bullets = outcome === "swayed"
       ? [
-          `They <strong>concede the exchange</strong> — they do the thing, or grant the point (the GM frames exactly what).`,
+          `Their composure breaks — they <strong>give in</strong>: they do the thing, or grant the point (the GM frames exactly what).${opts.why ? ` <i>(${esc(opts.why)})</i>` : ""}`,
           bondLine,
           opts.gainedString ? `${who} gains a <strong>String</strong> on them — the concession is a hold to invoke later.` : null,
           winnerAgenda ? `${who} gets what they came for — <strong>their agenda advances</strong> (GM: see their Profile).` : null,
-          `Any fencing statuses on them <strong>linger</strong> — if this turns to a fight, they still bite.`,
+          `Any states on them <strong>linger</strong> — if this turns to a fight, they still bite.`,
         ].filter(Boolean)
       : [
-          `Their composure runs out — they <strong>break off</strong>. No concession, but they leave the field to ${who}.`,
+          `Their composure breaks — but they <strong>storm off</strong> rather than concede. They lose the exchange; they grant nothing.`,
+          opts.grudge ? `They carry a <strong>Grudge</strong> against ${who} — the refusal festers.` : null,
           bondLine,
           opts.gainedString ? `${who} saw them crack — <strong>a String</strong> on them.` : null,
           winnerAgenda ? `${who} holds the field — <strong>their agenda advances</strong> (GM: see their Profile).` : null,
           exitFlavor ? esc(exitFlavor) : null,
-          `Any fencing statuses on them <strong>linger</strong> — if this turns to a fight, they still bite.`,
+          `Any states on them <strong>linger</strong> — if this turns to a fight, they still bite.`,
         ].filter(Boolean);
 
     const cls = outcome === "swayed" ? "success" : "immune";
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor }),
       content: `<div class="tsl-maneuver-card tsl-mv--${cls}">
-        <div class="tsl-mv-header"><i class="fas ${outcome === "swayed" ? "fa-heart-crack" : "fa-door-open"}"></i>
-          <span class="tsl-mv-name">${esc(actor.name)} — ${outcome === "swayed" ? "Swayed" : "Breaks off"}</span></div>
+        <div class="tsl-mv-header"><i class="fas ${outcome === "swayed" ? "fa-handshake" : "fa-door-open"}"></i>
+          <span class="tsl-mv-name">${esc(actor.name)} — ${outcome === "swayed" ? "Gives in" : "Storms off"}</span></div>
         <ul class="tsl-mv-consequences">${bullets.map(b => `<li>${b}</li>`).join("")}</ul>
       </div>`,
     });

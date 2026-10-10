@@ -3,15 +3,18 @@
  *
  * The Social Chronicle — per-character dossier and relationship ledger.
  *
- *   Profile — psychotype: archetype, Extended Triad leanings, profiling
- *             points (Desire / Fear / Weakness / Mask / The Line), free notes.
- *             Every profiling element carries a play-facing tooltip hint.
- *   Bonds   — relationships with other PCs/NPCs: bond type, attitude (-3..+3,
- *             shifts the Social Fencing DC), perceived archetype (may be wrong
- *             from their tells), strings, notes.
+ *   Profile — (GM) the hidden archetype; NATURE for everyone (Leanings dots +
+ *             When pressed); profiling points (Desire / Fear / Weakness / Mask
+ *             / The Line); the GM's Agenda; free notes.
+ *   Bonds   — relationships with other PCs/NPCs: type + strength (one shared
+ *             bond, mirrored on both sides), the "Read as" guess, Strings (and
+ *             Pull: +5 strike or guard, a real effect), the dossier.
  *             New bonds can be added from a candidate list or by clicking a
  *             visible, non-hidden token on the canvas.
- *   Fencing — (GM) encounter tracks: Patience vs Resolve, social conditions.
+ *   Fencing — the maneuver console (act, roll, see the result in place), this
+ *             character's composure, states and the levers they hold, then the
+ *             emotional layer (Willpower, Wounds, Boons, Scars).
+ *   Codex   — the rules, generated from the data.
  *
  * Access: GM sees and edits everything; players open only actors they own.
  * What a player knows about others lives in their OWN chronicle's bonds.
@@ -73,6 +76,9 @@ class SocialFencingApp extends _SocialAppBase {
       if (a.id === actor.id) this.render(true);
     });
     this._createEffHook = Hooks.on("createActiveEffect", (e) => {
+      if (e.parent?.id === actor.id) this.render(true);
+    });
+    this._updateEffHook = Hooks.on("updateActiveEffect", (e) => {
       if (e.parent?.id === actor.id) this.render(true);
     });
     this._deleteEffHook = Hooks.on("deleteActiveEffect", (e) => {
@@ -200,31 +206,10 @@ class SocialFencingApp extends _SocialAppBase {
 
     return `
       <div class="tsl-notes-root tsl-chr-root">
-        ${this._buildFenceOverlay()}
         <nav class="tsl-chr-tabs">${tabBtns}</nav>
         ${body}
         ${ctx.canEdit ? "" : `<div class="tsl-notes-footer tsl-notes-footer--readonly">Read only</div>`}
       </div>`;
-  }
-
-  /** Dice result overlay for a maneuver rolled from this Chronicle. */
-  _buildFenceOverlay() {
-    const r = this._fenceRoll;
-    if (!r) return "";
-    const oc = (r.outcome === "success" || r.outcome === "crit") ? "Strong Hit" : "Miss";
-    const label = r.outcome === "crit"    ? "★ Clean hit"
-                : r.outcome === "success" ? "Success"
-                : r.outcome === "immune"  ? "✕ Walled off"
-                : r.outcome === "botch"   ? (r.natural === 1 ? "Natural 1 — ⚔ They answer" : "⚔ They answer")
-                : r.natural === 1         ? "Natural 1 — Failure"
-                : "Failure";
-    return `<div class="tsl-dice-overlay"><div class="tsl-dice-panel tsl-dice-panel--maneuver">
-      <div class="tsl-dice-move"><i class="fas ${r.icon}"></i> ${foundry.utils.escapeHTML(r.name)}</div>
-      <div class="tsl-dice-total" data-outcome="${oc}">${r.total}</div>
-      <div class="tsl-dice-breakdown">${game.user.isGM ? `vs DC ${r.dc}` : "vs ?"}</div>
-      <div class="tsl-dice-outcome" data-outcome="${oc}" data-tooltip="${foundry.utils.escapeHTML(SocialManeuverRoller.gradeTip(r.outcome, r.natural))}">${label}</div>
-      <button class="tsl-fence-close">Continue</button>
-    </div></div>`;
   }
 
   // ── Profile tab ─────────────────────────────────────────────────────────────
@@ -232,6 +217,7 @@ class SocialFencingApp extends _SocialAppBase {
   _buildProfileTab({ notes, archetype, canEdit, isGM }) {
     const esc      = foundry.utils.escapeHTML;
     const disabled = canEdit ? "" : "disabled";
+    const isPC     = this._actor.hasPlayerOwner;
 
     const archetypeOpts = Object.values(SOCIAL_TRIADS).map(triad => {
       const opts = SOCIAL_ARCHETYPES.filter(a => a.triad === triad.id).map(a =>
@@ -241,39 +227,6 @@ class SocialFencingApp extends _SocialAppBase {
     }).join("");
 
     const archDesc = archetype ? this._buildArchetypeCard(archetype) : "";
-
-    // Extended Triad — distribute a shared pool of TRIAD_POINT_POOL points
-    const triadTotal = Object.values(notes.triad).reduce((s, v) => s + (v || 0), 0);
-    const remaining  = TRIAD_POINT_POOL - triadTotal;
-    const triadRows = Object.values(SOCIAL_TRIADS).map(triad => {
-      const val  = notes.triad[triad.id] ?? 0;
-      const pips = Array.from({ length: 3 }, (_, i) => `
-        <button class="tsl-chr-triad-pip ${i < val ? "filled" : ""}"
-                data-triad="${triad.id}" data-value="${i + 1}"
-                style="--triad-color:${triad.color}" ${disabled}></button>`).join("");
-      return `
-        <div class="tsl-chr-triad-row">
-          <span class="tsl-chr-triad-label" style="--triad-color:${triad.color}"
-                data-tooltip="${esc(triad.hint)}">
-            <i class="fas ${triad.icon}"></i> ${triad.label}
-          </span>
-          <div class="tsl-chr-triad-pips">${pips}</div>
-        </div>`;
-    }).join("");
-
-    // The dots' SECOND effect, made explicit: what the 'Social Leanings' effect
-    // adds to everyday skills on the sheet (maneuvers that roll them include it).
-    const leanLine = (() => {
-      const TS = SocialArchetypeManager.TRIAD_SKILLS;
-      const chips = Object.entries(TS).map(([t, m]) => {
-        const v = SocialArchetypeManager.leanSkillBonus(this._actor, m.key);
-        const tl = (SOCIAL_TRIADS[t]?.label ?? t).replace("Triad of ", "");
-        return v ? `<span class="tsl-chr-lean-chip" data-tooltip="${esc(`${tl} ${"●".repeat(v)} → +${v} ${m.label} — ${m.why}. It is an effect on your sheet (Social Leanings), so it counts on EVERY ${m.label} check; a maneuver that rolls ${m.label} shows it as 'incl. +${v} leaning'. A maneuver of the ${tl} school that ALSO rolls ${m.label} gets both bonuses — your signature move.`)}">+${v} ${m.label}</span>` : null;
-      }).filter(Boolean);
-      return chips.length
-        ? `<div class="tsl-chr-lean"><span class="tsl-chr-lean-label">On your sheet:</span>${chips.join("")}<span class="tsl-chr-lean-note">every check, maneuvers included</span></div>`
-        : `<div class="tsl-chr-lean tsl-chr-lean--empty">Dots also sharpen everyday checks: Power → Intimidation, Emotion → Insight, Reason → Deception (+1 per dot).</div>`;
-    })();
 
     // Profiling points, each with its hint
     const pointRows = PROFILE_POINTS.map(p => `
@@ -288,7 +241,7 @@ class SocialFencingApp extends _SocialAppBase {
     return `
       ${!isGM ? "" : `
       <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title" data-tooltip="GM ONLY — the character's TRUE nature when targeted: which maneuvers cut deep (◎) and which bounce off (✕). Players never see this; they deduce it from tells and note their guess in their Bonds.">Archetype · their defence (GM)</div>
+        <div class="tsl-notes-section-title" data-tooltip="GM ONLY — the hidden TRUE nature: which maneuvers cut deep (◎) and which bounce off (✕), which school rules them, and how they hold up when pressed. Players never see it; they deduce it from tells and write their guess in their Bonds.${isPC ? " A player character usually needs none — others read them by their Leanings." : ""}">Archetype · hidden nature (GM)</div>
         <select name="archetypeId" ${disabled}>
           <option value="">— Unknown / None —</option>
           ${archetypeOpts}
@@ -299,35 +252,12 @@ class SocialFencingApp extends _SocialAppBase {
           <input type="checkbox" name="archetypeRevealed" ${SocialArchetypeManager.isRevealed(this._actor) ? "checked" : ""} ${disabled}>
           <span>Reveal this nature to players ${SocialArchetypeManager.isRevealed(this._actor) ? "<b>(open)</b>" : ""}</span>
         </label>`}
-        ${this._actor.hasPlayerOwner ? "" : (() => {
-          // How this NPC meets a landed blow on its own (no window for the GM)
-          const ST  = SocialArchetypeManager.DEFENSE_STANCES;
-          const raw = SocialArchetypeManager.getActorData(this._actor).stance ?? "nature";
-          const now = SocialArchetypeManager.getStance(this._actor);
-          const opts = Object.entries(ST).map(([id, st]) => `<option value="${id}" ${raw === id ? "selected" : ""}>${esc(st.label)}${id === "nature" && now !== "ask" ? ` (${esc(ST[now]?.label ?? now)})` : ""}</option>`).join("");
-          const tip = Object.values(ST).map(st => `<b>${st.label}</b> — ${st.tip}`).join("<br>");
-          return `<div class="tsl-stance-row">
-            <span class="tsl-stance-label" data-tooltip="${esc(`How this NPC meets a landed blow ON ITS OWN — no window for you.<br>${tip}`)}"><i class="fas fa-shield-halved"></i> Defence stance</span>
-            <select name="stance" ${disabled}>${opts}</select>
-          </div>
-          <div class="tsl-stance-hint">${esc(ST[raw === "nature" ? now : raw]?.tip ?? "")}</div>`;
-        })()}
       </section>`}
 
-      ${!this._actor.hasPlayerOwner ? "" : `
-      <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title" data-tooltip="Spend ${TRIAD_POINT_POOL} dots. They cut both ways.<br><b>Attack:</b> +1 per dot on that school's maneuvers (−1 on a 0-dot school) — AND +1 per dot to one everyday skill on your sheet (see the line under the dots).<br><b>Defense:</b> a ruling triad (a clear 2+● lead) is your readable nature: the school that beats it gets +2 against you, the school it beats gets −2, and your Answer bites bad misses. A 0-dot school is your blind side. Split evenly = unreadable, but no Answer.">
-          Extended Triad · your nature
-          <span class="tsl-chr-triad-budget ${remaining < 0 ? "over" : remaining === 0 ? "spent" : ""}">${
-            remaining < 0 ? `${-remaining} over — lower a triad` : `${remaining} / ${TRIAD_POINT_POOL} left`
-          }</span>
-        </div>
-        ${triadRows}
-        ${leanLine}
-      </section>`}
+      ${this._buildNatureSection(notes, archetype, canEdit)}
 
       <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title" data-tooltip="The main profiling points. Hover each label for how to use it at the table.">Profiling</div>
+        <div class="tsl-notes-section-title" data-tooltip="The dossier. Desire, Fear and Weakness are LEVERAGE — fill one and it becomes a card anyone pressing them can play once per exchange. Mask and The Line are for reading them (a Cross-Examine that exposes them reveals their Mask). Hover each label for how to use it at the table.">Profiling</div>
         ${pointRows}
       </section>
 
@@ -335,14 +265,13 @@ class SocialFencingApp extends _SocialAppBase {
         // TSL playbook (class): its signature moves join the basic five in conflicts
         const pbId = SocialArchetypeManager.getActorData(this._actor)?.playbookId ?? "";
         const pb   = TSLPlaybooks.getById(pbId);
-        const esc2 = foundry.utils.escapeHTML;
         const opts = TSLPlaybooks.getOptions().map(o =>
           `<option value="${o.id}" ${pbId === o.id ? "selected" : ""}>${o.label}</option>`).join("");
         const card = pb ? `
-          <div class="tsl-chr-arch-hint"><i class="fas ${pb.icon}"></i> ${esc2(pb.essence)}</div>
+          <div class="tsl-chr-arch-hint"><i class="fas ${pb.icon}"></i> ${esc(pb.essence)}</div>
           <div class="tsl-notes-arch-meta">
             ${pb.moves.map(m => `<span class="tsl-arch-mv-chip tsl-arch-mv-chip--playbook"
-                data-tooltip="${esc2(m.desc)}"><i class="fas ${m.icon}"></i> ${esc2(m.name)} · ${m.stat}</span>`).join("")}
+                data-tooltip="${esc(m.desc)}"><i class="fas ${m.icon}"></i> ${esc(m.name)} · ${m.stat}</span>`).join("")}
           </div>` : "";
         return `
       <section class="tsl-notes-section">
@@ -357,13 +286,107 @@ class SocialFencingApp extends _SocialAppBase {
 
       ${!isGM ? "" : `
       <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title" data-tooltip="GM only. What THEY want from the party in this conversation — a secret, a promise, money, humiliation. If they WIN the exchange (the other side breaks off or is swayed), this agenda ADVANCES: losing the exchange must cost the players something.">Agenda — what they want (GM)</div>
-        <textarea name="intent" rows="2" placeholder="What do they want from this conversation?">${foundry.utils.escapeHTML(notes.intent)}</textarea>
+        <div class="tsl-notes-section-title" data-tooltip="GM only. What THEY want from the party in this conversation — a secret, a promise, money, humiliation. If they WIN the exchange (the other side gives in or storms off), this agenda ADVANCES: losing the exchange must cost the players something.">Agenda — what they want (GM)</div>
+        <textarea name="intent" rows="2" placeholder="What do they want from this conversation?">${esc(notes.intent)}</textarea>
       </section>`}
 
       <section class="tsl-notes-section">
         <div class="tsl-notes-section-title" data-tooltip="Anything the dossier above doesn't cover — how they behave, quirks, history, the story behind their Desire.">Notes</div>
-        <textarea name="notes" rows="3" placeholder="How they behave, history, the why behind their Desire…" ${disabled}>${foundry.utils.escapeHTML(notes.notes)}</textarea>
+        <textarea name="notes" rows="3" placeholder="How they behave, history, the why behind their Desire…" ${disabled}>${esc(notes.notes)}</textarea>
+      </section>`;
+  }
+
+  /**
+   * NATURE (v2.0) — one block for EVERYONE, player character or NPC, with two
+   * halves:
+   *   Leanings     — the triad dots: the schools they reach for (+1 per dot on
+   *                  that school's maneuvers) — and a clear lead is how others
+   *                  read and answer them.
+   *   When pressed — how they hold up: accept a state or hold the line; give
+   *                  in or storm off when their composure breaks.
+   * An NPC follows its archetype for both until the GM sets otherwise; a
+   * player sets their own.
+   */
+  _buildNatureSection(notes, archetype, canEdit) {
+    const esc      = foundry.utils.escapeHTML;
+    const disabled = canEdit ? "" : "disabled";
+    const isPC     = this._actor.hasPlayerOwner;
+    const short    = (id) => (SOCIAL_TRIADS[id]?.label ?? id).replace("Triad of ", "");
+
+    // ── Leanings: TRIAD_POINT_POOL dots across the three schools ──
+    const triadTotal = Object.values(notes.triad).reduce((s, v) => s + (v || 0), 0);
+    const remaining  = TRIAD_POINT_POOL - triadTotal;
+    // An NPC with no dots of its own leans the way its archetype does (●●).
+    const implied = !isPC && triadTotal === 0 && archetype ? archetype.triad : null;
+    const triadRows = Object.values(SOCIAL_TRIADS).map(triad => {
+      const val   = notes.triad[triad.id] ?? 0;
+      const ghost = implied === triad.id ? 2 : 0;
+      const pips = Array.from({ length: 3 }, (_, i) => `
+        <button class="tsl-chr-triad-pip ${i < val ? "filled" : ""} ${!val && i < ghost ? "implied" : ""}"
+                data-triad="${triad.id}" data-value="${i + 1}"
+                style="--triad-color:${triad.color}" ${disabled}></button>`).join("");
+      return `
+        <div class="tsl-chr-triad-row">
+          <span class="tsl-chr-triad-label" style="--triad-color:${triad.color}" data-tooltip="${esc(triad.hint)}">
+            <i class="fas ${triad.icon}"></i> ${triad.label}
+          </span>
+          <div class="tsl-chr-triad-pips">${pips}</div>
+        </div>`;
+    }).join("");
+
+    // The dots' SECOND effect (player characters), made explicit: what the
+    // 'Social Leanings' effect adds to everyday skills on the sheet.
+    const leanLine = isPC ? (() => {
+      const TS = SocialArchetypeManager.TRIAD_SKILLS;
+      const chips = Object.entries(TS).map(([t, m]) => {
+        const v = SocialArchetypeManager.leanSkillBonus(this._actor, m.key);
+        const tl = short(t);
+        return v ? `<span class="tsl-chr-lean-chip" data-tooltip="${esc(`${tl} ${"●".repeat(v)} → +${v} ${m.label} — ${m.why}. It is an effect on your sheet (Social Leanings), so it counts on EVERY ${m.label} check; a maneuver that rolls ${m.label} shows it as 'incl. +${v} leaning'. A maneuver of the ${tl} school that ALSO rolls ${m.label} gets both bonuses — your signature move.`)}">+${v} ${m.label}</span>` : null;
+      }).filter(Boolean);
+      return chips.length
+        ? `<div class="tsl-chr-lean"><span class="tsl-chr-lean-label">On your sheet:</span>${chips.join("")}<span class="tsl-chr-lean-note">every check, maneuvers included</span></div>`
+        : `<div class="tsl-chr-lean tsl-chr-lean--empty">Dots also sharpen everyday checks: Power → Intimidation, Emotion → Insight, Reason → Deception (+1 per dot).</div>`;
+    })() : implied
+      ? `<div class="tsl-chr-lean tsl-chr-lean--empty">No dots of their own — they lean the way their archetype does (${esc(short(implied))} ●●). Click a dot to set their own.</div>`
+      : "";
+
+    // ── When pressed ──
+    const ST     = SocialArchetypeManager.PRESSED_STANCES;
+    const legacy = { open: "yield", measured: "yield", guarded: "firm", proud: "firm" };
+    const stored = SocialArchetypeManager.getActorData(this._actor).stance;
+    const sel    = legacy[stored] ?? stored ?? (isPC ? "ask" : "nature");
+    const now    = SocialArchetypeManager.getStance(this._actor);   // what will actually happen
+    const ids    = Object.keys(ST).filter(id => id !== "nature" || archetype || sel === "nature");
+    const archPressed = archetype?.pressed ?? "yield";
+    const opts = ids.map(id => `<option value="${id}" ${sel === id ? "selected" : ""}>${esc(ST[id].label)}${
+      id === "nature" && archetype ? ` (${esc(ST[archPressed]?.label ?? archPressed)})` : ""}</option>`).join("");
+    const tipAll = Object.values(ST).map(st => `<b>${st.label}</b> — ${st.tip}`).join("<br>");
+    const effect = {
+      yield: "Accepts what's put on them; when their composure breaks they give in.",
+      firm:  "Holds the line with a fresh Wound while they can; when their composure breaks they storm off (and carry a Grudge).",
+      ask:   "A window asks every time — accept or hold the line; give in or storm off.",
+    }[now] ?? "";
+    const why = sel === "nature" && archetype?.pressedWhy ? ` <i>${esc(archetype.label)}: ${esc(archetype.pressedWhy)}.</i>` : "";
+    const autoOff = !isPC && now === "ask" && sel !== "ask"
+      ? ` <i>(NPCs ask you right now — the world setting “NPCs act on their nature” is off.)</i>` : "";
+
+    return `
+      <section class="tsl-notes-section tsl-nature">
+        <div class="tsl-notes-section-title" data-tooltip="${esc(`Nature — how ${this._actor.name} fights with words. Two halves: LEANINGS (the schools they reach for, and how others read them) and WHEN PRESSED (how they hold up). ${isPC ? "You set both." : "An NPC follows its archetype for both until you set otherwise."}`)}">
+          Nature
+        </div>
+        <div class="tsl-nature-sub">
+          <span class="tsl-nature-sub-title" data-tooltip="${esc(`Spend ${TRIAD_POINT_POOL} dots. They cut both ways.<br><b>Attack:</b> +1 per dot on that school's maneuvers (−1 on a 0-dot school while you lean elsewhere)${isPC ? " — AND +1 per dot to one everyday skill on your sheet" : ""}.<br><b>Defence:</b> a ruling school (a clear lead of 2+●) is how others read you: the school that beats it gets +2 against you, the school it beats −2, and a bad miss against you earns your Answer. A 0-dot school is your blind side. Split evenly = unreadable, but no Answer.${isPC ? "" : "<br>An NPC with an archetype defends by its archetype; its dots shape only how it attacks."}`)}">Leanings</span>
+          <span class="tsl-chr-triad-budget ${remaining < 0 ? "over" : remaining === 0 ? "spent" : ""}">${
+            remaining < 0 ? `${-remaining} over — lower a school` : `${remaining} / ${TRIAD_POINT_POOL} left`}</span>
+        </div>
+        ${triadRows}
+        ${leanLine}
+        <div class="tsl-nature-sub tsl-nature-sub--pressed">
+          <span class="tsl-nature-sub-title" data-tooltip="${esc(`When pressed — how ${this._actor.name} holds up. It decides two moments: a state put on them (accept it, or hold the line by carrying a Wound instead) and their composure breaking (give in and concede, or storm off and carry a Grudge).<br>${tipAll}`)}">When pressed</span>
+          <select name="stance" ${disabled}>${opts}</select>
+        </div>
+        <div class="tsl-stance-hint">${esc(effect)}${why}${autoOff}</div>
       </section>`;
   }
 
@@ -383,8 +406,8 @@ class SocialFencingApp extends _SocialAppBase {
             data-tooltip="${esc(m.description)}<br><i>${esc(effect)}</i>">
         ${sym} <i class="fas ${m.icon}"></i> ${esc(m.name)}
       </span>`;
-    const vulnChips = rel.vulnerable.map(m => chip(m, "vulnerable", "◎", "Against this nature: Advantage on the roll, +1 Resolve damage, and it can't be parried.")).join("");
-    const immChips  = rel.immune.map(m => chip(m, "immune", "✕", "Against this nature: it fails outright, costs you like a miss, and they turn Defiant.")).join("");
+    const vulnChips = rel.vulnerable.map(m => chip(m, "vulnerable", "◎", "Against this nature: Advantage on the roll, +1 composure off them.")).join("");
+    const immChips  = rel.immune.map(m => chip(m, "immune", "✕", "Against this nature: it fails outright, costs you like a miss, they Answer, and they turn Defiant.")).join("");
 
     const tells = !compact && archetype.tells?.length
       ? `<ul class="tsl-arch-tells">${archetype.tells.map(t => `<li>${esc(t)}</li>`).join("")}</ul>`
@@ -411,6 +434,7 @@ class SocialFencingApp extends _SocialAppBase {
           <span data-tooltip="What breaks them — press it to shake them."><i class="fas fa-ghost"></i> ${esc(archetype.dreads ?? "")}</span>
         </div>
         ${sides}
+        ${archetype.pressed ? `<div class="tsl-arch-pressed" data-tooltip="When pressed — how this nature holds up: whether it accepts a state or holds the line, and whether it gives in or storms off when its composure breaks. (The GM can change it per NPC in Profile → Nature.)"><i class="fas ${archetype.pressed === "firm" ? "fa-door-open" : "fa-handshake"}"></i> <b>When pressed:</b> ${archetype.pressed === "firm" ? "stands firm" : "gives ground"}${archetype.pressedWhy ? ` — ${esc(archetype.pressedWhy)}` : ""}</div>` : ""}
         <div class="tsl-arch-matrix">
           ${vulnChips ? `<div class="tsl-arch-matrix-row">${vulnChips}</div>` : ""}
           ${immChips  ? `<div class="tsl-arch-matrix-row">${immChips}</div>`  : ""}
@@ -439,7 +463,8 @@ class SocialFencingApp extends _SocialAppBase {
     const woundRows = CE.ORDER.map(id => {
       const m = CE.getMeta(id); if (!m) return "";
       const sc = m.bond ? ` → about a person: settles into a <b>${esc(SocialArchetypeManager.getBondType(m.bond).label)}</b> bond with them`
-        : full && m.scar && CE.getScarMeta(m.scar) ? ` → calcifies into <b>${esc(CE.getScarMeta(m.scar).label)}</b>` : "";
+        : full && m.scar && CE.getScarMeta(m.scar) ? ` → calcifies into <b>${esc(CE.getScarMeta(m.scar).label)}</b>`
+        : ` → never sets: a long rest only eases it`;
       const giveIn = full ? `Give in → ${esc((m.leanIn ?? "").replace(/\{source\}/g, "them"))} · ` : "";
       return `<div class="tsl-codex-combo"><b>${esc(m.label)}</b> <span class="tsl-codex-gain">${esc(m.signature ?? "")}</span>
         <div class="tsl-codex-howto">Urge — ${esc((m.urge ?? "").replace(/\{source\}/g, "the source"))}</div>${ultLine(m)}
@@ -458,8 +483,8 @@ class SocialFencingApp extends _SocialAppBase {
     }).join("");
 
     const woundsBlurb = full
-      ? `From Hold the Line, a public humiliation, a sincere Feelings move, or plain drama. Each escalates <b>● → ●● → ●●●</b>; pressed again it <b>deepens</b>. Its <b>urge</b> pulls you — give in (the <b>Give in</b> button) → +1 Willpower. A long rest eases a Wound one tier (a Light one heals); left at ●●● it <b>calcifies</b> — into a Scar if it's about you, into a <b>bond</b> if it's about someone. Wounds weighing <b>4+</b> (sum of tiers) = <b>Overwhelmed</b>: no parrying, no holding the line — yield or flee.`
-      : `From Hold the Line, a public humiliation, a sincere Feelings move, or plain drama. Each escalates <b>● → ●● → ●●●</b>; pressed again it <b>deepens</b>. Its <b>urge</b> is a roleplay prompt — play it. A long rest eases a Wound one tier (a Light one heals); one about <b>someone</b> left at ●●● settles into a <b>bond</b> with them instead. Wounds weighing <b>4+</b> (sum of tiers) = <b>Overwhelmed</b>: no parrying, no holding the line — yield or flee.`;
+      ? `From Holding the Line (a refused state turns into its Wound), a public humiliation, storming off (a Grudge), a sincere Feelings move, or plain drama. Each escalates <b>● → ●● → ●●●</b>; pressed again it <b>deepens</b>. Its <b>urge</b> pulls you — give in (the <b>Give in</b> button) → +1 Willpower. A long rest eases a Wound one tier (a Light one heals); left at ●●● it <b>calcifies</b> — into a Scar if it's about you, into a <b>bond</b> if it's about someone. Wounds weighing <b>4+</b> (sum of tiers) = <b>Overwhelmed</b>: you can't hold the line any more — every state lands.`
+      : `From Holding the Line (a refused state turns into its Wound), a public humiliation, storming off (a Grudge), a sincere Feelings move, or plain drama. Each escalates <b>● → ●● → ●●●</b>; pressed again it <b>deepens</b>. Its <b>urge</b> is a roleplay prompt — play it. A long rest eases a Wound one tier (a Light one heals); one about <b>someone</b> left at ●●● settles into a <b>bond</b> with them instead. Wounds weighing <b>4+</b> (sum of tiers) = <b>Overwhelmed</b>: you can't hold the line any more — every state lands.`;
     const lifecycle = full
       ? `<b>Wound → deepen (● → ●● → ●●●) → long rest.</b> At ●●● it <b>calcifies</b>: a Wound about yourself becomes its <b>Scar</b> (then you're immune to that Wound); a Wound about someone — Obsession, Grudge — becomes a <b>bond</b> with them (a Crush, an Enemy) or deepens the one you share. A lesser Wound <b>eases one tier</b>. So ●●● is your last chance to heal it — or fire its ⚡ Ultimate — before it's permanent. Boons fade when the moment passes (a long rest ends them); Scars lift only through their <b>Clears</b> arc.`
       : `<b>Wound → deepen (● → ●● → ●●●) → long rest.</b> A long rest eases every Wound one tier. A Wound about someone — Obsession, Grudge — left at ●●● becomes a <b>bond</b> with them (a Crush, an Enemy) or deepens the one you share. <i>(This table plays the BASIC emotional layer: no Willpower, Boons or Scars.)</i>`;
@@ -470,22 +495,22 @@ class SocialFencingApp extends _SocialAppBase {
         ${full ? `
         <details class="tsl-codex-sub" open>
           <summary class="tsl-codex-sub-title">⬡ Willpower — the resource</summary>
-          <div class="tsl-codex-hint-sm">Your emotional reserve (not the same as Patience, which is your composure in one exchange). Pool = your <b>proficiency bonus</b>, refilled on a <b>long rest</b>. Spend 1 to fire an <b>Ultimate</b> (a ●●● Wound / Boon, or a Scar) or to push past a Wound's hard block. Restore 1 by <b>giving in</b> to a Wound's urge — the <b>Give in</b> button on the Wound. It lives in the <b>Fencing</b> tab.</div>
+          <div class="tsl-codex-hint-sm">Your emotional reserve across the days (not Composure, which is how much pressure you take inside one exchange). Pool = your <b>proficiency bonus</b>, refilled on a <b>long rest</b>. Spend 1 to fire an <b>Ultimate</b> (the ⚡ button — what it says is <i>automatic</i> goes on the sheets as a short effect that ends itself after the roll or the turn; what says <i>GM</i> the table plays) (a ●●● Wound / Boon, or a Scar) or to push past a Wound's hard block. Restore 1 by <b>giving in</b> to a Wound's urge — the <b>Give in</b> button on the Wound. It lives in the <b>Fencing</b> tab.</div>
         </details>` : ""}
         <details class="tsl-codex-sub"${full ? "" : " open"}>
-          <summary class="tsl-codex-sub-title">❤ Wounds — the dark five</summary>
+          <summary class="tsl-codex-sub-title">❤ Wounds — the dark ${CE.ORDER.length}</summary>
           <div class="tsl-codex-hint-sm">${woundsBlurb}</div>
           <div class="tsl-codex-combo-list">${woundRows}</div>
         </details>
         ${full ? `
         <details class="tsl-codex-sub">
-          <summary class="tsl-codex-sub-title">✦ Boons — the bright four</summary>
+          <summary class="tsl-codex-sub-title">✦ Boons — the bright ${(CE.BOON_ORDER ?? []).length}</summary>
           <div class="tsl-codex-hint-sm">The GM grants these for courage, love, triumph or grit. A scaling bonus + a ●●● ultimate (1 Willpower). They do <b>not</b> count toward Overwhelmed.</div>
           <div class="tsl-codex-combo-list">${boonRows}</div>
         </details>
         <details class="tsl-codex-sub">
-          <summary class="tsl-codex-sub-title">🩹 Scars — the permanent three</summary>
-          <div class="tsl-codex-hint-sm">What a Wound about <b>yourself</b> becomes at ●●● (Wrath, Fear, Despair). Permanent — lifted only by the story (never a rest). Each grants an ability and a cost, and makes you <b>immune to the Wound it came from</b>. A Wound about a <b>person</b> (Obsession, Grudge) doesn't scar you — it settles into your relationship with them.</div>
+          <summary class="tsl-codex-sub-title">🩹 Scars — the permanent ${(CE.SCAR_ORDER ?? []).length}</summary>
+          <div class="tsl-codex-hint-sm">What a Wound about <b>yourself</b> becomes when it's left at ●●● through a long rest (${(CE.SCAR_ORDER ?? []).map(id => esc(CE.getMeta(CE.getScarMeta(id)?.from)?.label ?? "")).filter(Boolean).join(", ")}). Permanent — lifted only by the story (never a rest). Each grants an ability and a cost — the numbers sit on your sheet and the module enforces the rest; only what depends on the situation is the GM's — and makes you <b>immune to the Wound it came from</b> (so it can't carry a held line for you, either). A Wound about a <b>person</b> (Obsession, Grudge) doesn't scar you — it settles into your relationship with them.</div>
           <div class="tsl-codex-combo-list">${scarRows}</div>
         </details>` : ""}
         <details class="tsl-codex-sub">
@@ -500,97 +525,111 @@ class SocialFencingApp extends _SocialAppBase {
 
     // The Codex must describe THIS world, not the module's full feature list.
     // A "Social Fencing only" table has no 2d6 Feelings moves; a "TSL only"
-    // table has no maneuvers, tracks, statuses or openings at all. Documenting
-    // switched-off layers is what makes the reference read like another game's.
+    // table has no maneuvers, composure, states or openings at all.
     let mode = "both";
     try { mode = game.settings.get("tsl-social-conflict", "conflictMode") ?? "both"; } catch { /* defaults */ }
     const tslOn     = mode !== "fencing";   // the 2d6 Feelings layer
-    const fencingOn = mode !== "tsl";       // d20 maneuvers, tracks, statuses
+    const fencingOn = mode !== "tsl";       // d20 maneuvers, composure, states
+    const fullLayer = (typeof TSLConditionEffects === "undefined" || TSLConditionEffects.isFullLayer());
 
     // A titled, COLLAPSIBLE block of short bullets — the page opens as a tidy
     // list of headers you expand on demand, instead of one long scroll.
-    // (Native <details>: no JS, works in Foundry. `opened` forces it open.)
     const sub = (title, items, opened = false) => `
       <details class="tsl-codex-sub"${opened ? " open" : ""}>
         <summary class="tsl-codex-sub-title">${title}</summary>
         <ul class="tsl-codex-how">${items.map(i => `<li>${i}</li>`).join("")}</ul>
       </details>`;
 
-    // A key term: dotted underline + a hover definition. `term("Resolve")`
-    // looks the name up in GLOSSARY; a second arg overrides the tip.
+    // A key term: dotted underline + a hover definition.
     const GLOSSARY = {
-      "Resolve": "The will to not concede. Landed maneuvers chip it; break it to 0 and they're swayed. Starts at CHA mod (floor 1) — force of personality. Kept low on purpose: the weight is the maneuver's school (General 1 · archetype 2 · Humiliate 3), not the HP bar.",
-      "Patience": "Composure — EVERYONE in the exchange has it. Your own misses spend it, and so does every parry you make (1 Patience blocks 1 Resolve). Run out and you break off: you lose the exchange, though you concede nothing. Starts at WIS + CHA mod (floor 2) — self-possession + social poise.",
+      "Composure": "How much pressure someone can take before they crack — everyone in the exchange has it: 2 + CHA + WIS (never below 2). A maneuver that lands on you takes it down (1–3 by school, +1 on a weak spot, +1 on a clean hit); every miss costs the one who missed (1, a risky move 2). At 0 you've lost the exchange — you give in, or storm off.",
       "social DC": "The hidden difficulty you roll against: 10 + their WIS save + INT save (proficiency baked in), or their passive Insight if higher. Only the GM ever sees the number. A natural 1 always misses.",
       "support skill": "A SECOND skill each maneuver leans on (e.g. Read Them = Insight + Investigation). If you're TRAINED in it, your proficiency bonus is added on top of the main roll; if not, it adds nothing.",
-      "opening": "A condition on your target that makes a matching maneuver stronger. Two kinds, same ⊕ mark: a status you set up this exchange (Provoked, Desperate…) that a finisher cashes, or a lasting emotional wound they carry (Wrath, Grudge, Obsession, Fear, Despair) that certain maneuvers press for +2.",
-      "String": "A hold on a person — earned by opening up in character, by maneuvers that hand you a lever (reads, Lie, Play Weak, Bargain…), or by winning an exchange. You can hold at most 3 on any one person. No passive effect; it is only ever spent: +5 on ANY roll against them (even an attack), or +5 to your AC or a save against one of theirs.",
-      "the Answer": "On a bad fumble OR hitting an immunity, the archetype strikes back in its triad's language: Power → you're Rattled · Emotion → you're Beholden · Reason → they take a String on you.",
-      "Hold the Line": "When a maneuver lands a STATE on you, refuse the state by carrying a fitting emotional Wound instead. The blow itself still has to be met (taken or parried). A Wound already at ●●● can't take more.",
-      "Overwhelmed": "Wounds weighing 4 or more (add up their tiers — two Deep ones, or a Breaking point and one more). You can no longer parry or hold the line: yield or flee.",
-      "swayed": "Resolve broken to 0 — the big loss. They concede the point / do the thing the winner was after (the GM frames it); their bond toward the winner deepens +1; the winner gains a String on them (and the winner's agenda advances, if the GM gave them one). It can happen to either side. Fencing statuses LINGER — they still bite if talk turns to a fight.",
-      "break off": "Patience (composure) ran out — spent on misses and parries. The lesser loss: they leave the exchange without conceding anything, but the bond cools −1 and the other side gains a String on them (and that side's agenda advances, if it has one). It can happen to either side — press too wildly and it's YOU who breaks off.",
-      "leverage": "A read dossier unlocks their Desire, Fear or Weakness — each playable once per exchange for a strong edge.",
-      "bond": "ONE shared relationship between two people, with a TYPE and a STRENGTH (0–3 ●). Record it on either side and it appears on both. It is your weapon (+● on its school), their guard (DC up or down), and a set of skill edges and costs (±● — you can't threaten a friend, can't lie to family, can't charm an enemy).",
-      "Advantage": "Roll two d20 and keep the higher.",
+      "state": "What a moment in the talk does to a person — Provoked, Cowed, Beholden… Each one changes what they DO (whom they must answer, what they can't try, a roll at disadvantage) or hands someone a LEVER to call in. Fleeting: used up, run out with time (rounds in a fight), or cleared by a long rest.",
+      "lever": "A state you can CALL IN once: Beholden (call the debt — a truthful answer or a reasonable request, plus one of their secrets) or Enthralled (ask a favor — granted, and the spell ends). The button sits on the state.",
+      "opening": "Something on your target that makes a matching maneuver stronger (⊕): a state you set up that a finisher cashes (Taunt's Provoked → Humiliate), or a lasting Wound they carry that certain maneuvers press for +2.",
+      "Wound": "A lasting feeling — Wrath, Shame, Fear, Jealousy… It pushes the one who carries it (an urge), escalates ● → ●● → ●●●, opens matching maneuvers against them (+2), and heals only through the story; a long rest eases it one step.",
+      "String": "A hold on a person — at most 3 on any one. Earned by opening up in character, by maneuvers that hand you a lever (reads, Lie, Play Weak, Bargain…), or by winning an exchange. No passive effect: it is only ever spent — +5 to a missed maneuver against them (the gamble), or PULLED for +5 to your next attack, check or save against them (or +5 AC against their next attack). A pull is a real effect on your sheet, so it works in a fight.",
+      "the Answer": "On a bad miss (5+ under) or pressing a nature where it can't be reached, the target strikes back in its school's language: Power → you're Rattled · Emotion → you're Beholden to them · Reason → they take a String on you.",
+      "Hold the Line": "When a maneuver puts a STATE on you, refuse it by carrying the matching lasting Wound instead (refuse Provoked → Wrath or Grudge). The composure hit still lands. Not against the one who provoked you, not once you're Overwhelmed, not with that Wound already at ●●●.",
+      "Overwhelmed": "Wounds weighing 4 or more (add up their tiers). You can't hold the line any more — every state put on you lands.",
+      "give in": "Composure broken — you concede: you do the thing or grant the point (the GM frames it). Your bond toward the winner deepens +1 (an enemy's hostility eases instead), and the winner takes a String on you.",
+      "storm off": "Composure broken — but you refuse to concede. You still LOSE: you carry a Grudge against the winner, the bond cools −1 (an enemy's hardens instead), and the winner takes a String on you.",
+      "Nature": "How someone fights with words — two halves: Leanings (the schools they reach for, and how others read them) and When pressed (accept states or hold the line; give in or storm off).",
+      "leverage": "A filled dossier point — Desire, Fear or Weakness — playable once per exchange for a strong edge. The buttons sit under the roll bar.",
+      "bond": "ONE shared relationship between two people, with a TYPE and a STRENGTH (0–3 ●). Record it on either side and it appears on both. It is your weapon (+● on its school), their guard (DC up or down), and a set of skill edges and costs.",
+      "Advantage": "Roll two d20 and keep the higher. Disadvantage: keep the lower. Both at once cancel out.",
     };
     const term = (name, txt) => {
       const tip = (txt ?? GLOSSARY[name] ?? "").replaceAll('"', "&quot;");
       return `<span class="tsl-term" data-tooltip="${tip}">${name}</span>`;
     };
+    const stName = (id) => SOCIAL_CONDITIONS[id]?.label ?? id;
+    const wName  = (id) => (typeof TSLConditionEffects !== "undefined" ? TSLConditionEffects.getMeta(id)?.label : null) ?? id;
+    const mName  = (id) => SOCIAL_MANEUVERS.find(m => m.id === id)?.name ?? id;
 
-    // ── Combo reference, generated from the data so it's always accurate ──
-    const mName = (id) => SOCIAL_MANEUVERS.find(m => m.id === id)?.name ?? id;
-    const capId = (s) => s.charAt(0).toUpperCase() + s.slice(1);
-    const stName = (id) => SOCIAL_CONDITIONS[id]?.label ?? capId(id);
+    // ── Start: the duel in six steps ──────────────────────────────────────────
+    const quickStart = `
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title">How a social duel works</div>
+        <ol class="tsl-codex-how tsl-codex-quick">
+          <li><b>Pick who.</b> In <b>Fencing</b>, choose a target (or <b>Map</b> to click their token). One person at a time — never yourself.</li>
+          <li><b>Pick a maneuver.</b> Four schools; General holds the basics. Hover any chip for exactly what it does to <b>this</b> person. Each rolls a main skill + a ${term("support skill")}.</li>
+          <li><b>Roll.</b> The system's own roll dialog opens with your bonuses pre-filled. The ${term("social DC")} stays hidden — only the GM sees it. The result shows right where you clicked Roll.</li>
+          <li><b>A hit</b> takes their ${term("Composure")} down — and many maneuvers also put a ${term("state")} on them: it changes what they do next (Provoked must answer you; Cowed won't dare threaten you) or hands you a ${term("lever")} to call in. They may ${term("Hold the Line")} — refuse the state by carrying a lasting ${term("Wound")} instead.</li>
+          <li><b>A miss</b> costs <b>your</b> composure — pressing is never free. A bad miss also lets them <b>Answer</b>.</li>
+          <li><b>At 0 composure the exchange is lost.</b> The loser chooses: ${term("give in")} (concede the point) or ${term("storm off")} (refuse, but carry a Grudge). Either way the winner takes a String. Players decide in the moment; NPCs follow their ${term("Nature")}.</li>
+        </ol>
+      </section>`;
 
-    // ── ONE idea: a condition on the target opens a matching maneuver (⊕). ──
-    // We generate a single condition → maneuvers table from every source, so
-    // there is exactly one word to learn ("opening") and one place to look.
+    // A worked example: walk one exchange end to end and name every part.
+    const walkthrough = `
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title">A scene, start to finish</div>
+        <div class="tsl-codex-scene">
+          <div><b>The scene.</b> An hour to dawn. Lyra must get through the river gate; <b>Captain Roell</b> has orders to let no one pass. Nobody draws steel — this is a battle of words.</div>
+          <div><b>The goal.</b> Crack Roell's ${term("Composure")} (6) before her own (5) runs out — every miss costs her. When his breaks, he has lost: he gives in and opens the gate — or storms off, the gate stays shut, and he carries a Grudge.</div>
+        </div>
+        <ol class="tsl-codex-how tsl-codex-quick">
+          <li><b>She sizes him up.</b> <b>Read Them</b> lands: a tell is whispered to her — <i>“he keeps checking the duty ledger.”</i> She writes her guess in her Bond — <i>read as Broker</i> — and gains a String. Her chips now show marks for a Broker: <b>◎</b> on Bargain.</li>
+          <li><b>She sets him up.</b> <b>Taunt</b> lands: −1 composure (6 → 5), and he's <b>${stName("provoked")}</b> — his next maneuver must come at <i>her</i>, and he can't hold the line against her. And now <b>Humiliate</b> shows a <b>⊕</b>: an ${term("opening")}.</li>
+          <li><b>She cashes it.</b> <b>Humiliate</b> lands: 3 + 1 for the opening → −4 (5 → 1). ${stName("provoked")} is spent, and the public unmaking leaves him a lasting <b>${wName("shamed")}</b>.</li>
+          <li><b>He answers.</b> <b>Intimidate</b> — <i>“Leave now or hang at dawn.”</i> It lands: −2 for her (5 → 3), and she'd be <b>${stName("cowed")}</b> (no Power moves or threats against him). She <b>holds the line</b> — refuses it and carries <b>${wName("scared")}</b> instead.</li>
+          <li><b>She switches schools.</b> <b>Bargain</b> — <i>“One page from that ledger, and you walk away a free man.”</i> Her read was right: a weak spot — Advantage, 2 + 1 → his composure hits <b>0</b>.</li>
+          <li><b>How it ends.</b> He has lost. As a Broker he <b>gives in</b> — <i>business is business</i> — and unbars the gate; she takes a String on him. Had he been a Duelist he'd have <b>stormed off</b>: no gate, but he'd carry a Grudge against her. And had her own misses emptied <i>her</i> composure first, it would be Lyra who cracked.</li>
+        </ol>
+      </section>`;
 
-    // Half 1 — how you CREATE conditions (which maneuver applies which status).
+    // ── Openings: one condition → maneuvers table, built from the data ──────
     const setupRows = SOCIAL_CONDITION_ORDER.map(st => {
-      const from = SOCIAL_MANEUVERS.filter(m => m.applyOnSuccess === st).map(m => m.name);
-      return from.length ? `<li><b>${from.join(", ")}</b> &nbsp;→&nbsp; makes them <b>${stName(st)}</b></li>` : null;
+      const from = SOCIAL_MANEUVERS.filter(m => m.applyOnSuccess === st && !m.support).map(m => m.name);
+      return from.length ? `<li><b>${from.join(", ")}</b> &nbsp;→&nbsp; makes them <b>${esc(stName(st))}</b></li>` : null;
     }).filter(Boolean).join("");
-
-    // Half 2 — every opening, merged by the condition that triggers it.
-    // A condition maps to a list of { name, gain } entries, whatever the source.
-    const openings = {}; // condLabel → [{ name, gain }]
+    const openings = {}; // label → [{ name, gain }]
     const push = (cond, name, gain) => (openings[cond] ??= []).push({ name, gain });
-
-    // fencing statuses cashed by a finisher (from maneuver.combos)
     for (const m of SOCIAL_MANEUVERS) {
       for (const [st, c] of Object.entries(m.combos ?? {})) {
-        const gain = [c.resolveDamage ? `+${c.resolveDamage} dmg` : null, c.strings ? `+${c.strings} String` : null].filter(Boolean).join(", ");
+        const gain = [c.damage ? `+${c.damage} composure` : null, c.strings ? `+${c.strings} String` : null].filter(Boolean).join(", ");
         push(stName(st), m.name, gain);
       }
     }
-    // Mock kicks anyone who already carries any status
     const kicker = SOCIAL_MANEUVERS.find(m => m.kickWhileDown);
-    if (kicker) push("Any status", kicker.name, "+1 dmg");
-    // emotional Conditions they carry (from CONDITION_OPENINGS)
+    if (kicker) push("carrying any state", kicker.name, "+1 composure");
     const woundMap = {};
     for (const [mid, conds] of Object.entries(CONDITION_OPENINGS)) {
       for (const cond of Object.keys(conds)) (woundMap[cond] ??= new Set()).add(mName(mid));
     }
-    for (const [cond, ms] of Object.entries(woundMap)) {
-      for (const name of ms) push(capId(cond), name, "+2");
-    }
-
-    const openingRows = Object.entries(openings).map(([cond, list]) => {
-      const parts = list.map(e => `${e.name} <span class="tsl-codex-gain">(${e.gain})</span>`).join(", ");
-      return `<li>They're <b>${cond}</b> &nbsp;→&nbsp; ${parts}</li>`;
-    }).join("");
-
+    for (const [cond, ms] of Object.entries(woundMap)) for (const name of ms) push(wName(cond), name, "+2");
+    const openingRows = Object.entries(openings).map(([cond, list]) =>
+      `<li>They're <b>${esc(cond)}</b> &nbsp;→&nbsp; ${list.map(e => `${esc(e.name)} <span class="tsl-codex-gain">(${esc(e.gain)})</span>`).join(", ")}</li>`).join("");
     const comboReference = `
       <section class="tsl-notes-section">
         <div class="tsl-notes-section-title">Openings (⊕) — the cheat sheet</div>
-        <div class="tsl-codex-hint-sm">One rule, no jargon: <b>a condition on your target makes a matching maneuver stronger.</b> When one is live, that chip shows a ⊕. First you put a condition on them; then you press it.</div>
+        <div class="tsl-codex-hint-sm">One rule: <b>something on your target makes a matching maneuver stronger.</b> When it's live, that chip shows a <b>⊕</b>. First you put a state on them; then you press it. A state you set up is <b>spent</b> when a finisher cashes it; a lasting Wound is <b>never</b> spent — it keeps giving +2 until the story heals it.</div>
         <details class="tsl-codex-sub" open>
-          <summary class="tsl-codex-sub-title">Step 1 · Put a condition on them</summary>
+          <summary class="tsl-codex-sub-title">Step 1 · Put a state on them</summary>
           <ul class="tsl-codex-how tsl-codex-combo">${setupRows}</ul>
-          <div class="tsl-codex-hint-sm">Lasting emotional wounds (Wrath / Grudge / Obsession / Fear / Despair) also come from Hold the Line, sincere Feelings moves, or a bad fumble — and stay until the story heals them.</div>
+          <div class="tsl-codex-hint-sm">Lasting Wounds come from Holding the Line (a refused state turns into one), a public humiliation, a sincere Feelings move, or storming off.</div>
         </details>
         <details class="tsl-codex-sub" open>
           <summary class="tsl-codex-sub-title">Step 2 · Press it — when they're X, these gain ⊕</summary>
@@ -598,209 +637,74 @@ class SocialFencingApp extends _SocialAppBase {
         </details>
       </section>`;
 
-    const quickStart = `
-      <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title">Your turn, step by step</div>
-        <ol class="tsl-codex-how tsl-codex-quick">
-          <li><b>Pick who.</b> Choose a target above (or the <b>Map</b> button to click their token). You act on one person at a time — never yourself.</li>
-          <li><b>Pick a maneuver.</b> Grouped in four schools (General holds the basics). Hover any chip to see exactly what it does to <b>this</b> target. Each rolls a main skill + a ${term("support skill")}.</li>
-          <li><b>Roll it.</b> On A5E the system's own roll dialog opens (advantage, expertise dice) with your fencing bonuses pre-filled. You never see the ${term("social DC", "The number you must beat is hidden — 10 + WIS save + INT save, or passive Insight if higher. Only the GM sees it.")} — only the GM does.</li>
-          <li><b>The GM calls it.</b> After the dice, the GM has the final word on whether you got through — clean hit, hit, miss, or fumble.</li>
-          <li><b>See what it did.</b> A hit chips their ${term("Resolve")} (they may parry it with their own ${term("Patience")}) or lands a status. A miss costs <b>your</b> Patience; a bad miss also lets them <b>Answer</b>. Break their Resolve → they're ${term("swayed")}; make them spend their Patience to nothing → they ${term("break off")}. Run out of your own Patience first and it's <b>you</b> who breaks off.</li>
-        </ol>
-      </section>`;
-
-    const reference = `
-      <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title">The details</div>
-        ${sub("Read them — nature is hidden", [
-          `No one is handed the archetype. A successful <b>Read Them</b> whispers a private <b>tell</b> — deduce who they are and note your guess in the Bond ("Read as").`,
-          `Once you write a guess, the chip marks (◎ weak spot · ✕ walled · ▲ yields) follow <b>your read</b> — a theory, so a wrong guess shows wrong marks. The <b>difficulty</b> stays the GM's to know. Outcomes are the proof: an unexpected bounce, a surprise clean hit, a whispered tell tell you if your read was right.`,
-        ])}
-        ${sub("The relationship is the terrain", [
-          `A ${term("bond")} is <b>ONE shared relationship</b> — one TYPE, one STRENGTH (0–3 ●). Write it on either person and it appears on both; edit it anywhere and both update. (Directional pairs flip to fit: your <b>Mentor</b> is their <b>Protégé</b>, and if you're <b>Sworn</b> to someone, they are your <b>Liege</b>.)`,
-          `That one bond works <b>both ways at once</b>: it is your <b>weapon</b> — its school gets <b>+●</b> (rivals feed Power, love feeds Emotion, oaths and trust feed Reason) — and their <b>guard</b>: a friend, lover or the one who's sworn to you opens up (easier), an enemy is wary (harder).`,
-          `<b>Every type also bends specific skills, ±● — an edge AND a cost.</b> You can't threaten a friend (−● Intimidation), can't lie to your own blood (−● Deception), can't sweet-talk hatred (−● Persuasion vs an enemy, though +● Intimidation). That's why the <i>kind</i> of relationship matters, not just its school — an Enemy ●● gives Humiliate +2 school <i>and</i> +2 Intimidation, but Flatter's +2 school is cancelled by −2 Persuasion. Hover any bond type to see its exact edges.`,
-          `Your own read of them (the archetype you guessed) and your notes stay <b>private</b> to you — only the relationship itself is shared.`,
-          ...((typeof TSLConditionEffects === "undefined" || TSLConditionEffects.isFullLayer()) ? [
-          `<b>Deep bonds grant abilities, not just bigger numbers.</b> At <b>●●</b> a relationship unlocks a <b>distinctive ability</b> — a lover's wordless warning, an enemy you fight forewarned, a confidant who can ease a Wound. At <b>●●●</b> it adds a <b>signature</b> you invoke <b>once per long rest</b> (a mentor's reroll, a lover's rescue). Both live on the Bond in the Chronicle; the signature has an <b>Invoke</b> button.`] : []),
-          `Closeness costs: land a <b>Power</b> play on a friend, family, a lover, your protégé, your liege or a confidant and it works — but they gain a <b>String</b> on you.`,
-          `Winning moves the bond: the one who is <b>swayed</b> grows closer to the winner (+1●); the one who <b>breaks off</b> cools toward them (−1●).`,
-        ])}
-        ${sub("Bonds reach into a real fight", [
-          `Standing within <b>${(() => { try { return game.settings.get("tsl-social-conflict", "bondAuraRange"); } catch { return 15; } })()} ft</b> of someone you're bonded to changes how you <b>fight</b> — automatically, as tokens move. <b>Every relationship does something different</b>, and it doubles at ●●● (any one line caps at ±2).`,
-          ...BOND_TYPES.filter(t => t.combatAura).map(t => {
-            const a = t.combatAura;
-            const nm = { attack: "attack rolls", damage: "weapon damage", save: "saving throws", check: "ability checks", ac: "AC", init: "initiative", spellDC: "spell save DC", maneuverDC: "maneuver DC" };
-            const bits = Object.entries(a).filter(([k]) => k !== "label")
-              .map(([k, v]) => `<b>${v > 0 ? "+" : "−"}${Math.abs(v)}</b> ${nm[k]}`).join(", ");
-            return `<b>${t.label}</b> — “${a.label}”: ${bits}`;
-          }),
-          `While any of this is live you carry a <b>Bonds in reach</b> mark on your token. It comes and goes on its own as people move — it is not in the status list and nobody can switch it on or off by hand.`,
-          `The GM can change the reach or switch it off entirely in the module settings.`,
-        ])}
-        ${sub("Schools beat schools — rock, paper, scissors", [
-          `Every nature rules one triad, and the three schools cycle: <b>Power breaks Emotion · Emotion cracks Reason · Reason binds Power.</b>`,
-          `Press the school that <b>beats</b> their nature and you gain <b>+2</b>. Press the school their nature <b>beats</b> and you take <b>−2</b>. Press their <b>own</b> school and it is <b>even — 0</b>: no edge either way.`,
-          `You are never told which it was — you feel it in the results. Their nature is a riddle; the dice are the evidence.`,
-        ])}
-        ${sub("Reading the chip corners", [
-          `<b>⊕</b> — an <b>${term("opening")} is live right now</b>: this maneuver gains a bonus because of a condition they carry. Everyone sees ⊕; it reads off visible statuses.`,
-          `<b>◎</b> weak spot (cuts deep) · <b>✕</b> bounces off / walled · <b>▲</b> their nature yields to this school. These follow <b>your read</b> — the archetype you wrote in their Bond (<i>Read as</i>). They are a <b>theory</b>: guess wrong and the marks are wrong, and the OUTCOME sets you straight. No guess yet → no marks. (The GM always sees the truth.)`,
-        ])}
-        ${sub("Grades & the Answer", [
-          `A <b>clean hit</b> (well over) cuts +1 deeper. A <b>bad miss</b> — or hitting an immunity — earns ${term("the Answer")}.`,
-          `Fumble that badly as a player and you gain <b>Inspiration</b> — losing spectacularly is worth something.`,
-        ])}
-        ${sub("Strings — a thread you earn, then spend", [
-          `A ${term("String")} is a hold on a person. You earn one by <b>opening up</b> in character (a true fear, a confession — the GM grants it on the person you bared yourself to), by maneuvers that <b>hand you a lever</b> (reads, Lie, Play Weak, Bargain, some openings), or by <b>winning an exchange</b> — swayed or broken off, the winner takes a thread.`,
-          `A String is <b>only ever spent</b> — it gives no passive bonus. Burn one for <b>+5 to ANY roll against that person, even an attack</b> — or <b>+5 to your AC or a save against one of theirs</b> ('I know how you move'). The 🎭+5 button, decided after you see the die.`,
-          `You can hold at most <b>3 Strings on any one person</b> — a few deep levers, not a stack. Past that, a new thread on them simply doesn't form.`,
-        ])}
-        ${sub("Hold the line — when it lands on YOU", [
-          `The words can't be unsaid, but you may ${term("Hold the Line")}: refuse the <b>state</b> a maneuver would put on you by carrying a fitting emotional <b>Wound</b> instead. The blow itself still lands — take it or parry it in the same window.`,
-          `A Wound already at its breaking point (●●●) can't take more. When your Wounds weigh <b>4 or more</b> in total, you are ${term("Overwhelmed")}: no more parrying, no more holding the line — yield or flee.`,
-        ])}
-        ${sub("Win, lose, or be sincere", [
-          `Two ways to win, two ways to lose — for <b>both</b> sides. Break their ${term("Resolve")} to 0 → they're ${term("swayed")} (the big win: they concede). Make them spend their ${term("Patience")} to nothing → they ${term("break off")} (the smaller win: no concession, but you take a String and the field).`,
-          `Your own Patience is the price of pressing: every miss spends it (a risky move like Intimidate or Humiliate spends 2), and so does every parry you make when they press back. Run out and <b>you</b> break off.`,
-          `A <b>natural 1</b> always misses, however big your bonus.`,
-          // Only true where the 2d6 layer actually exists — in "Social Fencing
-          // only" worlds there are no Feelings moves, and promising them reads
-          // like documentation from a different game.
-          ...(tslOn ? [`Or win honestly: the 2d6 <b>Feelings</b> moves (Speak from the Heart, Read the Room) chip Resolve and reveal nature <b>without</b> manipulation — and sincerity <b>can't be parried</b>.`] : []),
-          `${term("leverage", GLOSSARY.leverage)} (once each per exchange): once you've filled a point of their dossier, you may play it — <b>Desire</b> (Advantage, +1 damage), <b>Fear</b> (+3 to the roll — but a miss costs you 1 extra Patience), <b>Weakness</b> (an ordinary approach lands like a weak spot: Advantage, +1 damage, and it can't be parried). The buttons sit under the roll bar.`,
-        ])}
-      </section>`;
-
-    const gm = `
-      <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title">Running it (GM)</div>
-        ${sub("Setting the scene", [
-          `<b>Draw blades only when it's real:</b> the NPC is unwilling AND the stakes matter. A favor, an easy lie, a routine haggle is one ordinary check, not an exchange.`,
-          `<b>Size the ask by weight:</b> Resolve runs low (CHA) — a mook folds in one hit, an iron will (~5) takes a couple of heavy finishers, and a target who parries everything can only be worn down into breaking off. A full concession needs their weak spot. Demand played leverage for the impossible; nobody betrays their king over a nice speech.`,
-          `<b>Safety first:</b> these moves include real abuse tactics (love bombing, triangulation, guilt-tripping, sowing doubt). Set lines & veils at session zero and keep an X-card or Script Change in reach — especially when an NPC turns them on a player character.`,
-          `<b>A crowd hardens people:</b> +1 DC per extra voice pressing the same target (use the situational modifier). Let the party pick one fencer; the rest pass Strings and leverage.`,
-        ])}
-        ${sub("Playing the opponent", [
-          `<b>NPCs defend on their own:</b> each NPC meets a landed blow by its <b>Defence stance</b> (Profile, under the archetype) — by default its nature: Power natures are <b>Proud</b> (they riposte), Emotion natures <b>Measured</b>, Reason natures <b>Guarded</b>. No window for you; set <b>Ask me</b> on the ones you want to steer by hand. A wall can't parry sincerity: an honest Persuade always lands.`,
-          `<b>Both sides play:</b> give each fencing NPC an <b>Agenda</b> (Profile → GM field) — what THEY want. Answer every player maneuver with one of the NPC's own: maneuver back, demand, bluff.`,
-          `<b>Losing must cost:</b> if the NPC wins the exchange — the PC breaks off or is swayed — the NPC's Agenda advances.`,
-          `<b>Patience is everyone's clock:</b> misses and parries spend it on both sides. When an NPC is low, play them fraying — shorter answers, a glance at the door; on the last point, say it plainly. Defend honestly: parrying costs them too, so taking a blow to stay in the fight is a real choice.`,
-        ])}
-        ${sub("Rewarding play", [
-          `<b>Reward open hearts:</b> when a player truly opens up, grant a <b>String</b> on the one they opened up to (💖 on the conflict card, or the Bonds tab). This is the main way Strings should enter play — the price of a bared heart, not button-mashing.`,
-          `<b>You have the final word:</b> after each roll you confirm the grade against the hidden DC (it's pre-selected — one click). The story, not the raw die, decides.`,
-        ])}
-      </section>`;
-
-    // A worked example: the abstract rules above are hard to hold in the head,
-    // so walk one exchange end to end and name every part as it happens.
-    const walkthrough = `
-      <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title">A scene, start to finish</div>
-        <div class="tsl-codex-scene">
-          <div><b>The scene.</b> It's an hour to dawn. Lyra must get through the river gate; <b>Captain Roell</b> has orders to let no one pass. Neither will draw steel — this is a battle of words.</div>
-          <div><b>The goal.</b> Break Roell's <b>${term("Resolve")}</b> to 0 (talk him round → he's <b>${term("swayed")}</b> and opens the gate) <i>before</i> she runs out of her own <b>${term("Patience")}</b> — every miss spends it. If hers empties first she <b>${term("breaks off", GLOSSARY["break off"])}</b>, and his agenda — keep the gate shut — wins. If he parries so much that <i>his</i> Patience empties, he breaks off instead: no open gate, but he's shaken and she holds a String on him.</div>
-        </div>
-        <ol class="tsl-codex-how tsl-codex-quick">
-          <li><b>She sizes him up.</b> <b>Read Them</b> (Insight + Investigation). It lands: a <b>tell</b> is whispered to her — <i>“he keeps glancing back at the guards.”</i> She notes her guess in her Bond: <i>read as Broker</i>, and gains a String.</li>
-          <li><b>She sets him up.</b> <b>Taunt</b> — a jeer for the room. It lands: he's now <b>${SOCIAL_CONDITIONS.provoked?.label ?? "Provoked"}</b> (and 1 Resolve, which he parries — 1 of his Patience). It's a <b>set-up</b>: the real value is what it opens.</li>
-          <li><b>The chip changes.</b> Because he carries that condition, <b>Humiliate</b> now shows a <b>⊕</b> — an ${term("opening")}. Hover it to see the payout: the set-up is <i>cashed</i> for extra Resolve damage.</li>
-          <li><b>She presses it.</b> Humiliate lands: 3 damage <b>plus</b> the opening — 4 Resolve coming. He can't afford to parry it all, so most of it lands; ${SOCIAL_CONDITIONS.provoked?.label ?? "Provoked"} is <b>spent</b> (⊕ gone), and the public unmaking leaves him a lasting <b>Wrath</b> wound.</li>
-          <li><b>He answers.</b> She overreaches on the next move and fumbles — it costs her Patience, and his nature bites back: she's left <b>Rattled</b>. Blades cut both ways.</li>
-          <li><b>How it ends.</b> One more landed maneuver takes his Resolve to <b>0</b>: he's <b>swayed</b>. He curses, unbars the gate, and their bond shifts a step. (Had her misses emptied <i>her</i> Patience first, she'd have broken off and he'd have won the scene.)</li>
-        </ol>
-        <div class="tsl-codex-hint-sm"><b>The two kinds of ⊕, in one line:</b> a <b>status you applied</b> (like ${SOCIAL_CONDITIONS.provoked?.label ?? "Provoked"}) is <i>spent</i> when a finisher cashes it — one shot. A <b>lasting wound</b> they carry (Wrath, Grudge, Obsession, Fear, Despair) is <i>never</i> spent: it keeps giving +2 until the story heals it. Both look the same on the chip; press ⊕ when you see it.</div>
-      </section>`;
-
-    const how = quickStart + comboReference + reference + gm;
-
-    const triadBlocks = Object.values(SOCIAL_TRIADS).map(triad => {
-      const cards = SOCIAL_ARCHETYPES
-        .filter(a => a.triad === triad.id)
-        .map(a => this._buildArchetypeCard(a, true))
-        .join("");
-      return `
-        <section class="tsl-notes-section tsl-codex-triad" style="--triad-color:${triad.color}">
-          <div class="tsl-codex-triad-head">
-            <i class="fas ${triad.icon}"></i> ${esc(triad.label)}
-          </div>
-          <div class="tsl-codex-triad-hint">${esc(triad.hint)}</div>
-          ${cards}
-        </section>`;
-    }).join("");
-
-    const statusRows = SOCIAL_CONDITION_ORDER.map(id => {
+    // ── States: what each does, how long, in a fight — from the data ─────────
+    const EXTRA_FROM = {
+      rattled:    "the Answer of a Power nature",
+      guilted:    "the Answer of an Emotion nature",
+      provoked:   "an Enthralled spell broken by a Power move",
+      suspicious: "a Deception maneuver that misses badly",
+      defiant:    "pressing a nature where it can't be reached",
+      undaunted:  "a clean Reassure",
+    };
+    const stateRow = (id) => {
       const meta = SOCIAL_CONDITIONS[id];
+      const from = [...SOCIAL_MANEUVERS.filter(m => m.applyOnSuccess === id).map(m => m.name), EXTRA_FROM[id]].filter(Boolean).join(" · ");
+      const holds = (meta.holdAs ?? []).map(wName);
+      const refuse = meta.positive ? "a good state — nothing to refuse"
+        : meta.noHold ? "can't be refused"
+        : holds.length ? `hold the line as <b>${holds.map(esc).join("</b> or <b>")}</b>` : "—";
+      const rounds = meta.rounds ?? 1;
+      const lasts = `until used, or ${SocialArchetypeManager._spanLabel(meta.seconds)} · ${rounds} round${rounds > 1 ? "s" : ""} in a fight`;
+      const auto = (meta.dnd5eChanges?.length || meta.a5eChanges?.length);
+      const bonds = meta.bonds ? (() => {
+        const lbl = (ids) => (ids ?? []).map(t => SocialArchetypeManager.getBondType(t).label).join(", ");
+        const parts = [meta.bonds.deepen?.length ? `runs deep (two uses) from a ${lbl(meta.bonds.deepen)}` : null,
+                       meta.bonds.resist?.length ? `won't take from an ${lbl(meta.bonds.resist)}` : null].filter(Boolean).join("; ");
+        return `<div class="tsl-codex-status-bonds"><b>♥ Bonds:</b> ${esc(parts)} — <i>${esc(meta.bonds.why ?? "")}</i>.</div>`;
+      })() : "";
       return `
         <div class="tsl-codex-status">
           <img src="${meta.icon}" alt="">
           <div>
-            <div class="tsl-codex-status-name">${esc(meta.label)}${meta.oneShot ? ` <span class="tsl-codex-oneshot" data-tooltip="Consumed by the first roll it affects.">one-shot</span>` : ""}</div>
+            <div class="tsl-codex-status-name">${esc(meta.label)} <i class="tsl-codex-status-gist">— ${esc(meta.gist ?? "")}</i></div>
             <div class="tsl-codex-status-desc">${esc(meta.description)}</div>
-            ${meta.bonds ? (() => {
-              const lbl = (ids) => (ids ?? []).map(t => SocialArchetypeManager.getBondType(t).label).join(", ");
-              const parts = [meta.bonds.deepen?.length ? `runs deep (two uses) from a ${lbl(meta.bonds.deepen)}` : null,
-                             meta.bonds.resist?.length ? `won't take from an ${lbl(meta.bonds.resist)}` : null].filter(Boolean).join("; ");
-              return `<div class="tsl-codex-status-bonds"><b>♥ Bonds:</b> ${esc(parts)} — <i>${esc(meta.bonds.why ?? "")}</i>.</div>`;
-            })() : ""}
-            ${meta.combat ? `<div class="tsl-codex-status-combat"><b>In combat:</b> ${esc(meta.combat)}</div>` : ""}
+            ${meta.lever ? `<div class="tsl-codex-status-lever"><i class="fas ${meta.lever.icon}"></i> <b>${esc(meta.lever.label)}</b> — a button on the state: they ${esc(meta.lever.text)}.</div>` : ""}
+            <div class="tsl-codex-status-meta"><b>From:</b> ${esc(from || "—")} · <b>Refuse:</b> ${refuse} · <b>Lasts:</b> ${esc(lasts)}</div>
+            ${bonds}
+            ${meta.combat ? `<div class="tsl-codex-status-combat"><span class="tsl-codex-auto tsl-codex-auto--${auto ? "on" : "gm"}" data-tooltip="${auto ? "Real numbers on the token while it lasts — no one has to remember it." : "A short rule the GM applies — it depends on who's who, so it can't be a flat number."}">${auto ? "on the sheet" : "GM"}</span> <b>In a fight:</b> ${esc(meta.combat)}</div>` : ""}
           </div>
         </div>`;
-    }).join("");
-
-    const natures = `
-      <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title">The nine natures</div>
-        <div class="tsl-codex-hint-sm">A target's nature is never handed to players — deduce it, then note your guess in their Bond and the chip marks follow your read. Each nature has at least one ◎ weak spot and one ✕ wall, and the traps sit INSIDE a triad, so knowing the school isn't enough.</div>
-        <div class="tsl-codex-hint-sm"><b>Where they come from.</b> The three triads follow the psychoanalyst Karen Horney's three ways people cope with others — <b>against</b> them (Power), <b>toward</b> them (Emotion), <b>away</b> from them (Reason). Each nature is drawn from a recognised character type, named on its card, with what it's <b>strong</b> against and <b>weak</b> to. Play the person, not the label.</div>
-      </section>
-      ${triadBlocks}`;
-
-    // Wound dossiers, generated from the data — each wound is now a DISTINCT
-    // mechanic that ESCALATES through three tiers (Light ● → Deep ●● → ●●●).
-    const woundDossier = ["angry", "spiteful", "obsessed", "scared", "hopeless"].map(id => {
-      const m = TSLConditionEffects.getMeta?.(id);
-      if (!m) return "";
-      const s = (t) => esc((t ?? "").replace(/\{source\}/g, "them"));
-      const tiers = (m.tiers ?? []).map((td, i) =>
-        `<span class="tsl-codex-gain">${"●".repeat(i + 1)}${"○".repeat(2 - i)} ${esc(td.label)} →</span> ${s(td.text)}`
-      ).join("<br>");
-      return `<div class="tsl-codex-combo">
-        <b>${esc(m.label)}</b> — <i>${s(m.signature ?? m.urge)}</i><br>
-        ${tiers}<br>
-        <span class="tsl-codex-gain">Give in →</span> ${s(m.leanIn)}<br>
-        <span class="tsl-codex-gain">Heals →</span> ${esc(m.clears)}
-      </div>`;
-    }).join("");
-
+    };
+    const STATE_GROUPS = [
+      { title: "Pressure — what your maneuvers do to them", ids: ["provoked", "rattled", "humbled", "cowed", "exposed", "desperate", "intrigued"] },
+      { title: "Levers — what they owe you",               ids: ["smitten", "guilted"] },
+      { title: "Walls — what mistakes build",               ids: ["suspicious", "defiant"] },
+      { title: "Steadiness — what a friend gives",          ids: ["steadied", "undaunted"] },
+    ];
     const statuses = `
       <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title">Statuses & wounds</div>
-        <div class="tsl-codex-hint-sm"><b>Two kinds of condition, and the card keeps them apart.</b> <b>States</b> (below) are the <b>fleeting</b> layer — a maneuver sets one up, it lasts a round or two, and a finisher <b>spends</b> it. <b>Wounds</b> (❤ — Wrath, Grudge, Obsession, Fear, Despair) are the <b>lasting</b> layer — they come from Hold the Line or betrayal, and they don't just sit there: they <b>push the one who carries them</b>. Never worry which is which mid-roll — both show ⊕.</div>
-        <details class="tsl-codex-sub" open>
-          <summary class="tsl-codex-sub-title">States — fleeting set-ups (this fight)</summary>
-          <div class="tsl-codex-hint-sm">Each arms a ⊕ opening and is <b>spent</b> when a finisher cashes it. <b>Defiant</b> is the odd one — a wall, not an opening, broken only by a successful <b>Read Them</b>.</div>
-          <div class="tsl-codex-hint-sm"><b>States know who put them there.</b> What the target is to the one applying it changes how it lands: from someone who matters in the right way it <b>runs deep</b> — it lasts two uses (×2 on the tag); from someone they're set against it <b>won't take</b> at all. The bond read is THEIRS toward you. Each state below says which bonds do what.</div>
-          <div class="tsl-codex-statuses">${statusRows}</div>
-        </details>
-        <details class="tsl-codex-sub" open>
-          <summary class="tsl-codex-sub-title">Wounds — they push you (VtM-style)</summary>
-          <div class="tsl-codex-hint-sm">Each Wound is a <b>different kind of thing</b> — a rage trade (Wrath), a cold vendetta (Grudge), a fixation (Obsession), a fright (Fear), a grey weight (Despair) — and it <b>escalates</b> through three tiers: <b>● Light → ●● Deep → ●●● Breaking point</b>. Pressed again, it <b>deepens</b> rather than stacking a new one; at the top tier it takes the wheel for a beat.${(typeof TSLConditionEffects === "undefined" || TSLConditionEffects.isFullLayer())
-            ? " <b>Give in</b> at a cost (the Give in button) and you refuel <b>1 Willpower</b> (or Inspiration, for despair). A long rest eases a Wound one tier; one left at ●●● becomes a Scar (a Wound about you) or a bond (a Wound about someone)."
-            : " Its urge is a roleplay prompt — play it. A long rest eases a Wound one tier; one about someone left at ●●● becomes a bond with them."} Wounds weighing <b>4+</b> (sum of tiers) = <b>Overwhelmed</b>: no parrying, no holding the line — yield or flee. Set the tier on your own character in the <b>Fencing</b> tab (▲/▼).</div>
-          <div class="tsl-codex-combo-list">${woundDossier}</div>
-        </details>
+        <div class="tsl-notes-section-title">States — what a moment does to a person</div>
+        <div class="tsl-codex-hint-sm">A state is never a bare “+2 next roll”. It changes what the person <b>does</b> — whom they must answer, what they can't try, a roll at disadvantage — or hands someone a ${term("lever")} to call in. The name says the rule: a provoked person lashes out, a cowed one won't challenge you, a beholden one owes you.</div>
+        <div class="tsl-codex-faq">
+          <div><b>Are they automatic?</b> In the talk — <b>yes, fully</b>: the module enforces every rule (a blocked maneuver, a disadvantage, the lever button, who must answer whom). In a fight — those marked <span class="tsl-codex-auto tsl-codex-auto--on">on the sheet</span> change real numbers on the token (AC, attacks, saves, skills); those marked <span class="tsl-codex-auto tsl-codex-auto--gm">GM</span> are a one-line rule the GM applies, because they depend on who's who.</div>
+          <div><b>How long?</b> Short. Most are <b>spent by the very thing they cause</b> (Provoked once they lash out, Rattled after their next maneuver, a lever once it's called). Otherwise they run out with game time — or, in a fight, after a few rounds, ticked down by Foundry on the bearer's turn. A <b>long rest clears them all</b>. The lasting layer is <b>Wounds</b> (the Feelings page) — not these.</div>
+          <div><b>Into combat?</b> Yes — when talk turns to steel, every state stays on the token with its fight rule. Ending the exchange (giving in, storming off) doesn't clear them.</div>
+          <div><b>Bonds bend them.</b> From someone who matters in the right way a state <b>runs deep</b> (two uses, ×2 on the tag); from someone they're set against it <b>won't take</b> at all.</div>
+        </div>
+        ${STATE_GROUPS.map((g, i) => `
+          <details class="tsl-codex-sub"${i === 0 ? " open" : ""}>
+            <summary class="tsl-codex-sub-title">${esc(g.title)}</summary>
+            <div class="tsl-codex-statuses">${g.ids.filter(id => SOCIAL_CONDITIONS[id]).map(stateRow).join("")}</div>
+          </details>`).join("")}
       </section>`;
 
-    // The moves, by school, each tagged with the real persuasion tactic
-    // it models — so the fiction reads as something people actually do.
+    // ── The moves, by school — rolls / hit / miss / how / say / real tactic ──
     const REAL_TACTIC = {
       cold_reading:     "Cold reading & baselining — mentalists read strangers from small cues; interrogators learn someone's normal first, then watch for change. (One tell proves little — real lie-spotting from a single cue is barely better than chance.)",
       persuade:         "Rational persuasion — a fair case built on common ground (Aristotle's logos; Cialdini's 'unity': we want the same thing).",
       intimidate:       "Coercion — a credible threat of consequences. It works only while the threat is believed; a called bluff costs you face.",
       lie:              "Pretexting — a false story that changes their maths ('your partner already confessed' is a real interrogation ploy).",
+      reassure:         "Emotional support — naming what someone does right and reminding them who they are steadies them (the 'secure base' of attachment research).",
       sow_doubt:        "Ridicule — a put-down played for an audience; status games run on who laughs at whom.",
       instigate:        "Goading / baiting — provoke a feeling so they act before they think.",
       flatter:          "Ingratiation — flattery works even when people suspect it: it feeds the self-image they want to believe.",
@@ -820,7 +724,6 @@ class SocialFencingApp extends _SocialAppBase {
       attention: "Emotion — the heart: warmth and its absence",
       order:     "Reason — the cold mind: doubt, proof, leverage",
     };
-    // How a state lands depends on who they are to you (their bond toward you)
     const bondNote = (stId) => {
       const b = SOCIAL_CONDITIONS[stId]?.bonds;
       if (!b) return "";
@@ -831,21 +734,28 @@ class SocialFencingApp extends _SocialAppBase {
     const movesRef = ["general", "power", "attention", "order"].map(g => {
       const rows = SOCIAL_MANEUVERS.filter(m => m.group === g).map(m => {
         const skills = `${esc(m.skill)}${m.skill2 ? ` + ${esc(m.skill2)}` : ""}`;
-        // What a HIT gives (built from the data): damage / set-up status /
-        // lasting wound / Strings / a whispered tell.
-        const dmg = m.resolveDamage ? `<b>−${m.resolveDamage}</b> Resolve` : (m.reveals ? "a whispered tell + a String" : "<b>nothing yet — a set-up</b>");
-        const st  = m.applyOnSuccess ? ` · they become <b>${esc(SOCIAL_CONDITIONS[m.applyOnSuccess]?.label ?? m.applyOnSuccess)}</b>${bondNote(m.applyOnSuccess)}` : "";
-        const wnd = m.woundOnSuccess ? ` · a lasting <b>${esc(TSLConditionEffects.getMeta?.(m.woundOnSuccess)?.label ?? m.woundOnSuccess)}</b> wound` : "";
-        const str = (m.grantStrings && !m.reveals) ? ` · +${m.grantStrings} String${m.grantStrings > 1 ? "s" : ""}` : "";
-        const combo = m.combos ? ` · cashes ${Object.keys(m.combos).map(c => `<b>${esc(SOCIAL_CONDITIONS[c]?.label ?? c)}</b>`).join("/")} for more` : "";
-        const kick = m.kickWhileDown ? ` · <b>+1</b> vs a target already off balance` : "";
-        const sincere = m.unparryable ? ` · <b>can't be parried</b>` : "";
-        const hit  = `${dmg}${sincere}${st}${wnd}${str}${kick}${combo}`;
-        const cost = m.failPatience ?? 1;
-        const miss = `nothing lands, and <b>you lose ${cost} Patience</b>${cost > 1 ? " (a risky move)" : ""}. A <b>bad</b> miss (5+ under) → <b>they Answer</b> too (the blow turns back on you)${m.caughtOnBotch ? " — and you're <b>caught lying</b>: they take a String on you" : ""}.`;
+        let hit, miss;
+        if (m.support) {
+          const heal = m.heal ?? 1;
+          hit  = `aimed at an <b>ally</b> (DC 10): <b>+${heal}</b> composure back and <b>${esc(stName("steadied"))}</b> — a clean hit gives +${heal + 1} and <b>${esc(stName("undaunted"))}</b> too`;
+          miss = `nothing — a kind word that misses <b>costs you nothing</b>.`;
+        } else {
+          const dmg = m.damage ? `<b>−${m.damage}</b> composure` : (m.reveals ? "a whispered tell + a String" : "<b>no blow — a set-up</b>");
+          const st  = m.applyOnSuccess ? ` · they're <b>${esc(stName(m.applyOnSuccess))}</b>${bondNote(m.applyOnSuccess)}` : "";
+          const wnd = m.woundOnSuccess ? ` · a lasting <b>${esc(wName(m.woundOnSuccess))}</b> Wound` : "";
+          const str = (m.grantStrings && !m.reveals) ? ` · +${m.grantStrings} String${m.grantStrings > 1 ? "s" : ""}` : "";
+          const tell = (m.reveals && m.damage) ? " · a whispered tell + a String" : "";
+          const combo = m.combos ? ` · cashes ${Object.keys(m.combos).map(c => `<b>${esc(stName(c))}</b>`).join("/")} for more` : "";
+          const kick = m.kickWhileDown ? ` · <b>+1</b> vs someone already carrying a state` : "";
+          hit = `${dmg}${st}${wnd}${tell}${str}${kick}${combo}`;
+          const cost = m.failCost ?? 1;
+          const bad = m.sincere
+            ? " A bad miss draws <b>no Answer</b> — it was honest."
+            : ` A <b>bad</b> miss (5+ under) → <b>they Answer</b> too${m.caughtOnBotch ? " — and you're <b>caught lying</b>: they take a String on you" : ""}${m.skill === "Deception" ? ", and they turn <b>Suspicious</b> of your lies" : ""}.`;
+          miss = `nothing lands, and <b>you lose ${cost} composure</b>${cost > 1 ? " (a risky move)" : ""}.${bad}`;
+        }
         const how = m.howto   ? `<div class="tsl-codex-howto">▸ ${esc(m.howto)}</div>` : "";
         const ex  = m.example ? `<div class="tsl-codex-example">${esc(m.example)}</div>` : "";
-        // Strong and weak sides — authored, plus who it cuts / bounces off (from the data)
         const rel = SocialArchetypeManager.getArchetypeRelationsFor(m);
         const cuts = rel.vulnerable.length ? ` <span class="tsl-codex-gain">◎ cuts deep on the ${rel.vulnerable.map(a => esc(a.label)).join(", ")}</span>` : "";
         const walls = rel.immune.length ? ` <span class="tsl-codex-gain">✕ bounces off the ${rel.immune.map(a => esc(a.label)).join(", ")}</span>` : "";
@@ -863,40 +773,141 @@ class SocialFencingApp extends _SocialAppBase {
       }).join("");
       return `<details class="tsl-codex-sub" open><summary class="tsl-codex-sub-title">${SCHOOL_LABEL[g]}</summary>${rows}</details>`;
     }).join("");
-    // Where every number a player sees actually comes from.
     const numbers = `
       <details class="tsl-codex-sub">
         <summary class="tsl-codex-sub-title">Where the numbers come from</summary>
         <div class="tsl-codex-combo"><b>Your roll</b> — a d20 + the move's <b>main skill</b>, plus your <b>proficiency bonus</b> if you're trained in its <b>support skill</b> (plus any situation bonus). A <b>natural 1</b> always misses. On A5E this opens the system's own check dialog.</div>
-        <div class="tsl-codex-combo"><b>Resolve</b> <span class="tsl-codex-gain">the will to not concede</span> — <b>CHA</b> modifier (never below 1): force of personality. Kept low — the weight is the maneuver's school. Break it to 0 and they are <b>swayed</b>.</div>
-        <div class="tsl-codex-combo"><b>Patience</b> <span class="tsl-codex-gain">composure — everyone has it</span> — <b>WIS + CHA</b> modifier (never below 2). <b>Your own misses</b> spend it (risky moves spend 2), and so does <b>every parry you make</b>. Empty it and you <b>break off</b> — you lose the exchange, but concede nothing.</div>
-        <div class="tsl-codex-combo"><b>How a duel goes</b> <span class="tsl-codex-gain">the second blade</span> — when a hit lands, the defender chooses: <b>take it</b> (lose Resolve), <b>parry</b> (spend their own Patience — 1 blocks 1 Resolve), or <b>riposte</b> (block it all and knock 1 Patience off the attacker, one extra Patience). Parrying keeps your will but burns the composure that keeps you in the fight — so neither side can just wall up. A school they're <b>weak</b> to slips past their guard (no parry), and so does a sincere <b>Persuade</b> — an honest case isn't parried, only weighed; one they're <b>immune</b> to slides off — no purchase, and it costs the attacker like a miss. NPCs meet blows by their <b>Defence stance</b> (Open · Measured · Guarded · Proud) — no window.</div>
-        <div class="tsl-codex-combo"><b>Social DC</b> <span class="tsl-codex-gain">how hard they are to move</span> — the higher of their passive Insight, or <b>10 + their WIS save + INT save</b> (two mental saves — proficiency baked in, so a save-hardened target really resists). ${game.user.isGM ? "You set/see it; players don't." : "You never see the number — difficulty is learned by trying."}</div>
-        <div class="tsl-codex-combo"><b>Strings</b> <span class="tsl-codex-gain">trump cards</span> — spend one for <b>+5</b> on any roll against that person. Earned by opening your heart in play, by maneuvers that hand you a lever, or by winning an exchange.</div>
-        <div class="tsl-codex-hint-sm">Press a move their <b>nature is immune</b> to and it backfires — no effect, it costs your Patience like a miss, and they turn <b>Defiant</b> (maneuver-proof until a successful <b>Read Them</b> cracks it).</div>
-        <div class="tsl-codex-hint-sm">Once someone is <b>swayed</b> or <b>breaks off</b>, that exchange is over for them — no more maneuvers until the GM resets it (Chronicle → Fencing) or play moves to another scene.</div>
+        <div class="tsl-codex-combo"><b>Composure</b> <span class="tsl-codex-gain">the one track — everyone has it</span> — <b>2 + CHA + WIS</b> (never below 2): force of personality and self-possession. A mook (~2) cracks in a hit or two; a hardened noble (~8) takes four or five — or two heavy blows on a weak spot. A landed maneuver takes it by school (General 1 · archetype schools 2 · Humiliate 3), +1 on a weak spot, +1 on a clean hit; <b>your own misses</b> take yours (1, a risky move 2). At 0 the exchange is lost.</div>
+        <div class="tsl-codex-combo"><b>Social DC</b> <span class="tsl-codex-gain">how hard they are to move</span> — the higher of their passive Insight, or <b>10 + their WIS save + INT save</b> (proficiency baked in, so a save-hardened target really resists). ${game.user.isGM ? "You see it; players don't." : "You never see the number — difficulty is learned by trying."}</div>
+        <div class="tsl-codex-combo"><b>Strings</b> <span class="tsl-codex-gain">trump cards</span> — spend one for <b>+5</b>: after a miss against that person, or pulled for your next attack, check or save against them (or AC). Earned by opening your heart in play, by maneuvers that hand you a lever, or by winning an exchange.</div>
+        <div class="tsl-codex-hint-sm">Press a move their <b>nature is immune</b> to and it backfires — no effect, it costs you like a miss, they Answer, and they turn <b>Defiant</b> (maneuver-proof until a successful <b>Read Them</b> cracks it).</div>
+        <div class="tsl-codex-hint-sm">Once someone gives in or storms off, that exchange is over for them — no more maneuvers until the GM resets it (Chronicle → Fencing) or play moves to another scene.</div>
       </details>`;
     const moves = `
       <section class="tsl-notes-section">
         <div class="tsl-notes-section-title">The moves</div>
-        <div class="tsl-codex-hint-sm"><b>General</b> holds the basics anyone reaches for (persuade · threaten · lie · read · mock · goad — no archetype traps); the other three schools are the archetype game. Each line shows what it <b>rolls</b>, what a <b>✓ Hit</b> does and what a <b>✗ Miss</b> costs; the <b>▸ line</b> is how you play it; the <b>quote</b> is something you might actually <b>say in the scene</b>; the small <i>italic</i> is the <b>real tactic</b> it models.</div>
+        <div class="tsl-codex-hint-sm"><b>General</b> holds the basics anyone reaches for — read · mock · goad · persuade · threaten · lie — plus <b>Reassure</b>, the one you aim at a friend. The other three schools are the archetype game. Each line shows what it <b>rolls</b>, what a <b>✓ Hit</b> does and what a <b>✗ Miss</b> costs; the <b>▸</b> line is how you play it; the <b>quote</b> is something you might say; the small <i>italic</i> is the real tactic it models.</div>
         <div class="tsl-codex-hint-sm tsl-codex-safety"><b>A note on content.</b> Several moves model real manipulation tactics — love bombing, triangulation, guilt-tripping, sowing doubt. They're here because intrigue needs people who use them. Agree on lines & veils at session zero, keep a safety tool (the X-card, Script Change) on the table, and let anyone step out of a scene when they need to — Thirsty Sword Lesbians treats that as part of play, not an interruption.</div>
         ${numbers}
         ${movesRef}
       </section>`;
 
+    // ── Nature: Leanings + When pressed, then the nine archetypes ────────────
+    const ST = SocialArchetypeManager.PRESSED_STANCES;
+    const triadBlocks = Object.values(SOCIAL_TRIADS).map(triad => {
+      const cards = SOCIAL_ARCHETYPES.filter(a => a.triad === triad.id).map(a => this._buildArchetypeCard(a, true)).join("");
+      return `
+        <section class="tsl-notes-section tsl-codex-triad" style="--triad-color:${triad.color}">
+          <div class="tsl-codex-triad-head"><i class="fas ${triad.icon}"></i> ${esc(triad.label)}</div>
+          <div class="tsl-codex-triad-hint">${esc(triad.hint)}</div>
+          ${cards}
+        </section>`;
+    }).join("");
+    const natures = `
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title">Nature — how someone fights with words</div>
+        <div class="tsl-codex-hint-sm">Everyone — player character or NPC — has the same two halves, set in <b>Chronicle → Profile → Nature</b>.</div>
+        <div class="tsl-codex-combo"><b>Leanings</b> <span class="tsl-codex-gain">the schools you reach for</span> — ${TRIAD_POINT_POOL} dots across Power, Emotion and Reason. <b>+1 per dot</b> on that school's maneuvers; <b>−1</b> on a school with none while you lean elsewhere. For a player character each dot also adds +1 to a skill on the sheet (Power → Intimidation, Emotion → Insight, Reason → Deception). A clear lead (2+ dots, ahead of the rest) is your <b>ruling school</b> — how others read you: the school that beats it gets +2 against you, the one it beats −2, and a bad miss against you earns your Answer. An NPC's archetype is its ruling school; with no dots of its own it leans that way (●●).</div>
+        <div class="tsl-codex-combo"><b>When pressed</b> <span class="tsl-codex-gain">how you hold up</span> — it decides two moments: a <b>state</b> put on you (accept it, or ${term("Hold the Line")}) and your <b>composure breaking</b> (${term("give in")} or ${term("storm off")}).
+          <ul class="tsl-codex-how">${Object.values(ST).map((st) => `<li><b>${esc(st.label)}</b> — ${esc(st.tip.replace(/^./, (ch) => ch.toLowerCase()))}</li>`).join("")}</ul></div>
+        <div class="tsl-codex-hint-sm"><b>The hidden half (NPCs).</b> The GM also gives an NPC an <b>archetype</b> — which maneuvers cut deep (◎) and which bounce off (✕). It is never handed to players: deduce it, write your guess in their Bond (“Read as”), and your chip marks follow your read. Each nature has at least one weak spot and one wall, and the traps sit INSIDE a school, so knowing the school isn't enough.</div>
+        <div class="tsl-codex-hint-sm"><b>Where they come from.</b> The three schools follow the psychoanalyst Karen Horney's three ways people cope with others — <b>against</b> them (Power), <b>toward</b> them (Emotion), <b>away</b> from them (Reason). Each nature is drawn from a recognised character type, named on its card with what it's strong against, weak to, and how it holds up when pressed. Play the person, not the label.</div>
+      </section>
+      ${triadBlocks}`;
+
+    // ── Details: reading, schools, Strings, holding the line, bonds ───────────
+    const reference = `
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title">The details</div>
+        ${sub("Read them — nature is hidden", [
+          `No one is handed the archetype. A successful <b>Read Them</b> whispers a private <b>tell</b> — deduce who they are and note your guess in the Bond (“Read as”).`,
+          `Once you write a guess, the chip marks (◎ weak spot · ✕ walled · ▲ yields) follow <b>your read</b> — a theory, so a wrong guess shows wrong marks. The <b>difficulty</b> stays the GM's to know. Outcomes are the proof: an unexpected bounce, a surprise clean hit, a whispered tell tell you if your read was right.`,
+        ])}
+        ${sub("Schools beat schools — rock, paper, scissors", [
+          `Every nature rules one school, and the three cycle: <b>Power breaks Emotion · Emotion cracks Reason · Reason binds Power.</b>`,
+          `Press the school that <b>beats</b> their nature: <b>+2</b>. Press the school their nature <b>beats</b>: <b>−2</b>. Their <b>own</b> school is even — 0.`,
+          `You are never told which it was — you feel it in the results.`,
+        ])}
+        ${sub("Reading the chip corners", [
+          `<b>⊕</b> — an ${term("opening")} is live: this maneuver gains a bonus because of something they carry. Everyone sees ⊕; it reads off visible states and Wounds.`,
+          `<b>◎</b> weak spot · <b>✕</b> walled · <b>▲</b> their nature yields to this school. These follow <b>your read</b> — guess wrong and the marks are wrong; the OUTCOME sets you straight. No guess yet → no marks. (The GM always sees the truth.)`,
+        ])}
+        ${sub("Grades & the Answer", [
+          `A <b>clean hit</b> (5+ over) takes 1 more composure. A <b>bad miss</b> (5+ under) — or pressing a nature where it can't be reached — earns ${term("the Answer")}.`,
+          `The GM confirms close calls (within 2 of the number, or a natural 1); a clear result simply applies.`,
+          `Fumble that badly as a player and you gain <b>Inspiration</b> — losing spectacularly is worth something.`,
+        ])}
+        ${sub("Strings — earned, then spent (in a fight too)", [
+          `A ${term("String")} is a hold on a person. You earn one by <b>opening up</b> in character (a true fear, a confession — the GM grants it on the person you bared yourself to), by maneuvers that <b>hand you a lever</b> (Read Them, Lie, Play Weak, Bargain, Cross-Examine, Charm), or by <b>winning an exchange</b>.`,
+          `<b>After a miss</b> against that person you're offered to burn one for <b>+5</b> — decided after you see the die, against a hidden number.`,
+          `<b>Pull it</b> (Chronicle → Bonds → <b>Pull</b>) and choose: <b>Strike</b> — +5 to your next attack roll, ability check or saving throw against them; or <b>Guard</b> — +5 AC against their next attack. It goes on your sheet as a <b>real effect</b> and ends by itself once used — so it works in the middle of a fight.`,
+          `At most <b>${typeof STRING_CAP !== "undefined" ? STRING_CAP : 3} Strings on any one person</b> — a few deep levers, not a stack.`,
+        ], true)}
+        ${sub("Hold the line — when a state lands on YOU", [
+          `The words can't be unsaid, but you may ${term("Hold the Line")}: refuse the <b>state</b> by carrying the matching lasting <b>Wound</b> instead — refuse Provoked and it festers as Wrath or a Grudge. The composure hit still lands.`,
+          `Not against the one who provoked you (anger drops the guard), not with that Wound already at ●●●, and not once you're ${term("Overwhelmed")} — then every state lands.`,
+          `Which Wound you choose matters: it opens matching maneuvers against you (+2) until the story heals it.`,
+        ])}
+        ${sub("Win or lose — composure", [
+          `One track for everyone: ${term("Composure")}. Their hits take yours; your misses take yours too. Whoever reaches 0 first has lost the exchange.`,
+          `The loser chooses how: ${term("give in")} (concede — the bond toward the winner deepens) or ${term("storm off")} (refuse — but carry a Grudge, and the bond cools). Either way the winner takes a String. Someone <b>Desperate</b> can't storm off from the one they're desperate about, and someone <b>Enthralled</b> would never storm off from the one who charmed them — anyone else, they can.`,
+          `A <b>natural 1</b> always misses, however big your bonus.`,
+          ...(tslOn ? [`Or win honestly: the 2d6 <b>Feelings</b> moves (Speak from the Heart, Read the Room) take composure and reveal nature <b>without</b> manipulation.`] : []),
+          `${term("leverage")} (once each per exchange): <b>Desire</b> (Advantage, +1 composure off them), <b>Fear</b> (+3 to the roll — but a miss costs you 1 more), <b>Weakness</b> (an ordinary approach lands like a weak spot).`,
+        ])}
+        ${sub("The relationship is the terrain", [
+          `A ${term("bond")} is <b>ONE shared relationship</b> — one TYPE, one STRENGTH (0–3 ●). Write it on either person and it appears on both. (Directional pairs flip to fit: your <b>Mentor</b> is their <b>Protégé</b>; if you're <b>Sworn</b> to someone, they are your <b>Liege</b>.)`,
+          `It works both ways at once: your <b>weapon</b> — its school gets <b>+●</b> — and their <b>guard</b>: a friend, lover or the one sworn to you opens up (easier), an enemy is wary (harder).`,
+          `<b>Every type also bends specific skills, ±● — an edge AND a cost.</b> You can't threaten a friend (−● Intimidation), can't lie to your own blood (−● Deception), can't sweet-talk hatred (−● Persuasion vs an enemy). Hover any bond type to see its edges.`,
+          `Your read of them and your notes stay <b>private</b> — only the relationship itself is shared.`,
+          ...(fullLayer ? [`<b>Deep bonds grant abilities.</b> At <b>●●</b> a relationship unlocks a distinctive ability; at <b>●●●</b> a <b>signature</b> you invoke once per long rest — its automatic part lands on both sheets and ends itself after the roll (the <b>Invoke</b> button on the Bond).`] : []),
+          `Closeness costs: land a <b>Power</b> play on a friend, family, a lover, your protégé, your liege or a confidant and it works — but they gain a <b>String</b> on you.`,
+          `Losing moves the bond: the one who gives in grows closer to the winner (+1●); the one who storms off cools toward them (−1●). For an Enemy or Rival it runs the other way.`,
+        ])}
+        ${sub("Bonds reach into a real fight", [
+          `Standing within <b>${(() => { try { return game.settings.get("tsl-social-conflict", "bondAuraRange"); } catch { return 15; } })()} ft</b> of someone you're bonded to changes how you <b>fight</b> — automatically, as tokens move. Every relationship does something different, and it doubles at ●●● (any one line caps at ±2).`,
+          ...BOND_TYPES.filter(t => t.combatAura).map(t => {
+            const a = t.combatAura;
+            const nm = { attack: "attack rolls", damage: "weapon damage", save: "saving throws", check: "ability checks", ac: "AC", init: "initiative", spellDC: "spell save DC", maneuverDC: "maneuver DC" };
+            const bits = Object.entries(a).filter(([k]) => k !== "label")
+              .map(([k, v]) => `<b>${v > 0 ? "+" : "−"}${Math.abs(v)}</b> ${nm[k]}`).join(", ");
+            return `<b>${t.label}</b> — “${a.label}”: ${bits}`;
+          }),
+          `While any of this is live you carry a <b>Bonds in reach</b> mark on your token. It comes and goes on its own as people move — nobody switches it by hand.`,
+        ])}
+      </section>`;
+
+    const gm = `
+      <section class="tsl-notes-section">
+        <div class="tsl-notes-section-title">Running it (GM)</div>
+        ${sub("Setting the scene", [
+          `<b>Draw blades only when it's real:</b> the NPC is unwilling AND the stakes matter. A favor, an easy lie, a routine haggle is one ordinary check, not an exchange.`,
+          `<b>Size the ask by composure:</b> a mook (~2) cracks in a hit or two; a hardened noble (~8) takes four or five — or two heavy blows on a weak spot. Nudge it in their Chronicle → Fencing. Demand played leverage for the impossible; nobody betrays their king over a nice speech.`,
+          `<b>Safety first:</b> these moves include real abuse tactics (love bombing, triangulation, guilt-tripping, sowing doubt). Set lines & veils at session zero and keep an X-card or Script Change in reach — especially when an NPC turns them on a player character.`,
+          `<b>A crowd hardens people:</b> +1 DC per extra voice pressing the same target (the situational modifier). Let the party pick one speaker; the rest pass Strings, Reassure, and leverage.`,
+        ])}
+        ${sub("Playing the opponent", [
+          `<b>NPCs act on their nature:</b> each NPC's <b>When pressed</b> (Profile → Nature) decides on its own whether it accepts a state or holds the line, and whether it gives in or storms off when broken — by default from its archetype (each card says which). Set <b>Decide each time</b> on the ones you want to steer by hand.`,
+          `<b>Both sides play:</b> give each NPC an <b>Agenda</b> (Profile → GM field) — what THEY want. Answer player maneuvers with the NPC's own: press back, demand, bluff. A Provoked NPC <i>must</i> come at whoever provoked it.`,
+          `<b>Losing must cost:</b> if the NPC wins the exchange, its Agenda advances.`,
+          `<b>Composure is everyone's clock:</b> misses cost the one who misses, on both sides. When an NPC is low, play them fraying — shorter answers, a glance at the door.`,
+          `<b>States run themselves</b> — they're spent by use, time (advance the clock), rounds in a fight, or a long rest. Clear any by hand with × (conflict card, or their Fencing tab).`,
+        ])}
+        ${sub("Rewarding play", [
+          `<b>Reward open hearts:</b> when a player truly opens up, grant a <b>String</b> on the one they opened up to (💖 on the conflict card, or the Bonds tab). This is the main way Strings should enter play.`,
+          `<b>You have the final word</b> on close calls: the grade is pre-selected — one click.`,
+        ])}
+      </section>`;
+
     // One long scroll was too much — split it into pickable categories.
     const cats = [
-      // The walkthrough is one maneuver exchange — meaningless without them.
       { id: "start",    label: "Start",    icon: "fa-play",          html: quickStart + (fencingOn ? walkthrough : "") },
       { id: "moves",    label: "Moves",    icon: "fa-hand-fist",     html: moves,          needs: "fencing" },
-      // Openings, statuses and the nine natures are all parts of the d20
-      // fencing layer — in a pure-TSL world they simply do not exist.
+      { id: "statuses", label: "States",   icon: "fa-bolt",          html: statuses,       needs: "fencing" },
       { id: "openings", label: "Openings", icon: "fa-plus",          html: comboReference, needs: "fencing" },
-      { id: "statuses", label: "Statuses", icon: "fa-bolt",          html: statuses,       needs: "fencing" },
       { id: "feelings", label: "Feelings", icon: "fa-heart",         html: this._buildFeelingsCodex() },
+      { id: "natures",  label: "Nature",   icon: "fa-masks-theater", html: natures,        needs: "fencing" },
       { id: "details",  label: "Details",  icon: "fa-book",          html: reference },
-      { id: "natures",  label: "Natures",  icon: "fa-masks-theater", html: natures,        needs: "fencing" },
       { id: "gm",       label: "GM",       icon: "fa-crown",         html: gm, gmOnly: true },
     ].filter(c => (!c.gmOnly || game.user.isGM) && (c.needs !== "fencing" || fencingOn));
 
@@ -957,7 +968,7 @@ class SocialFencingApp extends _SocialAppBase {
             ${canEdit ? `<button class="tsl-chr-bond-remove" data-bond-id="${b.id}" data-tooltip="Remove bond">✕</button>` : ""}
           </div>
           <div class="tsl-chr-bond-line">
-            <span class="tsl-chr-bond-label" data-tooltip="How deep the bond runs, 0–3 ●. It scales everything the bond TYPE gives — your +● weapon school, their DC guard, and the type's skill edges and costs (±●). Being swayed by them deepens it; breaking off from them cools it.">Strength</span>
+            <span class="tsl-chr-bond-label" data-tooltip="How deep the bond runs, 0–3 ●. It scales everything the bond TYPE gives — your +● weapon school, their DC guard, and the type's skill edges and costs (±●). Giving in to them deepens it; storming off from them cools it (an Enemy or Rival runs the other way).">Strength</span>
             <div class="tsl-chr-att-track">${attitudeDots(b)}</div>
           </div>
           <div class="tsl-chr-bond-line">
@@ -965,13 +976,13 @@ class SocialFencingApp extends _SocialAppBase {
             <select class="tsl-chr-bond-arch" data-bond-id="${b.id}" ${disabled}>${archOpts(b.perceivedArchetypeId)}</select>
           </div>
           <div class="tsl-chr-bond-line">
-            <span class="tsl-chr-bond-label" data-tooltip="Strings you hold on them — emotional leverage, at most ${STRING_CAP} on one person. A String gives nothing while held: you SPEND it for +5.">Strings</span>
+            <span class="tsl-chr-bond-label" data-tooltip="Strings you hold on them — emotional leverage, at most ${STRING_CAP} on one person. A String gives nothing while held: you SPEND it for +5 — after a miss against them, or Pulled.">Strings</span>
             <span class="tsl-chr-str-pips" data-tooltip="${b.stringCount} / ${STRING_CAP}">${"●".repeat(Math.min(STRING_CAP, b.stringCount))}${"○".repeat(Math.max(0, STRING_CAP - b.stringCount))}</span>
             ${canEdit ? `
               <button class="tsl-chr-str-adj" data-bond-id="${b.id}" data-target="${b.targetActorId}" data-delta="1"  data-tooltip="${b.stringCount >= STRING_CAP ? `At the limit — you can hold at most ${STRING_CAP} Strings on one person` : `Gain a string on them (at most ${STRING_CAP} on one person)`}" ${b.stringCount >= STRING_CAP ? "disabled" : ""}>+</button>
               <button class="tsl-chr-str-adj" data-bond-id="${b.id}" data-target="${b.targetActorId}" data-delta="-1" data-tooltip="Spend / remove a string" ${b.stringCount ? "" : "disabled"}>−</button>
               <button class="tsl-chr-str-pull" data-target="${b.targetActorId}" ${b.stringCount ? "" : "disabled"}
-                data-tooltip="PULL THE STRING: burn 1 for +5 — to the roll you just made against them (ANY roll: a maneuver, an attack, a contest), OR to your AC / a save against one of THEIR attacks or effects (you know how they move). Posts a public card.">Pull +5</button>` : ""}
+                data-tooltip="PULL THE STRING — burn 1 and choose: STRIKE (+5 to your next attack roll, ability check or saving throw against them) or GUARD (+5 AC against their next attack). It lands on your sheet as a real effect and ends by itself once used — it works mid-fight. Posts a public card.">Pull +5</button>` : ""}
           </div>
           <input type="text" class="tsl-chr-bond-notes" data-bond-id="${b.id}" value="${esc(b.notes)}"
                  placeholder="History, debts, secrets between you…" ${disabled} />
@@ -990,7 +1001,7 @@ class SocialFencingApp extends _SocialAppBase {
             const sig = SocialArchetypeManager.getBondSignature(b.type);
             if (!sig) return "";
             return `
-              <div class="tsl-chr-signature ${b.sigUsed ? "used" : ""}" data-tooltip="A fully-realized (●●●) bond grants a signature you may invoke once per long rest. GM-adjudicated.">
+              <div class="tsl-chr-signature ${b.sigUsed ? "used" : ""}" data-tooltip="A fully-realized (●●●) bond grants a signature you may invoke once per long rest. What is marked (automatic) goes on the sheets — yours and theirs — and ends itself after the roll; what is marked (GM) the table plays.">
                 <div class="tsl-chr-sig-head"><i class="fas fa-star"></i> Signature (●●●) — <b>${esc(sig.label)}</b></div>
                 <div class="tsl-chr-sig-text">${esc(sig.text)}</div>
                 ${canEdit ? (b.sigUsed
@@ -1074,22 +1085,62 @@ class SocialFencingApp extends _SocialAppBase {
   // ── Fencing tab: personal maneuver console + (GM) status board ──────────────
 
   _buildFencingTab(ctx) {
-    const consoleHtml = this._buildManeuverConsole(ctx);
-    // THIS character's own emotional Wounds — a player sets/clears their own,
-    // the GM anyone's. Lives here (the token-opened Chronicle) so wounds are
-    // managed in our menu, not only via the token HUD.
-    // The BASIC emotional layer is the Wounds alone; Willpower, Boons and
-    // Scars appear only in the FULL layer (world setting).
+    // Order: ACT first (the console — target, maneuvers, the roll and its
+    // result in one place), then this character's own composure, states and
+    // the levers they hold, then the lasting emotional layer (Willpower →
+    // Wounds → Boons → Scars), and for the GM the scene board at the end.
+    // The BASIC emotional layer is the Wounds alone (world setting).
     const fullLayer  = (typeof TSLConditionEffects === "undefined" || TSLConditionEffects.isFullLayer());
-    const wpHtml     = fullLayer ? this._buildWillpowerPanel(ctx) : "";
-    const woundsHtml = this._buildWoundToggles(ctx);
-    const boonsHtml  = fullLayer ? this._buildBoonToggles(ctx) : "";
-    const scarsHtml  = fullLayer ? this._buildScarsSection(ctx) : "";
-    // Order: the fleeting fencing STATES (used far more often) sit above the
-    // lasting emotional layer. Willpower → Wounds → Boons → Scars. The GM's
-    // tracks + State toggles come from _buildGMFencing.
-    if (!ctx.isGM) return consoleHtml + wpHtml + woundsHtml + boonsHtml + scarsHtml;
-    return consoleHtml + this._buildGMFencing(ctx) + wpHtml + woundsHtml + boonsHtml + scarsHtml;
+    return this._buildManeuverConsole(ctx)
+      + this._buildSelfFencing(ctx)
+      + (fullLayer ? this._buildWillpowerPanel(ctx) : "")
+      + this._buildWoundToggles(ctx)
+      + (fullLayer ? this._buildBoonToggles(ctx) : "")
+      + (fullLayer ? this._buildScarsSection(ctx) : "")
+      + (ctx.isGM ? this._buildStatusBoard() : "");
+  }
+
+  /**
+   * One composure line — pips + count. Before the exchange starts it shows,
+   * faded, what they'll start with, so the number is never a mystery.
+   */
+  _composureHTML(actor, own = false) {
+    const esc = foundry.utils.escapeHTML;
+    const enc = SocialEncounterManager.getEncounter(actor);
+    if (enc.outcome) {
+      return `<div class="tsl-chr-outcome tsl-chr-outcome--${enc.outcome}" data-tooltip="${esc(SocialEncounterManager.outcomeTip(enc.outcome))}">${
+        enc.outcome === "swayed" ? `<i class="fas fa-handshake"></i> Gave in` : `<i class="fas fa-door-open"></i> Stormed off`}</div>`;
+    }
+    const live = !!enc.active;
+    const max  = live ? (enc.maxComposure ?? 0) : SocialEncounterManager.suggestTracks(actor).composure;
+    const cur  = live ? (enc.composure ?? 0) : max;
+    const pips = Array.from({ length: max }, (_, i) =>
+      `<span class="tsl-notes-pip tsl-notes-pip--composure ${i < cur ? "filled" : ""}"></span>`).join("");
+    const who  = own ? "Your" : "Their";
+    const tip  = `${who} composure — how much pressure ${own ? "you" : "they"} can take before cracking: 2 + CHA + WIS (never below 2).${live ? "" : " Not pressed yet — this is the starting value."} A maneuver that lands takes it down (1–3 by school, +1 on a weak spot, +1 on a clean hit); every miss costs the one who missed. At 0 the exchange is lost: give in (concede), or storm off and carry a Grudge.`;
+    return `<div class="tsl-comp ${live ? "" : "tsl-comp--idle"} ${live && cur <= Math.max(1, Math.floor(max / 3)) ? "tsl-comp--low" : ""}" data-tooltip="${esc(tip)}">
+      <span class="tsl-comp-label">Composure</span><span class="tsl-comp-pips">${pips}</span>
+      <span class="tsl-comp-count">${live ? `${cur}/${max}` : `starts at ${max}`}</span>
+    </div>`;
+  }
+
+  /**
+   * A state as a tag: the full rule on hover (one wording everywhere), an ×
+   * for the GM, and a lever button when THIS character is the one who can
+   * call it in (Beholden → call the debt · Enthralled → ask a favor).
+   */
+  _stateTag(c, onActor, clearable = false) {
+    const esc    = foundry.utils.escapeHTML;
+    const holder = c.sourceActorId ? game.actors.get(c.sourceActorId) : null;
+    const tip    = SocialArchetypeManager.stateTooltip(c.id, { charges: c.charges, source: holder?.name ?? null });
+    const x = clearable
+      ? `<button class="tsl-tag-x" data-clear-state="${c.id}" data-tooltip="Clear ${esc(c.meta.label)}">×</button>` : "";
+    const lever = (c.meta.lever && holder && holder.id === this._actor.id && onActor.id !== this._actor.id)
+      ? `<button class="tsl-lever-btn" data-call-lever="${c.id}" data-holder="${holder.id}" data-target-actor="${onActor.id}"
+           data-tooltip="${esc(`${c.meta.lever.label}: ${onActor.name} ${c.meta.lever.text}.`)}"><i class="fas ${c.meta.lever.icon}"></i> ${esc(c.meta.lever.label)}</button>`
+      : "";
+    return `<span class="tsl-status-tag ${c.meta.positive ? "tsl-status-tag--good" : ""}" style="--st-color:${c.meta.color ?? "#806858"}"
+      data-tooltip="${tip.replaceAll('"', "&quot;")}">${esc(c.meta.label)}${c.charges > 1 ? " ×2" : ""}${x}</span>${lever}`;
   }
 
   /**
@@ -1104,7 +1155,7 @@ class SocialFencingApp extends _SocialAppBase {
     const dots = `${"◆".repeat(Math.max(0, cur))}${"◇".repeat(Math.max(0, max - cur))}`;
     return `
       <section class="tsl-notes-section tsl-wp-panel">
-        <div class="tsl-notes-section-title" data-tooltip="Willpower — your emotional reserve (not Patience: that's your composure inside one exchange). Pool = proficiency bonus, refilled on a long rest. Spend 1 to power an Ultimate (Wound / Boon / Scar) or push past a Wound's hard block; restore 1 by GIVING IN to a Wound's urge (the Give in button on the Wound).">⬡ Willpower</div>
+        <div class="tsl-notes-section-title" data-tooltip="Willpower — your emotional reserve across the days (not Composure: that's how much pressure you take inside one exchange). Pool = proficiency bonus, refilled on a long rest. Spend 1 to power an Ultimate (Wound / Boon / Scar) or push past a Wound's hard block; restore 1 by GIVING IN to a Wound's urge (the Give in button on the Wound).">⬡ Willpower</div>
         <div class="tsl-wp-row">
           <button class="tsl-wp-btn" data-wp="-1" data-tooltip="Spend 1 — an Ultimate, or overriding a Wound's block" ${cur <= 0 ? "disabled" : ""}>−</button>
           <span class="tsl-wp-dots" data-tooltip="${cur} / ${max}">${dots}</span>
@@ -1115,7 +1166,7 @@ class SocialFencingApp extends _SocialAppBase {
   }
 
   /**
-   * The four Boons (positive emotions) as on/off toggles for THIS character —
+   * The Boons (positive emotions) as on/off toggles for THIS character —
    * GM-given rewards for courage, love, triumph or grit. Mirrors the ❤ Wounds
    * menu (tier ▲/▼, dossier tooltip) but they don't count toward Overwhelmed.
    * Handler keys on [data-boon].
@@ -1136,7 +1187,7 @@ class SocialFencingApp extends _SocialAppBase {
         </span>` : "";
       const wp = ctx.willpower?.cur ?? 0;
       const ultBtn = (tier >= 3 && m.ultimate)
-        ? `<button class="tsl-ult-btn" data-ult="${id}" data-tooltip="${esc(m.ultimate.name)} — spend 1 Willpower: ${esc(m.ultimate.text)}" ${wp < 1 ? "disabled" : ""}>⚡</button>` : "";
+        ? `<button class="tsl-ult-btn" data-ult="${id}" data-ult-kind="boon" data-tooltip="<b>${esc(m.ultimate.name)}</b>: ${esc(m.ultimate.text)}" ${wp < 1 ? "disabled" : ""}>⚡</button>` : "";
       return `<div class="tsl-wound-row tsl-boon-row ${on ? "on" : ""}">
         <button class="tsl-cond-toggle tsl-boon-toggle ${on ? "active" : ""}" data-boon="${id}" data-tooltip="${tip}">
           <img src="${m.icon}" alt=""><span>${esc(m.label)}</span>${dots}
@@ -1144,9 +1195,10 @@ class SocialFencingApp extends _SocialAppBase {
       </div>`;
     }).join("");
     const active = Object.values(ctx.activeBoons ?? {}).filter(Boolean).length;
+    const names  = TSLConditionEffects.BOON_ORDER.map(id => TSLConditionEffects.getMeta(id)?.label).filter(Boolean).join(" / ");
     return `
       <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title" data-tooltip="Positive emotions the GM grants for courage, love, triumph or grit (Valor / Devotion / Conviction / Hope). Each gives a scaling bonus and a ●●● ultimate (spend 1 Willpower). They do NOT count toward Overwhelmed, and a long rest ends them.">✦ Boons</div>
+        <div class="tsl-notes-section-title" data-tooltip="Positive emotions the GM grants for courage, love, triumph or grit (${esc(names)}). Each gives a scaling bonus and a ●●● ultimate (spend 1 Willpower). They do NOT count toward Overwhelmed, and a long rest ends them.">✦ Boons</div>
         <div class="tsl-cond-grid">${btns}</div>
         ${active ? `<button class="tsl-cond-clear tsl-boon-clear" data-tooltip="Remove all Boons from ${esc(this._actor.name)}.">Clear all boons</button>` : ""}
       </section>`;
@@ -1173,7 +1225,7 @@ class SocialFencingApp extends _SocialAppBase {
       const on  = active.includes(id);
       const tip = TSLConditionEffects.scarDossier(id);
       const ultBtn = (on && m.ultimate)
-        ? `<button class="tsl-ult-btn" data-ult="${id}" data-tooltip="${esc(m.ultimate.name)} — spend 1 Willpower: ${esc(m.ultimate.text)}" ${wp < 1 ? "disabled" : ""}>⚡</button>` : "";
+        ? `<button class="tsl-ult-btn" data-ult="${id}" data-ult-kind="scar" data-tooltip="<b>${esc(m.ultimate.name)}</b>: ${esc(m.ultimate.text)}" ${wp < 1 ? "disabled" : ""}>⚡</button>` : "";
       return `<div class="tsl-wound-row tsl-scar-row ${on ? "on" : ""}">
         <button class="tsl-cond-toggle tsl-scar-toggle ${on ? "active" : ""}" data-scar="${id}" data-tooltip="${tip}">
           <img src="${m.icon}" alt=""><span>${esc(m.label)}</span>
@@ -1182,16 +1234,16 @@ class SocialFencingApp extends _SocialAppBase {
     }).join("");
     return `
       <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title" data-tooltip="Permanent character Scars — what a Wound becomes when it's left at ●●● through a long rest. Each grants an ability and a lasting cost, and makes you immune to the Wound it came from. They lift only through the story (the 'Clears' line), never a rest.">🩹 Scars</div>
+        <div class="tsl-notes-section-title" data-tooltip="Permanent character Scars — what a Wound about yourself becomes when it's left at ●●● through a long rest. Each grants an ability and a lasting cost, and makes you immune to the Wound it came from. They lift only through the story (the 'Clears' line), never a rest.">🩹 Scars</div>
         <div class="tsl-cond-grid">${btns}</div>
       </section>`;
   }
 
   /**
-   * The five lasting emotional Wounds as on/off toggles for THIS character.
+   * The lasting emotional Wounds as on/off toggles for THIS character.
    * The same wounds shown on the conflict card and the token HUD, here in the
    * Chronicle so they're managed from the token-opened window. Reuses the
-   * fencing-State toggle styling (.tsl-cond-*); handler keys on [data-wound].
+   * toggle styling (.tsl-cond-*); handler keys on [data-wound].
    */
   _buildWoundToggles(ctx) {
     if (typeof TSLConditionEffects === "undefined") return "";
@@ -1209,7 +1261,7 @@ class SocialFencingApp extends _SocialAppBase {
         </span>` : "";
       const wp = ctx.willpower?.cur ?? 0;
       const ultBtn = (tier >= 3 && m.ultimate && TSLConditionEffects.isFullLayer())
-        ? `<button class="tsl-ult-btn" data-ult="${id}" data-tooltip="${esc(m.ultimate.name)} — spend 1 Willpower: ${esc(m.ultimate.text)}" ${wp < 1 ? "disabled" : ""}>⚡</button>` : "";
+        ? `<button class="tsl-ult-btn" data-ult="${id}" data-ult-kind="wound" data-tooltip="<b>${esc(m.ultimate.name)}</b>: ${esc((m.ultimate.text ?? "").replace(/{source}/g, "them"))}" ${wp < 1 ? "disabled" : ""}>⚡</button>` : "";
       // Give in to the urge (VtM-style refuel): you act on it, at real cost,
       // and get 1 Willpower back (Inspiration for Despair). Posts a public card
       // so the table sees what was traded.
@@ -1225,11 +1277,11 @@ class SocialFencingApp extends _SocialAppBase {
     // Overwhelmed counts WEIGHT, not number: the sum of the Wounds' tiers.
     const load = Object.values(ctx.activeWounds).reduce((sum, t) => sum + (Number(t) || 0), 0);
     const overwhelmed = load >= 4
-      ? `<div class="tsl-overwhelmed" data-tooltip="Wounds weighing 4 or more (the sum of their tiers) — Overwhelmed: this character can no longer parry or hold the line, and must yield or flee.">⚠ Overwhelmed — Wounds weigh ${load}</div>`
-      : load ? `<div class="tsl-wound-load" data-tooltip="The weight of your Wounds: the sum of their tiers (● = 1, ●● = 2, ●●● = 3). At 4 you are Overwhelmed — no parrying, no holding the line.">Weight ${load} / 4</div>` : "";
+      ? `<div class="tsl-overwhelmed" data-tooltip="Wounds weighing 4 or more (the sum of their tiers) — Overwhelmed: this character can't hold the line any more — every state put on them lands.">⚠ Overwhelmed — Wounds weigh ${load}</div>`
+      : load ? `<div class="tsl-wound-load" data-tooltip="The weight of your Wounds: the sum of their tiers (● = 1, ●● = 2, ●●● = 3). At 4 you are Overwhelmed — you can't hold the line any more.">Weight ${load} / 4</div>` : "";
     return `
       <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title" data-tooltip="Lasting emotional Wounds on ${esc(this._actor.name)} (Wrath / Grudge / Obsession / Fear / Despair). From Hold the Line, sincere Feelings moves or betrayal — they open doors (+2) until the story heals them. Wounds weighing 4+ (sum of tiers) = Overwhelmed: no parrying, no holding the line. A Wound about someone, left at ●●● overnight, becomes a bond with them. A whole layer apart from the fleeting fencing States.">❤ Wounds</div>
+        <div class="tsl-notes-section-title" data-tooltip="Lasting emotional Wounds on ${esc(this._actor.name)}. Each pushes them to act (an urge), escalates ● → ●● → ●●●, opens matching maneuvers against them (+2), and heals only through the story — a long rest eases it one step. They come from Holding the Line (a refused state turns into one), a public humiliation, a sincere Feelings move, or storming off (Grudge). Weight 4+ = Overwhelmed. A Wound about someone, left at ●●● overnight, becomes a bond with them.">❤ Wounds</div>
         <div class="tsl-cond-grid">${btns}</div>
         ${overwhelmed}
         ${active ? `<button class="tsl-cond-clear tsl-wound-clear" data-tooltip="Remove all Wounds from ${esc(this._actor.name)}.">Clear all wounds</button>` : ""}
@@ -1237,9 +1289,10 @@ class SocialFencingApp extends _SocialAppBase {
   }
 
   /**
-   * The maneuver console — THIS character fences a chosen target: pick a
-   * target, see their Resolve/Patience, pick a maneuver, roll (overlay on top).
-   * Works from any owner's token menu, no GM-launched conflict required.
+   * The maneuver console — THIS character presses a chosen target: pick who,
+   * see their composure and states, pick a maneuver, roll. The result shows
+   * right where the Roll button was (the bar is pinned), so it never needs a
+   * scroll to find. No GM-launched conflict required.
    */
   _buildManeuverConsole(ctx) {
     const esc = foundry.utils.escapeHTML;
@@ -1262,9 +1315,8 @@ class SocialFencingApp extends _SocialAppBase {
     const tgt = this._fenceTargetId ? game.actors.get(this._fenceTargetId) : null;
     let body;
     if (!tgt) {
-      body = `<div class="tsl-fc-note">Choose a target above to fence them.</div>`;
+      body = `<div class="tsl-fc-note">Choose who to press — a name above, or <b>Map</b> to click their token.</div>`;
     } else {
-      const enc   = SocialEncounterManager.getEncounter(tgt);
       // GM sees the truth; a player sees THEIR OWN GUESS from the Bond ("Read
       // as") — UNLESS the GM has opened this nature, then everyone reads truth.
       const seeArch = ctx.isGM || SocialArchetypeManager.isRevealed(tgt);
@@ -1273,25 +1325,18 @@ class SocialFencingApp extends _SocialAppBase {
         ? SocialArchetypeManager.getArchetype(tgt)
         : (guessId ? SocialArchetypeManager.getArchetypeById(guessId) : null);
       const isGuess = !seeArch;
-      const known = !!arch;
       const triad = arch ? SOCIAL_TRIADS[arch.triad] : null;
-
-      const pips = (val, max, cls) => Array.from({ length: max }, (_, i) =>
-        `<span class="tsl-notes-pip tsl-notes-pip--${cls} ${i < val ? "filled" : ""}"></span>`).join("");
-      const tracks = enc.active
-        ? `<div class="tsl-fc-tracks">
-             <span class="tsl-fc-tk" data-tooltip="Resolve = CHA mod (floor 1) — force of personality. Kept low; weight is the school. Landed maneuvers chip it; break it (0) to sway them."><b>RES</b>${pips(enc.resolve, enc.maxResolve, "resolve")}</span>
-             <span class="tsl-fc-tk" data-tooltip="Patience = WIS + CHA mod (floor 2) — their composure. Every parry they make spends it (and so do their own misses); at 0 they break off and lose the exchange."><b>PAT</b>${pips(enc.patience, enc.maxPatience, "patience")}</span>
-           </div>`
-        : enc.outcome
-          ? `<div class="tsl-chr-outcome tsl-chr-outcome--${enc.outcome}" data-tooltip="${esc(SocialEncounterManager.outcomeTip(enc.outcome))}">${enc.outcome === "swayed" ? "💔 Swayed" : "🚪 Broke off"}</div>`
-          : `<div class="tsl-fc-note">Their tracks start on your first maneuver.</div>`;
 
       const archLine = arch
         ? `<span class="tsl-fc-arch" style="--triad-color:${triad?.color ?? "#806858"}" data-tooltip="${isGuess ? "<b>Your read (may be wrong)</b><br>" : ""}${esc(arch.hint ?? arch.description)}">${isGuess ? `<i class="fas fa-pencil tsl-guess-i"></i>` : `<i class="fas ${triad?.icon ?? "fa-user"}"></i>`} ${esc(arch.label)}${isGuess ? "?" : ""}</span>`
-        : `<span class="tsl-fc-arch tsl-fc-arch--unread" data-tooltip="Their nature is a riddle — Read Them whispers a tell; note your guess in your Bond ('Read as'). You'll sense their weak spots from outcomes, not the chips.">Nature unread</span>`;
+        : (() => {
+            const lean = seeArch ? SocialArchetypeManager.leaningRead(tgt) : null;
+            return lean
+              ? `<span class="tsl-fc-arch" style="--triad-color:${lean.color}" data-tooltip="${esc(lean.tip)}"><i class="fas ${lean.icon}"></i> ${esc(lean.label)}</span>`
+              : `<span class="tsl-fc-arch tsl-fc-arch--unread" data-tooltip="Their nature is a riddle — Read Them whispers a tell; note your guess in your Bond ('Read as') and the chip marks follow your read.">Nature unread</span>`;
+          })();
 
-      // Maneuver chips grouped by triad — marks follow the viewer's read
+      // Maneuver chips grouped by school — marks follow the viewer's read
       const chips = MANEUVER_GROUPS.map(g => {
         const mvs = SOCIAL_MANEUVERS.filter(m => m.group === g.id);
         const color = SOCIAL_TRIADS[g.id]?.color ?? "#806858";
@@ -1301,11 +1346,11 @@ class SocialFencingApp extends _SocialAppBase {
           const rel   = SocialManeuverRoller.getRelation(tgt, m, seeArch ? undefined : (arch ?? null));
           const comboReady =
             (m.combos && Object.keys(m.combos).some(st => SocialArchetypeManager.getActiveCondition(tgt, st)))
-            || (m.kickWhileDown && SOCIAL_CONDITION_ORDER.some(st => SocialArchetypeManager.getActiveCondition(tgt, st)))
+            || (m.kickWhileDown && SOCIAL_CONDITION_ORDER.some(st => !SOCIAL_CONDITIONS[st].positive && SocialArchetypeManager.getActiveCondition(tgt, st)))
             || !!findOpening(tgt, m);
           // Weak/strong marks follow the READ: the GM's truth, or a player's own
           // THEORY (their Bond guess `arch`). No theory → no marks. ⊕ (a live
-          // opening) always shows — it reads off visible statuses.
+          // opening) always shows — it reads off visible states.
           const showMarks = seeArch || !!arch;
           const mark  = showMarks && rel === "immune" ? `<span class="tsl-chip-mark tsl-chip-mark--imm">✕</span>`
                       : showMarks && rel === "vulnerable" ? `<span class="tsl-chip-mark tsl-chip-mark--vuln">◎</span>`
@@ -1323,20 +1368,26 @@ class SocialFencingApp extends _SocialAppBase {
                     <i class="fas ${m.icon}"></i><span class="tsl-chip-name">${esc(m.name)}</span>${mark}</button>`;
         }).join("");
         const schoolTip = SOCIAL_TRIADS[g.id]?.hint
-          ?? "The basics anyone reaches for — read, jab, goad, persuade, threaten, lie. No weak spots to find; only Mock and Taunt can hit a wall. Persuade is sincere (can't be parried), Intimidate hits hard but a miss costs 2, a Lie that misses badly gets you caught.";
+          ?? "The basics anyone reaches for — read, jab, goad, persuade, threaten, lie — plus Reassure, aimed at a friend. No weak spots to find; only Mock and Taunt can hit a wall. Persuade is sincere (no Answer, clears Suspicion), Intimidate hits hard but a miss costs you 2, a Lie that misses badly gets you caught.";
         return `<div class="tsl-chip-group" style="--triad-color:${color}">
           <div class="tsl-chip-group-label" data-tooltip="${esc(schoolTip)}">${esc(short)}</div><div class="tsl-chip-grid">${cs}</div></div>`;
       }).join("");
 
-      // The target's active social statuses — name tags with the full effect
-      // (social + combat rider) in the tooltip, right where you pick the move.
+      // Their states (with a lever button when THIS character holds it) and
+      // the Wounds they visibly carry — right where you pick the move.
       const tgtConds  = SocialArchetypeManager.getActiveConditions(tgt);
       const statusRow = tgtConds.length
-        ? `<div class="tsl-status-row">${tgtConds.map(c => `
-            <span class="tsl-status-tag" style="--st-color:${c.meta.color ?? "#806858"}" data-tooltip="<b>${c.meta.label}</b>${c.charges > 1 ? " ×2 — it runs deep (a bond): two uses left" : ""}<br>${esc(c.meta.description)}${c.meta.combat ? `<br><b>Combat:</b> ${esc(c.meta.combat)}` : ""}">${esc(c.meta.label)}${c.charges > 1 ? " ×2" : ""}</span>`).join("")}</div>`
-        : "";
+        ? `<div class="tsl-status-row">${tgtConds.map(c => this._stateTag(c, tgt)).join("")}</div>` : "";
+      const wounds = (typeof TSLConditionEffects !== "undefined")
+        ? TSLConditionEffects.ORDER.map(id => ({ id, tier: TSLConditionEffects.getTier(tgt, id) })).filter(w => w.tier > 0) : [];
+      const woundRow = wounds.length
+        ? `<div class="tsl-status-row tsl-fc-wounds">${wounds.map(w => {
+            const m = TSLConditionEffects.getMeta(w.id);
+            const cc = CONDITIONS.find(c => c.id === w.id);
+            return `<span class="tsl-wound-pill" style="--cond-color:${cc?.color ?? "#c87a8a"}" data-tooltip="${TSLConditionEffects.dossier(w.id, w.tier, "them").replaceAll('"', "&quot;")}"><span class="tsl-wound-name">${esc(m?.label ?? w.id)}</span><span class="tsl-wound-tier">${"●".repeat(w.tier)}</span></span>`;
+          }).join("")}</div>` : "";
 
-      // Portrait + name + tracks share one aligned header block, mirroring
+      // Portrait + name + composure share one aligned header block, mirroring
       // the conflict window's participant cards — one design language.
       body = `
         <div class="tsl-fc-head" style="--triad-color:${triad?.color ?? "rgba(255,255,255,0.18)"}">
@@ -1346,8 +1397,9 @@ class SocialFencingApp extends _SocialAppBase {
               <div class="tsl-fc-head-name">${esc(tgt.name)}</div>
               ${archLine}
             </div>
-            ${tracks}
+            ${this._composureHTML(tgt)}
             ${statusRow}
+            ${woundRow}
           </div>
         </div>
         <div class="tsl-fc-maneuvers">${chips}</div>
@@ -1357,7 +1409,7 @@ class SocialFencingApp extends _SocialAppBase {
 
     return `
       <section class="tsl-notes-section tsl-fc">
-        <div class="tsl-notes-section-title" data-tooltip="Fence a target from your own menu: pick who, pick a maneuver, roll. No GM setup needed.">⚔ ${esc(src.name)} acts</div>
+        <div class="tsl-notes-section-title" data-tooltip="Press someone from your own menu: pick who, pick a maneuver, roll. No GM setup needed — the exchange starts with the first maneuver.">⚔ ${esc(src.name)} acts</div>
         <div class="tsl-fc-target-row">
           <span class="tsl-fc-target-label">Target</span>
           <select class="tsl-fc-target">
@@ -1373,10 +1425,41 @@ class SocialFencingApp extends _SocialAppBase {
       </section>`;
   }
 
+  /**
+   * The roll's result, shown IN the pinned bar — exactly where the Roll button
+   * was, so nobody hunts for it. The dice's verdict; the GM confirms close
+   * calls and the chat card carries what followed.
+   */
+  _buildFenceResult() {
+    const esc = foundry.utils.escapeHTML;
+    const r   = this._fenceRoll;
+    const kind = (r.outcome === "success" || r.outcome === "crit") ? "hit" : r.outcome === "immune" ? "wall" : "miss";
+    const label = r.outcome === "crit"    ? "★ Clean hit"
+                : r.outcome === "success" ? "✓ It lands"
+                : r.outcome === "immune"  ? "✕ Walled off"
+                : r.outcome === "botch"   ? (r.natural === 1 ? "Natural 1 — ⚔ they answer" : "⚔ A bad miss — they answer")
+                : r.natural === 1         ? "Natural 1 — a miss"
+                : "✗ A miss";
+    const note = r.auto
+      ? "Intrigued — it lands on its own. What followed is on the chat card."
+      : "The dice's verdict — the GM confirms a close call. What followed is on the chat card.";
+    return `<div class="tsl-bar tsl-bar--fence tsl-bar--result tsl-bar--result-${kind}">
+      <div class="tsl-res-line">
+        <span class="tsl-res-move"><i class="fas ${r.icon}"></i> ${esc(r.name)}${r.target ? ` → ${esc(r.target)}` : ""}</span>
+        <span class="tsl-res-total">${r.total}</span>
+        <span class="tsl-bar-dim">${game.user.isGM ? `vs DC ${r.dc}` : "vs ?"}</span>
+      </div>
+      <div class="tsl-res-grade tsl-res-grade--${kind}" data-tooltip="${esc(SocialManeuverRoller.gradeTip(r.outcome, r.natural))}">${label}</div>
+      <div class="tsl-res-note">${esc(note)}</div>
+      <button class="tsl-fence-close">Continue</button>
+    </div>`;
+  }
+
   /** The pre-roll action bar for the selected maneuver in the console.
    *  `dispArch` is what the viewer believes (GM: truth, player: guess) —
    *  predictions follow it; the real roll follows the truth. */
   _buildFenceBar(ctx, src, tgt, dispArch, isGuess) {
+    if (this._fenceRoll) return this._buildFenceResult();
     const m = this._fenceManeuverId ? SocialManeuverRoller.getManeuver(this._fenceManeuverId) : null;
     if (!m) return `<div class="tsl-fc-note tsl-fc-note--pick">Pick a maneuver to see the roll.</div>`;
     const esc   = foundry.utils.escapeHTML;
@@ -1388,65 +1471,56 @@ class SocialFencingApp extends _SocialAppBase {
       leverage: this._fenceLeverage,
       archetypeOverride: ctx.isGM ? undefined : (dispArch ?? null),
     });
-    const strAdd = this._fenceStringSpend ? STRING_SPEND_BONUS : 0;
-    // String spend moved AFTER the roll (the gamble) — no pre-commit toggle
     const extra  = a.bonus;
 
     const bonusList =
       a.bonusReasons.map(b => `${b.value >= 0 ? "+" : "−"}${Math.abs(b.value)} ${esc(b.label.split(" — ")[0])}`);
     const extraChip = extra ? `<span class="tsl-bar-extra ${extra >= 0 ? "pos" : "neg"}" data-tooltip="${esc(bonusList.join(", "))}${isGuess && known ? " — predictions follow your read" : ""}">${extra >= 0 ? "+" : "−"}${Math.abs(extra)}</span>` : "";
-    const advMark = a.advantage ? `<span class="tsl-bar-adv" data-tooltip="${esc(a.advantageReasons.join("; "))}${isGuess ? " — if your read is right" : ""}">ADV${isGuess && a.relation === "vulnerable" ? "?" : ""}</span>` : "";
+    const advMark = (a.advantage ? `<span class="tsl-bar-adv" data-tooltip="${esc(a.advantageReasons.join("; "))}${isGuess ? " — if your read is right" : ""}">ADV${isGuess && a.relation === "vulnerable" ? "?" : ""}</span>` : "")
+      + (a.disadvantage ? `<span class="tsl-bar-dis" data-tooltip="${esc(a.disadvantageReasons.join("; "))}${a.advantage ? " — with Advantage too, they cancel out" : ""}">DIS</span>` : "");
 
     // Held Strings show as the gamble reserve — spendable AFTER a miss
     const held = TSLStringStore.getList(src.id).filter(e => e.targetActorId === tgt.id);
     const strBtn = held.length
-      ? `<span class="tsl-fc-string" data-tooltip="You hold ${held.length} String${held.length > 1 ? "s" : ""} on them. Strings give no passive bonus — on a MISS you'll be offered to burn one for +${STRING_SPEND_BONUS} (the gamble), or spend one anytime for +${STRING_SPEND_BONUS} on any roll against them."><i class="fas fa-masks-theater"></i> ${held.length}</span>`
+      ? `<span class="tsl-fc-string" data-tooltip="You hold ${held.length} String${held.length > 1 ? "s" : ""} on them. No passive bonus — on a MISS you'll be offered to burn one for +${STRING_SPEND_BONUS} (the gamble). In a fight, Pull one from your Bonds: +${STRING_SPEND_BONUS} to your next attack, check or save against them, or +${STRING_SPEND_BONUS} AC against their next attack."><i class="fas fa-masks-theater"></i> ${held.length}</span>`
       : "";
 
-    // Leverage toggles
+    // Leverage toggles — once each per exchange, from a filled dossier point
     const enc = SocialEncounterManager.getEncounter(tgt);
     const points = SocialArchetypeManager.getCharacterNotes(tgt).points;
     const LEV = [
-      { id: "desire",   label: "Desire",   icon: "fa-gem" },
-      { id: "fear",     label: "Fear",     icon: "fa-ghost" },
-      { id: "weakness", label: "Weakness", icon: "fa-heart-crack" },
+      { id: "desire",   label: "Desire",   icon: "fa-gem",         fx: "Advantage; +1 composure off them on a hit." },
+      { id: "fear",     label: "Fear",     icon: "fa-ghost",       fx: "+3 to the roll — but a miss costs YOU 1 more composure." },
+      { id: "weakness", label: "Weakness", icon: "fa-heart-crack", fx: "An ordinary approach lands like a weak spot: Advantage, +1 composure." },
     ];
-    const levBtns = enc.active
+    const levBtns = (!a.support && !enc.outcome)
       ? LEV.filter(l => (points[l.id] ?? "").trim()).map(l => {
           const used = enc.leverage?.[l.id];
           const sel  = this._fenceLeverage === l.id;
           return `<button class="tsl-lev-btn ${sel ? "selected" : ""}" data-fence-leverage="${l.id}" ${used ? "disabled" : ""}
-                    data-tooltip="${esc(l.label)}: ${esc(points[l.id] ?? "")}"><i class="fas ${l.icon}"></i> ${l.label}</button>`;
+                    data-tooltip="${esc(used ? `${l.label} — already played this exchange` : `${l.label}: ${points[l.id] ?? ""} — ${l.fx} Once per exchange.`)}"><i class="fas ${l.icon}"></i> ${l.label}</button>`;
         }).join("")
       : "";
 
     const readPrefix = isGuess ? "Your read: " : "";
     let hint = "", hintCls = "dim";
     if (a.relation === "blocked")        { hint = a.relationReason; hintCls = "imm"; }
-    else if (known && a.relation === "immune")     { hint = `${readPrefix}${a.relationReason} — ${isGuess ? "if you're right, it fails and they turn Defiant." : "it fails, they turn Defiant."}`; hintCls = "imm"; }
-    else if (known && a.relation === "vulnerable") { hint = `${readPrefix}this should cut deep — Advantage & +1 Resolve damage, and it can't be parried${isGuess ? " (if your read is right)" : ""}.`; hintCls = "vuln"; }
-    else if (a.selfLast)                 { hint = `⚠ Your composure is nearly gone — miss now and you break off (−${a.missCost} Patience).`; hintCls = "imm"; }
+    else if (a.support)                  { hint = "♥ A kind word to an ally — DC 10, and a miss costs you nothing."; hintCls = "vuln"; }
+    else if (known && a.relation === "immune")     { hint = `${readPrefix}${a.relationReason} — ${isGuess ? "if you're right, it fails, costs you like a miss, and they turn Defiant." : "it fails, costs you like a miss, and they turn Defiant."}`; hintCls = "imm"; }
+    else if (a.autoSuccess)              { hint = `✦ ${a.autoReason} — this one lands on its own.`; hintCls = "vuln"; }
+    else if (a.selfLast)                 { hint = `⚠ Your composure is nearly gone — miss now and you crack (−${a.missCost}).`; hintCls = "imm"; }
+    else if (a.canBreak)                 { hint = "⚔ They're at the edge — land this and their composure breaks."; hintCls = "vuln"; }
+    else if (known && a.relation === "vulnerable") { hint = `${readPrefix}this should cut deep — Advantage & +1 composure${isGuess ? " (if your read is right)" : ""}.`; hintCls = "vuln"; }
     else if (a.combo)                    { hint = `⊕ Opening — ${a.combo.label}.`; hintCls = "vuln"; }
     else if (a.opening)                  { hint = `⊕ Opening — ${a.opening.flavor} (+2).`; hintCls = "vuln"; }
-    else if (a.lastExchange)             { hint = "⚔ They're at the end of their composure — one more parry and they break off."; hintCls = "vuln"; }
+    else if (a.disadvantage)             { hint = `DIS — ${a.disadvantageReasons[0]}.`; hintCls = "imm"; }
     else if (known && a.answerRisk)      { hint = `${readPrefix}fumble badly here and their answer comes — ${a.answerRisk}${isGuess ? " (if your read is right)" : ""}.`; hintCls = "imm"; }
-    else if (a.patienceThin)             { hint = "⏳ They're wearing thin — parrying is costing them."; }
+    else if (a.undaunted)                { hint = "✦ Undaunted — if this misses, it costs you nothing."; hintCls = "vuln"; }
     else if (a.selfThin)                 { hint = "⏳ Your own composure is wearing thin — pick your shots."; }
     else if (!known)                     { hint = "Their nature is a riddle — read tells, then note your guess in your Bond ('Read as')."; }
 
-    // YOUR composure, right where you decide — every miss spends it, and when
-    // it's gone you break off. (Starts with your first maneuver.)
-    const selfEnc = SocialEncounterManager.getEncounter(src);
-    const selfPips = (val, max) => Array.from({ length: max }, (_, i) =>
-      `<span class="tsl-notes-pip tsl-notes-pip--patience ${i < val ? "filled" : ""}"></span>`).join("");
-    const selfLine = selfEnc.active
-      ? `<div class="tsl-fc-self" data-tooltip="Your Patience — your composure in this exchange. Each miss costs ${a.missCost} here (risky moves cost more), and parrying their blows spends it too. At 0 you break off and lose the exchange.">
-           <span class="tsl-fc-self-label">Your composure</span>${selfPips(selfEnc.patience, selfEnc.maxPatience)}
-           <span class="tsl-fc-self-cost">a miss costs ${a.missCost}</span>
-         </div>`
-      : `<div class="tsl-fc-self tsl-fc-self--idle" data-tooltip="Your Patience (WIS + CHA, floor 2) starts with your first maneuver. Each miss spends it; at 0 you break off.">
-           <span class="tsl-fc-self-label">Your composure</span><span class="tsl-fc-self-cost">starts with your first move · a miss costs ${a.missCost}</span>
-         </div>`;
+    // YOUR composure, right where you decide — a miss spends it.
+    const selfLine = `<div class="tsl-fc-self">${this._composureHTML(src, true)}<span class="tsl-fc-self-cost">${a.support ? "a miss costs nothing" : a.missCost ? `a miss costs ${a.missCost}` : "a miss costs nothing (Undaunted)"}</span></div>`;
 
     // A visible, plain-language breakdown of every modifier in play — so it's
     // obvious WHERE the bonuses come from, not hidden in a tooltip.
@@ -1458,6 +1532,7 @@ class SocialFencingApp extends _SocialAppBase {
       breakdown.push(`<span class="tsl-fc-mod ${b.value >= 0 ? "pos" : "neg"}">${b.value >= 0 ? "+" : "−"}${Math.abs(b.value)} ${esc(b.label)}</span>`);
     }
     for (const r of a.advantageReasons) breakdown.push(`<span class="tsl-fc-mod adv">ADV — ${esc(r)}</span>`);
+    for (const r of a.disadvantageReasons ?? []) breakdown.push(`<span class="tsl-fc-mod neg">DIS — ${esc(r)}</span>`);
     if (ctx.isGM) {
       for (const dm of a.dcMods) breakdown.push(`<span class="tsl-fc-mod ${dm.value < 0 ? "pos" : "neg"}">DC ${dm.value > 0 ? "+" : "−"}${Math.abs(dm.value)} · ${esc(dm.label)}</span>`);
     }
@@ -1494,65 +1569,72 @@ class SocialFencingApp extends _SocialAppBase {
     </div>`;
   }
 
-  // ── GM-only fencing controls (tracks + statuses + scene board) ──────────────
+  /**
+   * THIS character in the exchange — for everyone who sees the tab: their
+   * composure (the GM can nudge or reset it), the states on them (what they
+   * must or can't do right now — the GM sets or clears them), and the LEVERS
+   * they hold on others in the scene, each with its call-in button.
+   */
+  _buildSelfFencing(ctx) {
+    const esc   = foundry.utils.escapeHTML;
+    const actor = this._actor;
+    const enc   = ctx.encounter;
+    const isGM  = ctx.isGM;
 
-  _buildGMFencing({ encounter, activeConditions }) {
-    const esc = foundry.utils.escapeHTML;
-    const act = encounter.active;
+    const gmCtl = !isGM ? "" : enc.active
+      ? `<span class="tsl-comp-ctl">
+           <button class="tsl-comp-adj" data-delta="-1" data-tooltip="−1 composure (at 0 the exchange is lost)">−</button>
+           <button class="tsl-comp-adj" data-delta="1" data-tooltip="+1 composure">+</button>
+           <button class="tsl-comp-reset" data-enc-action="end" data-tooltip="End the exchange for ${esc(actor.name)} — the next maneuver starts fresh.">Reset</button>
+         </span>`
+      : enc.outcome
+        ? `<span class="tsl-comp-ctl"><button class="tsl-comp-reset" data-enc-action="end" data-tooltip="Clear the result so a new exchange can begin (it clears on its own in another scene).">Reset</button></span>`
+        : "";
 
-    const track = (label, val, max, cls, tip) => `
-      <div class="tsl-notes-patience-track" data-tooltip="${tip}">
-        <span class="tsl-notes-patience-label">${label}</span>
-        <div class="tsl-notes-pips">
-          ${Array.from({ length: max }, (_, i) =>
-            `<span class="tsl-notes-pip tsl-notes-pip--${cls} ${i < val ? "filled" : ""}"></span>`).join("")}
-        </div>
-        <span class="tsl-notes-patience-count">${val}/${max}</span>
-        <button class="tsl-notes-patience-adj" data-track="${cls}" data-delta="-1">−</button>
-        <button class="tsl-notes-patience-adj" data-track="${cls}" data-delta="1">+</button>
-      </div>`;
+    const live = SocialArchetypeManager.getActiveConditions(actor);
+    const tags = live.map(c => this._stateTag(c, actor, isGM)).join("");
+    const have = new Set(live.map(c => c.id));
+    const add  = isGM
+      ? `<select class="tsl-add-select tsl-self-state-add" data-tooltip="Put a state on ${esc(actor.name)} by hand">
+           <option value="">+ State</option>
+           ${SOCIAL_CONDITION_ORDER.filter(id => !have.has(id)).map(id => `<option value="${id}">${esc(SOCIAL_CONDITIONS[id].label)}</option>`).join("")}
+         </select>`
+      : "";
 
-    // THIS character's tracks appear on their own once a maneuver lands; here
-    // the GM can only nudge or reset them (no "Start" — that's automatic now).
-    const selfTracks = act
-      ? `${track("Resolve", encounter.resolve, encounter.maxResolve, "resolve",
-            "Their will to not concede — starts at CHA modifier (floor 1), force of personality. Landed maneuvers reduce it (by school: 1–3, +1 on a vulnerability). At 0 they are swayed.")}
-         ${track("Patience", encounter.patience, encounter.maxPatience, "patience",
-            "Their composure — starts at WIS + CHA modifier (floor 2). Spent by their own misses and by every parry they make (1 blocks 1 Resolve); at 0 they break off and lose the exchange.")}
-         <button class="tsl-notes-enc-btn tsl-notes-enc-btn--end" data-enc-action="end" data-tooltip="Clear the tracks. The next maneuver will start fresh ones.">Reset tracks</button>`
-      : encounter.outcome
-        ? `<div class="tsl-chr-outcome tsl-chr-outcome--${encounter.outcome}" data-tooltip="${esc(SocialEncounterManager.outcomeTip(encounter.outcome))}">
-             ${encounter.outcome === "swayed" ? "💔 Swayed — resolve broken." : "🚪 Broke off — composure spent."}
-           </div>
-           <button class="tsl-notes-enc-btn" data-enc-action="end" data-tooltip="Clear the result so a new exchange can begin (it also clears on its own when play moves to another scene).">Reset</button>`
-        : `<div class="tsl-notes-patience-inactive">No exchange yet — tracks start automatically on the first maneuver ${esc(this._actor.name)} makes or takes.</div>`;
-
-    const condBtns = SOCIAL_CONDITION_ORDER.map(id => {
-      const on   = activeConditions[id];
-      const meta = SOCIAL_CONDITIONS[id];
-      return `<button class="tsl-cond-toggle ${on ? "active" : ""}" data-condition="${id}"
-                      data-tooltip="<b>${meta.label}</b><br>${esc(meta.description)}${meta.combat ? `<br><b>Combat:</b> ${esc(meta.combat)}` : ""}">
-                <img src="${meta.icon}" alt=""><span>${meta.label}</span>
-              </button>`;
-    }).join("");
-    const anyActive = Object.values(activeConditions).some(Boolean);
+    // Levers this character holds on anyone in the scene (Beholden / Enthralled)
+    const seen = new Set([actor.id]);
+    const levers = [];
+    for (const t of (canvas.tokens?.placeables ?? [])) {
+      const a = t.actor;
+      if (!a || seen.has(a.id)) continue;
+      seen.add(a.id);
+      for (const c of SocialArchetypeManager.getActiveConditions(a)) {
+        if (c.meta.lever && c.sourceActorId === actor.id) levers.push({ a, c });
+      }
+    }
+    const leverRows = levers.map(({ a, c }) => `
+      <div class="tsl-lever-row">
+        <img class="tsl-lever-img" src="${a.img ?? "icons/svg/mystery-man.svg"}" alt="">
+        <span class="tsl-lever-text"><b>${esc(a.name)}</b> is ${esc(c.meta.label)} — ${esc((c.meta.gist ?? "").replace(/^./, (ch) => ch.toLowerCase()))}</span>
+        <button class="tsl-lever-btn" data-call-lever="${c.id}" data-holder="${actor.id}" data-target-actor="${a.id}"
+          data-tooltip="${esc(`${c.meta.lever.label}: ${a.name} ${c.meta.lever.text}. Calling it in ends it.`)}"><i class="fas ${c.meta.lever.icon}"></i> ${esc(c.meta.lever.label)}</button>
+      </div>`).join("");
 
     return `
-      <section class="tsl-notes-section tsl-notes-section--encounter">
-        <div class="tsl-notes-section-title" data-tooltip="Resolve (will) and Patience (composure). Every side of an exchange has both: break Resolve → swayed; spend Patience to nothing → broke off. Tracks arm themselves — no setup needed.">${esc(this._actor.name)}'s tracks</div>
-        ${selfTracks}
-      </section>
-      <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title" data-tooltip="Fencing statuses on this character. Maneuvers apply them; toggle here to override.">Statuses</div>
-        <div class="tsl-cond-grid">${condBtns}</div>
-        ${anyActive ? `<button class="tsl-cond-clear" data-tooltip="Remove all fencing statuses.">Clear all statuses</button>` : ""}
-      </section>
-      ${this._buildStatusBoard()}`;
+      <section class="tsl-notes-section tsl-self">
+        <div class="tsl-notes-section-title" data-tooltip="${esc(actor.name)} in the exchange: their composure, the states on them right now (each changes what they do — hover for the rule), and the levers they hold on others.">${esc(actor.name)} in the exchange</div>
+        <div class="tsl-self-comp">${this._composureHTML(actor, !isGM || actor.isOwner)}${gmCtl}</div>
+        <div class="tsl-status-row tsl-self-states">
+          <span class="tsl-row-label tsl-row-label--state" data-tooltip="States — what a moment in the talk did to ${esc(actor.name)}. Each changes what they DO, or hands someone a lever. Gone once used, when the scene's time runs out (rounds in a fight), or after a long rest.">States</span>
+          ${tags || `<span class="tsl-row-empty">none</span>`}${add}
+        </div>
+        ${leverRows ? `<div class="tsl-levers"><div class="tsl-levers-title" data-tooltip="States you put on people that you can CALL IN once — a debt (Beholden) or a favor (Enthralled).">Levers you hold</div>${leverRows}</div>` : ""}
+      </section>`;
   }
 
   /**
-   * A scene-wide "who has what" board: every token whose actor carries a
-   * fencing status, live tracks, or a resolved outcome. Read-only overview.
+   * A scene-wide "who has what" board (GM): every token whose actor carries a
+   * state, a live exchange, or a finished one. Read-only overview.
    */
   _buildStatusBoard() {
     const esc  = foundry.utils.escapeHTML;
@@ -1567,13 +1649,14 @@ class SocialFencingApp extends _SocialAppBase {
       const noteworthy = conds.length || enc.active || enc.outcome;
       if (!noteworthy) continue;
 
-      const dots = conds.map(c =>
-        `<span class="tsl-board-tag" style="--st-color:${c.meta.color ?? "#806858"}" data-tooltip="<b>${c.meta.label}</b>${c.charges > 1 ? " ×2 — runs deep (a bond)" : ""}<br>${esc(c.meta.description)}">${esc(c.meta.label)}${c.charges > 1 ? " ×2" : ""}</span>`
-      ).join("");
+      const dots = conds.map(c => {
+        const tip = SocialArchetypeManager.stateTooltip(c.id, { charges: c.charges, source: c.sourceActorId ? game.actors.get(c.sourceActorId)?.name : null });
+        return `<span class="tsl-board-tag" style="--st-color:${c.meta.color ?? "#806858"}" data-tooltip="${tip.replaceAll('"', "&quot;")}">${esc(c.meta.label)}${c.charges > 1 ? " ×2" : ""}</span>`;
+      }).join("");
       const tracks = enc.active
-        ? `<span class="tsl-board-track" data-tooltip="Resolve / Patience">R${enc.resolve} · P${enc.patience}</span>`
+        ? `<span class="tsl-board-track" data-tooltip="Composure ${enc.composure} of ${enc.maxComposure}">${enc.composure}/${enc.maxComposure}</span>`
         : enc.outcome
-          ? `<span class="tsl-board-out tsl-board-out--${enc.outcome}" data-tooltip="${enc.outcome === "swayed" ? "Swayed — their Resolve broke: they conceded / were won over." : "Broke off — their Patience ran out: they lost their footing and left the exchange."}">${enc.outcome === "swayed" ? "swayed" : "broke off"}</span>`
+          ? `<span class="tsl-board-out tsl-board-out--${enc.outcome}" data-tooltip="${esc(SocialEncounterManager.outcomeTip(enc.outcome))}">${enc.outcome === "swayed" ? "gave in" : "stormed off"}</span>`
           : "";
       rows.push(`
         <div class="tsl-board-row">
@@ -1586,10 +1669,10 @@ class SocialFencingApp extends _SocialAppBase {
 
     const body = rows.length
       ? rows.join("")
-      : `<div class="tsl-notes-string-empty">No one in the scene carries a status yet.</div>`;
+      : `<div class="tsl-notes-string-empty">No one else in the scene carries a state or is in an exchange.</div>`;
     return `
       <section class="tsl-notes-section">
-        <div class="tsl-notes-section-title" data-tooltip="Everyone on the scene who currently carries a fencing status, live tracks, or a resolved outcome.">Scene status board</div>
+        <div class="tsl-notes-section-title" data-tooltip="Everyone on the scene who carries a state, is in an exchange, or has finished one (GM).">Scene board</div>
         <div class="tsl-board">${body}</div>
       </section>`;
   }
@@ -1640,7 +1723,8 @@ class SocialFencingApp extends _SocialAppBase {
       this.render(true);
     });
 
-    // NPC defence stance (GM) — how they meet a blow without a window
+    // Nature → When pressed (owner or GM): accept states or hold the line;
+    // give in or storm off.
     el.querySelector("select[name='stance']")?.addEventListener("change", async (e) => {
       await SocialArchetypeManager.setActorData(this._actor, { stance: e.target.value || "nature" });
       this.render(true);
@@ -1751,40 +1835,34 @@ class SocialFencingApp extends _SocialAppBase {
       });
     });
 
-    // Pull the String: burn one for +5 to ANY roll against that person —
-    // a maneuver, an ATTACK, a contested check. The card announces it; the
-    // table applies the +5 to the roll that was just made.
+    // Pull the String: burn one and choose — STRIKE (+5 to the next attack,
+    // check or save against them) or GUARD (+5 AC against their next attack).
+    // It lands on the sheet as a real effect that ends by itself once used.
     el.querySelectorAll(".tsl-chr-str-pull").forEach(btn => {
       btn.addEventListener("click", async () => {
-        const targetId = btn.dataset.target;
-        const list = TSLStringStore.getList(this._actor.id).filter(e => e.targetActorId === targetId);
-        if (!list.length) { ui.notifications.warn("No Strings held on them."); return; }
-        await TSLStringStore.removeEntry(this._actor.id, list[0].id);
-        const target = game.actors.get(targetId);
-        const esc = foundry.utils.escapeHTML;
-        await ChatMessage.create({
-          speaker: ChatMessage.getSpeaker({ actor: this._actor }),
-          content: `<div class="tsl-maneuver-card tsl-mv--success"><div class="tsl-mv-outcome tsl-mv-outcome--success">🎭 ${esc(this._actor.name)} pulls a String on ${esc(target?.name ?? "them")} — <b>+5</b>: to this roll against them, or to AC / a save against theirs. ${list.length - 1} String${list.length - 1 === 1 ? "" : "s"} left.</div></div>`,
-        });
+        const target = game.actors.get(btn.dataset.target);
+        if (!target) return;
+        const mode = await this._promptPull(target);
+        if (!mode) return;
+        await TSLStringStore.pull(this._actor, target, mode);
         this.render(true);
       });
     });
 
-    // Invoke a ●●● bond's signature perk — once per long rest.
+    // ★ Invoke a ●●● bond's signature — once per long rest. The GM client marks
+    // it spent and puts its effects on both sheets; here we only ask the choice.
     el.querySelectorAll(".tsl-chr-sig-use").forEach(btn => {
       btn.addEventListener("click", async () => {
         const bondId = btn.dataset.bondId;
         const bond   = TSLBondStore.getList(this._actor.id).find(b => b.id === bondId);
         if (!bond || bond.sigUsed) return;
-        const sig    = SocialArchetypeManager.getBondSignature(bond.type);
-        const target = game.actors.get(btn.dataset.target);
-        await TSLBondStore.markSignatureUsed(this._actor.id, bondId);
-        const esc = foundry.utils.escapeHTML;
-        await ChatMessage.create({
-          speaker: ChatMessage.getSpeaker({ actor: this._actor }),
-          content: `<div class="tsl-maneuver-card tsl-mv--success"><div class="tsl-mv-outcome tsl-mv-outcome--success">★ <b>${esc(this._actor.name)}</b> calls on the bond with ${esc(target?.name ?? "them")} — <b>${esc(sig?.label ?? "Signature")}</b>: ${esc(sig?.text ?? "")}</div></div>`,
-        });
-        this.render(true);
+        const sig = SocialArchetypeManager.getBondSignature(bond.type);
+        let choice = 0;
+        if (sig?.fx?.choose) {
+          choice = await this._pickChoice(sig.label, sig.fx.choose.map(c => c.label));
+          if (choice === null) return;
+        }
+        TSLGMActions.request("invokeSignature", { actorId: this._actor.id, bondId, choice });
       });
     });
 
@@ -1800,11 +1878,10 @@ class SocialFencingApp extends _SocialAppBase {
     });
 
     // ── Fencing (GM) ─────────────────────────────────────────────────────────
-    el.querySelectorAll(".tsl-notes-patience-adj").forEach(btn => {
+    el.querySelectorAll(".tsl-comp-adj").forEach(btn => {
       btn.addEventListener("click", () => {
-        const delta = parseInt(btn.dataset.delta);
-        if (btn.dataset.track === "resolve") SocialEncounterManager.adjustResolve(this._actor, delta);
-        else                                 SocialEncounterManager.adjustPatience(this._actor, delta);
+        if (!game.user.isGM) return;
+        SocialEncounterManager.adjustComposure(this._actor, parseInt(btn.dataset.delta));
       });
     });
 
@@ -1812,23 +1889,29 @@ class SocialFencingApp extends _SocialAppBase {
       SocialEncounterManager.endEncounter(this._actor)
     );
 
-    el.querySelectorAll(".tsl-cond-toggle[data-condition]").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const condId = btn.dataset.condition;
-        if (btn.classList.contains("active")) {
-          await SocialArchetypeManager.removeCondition(this._actor, condId);
-        } else {
-          await SocialArchetypeManager.applyCondition(this._actor, condId);
-        }
+    // GM: put a state on this character by hand / clear one (× on its tag)
+    el.querySelector(".tsl-self-state-add")?.addEventListener("change", async (e) => {
+      if (!game.user.isGM || !e.target.value) return;
+      await SocialArchetypeManager.applyCondition(this._actor, e.target.value);
+      this.render(true);
+    });
+    el.querySelectorAll("[data-clear-state]").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        if (!game.user.isGM) return;
+        await SocialArchetypeManager.removeCondition(this._actor, btn.dataset.clearState);
         this.render(true);
       });
     });
 
-    el.querySelector(".tsl-cond-clear:not(.tsl-wound-clear)")?.addEventListener("click", async () => {
-      for (const id of SOCIAL_CONDITION_ORDER) {
-        await SocialArchetypeManager.removeCondition(this._actor, id);
-      }
-      this.render(true);
+    // Call in a lever this character holds (the GM client applies it)
+    el.querySelectorAll(".tsl-lever-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        TSLGMActions.request("callLever", {
+          holderId: btn.dataset.holder, targetId: btn.dataset.targetActor, stateId: btn.dataset.callLever,
+        });
+      });
     });
 
     // ❤ Wounds toggles — this character's own lasting emotional Wounds. Whoever
@@ -1930,24 +2013,43 @@ class SocialFencingApp extends _SocialAppBase {
       });
     });
 
-    // ⚡ Activate an Ultimate (a ●●● Wound / Boon) — spend 1 Willpower + post it
+    // ⚡ Fire an Ultimate (a ●●● Wound / Boon, or a Scar). The GM client spends
+    // the Willpower and puts its effects on the sheets; here we only ask whom
+    // it touches (allies, a rival, whom it's about, which state to shake off).
     el.querySelectorAll(".tsl-ult-btn[data-ult]").forEach(btn => {
       btn.addEventListener("click", async (e) => {
         e.stopPropagation();
         if (typeof TSLWillpower === "undefined" || typeof TSLConditionEffects === "undefined") return;
-        const id = btn.dataset.ult;
-        const m = TSLConditionEffects.getMeta(id) || TSLConditionEffects.getScarMeta?.(id);
+        const id = btn.dataset.ult, kind = btn.dataset.ultKind ?? "wound";
+        const m  = kind === "scar" ? TSLConditionEffects.getScarMeta(id) : TSLConditionEffects.getMeta(id);
         if (!m?.ultimate) return;
-        if (!(await TSLWillpower.spend(this._actor, 1))) {
-          ui.notifications?.warn?.(`${this._actor.name}: no Willpower left.`);
-          return;
+        if (TSLWillpower.get(this._actor) < 1) { ui.notifications?.warn?.(`${this._actor.name}: no Willpower left.`); return; }
+        const fx   = m.ultimate.fx ?? {};
+        const args = { actorId: this._actor.id, kind, id };
+        if (fx.allies) {
+          const ids = await this._pickPeople(`${m.ultimate.name} — who hears you?`, fx.allies.pick === 1 ? 1 : "many");
+          if (ids === null) return;
+          args.allyIds = ids;
         }
-        const esc = foundry.utils.escapeHTML;
-        await ChatMessage.create({
-          speaker: ChatMessage.getSpeaker({ actor: this._actor }),
-          content: `<div class="tsl-maneuver-card tsl-mv--success"><div class="tsl-mv-outcome tsl-mv-outcome--success">⚡ <b>${esc(this._actor.name)}</b> unleashes <b>${esc(m.ultimate.name)}</b> <span style="opacity:.75">(${esc(m.label)}, 1 Willpower)</span> — ${esc(m.ultimate.text)}</div></div>`,
-        });
-        this.render(true);
+        if (fx.edge?.vs === "pick") {
+          const ids = await this._pickPeople(`${m.ultimate.name} — against whom?`, 1);
+          if (!ids?.length) return;
+          args.pickId = ids[0];
+        }
+        if ((fx.source || fx.edge?.vs === "source") && kind !== "scar" && !TSLConditionEffects.getWoundSource(this._actor, id)) {
+          const ids = await this._pickPeople(`${m.ultimate.name} — who is it about?`, 1);
+          if (!ids?.length) return;
+          args.sourceId = ids[0];
+        }
+        if (fx.self?.clearOne) {
+          const bad = SocialArchetypeManager.getActiveConditions(this._actor).filter(c => !c.meta.positive);
+          if (bad.length > 1) {
+            const i = await this._pickChoice(`${m.ultimate.name} — shake off which?`, bad.map(c => c.meta.label));
+            if (i === null) return;
+            args.clearId = bad[i].id;
+          }
+        }
+        TSLGMActions.request("fireUltimate", args);
       });
     });
 
@@ -1977,6 +2079,7 @@ class SocialFencingApp extends _SocialAppBase {
     el.querySelectorAll("[data-fence-maneuver]").forEach(btn => {
       btn.addEventListener("click", () => {
         const id = btn.dataset.fenceManeuver;
+        this._fenceRoll = null;
         this._fenceManeuverId  = this._fenceManeuverId === id ? null : id;
         this._fenceLeverage    = null;
         this._fenceStringSpend = false;
@@ -1997,6 +2100,86 @@ class SocialFencingApp extends _SocialAppBase {
     el.querySelector(".tsl-fence-close")?.addEventListener("click", () => {
       this._fenceRoll = null;
       this.render(true);
+    });
+  }
+
+  /**
+   * Pick people on the scene (not this character): one (radio) or "many"
+   * (checkboxes). Resolves to an array of actor ids, or null when cancelled.
+   */
+  async _pickPeople(title, mode = "many") {
+    const esc  = foundry.utils.escapeHTML;
+    const seen = new Set([this._actor.id]);
+    const people = [];
+    for (const t of (canvas.tokens?.placeables ?? [])) {
+      const a = t.actor;
+      if (!a || seen.has(a.id)) continue;
+      if (!game.user.isGM && (t.document?.hidden || !t.visible)) continue;
+      seen.add(a.id);
+      people.push(a);
+    }
+    if (!people.length) { ui.notifications?.warn?.("No one else on the scene."); return mode === 1 ? null : []; }
+    const type = mode === 1 ? "radio" : "checkbox";
+    const rows = people.map((a, i) => `
+      <label class="tsl-pick-row"><input type="${type}" name="tsl-pick" value="${a.id}" ${mode === 1 && i === 0 ? "checked" : ""}>
+        <img src="${a.img ?? "icons/svg/mystery-man.svg"}" alt=""><span>${esc(a.name)}</span></label>`).join("");
+    return new Promise(resolve => {
+      new Dialog({
+        title,
+        content: `<div class="tsl-rollmods tsl-pick">${rows}</div>`,
+        buttons: {
+          ok:     { icon: '<i class="fas fa-bolt"></i>', label: "Go", callback: (html) => {
+            const root = html instanceof HTMLElement ? html : html?.[0];
+            resolve([...(root?.querySelectorAll?.('input[name="tsl-pick"]:checked') ?? [])].map(x => x.value).filter(Boolean));
+          } },
+          cancel: { label: "Cancel", callback: () => resolve(null) },
+        },
+        default: "ok",
+        close: () => resolve(null),
+      }, typeof tslDialogOptions === "function" ? tslDialogOptions() : {}).render(true);
+    });
+  }
+
+  /** One of several labelled choices — resolves to its index, or null. */
+  async _pickChoice(title, labels = []) {
+    return new Promise(resolve => {
+      const buttons = {};
+      labels.forEach((label, i) => { buttons[`c${i}`] = { label, callback: () => resolve(i) }; });
+      buttons.cancel = { label: "Cancel", callback: () => resolve(null) };
+      new Dialog({ title, content: `<div class="tsl-rollmods"><p>Choose:</p></div>`, buttons, default: "c0", close: () => resolve(null) },
+        typeof tslDialogOptions === "function" ? tslDialogOptions() : {}).render(true);
+    });
+  }
+
+  /** Strike or guard? — the choice when a String is pulled. Resolves to a mode or null. */
+  async _promptPull(target) {
+    const esc = foundry.utils.escapeHTML;
+    return new Promise(resolve => {
+      new Dialog({
+        title: `${this._actor.name} pulls a String on ${target.name}`,
+        content: `<div class="tsl-rollmods">
+          <p>Burn one String on <b>${esc(target.name)}</b> — it goes on your sheet as a real effect and ends by itself once used.</p>
+        </div>`,
+        buttons: {
+          strike: { icon: '<i class="fas fa-crosshairs"></i>', label: "Strike +5",
+                    callback: () => resolve("strike") },
+          guard:  { icon: '<i class="fas fa-shield-halved"></i>', label: "Guard +5 AC",
+                    callback: () => resolve("guard") },
+          cancel: { label: "Keep it", callback: () => resolve(null) },
+        },
+        default: "strike",
+        close: () => resolve(null),
+        render: (html) => {
+          const root = html instanceof HTMLElement ? html : html?.[0];
+          const tips = {
+            strike: `+5 to your next attack roll, ability check or saving throw — aim it at ${target.name}. Ends after that roll.`,
+            guard:  `+5 AC — you know how ${target.name} moves. Ends after their next roll, or when your next turn starts.`,
+          };
+          root?.querySelectorAll?.("button[data-button]").forEach(b => {
+            if (tips[b.dataset.button]) b.setAttribute("data-tooltip", tips[b.dataset.button]);
+          });
+        },
+      }, typeof tslDialogOptions === "function" ? tslDialogOptions() : {}).render(true);
     });
   }
 
@@ -2034,8 +2217,9 @@ class SocialFencingApp extends _SocialAppBase {
     TSLGMActions.request("maneuverOutcome", payload);
 
     this._fenceRoll = {
-      name: maneuver.name, icon: maneuver.icon,
+      name: maneuver.name, icon: maneuver.icon, target: tgt.name,
       total: payload.total, dc: payload.dc, outcome: payload.outcomeType, natural: payload.natural,
+      auto: !!payload.auto,
     };
     this._fenceManeuverId  = null;
     this._fenceLeverage    = null;
@@ -2171,6 +2355,7 @@ class SocialFencingApp extends _SocialAppBase {
     this._stopPick();
     Hooks.off("updateActor",        this._flagHook);
     Hooks.off("createActiveEffect", this._createEffHook);
+    Hooks.off("updateActiveEffect", this._updateEffHook);
     Hooks.off("deleteActiveEffect", this._deleteEffHook);
     SocialFencingDialog._instances.delete(this._actor.id);
     return super.close(options);

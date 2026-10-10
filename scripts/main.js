@@ -8,7 +8,7 @@ Hooks.once("init", () => {
 
   game.settings.register("tsl-social-conflict", "conflictMode", {
     name: "Conflict mode",
-    hint: "Which layers the conflict window shows. Social Fencing only (the DEFAULT): classic D&D social combat — d20 maneuvers, Resolve/Patience tracks, statuses, no 2d6 layer. Full: also adds the TSL 2d6 emotional moves (Speak from the Heart…). TSL only: pure Thirsty Sword Lesbians (2d6 moves, Conditions, Strings, playbooks — no d20 maneuvers or tracks).",
+    hint: "Which layers the conflict window shows. Social Fencing only (the DEFAULT): classic D&D social combat — d20 maneuvers, the Composure track, states, no 2d6 layer. Full: also adds the TSL 2d6 emotional moves (Speak from the Heart…). TSL only: pure Thirsty Sword Lesbians (2d6 moves, Conditions, Strings, playbooks — no d20 maneuvers or tracks).",
     scope: "world",
     config: true,
     type: String,
@@ -72,16 +72,7 @@ Hooks.once("init", () => {
 
   game.settings.register("tsl-social-conflict", "enableHoldLine", {
     name: "Hold the Line",
-    hint: "When a maneuver lands a state, the defender may hold the line: refuse the STATE by carrying an emotional Wound instead (the Resolve hit still has to be met — taken or parried). A Wound already at ●●● can't take more. Wounds weighing 4+ (sum of tiers) = Overwhelmed: no parrying, no holding the line. Offered in the same 'meet the blow' window as the parry.",
-    scope: "world",
-    config: true,
-    type: Boolean,
-    default: true,
-  });
-
-  game.settings.register("tsl-social-conflict", "enableParry", {
-    name: "Active defence (parry / riposte)",
-    hint: "When a maneuver's Resolve hit lands, ask (GM dialog) how the defender meets it: TAKE it, spend their own Patience to PARRY (1 Patience blocks 1 Resolve), or RIPOSTE (block it all and knock 1 Patience off the attacker, for one extra Patience). Patience is each side's composure — misses and parries both spend it, and whoever runs out first breaks off and loses the exchange. A school the target is VULNERABLE to can't be parried. Turn off to apply Resolve damage straight, with no defence step.",
+    hint: "When a maneuver puts a state on someone, they may hold the line: refuse the STATE by carrying the matching lasting Wound instead (refuse Provoked and it festers as Wrath). The composure hit always lands. A Wound already at ●●● can't take more; Wounds weighing 4+ (sum of tiers) = Overwhelmed: no more holding the line. You can't hold the line against the one who provoked you.",
     scope: "world",
     config: true,
     type: Boolean,
@@ -89,8 +80,8 @@ Hooks.once("init", () => {
   });
 
   game.settings.register("tsl-social-conflict", "npcDefenseAuto", {
-    name: "NPCs defend on their own",
-    hint: "When a blow lands on an NPC, it meets it by its Defence stance (Chronicle → Profile, GM) — no window for you. The default stance follows its nature: Power natures are Proud (riposte), Emotion natures Measured, Reason natures Guarded. Player characters always decide for themselves. Turn off to decide every NPC blow yourself.",
+    name: "NPCs act on their nature when pressed",
+    hint: "An NPC decides on its own — no window for you — whether to hold the line against a state and, when its composure breaks, whether to give in or storm off. It follows 'When pressed' in its Chronicle → Profile (by default its archetype: some natures give ground, others stand firm). Player characters decide in the moment unless they set their own. Turn off to decide for every NPC yourself.",
     scope: "world",
     config: true,
     type: Boolean,
@@ -355,6 +346,29 @@ Hooks.once("ready", () => {
   // Bonds reach into combat: recompute proximity auras as people move.
   try { if (typeof TSLBondAuras !== "undefined") TSLBondAuras.register(); }
   catch (err) { console.error("TSL | TSLBondAuras.register failed:", err); }
+  // A pulled String is a real effect — end it once it has done its job.
+  try { TSLStringStore.registerPullHooks(); }
+  catch (err) { console.error("TSL | String pull hooks failed:", err); }
+  // Ultimates and bond Signatures put moments on sheets — end them on time.
+  try { TSLMoments.registerHooks(); }
+  catch (err) { console.error("TSL | Moment hooks failed:", err); }
+  // Scars carried from before v2.0 had no numbers on them — bring them up to date.
+  if (game.user.isGM) {
+    TSLConditionEffects.resyncScars?.()
+      .then(n => { if (n) console.log(`TSL | Brought ${n} Scar effect(s) up to date`); })
+      .catch(err => console.error("TSL | resyncScars failed:", err));
+  }
+  // Foundry v14 runs a timed effect out by marking it EXPIRED (it stays on the
+  // actor, greyed). A social state that has run out is simply over — tidy it
+  // away so the token and the HUD don't keep showing it. Active GM only.
+  Hooks.on("updateActiveEffect", (effect, change) => {
+    try {
+      if (change?.duration?.expired !== true) return;
+      if (!game.user.isGM || (game.users.activeGM && !game.users.activeGM.isSelf)) return;
+      const f = effect.flags?.["tsl-social-conflict"];
+      if (f?.condition && SOCIAL_CONDITIONS[f.condition]) effect.delete();
+    } catch (err) { console.warn("TSL | expired-state cleanup failed:", err); }
+  });
   Hooks.on("canvasReady", () => {
     // Defensive: if another module rebuilt the status palette after our ready
     // hook, re-add any missing Wounds so they stay selectable on the token HUD.

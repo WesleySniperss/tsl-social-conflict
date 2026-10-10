@@ -23,11 +23,11 @@ const settingsMap = new Map([
   ["tsl-social-conflict.useSystemRollDialog", false],
   ["tsl-social-conflict.gmDecidesOutcome", true],
   ["tsl-social-conflict.enableHoldLine", true],
-  ["tsl-social-conflict.enableParry", true],
   ["tsl-social-conflict.bondAuraRange", 15],
   ["tsl-social-conflict.socialDcBonus", 0],
   ["tsl-social-conflict.npcDefenseAuto", true],
   ["tsl-social-conflict.emotionalLayer", "full"],
+  ["tsl-social-conflict.gmConfirmCloseOnly", true],
 ]);
 globalThis.__settings = settingsMap;
 
@@ -91,10 +91,17 @@ globalThis.Roll = class Roll {
 };
 
 let CARD_SUSPECT = 0;
+// Every created card is kept (globalThis.__cards) and can be UPDATED like a
+// real ChatMessage — the roll card folds what followed into itself.
+globalThis.__cards = [];
+const suspect = (c) => { if (typeof c === "string" && /undefined|NaN/.test(c)) { CARD_SUSPECT++; console.log("CARD SUSPECT:", c.slice(0, 240)); } };
 globalThis.ChatMessage = {
   create: async (data) => {
-    if (typeof data.content === "string" && /undefined|NaN/.test(data.content)) { CARD_SUSPECT++; console.log("CARD SUSPECT:", data.content.slice(0, 240)); }
-    return {};
+    suspect(data.content);
+    const msg = { content: data.content, whisper: data.whisper,
+      update: async (p) => { if ("content" in p) { suspect(p.content); msg.content = p.content; } return msg; } };
+    globalThis.__cards.push(msg);
+    return msg;
   },
   getSpeaker: () => ({}),
   applyMode: () => {},
@@ -205,7 +212,7 @@ const EXPORTS = ["SocialArchetypeManager", "SocialManeuverRoller", "SocialEncoun
   "TSLBondStore", "SOCIAL_MANEUVERS", "SOCIAL_CONDITIONS", "SocialFencingApp", "SocialFencingDialog",
   "TSLConditionEffects", "TSLWillpower", "TSLGMActions", "TSLSocket", "ConflictStore",
   "MOVES", "TSLPlaybooks", "SOCIAL_TRIADS", "SOCIAL_CONDITION_ORDER", "SOCIAL_ARCHETYPES", "TSLConflictApp",
-  "ARCHETYPE_TELLS", "ARCHETYPE_REACTIONS", "TSLSceneVisualizer"];
+  "ARCHETYPE_TELLS", "ARCHETYPE_REACTIONS", "TSLSceneVisualizer", "TSLMoments"];
 let api;
 try {
   api = new Function(combined + "\nreturn { " + EXPORTS.map((e) => `${e}: typeof ${e} !== "undefined" ? ${e} : undefined`).join(", ") + " };")();
@@ -258,115 +265,544 @@ if (require.main === module) (async () => {
     const R = api;
     let pass = true;
     const ok = (name, cond) => { console.log(`${cond ? "ok  " : "FAIL"} ${name}`); if (!cond) pass = false; };
+    const SM = R.SocialManeuverRoller, EM = R.SocialEncounterManager, CE = R.TSLConditionEffects;
+    const SAM = R.SocialArchetypeManager, BS = R.TSLBondStore, SS = R.TSLStringStore, SCOPE = "tsl-social-conflict";
+    const mv = (id) => R.SOCIAL_MANEUVERS.find((m) => m.id === id);
+    const pay = (src, tgt, id, extra = {}) => ({ sourceActorId: src, targetActorId: tgt, maneuverId: id,
+      outcomeType: "success", relation: "neutral", total: 20, dc: 10, card: null, ...extra });
+    const holds = (a, b) => SS.getList(a).filter((e) => e.targetActorId === b).length;
+    const comp = (a) => EM.getEncounter(a).composure;
+    const savedPO = SM.promptOutcome;
+    const grade = (g) => { SM.promptOutcome = async () => g; };
+    const npc = (id, o = {}) => { const a = makeActor(id, o); a.hasPlayerOwner = false; return a; };
 
-    // 1) Stat formulas (v1.78.1 / v1.79)
+    // ═══ v2.0 — ONE track: Composure ═════════════════════════════════════════
+
+    // 1) Composure from the sheet: 2 + CHA + WIS, never below 2
     {
-      const t = R.SocialEncounterManager.suggestTracks(actorB); // cha2 wis3 con2 int1
-      ok(`suggestTracks Resolve=CHA (want 2): ${t.resolve}`, t.resolve === 2);
-      ok(`suggestTracks Patience=WIS+CHA (want 5): ${t.patience}`, t.patience === 5);
+      const t = EM.suggestTracks(actorB);   // cha2 wis3
+      ok(`Composure = 2 + CHA + WIS (want 7): ${t.composure}`, t.composure === 7);
       const mook = makeActor("mook", { cha: -1, wis: 0 });
-      const tm = R.SocialEncounterManager.suggestTracks(mook);
-      ok(`floors R1/P2: ${tm.resolve}/${tm.patience}`, tm.resolve === 1 && tm.patience === 2);
+      ok(`floor 2 (mook): ${EM.suggestTracks(mook).composure}`, EM.suggestTracks(mook).composure === 2);
+      const legacy = makeActor("legacy");
+      await legacy.setFlag(SCOPE, "encounter", { active: true, resolve: 3, maxResolve: 4, patience: 5, maxPatience: 5, outcome: null });
+      const le = EM.getEncounter(legacy);
+      ok(`a pre-2.0 exchange reads its Resolve as Composure (${le.composure}/${le.maxComposure})`, le.composure === 3 && le.maxComposure === 4);
     }
 
-    // 2) The single "meet the blow" window (v1.81): blow + state in one place
+    // 2) A hit takes the target's composure; a miss takes the attacker's own
     {
-      const SMR = R.SocialManeuverRoller;
-      const meet = async (o, pick) => { globalThis.__formPick = pick; const r = await SMR.promptMeetBlow({ defender: actorB, attacker: actorA, maneuver: { name: "Humiliate" }, ...o }); globalThis.__formPick = null; return r; };
-      const take = await meet({ damage: 3, patience: 7 }, { "tsl-blow": "take" });
-      ok(`meet: take → block 0`, take.block === 0 && !take.riposte && take.hold === null);
-      const b1 = await meet({ damage: 3, patience: 7 }, { "tsl-blow": "b1" });
-      ok(`meet: partial b1 → block 1`, b1.block === 1 && !b1.riposte);
-      const full = await meet({ damage: 3, patience: 7 }, { "tsl-blow": "parry" });
-      ok(`meet: full parry → block 3`, full.block === 3 && !full.riposte);
-      const rip = await meet({ damage: 3, patience: 7 }, { "tsl-blow": "riposte" });
-      ok(`meet: riposte → block 3 + riposte`, rip.block === 3 && rip.riposte === true);
-      const noRip = await meet({ damage: 3, patience: 4 }, { "tsl-blow": "riposte" });
-      ok(`riposte gated when P<D+2 (falls back to take)`, noRip.riposte !== true && noRip.block === 0);
-      const cap = await meet({ damage: 2, patience: 1 }, { "tsl-blow": "parry" });
-      ok(`parry capped by Patience (block ≤1)`, cap.block <= 1);
-      // both rows in ONE window: parry the blow AND hold the line against the state
-      const before = globalThis.__dialogCount;
-      const both = await meet({ damage: 2, patience: 5, status: "smitten", holdOptions: ["obsessed", "hopeless"] },
-        { "tsl-blow": "parry", "tsl-state": "hold-hopeless" });
-      ok(`one window answers both: block ${both.block}, hold ${both.hold} (${globalThis.__dialogCount - before} dialog)`,
-        both.block === 2 && both.hold === "hopeless" && globalThis.__dialogCount - before === 1);
-      // nothing to choose → no window at all
-      const b2 = globalThis.__dialogCount;
-      const forced = await meet({ damage: 3, patience: 5, unparryable: true }, {});
-      ok(`unparryable, no state → no window, it lands`, forced.block === 0 && globalThis.__dialogCount === b2);
-      const over = await meet({ damage: 3, patience: 5, overwhelmed: true, status: "smitten", holdOptions: [] }, { "tsl-blow": "parry" });
-      ok(`Overwhelmed → can't parry or hold`, over.block === 0 && over.hold === null);
+      const A = makeActor("hA", { cha: 3, wis: 1 });   // 6
+      const T = makeActor("hT", { cha: 2, wis: 2 });   // 6
+      grade("success");
+      await SM.applyOutcome(pay("hA", "hT", "persuade"));
+      ok(`hit: Persuade takes 1 (target ${comp(T)}/6), attacker untouched (${comp(A)}/6)`, comp(T) === 5 && comp(A) === 6);
+      grade("crit");
+      await SM.applyOutcome(pay("hA", "hT", "persuade", { outcomeType: "crit" }));
+      ok(`clean hit: +1 (target ${comp(T)})`, comp(T) === 3);
+      grade("failure");
+      await SM.applyOutcome(pay("hA", "hT", "intimidate", { outcomeType: "failure" }));
+      ok(`miss: a risky Intimidate costs the ATTACKER 2 (${comp(A)}/6), target untouched (${comp(T)})`, comp(A) === 4 && comp(T) === 3);
+      await SM.applyOutcome(pay("hA", "hT", "persuade", { outcomeType: "failure", leverage: "fear" }));
+      ok(`a missed Fear backfires +1 (attacker ${comp(A)})`, comp(A) === 2);
+      const V = makeActor("hV", { cha: 3, wis: 3 });  // 8
+      grade("success");
+      await SM.applyOutcome(pay("hA", "hV", "flatter", { relation: "vulnerable" }));
+      ok(`a weak spot hits +1 (Flatter 2+1 → ${comp(V)}/8)`, comp(V) === 5);
+      const pv = SM.previewOutcomes(SM.assess(A, V, mv("intimidate"), {}), mv("intimidate"));
+      ok(`stakes line: "${pv.miss}"`, /you lose 2 composure/.test(pv.miss) && /composure/.test(pv.hit));
     }
 
-    // 3) applyOutcome PARRY path — stub the encounter + prompts, drive a hit
+    // 3) The break point: give in or storm off — who decides, and what it costs
     {
-      // fake encounter tracker
-      const enc = { active: true, outcome: null, resolve: 5, maxResolve: 5, patience: 6, maxPatience: 6, leverage: {} };
-      const encA = { active: true, outcome: null, resolve: 5, maxResolve: 5, patience: 6, maxPatience: 6, leverage: {} };
-      const encOf = (a) => (a.id === "tgtB" ? enc : encA);
-      const EM = R.SocialEncounterManager;
-      const save = {};
-      for (const m of ["ensureActive", "getEncounter", "adjustResolve", "adjustPatience", "markLeverageUsed"]) save[m] = EM[m];
-      EM.ensureActive = async (a) => encOf(a);
-      EM.getEncounter = (a) => encOf(a);
-      EM.adjustResolve = async (a, d) => { encOf(a).resolve += d; };
-      EM.adjustPatience = async (a, d) => { encOf(a).patience += d; };
-      EM.markLeverageUsed = async () => {};
-      const savePO = R.SocialManeuverRoller.promptOutcome;
-      R.SocialManeuverRoller.promptOutcome = async () => "success";
-
-      const mv = R.SOCIAL_MANEUVERS.find((m) => m.id === "throw_gauntlet"); // Humiliate (3, Power)
-      const basePayload = () => ({ sourceActorId: "srcA", targetActorId: "tgtB", maneuverId: mv.id, outcomeType: "success", relation: "neutral", total: 20, dc: 10, card: null });
-
-      // (a) Take it — full damage lands, no Patience spent
-      enc.resolve = 5; enc.patience = 6; encA.resolve = 5;
-      globalThis.__formPick = { "tsl-blow": "take" };
-      await R.SocialManeuverRoller.applyOutcome(basePayload());
-      ok(`parry TAKE: Resolve 5→${enc.resolve} (−3), Patience ${enc.patience} (6)`, enc.resolve === 2 && enc.patience === 6);
-
-      // (b) Full parry — no Resolve lost, 3 Patience spent
-      enc.resolve = 5; enc.patience = 6; encA.resolve = 5;
-      globalThis.__formPick = { "tsl-blow": "parry" };
-      await R.SocialManeuverRoller.applyOutcome(basePayload());
-      ok(`parry FULL: Resolve ${enc.resolve} (5), Patience 6→${enc.patience} (−3)`, enc.resolve === 5 && enc.patience === 3);
-
-      // (c) Riposte — no Resolve lost, 4 Patience, attacker thrown off balance:
-      //     their PATIENCE −1 (a riposte shakes you, it doesn't make you concede)
-      enc.resolve = 5; enc.patience = 6; encA.resolve = 5; encA.patience = 6;
-      globalThis.__formPick = { "tsl-blow": "riposte" };
-      await R.SocialManeuverRoller.applyOutcome(basePayload());
-      ok(`parry RIPOSTE: tgt Resolve ${enc.resolve} (5), Patience 6→${enc.patience} (−4), atk Patience 6→${encA.patience} (−1), atk Resolve ${encA.resolve} (5)`,
-        enc.resolve === 5 && enc.patience === 2 && encA.patience === 5 && encA.resolve === 5);
-
-      // (d) VULNERABLE school can't be parried — lands full even if they'd parry
-      enc.resolve = 5; enc.patience = 6;
-      globalThis.__formPick = { "tsl-blow": "parry" };
-      const vp = basePayload(); vp.relation = "vulnerable";
-      await R.SocialManeuverRoller.applyOutcome(vp); // Humiliate vuln = +1 dmg → −4
-      ok(`VULNERABLE unparryable: Resolve 5→${enc.resolve} (−4), Patience 6 (${enc.patience})`, enc.resolve === 1 && enc.patience === 6);
-
-      // (e) A MISS costs the ATTACKER's own composure — Humiliate is risky (2) —
-      //     and never touches the target's Patience
-      enc.resolve = 5; enc.patience = 6; encA.patience = 6;
-      const mp = basePayload(); mp.outcomeType = "failure";
-      R.SocialManeuverRoller.promptOutcome = async () => "failure";
-      await R.SocialManeuverRoller.applyOutcome(mp);
-      ok(`MISS: attacker Patience 6→${encA.patience} (−2, Humiliate is risky), target Patience ${enc.patience} (6)`, encA.patience === 4 && enc.patience === 6);
-
-      globalThis.__dialogPick = null; globalThis.__formPick = null;
-      R.SocialManeuverRoller.promptOutcome = savePO;
-      for (const m of Object.keys(save)) EM[m] = save[m];
+      // a PLAYER decides in the moment (a window)
+      makeActor("bkA", { cha: 3, wis: 1 });
+      const P = makeActor("bkP", { cha: 0, wis: 0 });   // 2
+      grade("success");
+      globalThis.__dialogPick = "storm";
+      await SM.applyOutcome(pay("bkA", "bkP", "throw_gauntlet"));   // −3
+      globalThis.__dialogPick = null;
+      const pe = EM.getEncounter(P);
+      ok(`player broke and STORMED OFF by choice (${pe.outcome}): a Grudge about the winner (${CE.getWoundSource(P, "spiteful")}), the winner holds a String (${holds("bkA", "bkP")})`,
+        pe.outcome === "walked" && CE.hasCondition(P, "spiteful") && CE.getWoundSource(P, "spiteful") === "bkA" && holds("bkA", "bkP") === 1);
+      // NPCs follow their nature — no window
+      const brk = npc("bkBroker", { cha: 0, wis: 0 }); await SAM.setArchetype(brk, "broker");
+      const due = npc("bkDuel",   { cha: 0, wis: 0 }); await SAM.setArchetype(due, "duelist");
+      const c0 = globalThis.__dialogCount;
+      await SM.applyOutcome(pay("bkA", "bkBroker", "throw_gauntlet"));
+      await SM.applyOutcome(pay("bkA", "bkDuel", "throw_gauntlet"));
+      ok(`NPCs break by nature, no window: Broker gives in (${EM.getEncounter(brk).outcome}), Duelist storms off (${EM.getEncounter(due).outcome}) with a Grudge`,
+        globalThis.__dialogCount === c0 && EM.getEncounter(brk).outcome === "swayed" && EM.getEncounter(due).outcome === "walked" && CE.hasCondition(due, "spiteful") && !CE.hasCondition(brk, "spiteful"));
+      // Desperate can't storm off; Enthralled never storms off from the charmer
+      const D = makeActor("bkD", { cha: 0, wis: 0 }); await SAM.setActorData(D, { stance: "firm" });
+      await SAM.applyCondition(D, "desperate", game.actors.get("bkA"));
+      await SM.applyOutcome(pay("bkA", "bkD", "throw_gauntlet"));
+      const E = makeActor("bkE", { cha: 0, wis: 0 }); await SAM.setActorData(E, { stance: "firm" });
+      await SAM.applyCondition(E, "smitten", game.actors.get("bkA"));
+      await SM.applyOutcome(pay("bkA", "bkE", "persuade"));   // Persuade isn't Power — the spell holds
+      await SM.applyOutcome(pay("bkA", "bkE", "persuade"));
+      ok(`"Stands firm", yet Desperate gives in (${EM.getEncounter(D).outcome}) and so does the Enthralled (${EM.getEncounter(E).outcome})`,
+        EM.getEncounter(D).outcome === "swayed" && EM.getEncounter(E).outcome === "swayed");
+      // a finished exchange is over in both directions
+      const blockA = SM.assess(game.actors.get("bkA"), P, mv("persuade"), {});
+      const blockB = SM.assess(P, game.actors.get("bkA"), mv("persuade"), {});
+      ok(`finished exchange blocks both directions`, blockA.relation === "blocked" && blockB.relation === "blocked");
+      // the attacker can lose too — on their own misses
+      const W = makeActor("bkW", { cha: 0, wis: 0 });   // 2
+      makeActor("bkX", { cha: 2, wis: 2 });
+      grade("failure");
+      globalThis.__dialogPick = "give";
+      await SM.applyOutcome(pay("bkW", "bkX", "intimidate", { outcomeType: "failure" }));
+      globalThis.__dialogPick = null;
+      ok(`attacker cracked on a risky miss (${EM.getEncounter(W).outcome}); the defender takes the String (${holds("bkX", "bkW")})`,
+        EM.getEncounter(W).outcome === "swayed" && holds("bkX", "bkW") === 1);
+      SM.promptOutcome = savedPO;
     }
 
-    // 4) Socket relay (player → GM)
+    // 4) Hold the Line — the one defensive choice, against a STATE
+    {
+      const D = makeActor("hlD", { cha: 4, wis: 2 });
+      const o = { defender: D, attacker: actorA, maneuver: mv("flatter"), status: "smitten", holdOptions: ["obsessed", "jealous"], stance: "ask" };
+      globalThis.__formPick = { "tsl-state": "accept" };
+      ok(`window: accept → no hold`, (await SM.promptHoldLine(o)).hold === null);
+      globalThis.__formPick = { "tsl-state": "hold-jealous" };
+      ok(`window: hold the line → Jealousy`, (await SM.promptHoldLine(o)).hold === "jealous");
+      globalThis.__formPick = null;
+      const c0 = globalThis.__dialogCount;
+      const y = await SM.promptHoldLine({ ...o, stance: "yield" });
+      const f = await SM.promptHoldLine({ ...o, stance: "firm" });
+      ok(`"Gives ground" accepts, "Stands firm" holds with a fresh Wound (${f.hold}) — no window`, y.hold === null && f.hold === "obsessed" && globalThis.__dialogCount === c0);
+      await CE.applyOne(D, "obsessed", "X"); await CE.applyOne(D, "jealous", "X");
+      ok(`"Stands firm" with no fresh Wound left accepts`, (await SM.promptHoldLine({ ...o, stance: "firm" })).hold === null);
+
+      // through the pipeline: the hold refuses the state; the composure hit still lands
+      makeActor("hlA", { cha: 3, wis: 1 });
+      const T = makeActor("hlT", { cha: 3, wis: 3 });   // 8, a PC → window
+      grade("success");
+      globalThis.__formPick = { "tsl-state": "hold-angry" };
+      await SM.applyOutcome(pay("hlA", "hlT", "instigate"));   // Taunt: 1 + Provoked
+      globalThis.__formPick = null;
+      ok(`held: Wrath instead of Provoked, the blow landed (${comp(T)}/8), the Wound remembers its source`,
+        CE.hasCondition(T, "angry") && !SAM.getActiveCondition(T, "provoked") && comp(T) === 7 && CE.getWoundSource(T, "angry") === "hlA");
+      await CE.setTier(T, "angry", 3, "hlA", "hlA"); await CE.setTier(T, "spiteful", 3, "hlA", "hlA");
+      globalThis.__formPick = { "tsl-state": "hold-angry" };
+      const c1 = globalThis.__dialogCount;
+      await SM.applyOutcome(pay("hlA", "hlT", "instigate"));
+      globalThis.__formPick = null;
+      ok(`both Wounds at ●●● → nothing to hold with: no window, the state lands`, !!SAM.getActiveCondition(T, "provoked") && globalThis.__dialogCount === c1);
+      ok(`Overwhelmed = weight ≥ 4 (load ${CE.woundLoad(T)})`, CE.isOverwhelmed(T));
+      SM.promptOutcome = savedPO;
+    }
+
+    // ═══ States change what people DO ════════════════════════════════════════
+    {
+      const A = makeActor("sA", { cha: 3, wis: 1 }), B = makeActor("sB", { cha: 3, wis: 1 }), T = makeActor("sT", { cha: 4, wis: 3 });
+
+      // Provoked: must answer the provoker; can't hold the line against them; spent once they lash out
+      await SAM.applyCondition(T, "provoked", A);
+      ok(`Provoked: a maneuver at someone else is blocked`, SM.assess(T, B, mv("persuade"), {}).relation === "blocked");
+      ok(`…at the provoker it's allowed`, SM.assess(T, A, mv("persuade"), {}).relation !== "blocked");
+      grade("success");
+      const c0 = globalThis.__dialogCount;
+      globalThis.__formPick = { "tsl-state": "hold-obsessed" };
+      await SM.applyOutcome(pay("sA", "sT", "flatter"));
+      globalThis.__formPick = null;
+      ok(`…and can't hold the line against the provoker (Enthralled landed, no window)`, !!SAM.getActiveCondition(T, "smitten") && globalThis.__dialogCount === c0);
+      await SAM.removeCondition(T, "smitten");
+      await SM.applyOutcome(pay("sT", "sA", "persuade"));
+      ok(`…spent once they've lashed out`, !SAM.getActiveCondition(T, "provoked"));
+
+      // Cowed: no Power moves or threats at whoever cowed them
+      await SAM.applyCondition(T, "cowed", A);
+      ok(`Cowed: Flatter and Intimidate at the one who cowed them are blocked; Persuade and others aren't`,
+        SM.assess(T, A, mv("flatter"), {}).relation === "blocked" && SM.assess(T, A, mv("intimidate"), {}).relation === "blocked"
+        && SM.assess(T, A, mv("persuade"), {}).relation !== "blocked" && SM.assess(T, B, mv("flatter"), {}).relation !== "blocked");
+      await SAM.removeCondition(T, "cowed");
+
+      // Rattled / Humbled / Exposed — the attacker's own rolls falter
+      await SAM.applyCondition(A, "rattled", T);
+      const r1 = SM.assess(A, T, mv("persuade"), {});
+      ok(`Rattled: disadvantage on their next maneuver`, r1.disadvantage && /Rattled/.test(r1.disadvantageReasons.join()));
+      grade("failure");
+      await SM.applyOutcome(pay("sA", "sT", "persuade", { outcomeType: "failure" }));
+      ok(`…spent once they've acted`, !SAM.getActiveCondition(A, "rattled"));
+      await SAM.applyCondition(A, "humbled", T);
+      ok(`Humbled: Performance / Intimidation maneuvers at disadvantage, Persuade isn't`,
+        SM.assess(A, T, mv("instigate"), {}).disadvantage && !SM.assess(A, T, mv("persuade"), {}).disadvantage);
+      grade("success");
+      await SM.applyOutcome(pay("sA", "sT", "persuade"));
+      ok(`…landing a maneuver wins the face back`, !SAM.getActiveCondition(A, "humbled"));
+      await SAM.applyCondition(A, "exposed", T);
+      ok(`Exposed: Deception maneuvers at disadvantage`, SM.assess(A, T, mv("lie"), {}).disadvantage && !SM.assess(A, T, mv("persuade"), {}).disadvantage);
+      await SAM.removeCondition(A, "exposed");
+
+      // Exposed on a target whispers their Mask to the one who caught them out
+      await SAM.setActorData(T, { points: { mask: "The loyal captain" } });
+      const n0 = globalThis.__cards.length;
+      await SM.applyOutcome(pay("sA", "sT", "logic_exploit"));
+      const whispered = globalThis.__cards.slice(n0).some((c) => c.whisper && /Mask/.test(c.content) && /loyal captain/.test(c.content));
+      ok(`Cross-Examine exposes them — and their Mask is whispered`, !!SAM.getActiveCondition(T, "exposed") && whispered);
+
+      // Suspicious: a Deception that misses badly; their lies falter; an honest word clears it
+      const S = makeActor("sS", { cha: 3, wis: 1 }), L = makeActor("sL", { cha: 3, wis: 3 });
+      grade("botch");
+      await SM.applyOutcome(pay("sL", "sS", "lie", { outcomeType: "botch" }));
+      ok(`a botched Lie: they're Suspicious of the liar`, SAM.getActiveCondition(S, "suspicious")?.flags?.[SCOPE]?.sourceActorId === "sL");
+      ok(`…the liar's Deception falters against them`, SM.assess(L, S, mv("sow_doubt"), {}).disadvantage);
+      grade("success");
+      await SM.applyOutcome(pay("sL", "sS", "persuade"));
+      ok(`…and an honest Persuade clears it`, !SAM.getActiveCondition(S, "suspicious"));
+
+      // Intrigued: the next read lands on its own — even a natural 1 — and spends it
+      const I = makeActor("sI", { cha: 2, wis: 2 });
+      await SAM.applyCondition(I, "intrigued", A);
+      ok(`Intrigued: Read Them lands on its own`, SM.assess(A, I, mv("cold_reading"), {}).autoSuccess);
+      globalThis.__forceDice = [1];
+      const p = await SM.rollManeuver(A, I, mv("cold_reading"), {});
+      globalThis.__forceDice = null;
+      ok(`…even on a natural 1 (${p.outcomeType}, auto ${p.auto})`, (p.outcomeType === "success" || p.outcomeType === "crit") && p.auto === true);
+      SM.promptOutcome = savedPO;
+      const c2 = globalThis.__dialogCount;
+      await SM.applyOutcome(p);
+      ok(`…no GM window for it, and Intrigued is spent`, globalThis.__dialogCount === c2 && !SAM.getActiveCondition(I, "intrigued"));
+
+      // Steadied: the next state doesn't take
+      const St = makeActor("sSt", { cha: 2, wis: 2 });
+      await SAM.applyCondition(St, "steadied", B);
+      grade("success");
+      await SM.applyOutcome(pay("sA", "sSt", "instigate"));
+      ok(`Steadied shrugs off Provoked (and is spent)`, !SAM.getActiveCondition(St, "provoked") && !SAM.getActiveCondition(St, "steadied"));
+
+      // Defiant: walled except for Read Them, which cracks it
+      const Df = makeActor("sDf", { cha: 2, wis: 2 });
+      await SAM.applyCondition(Df, "defiant", A);
+      ok(`Defiant: Persuade blocked, Read Them slips through`, SM.assess(A, Df, mv("persuade"), {}).relation === "blocked" && SM.assess(A, Df, mv("cold_reading"), {}).relation !== "blocked");
+      await SM.applyOutcome(pay("sA", "sDf", "cold_reading"));
+      ok(`…a successful read cracks the wall`, !SAM.getActiveCondition(Df, "defiant"));
+
+      // Enthralled curdles into Provoked when the charmer turns Power on them
+      const Ch = makeActor("sCh", { cha: 5, wis: 3 });
+      await SAM.applyCondition(Ch, "smitten", A);
+      ok(`Enthralled: they can't move against the charmer`, SM.assess(Ch, A, mv("persuade"), {}).relation === "blocked");
+      await SM.applyOutcome(pay("sA", "sCh", "throw_gauntlet"));
+      ok(`…a Power move from the charmer breaks it into Provoked`, !SAM.getActiveCondition(Ch, "smitten") && SAM.getActiveCondition(Ch, "provoked")?.flags?.[SCOPE]?.sourceActorId === "sA");
+
+      // Mock kicks someone already carrying a (bad) state; a good one doesn't count
+      const K = makeActor("sK", { cha: 3, wis: 3 });   // 8
+      await SAM.applyCondition(K, "steadied", B);
+      ok(`a good state isn't "off balance"`, !SM.assess(A, K, mv("sow_doubt"), {}).kick);
+      await SAM.removeCondition(K, "steadied");
+      await SAM.applyCondition(K, "rattled", B);
+      ok(`a bad one is: Mock kicks (+1)`, SM.assess(A, K, mv("sow_doubt"), {}).kick);
+      SM.promptOutcome = savedPO;
+    }
+
+    // Levers — Beholden and Enthralled are called in by whoever put them there
+    {
+      const H = makeActor("lvH", { cha: 3 }), T = makeActor("lvT", { cha: 2 }), O = makeActor("lvO");
+      await SAM.setActorData(T, { points: { fear: "Losing the ship" } });
+      await SAM.applyCondition(T, "guilted", H);
+      ok(`someone else can't call it`, (await SM.callLever("lvO", "lvT", "guilted")) === false && !!SAM.getActiveCondition(T, "guilted"));
+      const n0 = globalThis.__cards.length;
+      ok(`the holder calls the debt`, (await SM.callLever("lvH", "lvT", "guilted")) === true);
+      const made = globalThis.__cards.slice(n0);
+      ok(`…a public card + a secret whispered, and the debt is gone`,
+        made.some((c) => /Call the debt/.test(c.content)) && made.some((c) => c.whisper && /Losing the ship/.test(c.content)) && !SAM.getActiveCondition(T, "guilted"));
+      await SAM.applyCondition(T, "smitten", H, { charges: 2 });
+      await SM.callLever("lvH", "lvT", "smitten");
+      ok(`a deep Enthralled (×2) asks two favors`, SAM.getCharges(SAM.getActiveCondition(T, "smitten")) === 1);
+      // the GM relay
+      const sent = []; const se = game.socket.emit; game.socket.emit = (n, p) => sent.push(p);
+      const su = game.user; game.user = { id: "p1", isGM: false, name: "P" };
+      R.TSLGMActions.request("callLever", { holderId: "lvH", targetId: "lvT", stateId: "smitten" });
+      game.user = su;
+      ok(`a player's call goes to the GM`, sent.length === 1 && sent[0].type === "GM_ACTION" && sent[0].data?.action === "callLever");
+      game.socket.emit = se;
+    }
+
+    // Reassure — the one maneuver aimed at a friend
+    {
+      const A = makeActor("rsA", { cha: 3, wis: 1 }), F = makeActor("rsF", { cha: 2, wis: 2 });   // 6
+      ok(`Reassure: DC 10, a miss costs nothing`, SM.assess(A, F, mv("reassure"), {}).dc === 10 && SM.assess(A, F, mv("reassure"), {}).missCost === 0);
+      await EM.ensureActive(F); await EM.adjustComposure(F, -3);
+      grade("success");
+      await SM.applyOutcome(pay("rsA", "rsF", "reassure"));
+      ok(`hit: +1 composure (3→${comp(F)}) and Steadied`, comp(F) === 4 && !!SAM.getActiveCondition(F, "steadied"));
+      grade("crit");
+      await SM.applyOutcome(pay("rsA", "rsF", "reassure", { outcomeType: "crit" }));
+      ok(`clean hit: +2 (→${comp(F)}) and Undaunted`, comp(F) === 6 && !!SAM.getActiveCondition(F, "undaunted"));
+      grade("failure");
+      const before = comp(A);
+      await SM.applyOutcome(pay("rsA", "rsF", "reassure", { outcomeType: "failure" }));
+      ok(`miss: costs the reassurer nothing (${comp(A)} = ${before})`, comp(A) === before);
+      // Undaunted: their next miss costs nothing, then it's spent
+      const T2 = makeActor("rsT", { cha: 2, wis: 2 });
+      const f0 = comp(F);
+      await SM.applyOutcome(pay("rsF", "rsT", "intimidate", { outcomeType: "failure" }));
+      ok(`Undaunted: a missed Intimidate costs nothing (${comp(F)} = ${f0}), and it's spent`, comp(F) === f0 && !SAM.getActiveCondition(F, "undaunted"));
+      SM.promptOutcome = savedPO;
+    }
+
+    // States know bonds: deep ×2 / won't take; the Answer too
+    {
+      const A = makeActor("bdA", { cha: 3, wis: 1 }), T = makeActor("bdT", { cha: 6, wis: 2 });
+      await BS.add("bdT", "bdA", { type: "crush", attitude: 2 });
+      grade("success");
+      globalThis.__formPick = { "tsl-state": "accept" };
+      await SM.applyOutcome(pay("bdA", "bdT", "love_bombing"));
+      globalThis.__formPick = null;
+      ok(`a Crush makes Enthralled run deep (×${SAM.getCharges(SAM.getActiveCondition(T, "smitten"))})`, SAM.getCharges(SAM.getActiveCondition(T, "smitten")) === 2);
+      const U = makeActor("bdU", { cha: 6, wis: 2 });
+      await BS.add("bdU", "bdA", { type: "enemy", attitude: 1 });
+      ok(`the preview says it won't take`, /won't take/.test(SM.previewOutcomes(SM.assess(A, U, mv("flatter"), {}), mv("flatter")).hit));
+      await SM.applyOutcome(pay("bdA", "bdU", "flatter"));
+      ok(`an Enemy shrugs off Enthralled — the blow still lands (${comp(U)}/10)`, !SAM.getActiveCondition(U, "smitten") && comp(U) === 8);
+      const D = makeActor("ansD", { cha: 4, wis: 2 }), E2 = makeActor("ansE", { cha: 3, wis: 2 });
+      await SAM.setArchetype(D, "martyr");
+      await BS.add("ansE", "ansD", { type: "enemy", attitude: 1 });
+      grade("botch");
+      await SM.applyOutcome(pay("ansE", "ansD", "flatter", { outcomeType: "botch" }));
+      ok(`the Answer respects the bond (Beholden doesn't take on an enemy)`, !SAM.getActiveCondition(E2, "guilted"));
+      SM.promptOutcome = savedPO;
+    }
+
+    // How long states last — and that they stop once they've run out
+    {
+      const meta = R.SOCIAL_CONDITIONS.provoked;
+      ok(`in a fight a state runs by ROUNDS (${JSON.stringify(SAM.stateDuration(meta, { inCombat: true }))})`, SAM.stateDuration(meta, { inCombat: true }).rounds === 1 && !("seconds" in SAM.stateDuration(meta, { inCombat: true })));
+      ok(`out of one, by game time (${JSON.stringify(SAM.stateDuration(meta, { inCombat: false }))})`, SAM.stateDuration(meta, { inCombat: false }).seconds === 600);
+      const F = makeActor("durF"); F.inCombat = true;
+      await SAM.applyCondition(F, "guilted", actorA);
+      ok(`applied mid-fight: duration ${JSON.stringify(SAM.getActiveCondition(F, "guilted")?.duration)}`, SAM.getActiveCondition(F, "guilted")?.duration?.rounds === 3);
+      const x = SAM.getActiveCondition(F, "guilted"); x.active = false;   // Foundry v14: expired → suppressed
+      ok(`an expired state no longer counts`, !SAM.getActiveCondition(F, "guilted"));
+      const C = makeActor("clrC");
+      for (const id of ["provoked", "cowed", "intrigued"]) await SAM.applyCondition(C, id, actorA);
+      await CE.applyOne(C, "angry", "X");
+      await CE.onLongRest(C);
+      ok(`a long rest clears every state (a Wound only eases)`, R.SOCIAL_CONDITION_ORDER.every((id) => !SAM.getActiveCondition(C, id)) && !CE.hasCondition(C, "angry"));
+      const tip = SAM.stateTooltip("guilted", { charges: 2, source: "Lyra" });
+      ok(`one tooltip says it all: lever, ×2, how long, refuse, in a fight`, /Call the debt/.test(tip) && /×2/.test(tip) && /Lasts:/.test(tip) && /Refuse it:/.test(tip) && /In a fight:/.test(tip) && !/undefined/.test(tip));
+    }
+
+    // Strings: at most 3; Pull is a real effect (strike / guard) that ends itself
+    {
+      makeActor("capA"); makeActor("capB");
+      const n = await SS.add("capA", "capB", 5);
+      ok(`String cap: asked for 5, got ${n}`, n === 3 && SS.isCapped("capA", "capB"));
+      const H = game.actors.get("capA"), G = game.actors.get("capB");
+      ok(`Pull — strike`, await SS.pull(H, G, "strike"));
+      const st = H.effects.find((e) => e.flags?.[SCOPE]?.stringPull?.mode === "strike");
+      ok(`…a String spent (${SS.countOn("capA", "capB")} left), +5 effect on the sheet (${st?.changes?.length} changes)`, SS.countOn("capA", "capB") === 2 && st && st.changes.length === 3);
+      await SS.pull(H, G, "guard");
+      const gd = H.effects.find((e) => e.flags?.[SCOPE]?.stringPull?.mode === "guard");
+      ok(`Pull — guard: +5 AC`, gd && gd.changes.some((c) => /ac/.test(c.key) && /5/.test(c.value)));
+      // the hooks end them: the holder rolls → strike gone; the target rolls → guard gone
+      const handlers = {}; const on = Hooks.on; Hooks.on = (n2, fn) => { handlers[n2] = fn; return 1; };
+      SS.registerPullHooks(); Hooks.on = on;
+      await handlers.createChatMessage({ rolls: [{}], speaker: { actor: "capA" } });
+      ok(`the holder's next roll ends the strike (guard stays)`, !H.effects.some((e) => e.flags?.[SCOPE]?.stringPull?.mode === "strike") && H.effects.some((e) => e.flags?.[SCOPE]?.stringPull?.mode === "guard"));
+      await handlers.createChatMessage({ rolls: [{}], speaker: { actor: "capB" } });
+      ok(`their next roll ends the guard`, !H.effects.some((e) => e.flags?.[SCOPE]?.stringPull));
+      makeActor("capZ");
+      ok(`no String, no pull`, (await SS.pull(H, game.actors.get("capZ"), "strike")) === false);
+    }
+
+    // Desperate binds them to the one who made them so — not to everyone
+    {
+      const A = makeActor("dsA", { cha: 3, wis: 1 }), B = makeActor("dsB", { cha: 3, wis: 1 });
+      const T1 = makeActor("dsT1", { cha: 0, wis: 0 }), T2 = makeActor("dsT2", { cha: 0, wis: 0 });
+      for (const t of [T1, T2]) { await SAM.setActorData(t, { stance: "firm" }); await SAM.applyCondition(t, "desperate", A); }
+      grade("success");
+      await SM.applyOutcome(pay("dsA", "dsT1", "throw_gauntlet"));
+      await SM.applyOutcome(pay("dsB", "dsT2", "throw_gauntlet"));
+      ok(`Desperate for A: broken by A → gives in (${EM.getEncounter(T1).outcome}); broken by B → can still storm off (${EM.getEncounter(T2).outcome})`,
+        EM.getEncounter(T1).outcome === "swayed" && EM.getEncounter(T2).outcome === "walked");
+      SM.promptOutcome = savedPO;
+    }
+
+    // Scars: real numbers on the sheet, rules the module enforces, immunity that can't be gamed
+    {
+      const sc = (a, id) => a.effects.find((e) => e.flags?.[SCOPE]?.scar === id);
+      const C = makeActor("scC", { cha: 3, wis: 1 }); await CE.applyScar(C, "cruelty");
+      const keys = (sc(C, "cruelty")?.changes ?? []).map((c) => `${c.key}=${c.value}`);
+      ok(`Cruelty is on the sheet: ${keys.join(", ")}`, keys.includes("system.skills.itm.bonuses.check=+2") && keys.includes("system.skills.per.bonuses.check=-2"));
+      const V = makeActor("scV", { cha: 3, wis: 3 });   // 8
+      ok(`Cruelty: the preview counts the extra composure (${SM.assess(C, V, mv("persuade"), {}).estDamage})`, SM.assess(C, V, mv("persuade"), {}).estDamage === 2);
+      grade("success");
+      await SM.applyOutcome(pay("scC", "scV", "persuade"));
+      ok(`…and a landed Persuade takes 2 (8→${comp(V)})`, comp(V) === 6);
+      const before = comp(V);
+      await SM.applyOutcome(pay("scC", "scV", "cold_reading"));
+      ok(`…a read isn't a blow — it stays at 0 (${comp(V)})`, comp(V) === before);
+
+      const M = makeActor("scM", { cha: 3, wis: 3 }); await CE.applyScar(M, "mask");
+      ok(`the Mask: reading them rolls with disadvantage`, SM.assess(C, M, mv("cold_reading"), {}).disadvantage);
+      const pm = SM.assess(M, V, mv("persuade"), {}).bonusReasons.find((b) => /Mask/.test(b.label));
+      ok(`…and their honest Persuade takes −2 (${pm?.value})`, pm?.value === -2);
+      globalThis.__formPick = { "tsl-state": "hold-shamed" };
+      await SM.applyOutcome(pay("scC", "scM", "sow_doubt"));   // Mock → Humbled (holdAs Shame / Wrath)
+      globalThis.__formPick = null;
+      ok(`immune to Shame → it can't carry a held line: Humbled lands`, !!SAM.getActiveCondition(M, "humbled") && CE.getTier(M, "shamed") === 0);
+      const n0 = globalThis.__cards.length;
+      await SM.applyOutcome(pay("scC", "scM", "throw_gauntlet", { card: { rawDice: [14], systemRoll: false } }));
+      const card = globalThis.__cards.slice(n0).map((c) => c.content).join(" ");
+      ok(`Humiliate vs the Mask: the card says the shame doesn't stick (and none does)`, /doesn't stick/.test(card) && !/It sticks/.test(card) && CE.getTier(M, "shamed") === 0);
+
+      const H = makeActor("scH", { cha: 3, wis: 3 }); await CE.applyScar(H, "hollow");
+      ok(`the Hollow: Cowed won't take (preview: ${SM.assess(C, H, mv("intimidate"), {}).stateFx?.mode})`, SM.assess(C, H, mv("intimidate"), {}).stateFx?.mode === "resist");
+      await SM.applyOutcome(pay("scC", "scH", "intimidate"));
+      ok(`…the threat still lands, the fear doesn't (${comp(H)}/8, Cowed: ${!!SAM.getActiveCondition(H, "cowed")})`, comp(H) < 8 && !SAM.getActiveCondition(H, "cowed"));
+      ok(`…and −1 to every check is on the sheet`, (sc(H, "hollow")?.changes ?? []).some((c) => /abilities/.test(c.key) && /-1/.test(String(c.value))));
+
+      const old = makeActor("scOld");
+      await old.createEmbeddedDocuments("ActiveEffect", [{ name: "The Cold", flags: { [SCOPE]: { scar: "cold" } }, changes: [], description: "old" }]);
+      const n = await CE.resyncScars([old]);
+      ok(`a Scar from before v2.0 is brought up to date (${n}): ${(sc(old, "cold")?.changes ?? []).length} changes`, n === 1 && sc(old, "cold").changes.length === 2);
+      SM.promptOutcome = savedPO;
+    }
+
+    // Moments: what ⚡ Ultimates and ★ Signatures put on the sheet — and take off again
+    {
+      const MO = R.TSLMoments;
+      const mom = (a) => a.effects.filter((e) => e.flags?.[SCOPE]?.moment);
+      const keysOf = (cs) => cs.map((c) => `${c.key}=${c.value}`);
+      // the keys each system really reads
+      const advA5e = keysOf(MO.changes({ adv: true }));
+      ok(`a5e advantage → the four roll modes the system expands (incl. abilitySave): ${advA5e.length}`,
+        advA5e.includes("flags.a5e.effects.rollMode.abilitySave.all=1") && advA5e.includes("flags.a5e.effects.rollMode.attack.all=1") && advA5e.length === 4);
+      game.system.id = "dnd5e";
+      const advDnd = keysOf(MO.changes({ adv: true, critOn: 2 }));
+      ok(`dnd5e advantage → system.rolls.*.mode (+ crit on 2 via DOWNGRADE)`, advDnd.includes("system.rolls.ability.save.mode=1") && advDnd.includes("system.rolls.attack.mode=1")
+        && MO.changes({ critOn: 2 })[0].mode === 3);
+      game.system.id = "a5e";
+      ok(`a5e: no state writes the dead savingThrow key; Desperate's crit range DOWNGRADEs`,
+        !JSON.stringify(R.SOCIAL_CONDITIONS).includes("rollMode.savingThrow") && R.SOCIAL_CONDITIONS.desperate.dnd5eChanges.find((c) => /Critical/.test(c.key)).mode === 3);
+
+      // ⚡ Wrath's Fury: only at ●●●, spends 1 Willpower, −2 AC until the next turn
+      const W = makeActor("ulW", { cha: 2, wis: 1 });
+      await CE.applyOne(W, "angry", "X");
+      await R.TSLWillpower.set(W, 2);
+      ok(`not at ●●● → refused, nothing spent`, (await MO.fireUltimate({ actorId: "ulW", kind: "wound", id: "angry" })) === false && R.TSLWillpower.get(W) === 2);
+      await CE.setTier(W, "angry", 3, "X");
+      const n0 = globalThis.__cards.length;
+      ok(`at ●●● it fires`, await MO.fireUltimate({ actorId: "ulW", kind: "wound", id: "angry" }));
+      const fury = mom(W)[0];
+      ok(`Fury: 1 Willpower spent (${R.TSLWillpower.get(W)}), −2 AC on the sheet until the next turn, a card`,
+        R.TSLWillpower.get(W) === 1 && fury?.changes.some((c) => /ac/.test(c.key) && /-2/.test(String(c.value))) && fury.flags[SCOPE].moment.ends === "turn"
+        && globalThis.__cards.slice(n0).some((c) => /Fury/.test(c.content) && /−2 AC/.test(c.content)));
+
+      // the hooks end them on time
+      const handlers = {}; const on = Hooks.on; Hooks.on = (n, fn) => { handlers[n] = fn; return 1; };
+      MO.registerHooks(); Hooks.on = on;
+      W.inCombat = true;
+      await handlers.createChatMessage({ rolls: [{}], speaker: { actor: "ulW" } });
+      ok(`in a fight a roll doesn't end a "turn" moment`, mom(W).length === 1);
+      await handlers.updateCombat({ round: 2, turn: 0, combatant: { actor: W } }, { turn: 0 });
+      ok(`…their next turn does`, mom(W).length === 0);
+      W.inCombat = false;
+
+      // Rally: the allies named get advantage on their next roll — then it's gone
+      const H = makeActor("ulH", { cha: 2 }), A1 = makeActor("ulA1"), A2 = makeActor("ulA2");
+      await CE.setTier(H, "hope", 3, "GM");
+      await MO.fireUltimate({ actorId: "ulH", kind: "boon", id: "hope", allyIds: ["ulA1", "ulA2"] });
+      ok(`Rally: both allies carry advantage`, MO.hasAdv(A1) && MO.hasAdv(A2) && !MO.hasAdv(H));
+      await handlers.createChatMessage({ rolls: [{}], speaker: { actor: "ulA1" } });
+      ok(`…an ally's roll spends theirs only`, !MO.hasAdv(A1) && MO.hasAdv(A2));
+
+      // a moment's advantage reaches the maneuver roll too
+      ok(`advantage from a moment shows in assess`, SM.assess(A2, A1, mv("persuade"), {}).advantage);
+
+      // Eye of the Storm: shake off the state you name, then Steadied
+      const C = makeActor("ulC", { cha: 2 });
+      await SAM.applyCondition(C, "rattled", A1); await SAM.applyCondition(C, "cowed", A1);
+      await CE.setTier(C, "calm", 3, "GM");
+      await MO.fireUltimate({ actorId: "ulC", kind: "boon", id: "calm", clearId: "cowed" });
+      ok(`Eye of the Storm: Cowed gone, Rattled kept, Steadied`, !SAM.getActiveCondition(C, "cowed") && !!SAM.getActiveCondition(C, "rattled") && !!SAM.getActiveCondition(C, "steadied"));
+
+      // Infectious: allies recover composure and shake off a state
+      const J = makeActor("ulJ", { cha: 2 }), F = makeActor("ulF", { cha: 2, wis: 2 });
+      await EM.ensureActive(F); await EM.adjustComposure(F, -2);
+      await SAM.applyCondition(F, "humbled", A1);
+      await CE.setTier(J, "joy", 3, "GM");
+      const f0 = comp(F);
+      await MO.fireUltimate({ actorId: "ulJ", kind: "boon", id: "joy", allyIds: ["ulF"] });
+      ok(`Infectious: +1 composure (${f0}→${comp(F)}) and Humbled shaken off`, comp(F) === f0 + 1 && !SAM.getActiveCondition(F, "humbled"));
+
+      // Unbreakable: the next save counts its d20 as a 20 (a5e minRoll on every save)
+      const U = makeActor("ulU"); await CE.setTier(U, "resolve", 3, "GM");
+      await MO.fireUltimate({ actorId: "ulU", kind: "boon", id: "resolve" });
+      ok(`Unbreakable: minRoll 20 on all six saves`, mom(U)[0]?.changes.filter((c) => /save\.minRoll/.test(c.key) && c.value === 20).length === 6);
+
+      // Claim: an edge on your next maneuver against the rival you name — spent by it
+      const Jl = makeActor("ulJl", { cha: 3, wis: 1 }), Rv = makeActor("ulRv", { cha: 2, wis: 2 }), Ot = makeActor("ulOt", { cha: 2, wis: 2 });
+      await CE.setTier(Jl, "jealous", 3, "X");
+      await MO.fireUltimate({ actorId: "ulJl", kind: "wound", id: "jealous", pickId: "ulRv" });
+      ok(`Claim: advantage against the rival, not against anyone else`, SM.assess(Jl, Rv, mv("persuade"), {}).advantage && !SM.assess(Jl, Ot, mv("persuade"), {}).advantage);
+      grade("success");
+      await SM.applyOutcome(pay("ulJl", "ulRv", "persuade"));
+      ok(`…spent by that maneuver`, !MO.edgeVs(Jl, "ulRv"));
+
+      // Reckoning: the next maneuver against the one the Grudge is about lands twice as hard
+      const Gr = makeActor("ulGr", { cha: 3, wis: 1 }), Gs = makeActor("ulGs", { cha: 3, wis: 3 });   // 8
+      await CE.setTier(Gr, "spiteful", 3, "ulGs", "ulGs");
+      await MO.fireUltimate({ actorId: "ulGr", kind: "wound", id: "spiteful" });
+      ok(`Reckoning: the preview doubles it (${SM.assess(Gr, Gs, mv("persuade"), {}).estDamage})`, SM.assess(Gr, Gs, mv("persuade"), {}).estDamage === 2);
+      await SM.applyOutcome(pay("ulGr", "ulGs", "persuade"));
+      ok(`…and the blow takes 2 (8→${comp(Gs)}), edge spent`, comp(Gs) === 6 && !MO.edgeVs(Gr, "ulGs"));
+
+      // Turn the Tables: if it lands, they carry Shame too
+      const Sh = makeActor("ulSh", { cha: 3, wis: 1 }), Ss = makeActor("ulSs", { cha: 3, wis: 3 });
+      await CE.setTier(Sh, "shamed", 3, "ulSs", "ulSs");
+      await MO.fireUltimate({ actorId: "ulSh", kind: "wound", id: "shamed" });
+      await SM.applyOutcome(pay("ulSh", "ulSs", "persuade"));
+      ok(`Turn the Tables: the one who shamed them now carries Shame`, CE.hasCondition(Ss, "shamed"));
+
+      // Own the Room: each challenger's next maneuver is at disadvantage — once each
+      const P = makeActor("ulP", { cha: 3, wis: 3 }), X1 = makeActor("ulX1", { cha: 2, wis: 1 }), X2 = makeActor("ulX2", { cha: 2, wis: 1 });
+      await CE.setTier(P, "pride", 3, "GM");
+      await MO.fireUltimate({ actorId: "ulP", kind: "boon", id: "pride" });
+      ok(`Own the Room: challengers at disadvantage`, SM.assess(X1, P, mv("persuade"), {}).disadvantage && SM.assess(X2, P, mv("persuade"), {}).disadvantage);
+      grade("failure");
+      await SM.applyOutcome(pay("ulX1", "ulP", "persuade", { outcomeType: "failure" }));
+      ok(`…once each: X1 has run into it, X2 hasn't yet`, !SM.assess(X1, P, mv("persuade"), {}).disadvantage && SM.assess(X2, P, mv("persuade"), {}).disadvantage);
+
+      // Berserk (a Scar): on dnd5e the next weapon attack crits on 2–20
+      game.system.id = "dnd5e";
+      const B = makeActor("ulB"); await CE.applyScar(B, "cruelty"); await R.TSLWillpower.set(B, 1);
+      await MO.fireUltimate({ actorId: "ulB", kind: "scar", id: "cruelty" });
+      ok(`Berserk: crit threshold 2 on the sheet`, mom(B)[0]?.changes.some((c) => /weaponCriticalThreshold/.test(c.key) && String(c.value) === "2"));
+      game.system.id = "a5e";
+
+      // ★ Signatures: once per long rest, effects on both sheets
+      const Me = makeActor("sgMe"), Pr = makeActor("sgPr"), En = makeActor("sgEn", { cha: 3, wis: 3 }), Lg = makeActor("sgLg");
+      await BS.add("sgMe", "sgPr", { type: "mentor", attitude: 3 });   // they are my protégé? mentor ↔ protégé mirror
+      const myToPr = BS.getList("sgPr").find((b) => b.targetActorId === "sgMe");
+      ok(`the mirror makes them hold a ●●● ${myToPr?.type} bond toward me`, myToPr?.type === "protege");
+      await MO.invokeSignature({ actorId: "sgPr", bondId: myToPr.id });
+      ok(`Someone is watching: advantage on both sheets, the signature spent`, MO.hasAdv(Me) && MO.hasAdv(Pr) && BS.getList("sgPr").find((b) => b.id === myToPr.id)?.sigUsed);
+      ok(`…a second invoke before a long rest is refused`, (await MO.invokeSignature({ actorId: "sgPr", bondId: myToPr.id })) === false);
+      await BS.add("sgMe", "sgEn", { type: "enemy", attitude: 3 });
+      const toEn = BS.getList("sgMe").find((b) => b.targetActorId === "sgEn");
+      await MO.invokeSignature({ actorId: "sgMe", bondId: toEn.id });
+      ok(`Personal: the next maneuver against the enemy lands twice as hard`, !!MO.edgeVs(Me, "sgEn")?.fencing.double);
+      await BS.add("sgLg", "sgMe", { type: "liege", attitude: 3 });
+      const toSw = BS.getList("sgLg").find((b) => b.targetActorId === "sgMe");
+      await MO.invokeSignature({ actorId: "sgLg", bondId: toSw.id, choice: 1 });
+      ok(`By my word, "I press them": +5 on the liege's next roll`, mom(Lg).some((e) => e.changes.length > 0 && /5/.test(JSON.stringify(e.changes))));
+      SM.promptOutcome = savedPO;
+    }
+
+    // ═══ Kept from earlier versions ══════════════════════════════════════════
+
+    // Socket relay (player → GM)
     {
       const saved = game.user, savedGM = game.users.activeGM;
       const sent = [];
-      game.socket.emit = (n, p) => sent.push(p);
+      const se = game.socket.emit; game.socket.emit = (n, p) => sent.push(p);
       let applied = null;
-      const origApply = R.SocialManeuverRoller.applyOutcome;
-      R.SocialManeuverRoller.applyOutcome = async (a) => { applied = a; };
+      const origApply = SM.applyOutcome;
+      SM.applyOutcome = async (a) => { applied = a; };
       const payload = { sourceActorId: "srcA", targetActorId: "tgtB", maneuverId: "cold_reading", outcomeType: "success", relation: "neutral", total: 15, dc: 12, card: null };
       game.user = { id: "player1", isGM: false, name: "Max" };
       R.TSLGMActions.request("maneuverOutcome", payload);
@@ -377,115 +813,38 @@ if (require.main === module) (async () => {
       applied = null; sent.length = 0;
       R.TSLGMActions.request("maneuverOutcome", payload);
       ok(`relay: player emits · GM receives · GM-direct works`, relayed && !!gmGot && applied && sent.length === 0);
-      R.SocialManeuverRoller.applyOutcome = origApply; game.user = saved; game.users.activeGM = savedGM;
+      SM.applyOutcome = origApply; game.user = saved; game.users.activeGM = savedGM; game.socket.emit = se;
     }
 
-    // 5) assess relations still resolve (truth side)
+    // A race on the REAL pipeline (rollManeuver → applyOutcome): pressing costs
     {
-      R.SocialArchetypeManager.setArchetype && (await R.SocialArchetypeManager.setArchetype(actorB, "tyrant").catch(() => {}));
-      const mv = R.SOCIAL_MANEUVERS.find((m) => m.id === "throw_gauntlet");
-      const a = R.SocialManeuverRoller.assess(actorA, actorB, mv, {});
-      ok(`assess returns dc + relation`, typeof a.dc === "number" && "relation" in a);
-    }
-
-    const SM = R.SocialManeuverRoller, EM = R.SocialEncounterManager, CE = R.TSLConditionEffects;
-    const mv = (id) => R.SOCIAL_MANEUVERS.find((m) => m.id === id);
-    const pay = (src, tgt, id, extra = {}) => ({ sourceActorId: src, targetActorId: tgt, maneuverId: id,
-      outcomeType: "success", relation: "neutral", total: 20, dc: 10, card: null, ...extra });
-    const holds = (a, b) => R.TSLStringStore.getList(a).filter((e) => e.targetActorId === b).length;
-    const savedPO = SM.promptOutcome;
-
-    // 7) v1.80 — Patience is YOUR composure (real encounter manager, real flags)
-    {
-      const atk = makeActor("atkM", { cha: 3, wis: 1 });   // R3 P4
-      const def = makeActor("defM", { cha: 1, wis: 1 });   // R1 P2
-      SM.promptOutcome = async () => "failure";
-      await SM.applyOutcome(pay("atkM", "defM", "persuade", { outcomeType: "failure" }));
-      ok(`miss spends the ATTACKER's Patience 4→${EM.getEncounter(atk).patience}, target untouched ${EM.getEncounter(def).patience}/2`,
-        EM.getEncounter(atk).patience === 3 && EM.getEncounter(def).patience === 2);
-      // the defender parries every hit — it costs THEIR composure, and at 0 they break off and LOSE
-      SM.promptOutcome = async () => "success";
-      // (Mock: a plain, parryable 1-damage maneuver — Persuade is sincere now and can't be parried)
-      globalThis.__formPick = { "tsl-blow": "parry" };
-      await SM.applyOutcome(pay("atkM", "defM", "sow_doubt"));
-      await SM.applyOutcome(pay("atkM", "defM", "sow_doubt"));
-      globalThis.__formPick = null;
-      const dEnc = EM.getEncounter(def);
-      ok(`parried to 0 → defender broke off (outcome "${dEnc.outcome}"), attacker takes the String (${holds("atkM", "defM")}), defender none (${holds("defM", "atkM")})`,
-        dEnc.outcome === "walked" && holds("atkM", "defM") === 1 && holds("defM", "atkM") === 0);
-      // the exchange is over: nothing more lands either way
-      const blockA = SM.assess(atk, def, mv("persuade"), {});
-      const blockB = SM.assess(def, atk, mv("persuade"), {});
-      ok(`finished exchange blocks both directions`, blockA.relation === "blocked" && blockB.relation === "blocked" && /over|out of/.test(blockA.relationReason));
-      const before = EM.getEncounter(atk).patience;
-      SM.promptOutcome = async () => "failure";
-      await SM.applyOutcome(pay("atkM", "defM", "persuade", { outcomeType: "failure" }));
-      ok(`applyOutcome after the end changes nothing (attacker Patience ${EM.getEncounter(atk).patience} = ${before})`, EM.getEncounter(atk).patience === before);
-
-      // the ATTACKER can lose too: a risky miss (Intimidate, −2) empties a fragile attacker
-      const atk2 = makeActor("atkB", { cha: 0, wis: 0 });   // R1 P2
-      makeActor("defB", { cha: 2, wis: 2 });
-      await SM.applyOutcome(pay("atkB", "defB", "intimidate", { outcomeType: "failure" }));
-      ok(`attacker broke off on their own misses (outcome "${EM.getEncounter(atk2).outcome}"), the defender takes the String (${holds("defB", "atkB")})`,
-        EM.getEncounter(atk2).outcome === "walked" && holds("defB", "atkB") === 1);
-
-      // Fear leverage that misses backfires on the attacker (+1)
-      const atk3 = makeActor("atkF", { cha: 3, wis: 2 });   // P5
-      makeActor("defF", { cha: 2, wis: 2 });
-      await SM.applyOutcome(pay("atkF", "defF", "persuade", { outcomeType: "failure", leverage: "fear" }));
-      ok(`a missed Fear costs the attacker 2 Patience (5→${EM.getEncounter(atk3).patience})`, EM.getEncounter(atk3).patience === 3);
-
-      // a riposte shakes the attacker's Patience — never their Resolve (no "swayed for succeeding")
-      const atk4 = makeActor("atkR", { cha: 0, wis: 1 });   // R1 P2 — the old rules swayed this one
-      const def4 = makeActor("defR", { cha: 2, wis: 2 });   // P4 ≥ 1+2
-      SM.promptOutcome = async () => "success";
-      globalThis.__formPick = { "tsl-blow": "riposte" };
-      await SM.applyOutcome(pay("atkR", "defR", "sow_doubt"));
-      globalThis.__formPick = null;
-      const e4 = EM.getEncounter(atk4);
-      ok(`riposte: attacker Resolve ${e4.resolve} (1, not swayed), Patience 2→${e4.patience}, defender Patience 4→${EM.getEncounter(def4).patience}`,
-        e4.resolve === 1 && !e4.outcome && e4.patience === 1 && EM.getEncounter(def4).patience === 2);
-      SM.promptOutcome = savedPO;
-    }
-
-    // 8) Incentives, measured on the REAL pipeline (rollManeuver → applyOutcome):
-    //    under v1.79 a defender who parried everything won 100% — now it's a race.
-    {
-      const runs = async (N, atkBonus, policy, moveId = "sow_doubt") => {
-        const tally = { swayed: 0, defBroke: 0, atkBroke: 0, other: 0 };
-        const atk = makeActor("mcAtk", { cha: 3, wis: 1 });   // R3 P4
-        const def = makeActor("mcDef", { cha: 2, wis: 2, int: 3 });   // R2 P4, DC 10+2+3 = 15
-        // Mock (Deception) = a plain, parryable blow; Persuade (Persuasion) = the sincere one
-        atk.system.skills = { per: { total: atkBonus }, dec: { total: atkBonus }, ins: { total: 0, proficient: 0 }, prf: { total: 0, proficient: 0 } };
+      const runs = async (N, atkBonus) => {
+        const tally = { atkWins: 0, atkCracks: 0, other: 0 };
+        const atk = makeActor("mcAtk", { cha: 3, wis: 1 });          // 6
+        const def = npc("mcDef", { cha: 2, wis: 2, int: 3 });        // 6, DC 15
+        atk.system.skills = { dec: { total: atkBonus }, prf: { total: 0, proficient: 0 } };
         for (let i = 0; i < N; i++) {
           await EM.endEncounter(atk); await EM.endEncounter(def);
+          for (const e of [...def.effects]) await def.deleteEmbeddedDocuments("ActiveEffect", [e.id]);
           for (let k = 0; k < 40; k++) {
-            const p = await SM.rollManeuver(atk, def, mv(moveId), {});
-            globalThis.__formPick = { "tsl-blow": policy };
+            const p = await SM.rollManeuver(atk, def, mv("sow_doubt"), {});
             await SM.applyOutcome(p);
-            globalThis.__formPick = null;
-            const de = EM.getEncounter(def), ae = EM.getEncounter(atk);
-            if (de.outcome === "swayed") { tally.swayed++; break; }
-            if (de.outcome === "walked") { tally.defBroke++; break; }
-            if (ae.outcome)              { tally.atkBroke++; break; }
+            if (EM.getEncounter(def).outcome) { tally.atkWins++; break; }
+            if (EM.getEncounter(atk).outcome) { tally.atkCracks++; break; }
             if (k === 39) tally.other++;
           }
         }
         return tally;
       };
-      const N = 200;
-      const parry = await runs(N, 8, "parry");     // attacker hits 70%
-      ok(`always-parry defender no longer always wins: attacker wins ${parry.swayed + parry.defBroke}/${N} (sway ${parry.swayed}, broke them ${parry.defBroke}), attacker broke ${parry.atkBroke}`,
-        (parry.swayed + parry.defBroke) / N > 0.5 && parry.other === 0);
-      const weak = await runs(N, 2, "parry");      // attacker hits 40%
-      ok(`…and a weak attacker can still lose the race: attacker broke off ${weak.atkBroke}/${N}`, weak.atkBroke / N > 0.2);
-      const take = await runs(N, 8, "take");
-      ok(`a defender who takes every blow gets swayed: ${take.swayed}/${N}`, take.swayed / N > 0.8);
-      const sincere = await runs(N, 8, "parry", "persuade");
-      ok(`…and sincerity sways even a wall: Persuade vs always-parry → swayed ${sincere.swayed}/${N}`, sincere.swayed / N > 0.8);
+      SM.promptOutcome = async (_s, _t, _m, _tot, _dc, p) => p;
+      const strong = await runs(150, 8);   // hits 70%
+      ok(`a strong attacker wins the race: ${strong.atkWins}/150 (cracked ${strong.atkCracks})`, strong.atkWins / 150 > 0.8 && strong.other === 0);
+      const weak = await runs(150, 2);     // hits 40%
+      ok(`a weak one often cracks first: ${weak.atkCracks}/150`, weak.atkCracks / 150 > 0.2);
+      SM.promptOutcome = savedPO;
     }
 
-    // 9) Natural 1 always misses; the support skill adds proficiency only
+    // Natural 1 always misses; the support skill adds proficiency only
     {
       const big = makeActor("natA", { cha: 4, wis: 1 });
       big.system.skills = { per: { total: 30 }, ins: { total: 4, proficient: 1 } };
@@ -493,435 +852,271 @@ if (require.main === module) (async () => {
       makeActor("natT", { cha: 1, wis: 1 });
       globalThis.__forceDice = [1];
       const p1 = await SM.rollManeuver(big, game.actors.get("natT"), mv("persuade"), {});
-      ok(`natural 1 with +33 still misses (natural ${p1.natural}, ${p1.outcomeType})`, p1.natural === 1 && (p1.outcomeType === "failure" || p1.outcomeType === "botch"));
+      ok(`natural 1 with +33 still misses (${p1.outcomeType})`, p1.natural === 1 && (p1.outcomeType === "failure" || p1.outcomeType === "botch"));
       globalThis.__forceDice = [12];
       const p2 = await SM.rollManeuver(big, game.actors.get("natT"), mv("persuade"), {});
       ok(`an ordinary roll with the same bonus hits (${p2.outcomeType})`, p2.outcomeType === "crit" || p2.outcomeType === "success");
       globalThis.__forceDice = null;
-
       const sup = makeActor("supA", { cha: 4, wis: 1 });
       sup.system.attributes.prof = 3;
       sup.system.skills = { per: { total: 7 }, dec: { total: 7, proficient: 1 }, ins: { total: 4, proficient: 1 }, inv: { total: 0, proficient: 0 } };
       const tgt = makeActor("supT", { cha: 1, wis: 1 });
       const supOf = (id) => SM.assess(sup, tgt, mv(id), {}).bonusReasons.find((b) => /support/.test(b.label))?.value ?? 0;
-      ok(`support = proficiency, not the full modifier: Flatter +${supOf("flatter")} (3, not 7)`, supOf("flatter") === 3);
+      ok(`support = proficiency, not the full modifier: Flatter +${supOf("flatter")} (3)`, supOf("flatter") === 3);
       ok(`untrained support adds nothing: Read Them +${supOf("cold_reading")}`, supOf("cold_reading") === 0);
-      sup.system.skills.dec.proficient = 0.5;
-      ok(`half-proficiency support = ⌊prof/2⌋: +${supOf("flatter")}`, supOf("flatter") === 1);
-      const pv = SM.previewOutcomes(SM.assess(sup, tgt, mv("intimidate"), {}), mv("intimidate"));
-      ok(`stakes line names the miss cost: "${pv.miss}"`, /you lose 2 Patience/.test(pv.miss));
     }
 
-    // 10) Long rest: Wounds ease a tier (●●● → Scar), Boons fade, Willpower refills
+    // Long rest: Wounds ease / calcify, Boons fade, Willpower refills
     {
       const lr = makeActor("restA", { cha: 1 });
       await CE.setTier(lr, "angry", 3, "X");
       await CE.setTier(lr, "scared", 2, "X");
       await CE.setTier(lr, "hopeless", 1, "X");
+      await CE.setTier(lr, "shamed", 3, "X");
       await CE.applyOne(lr, "valor", "GM");
       await R.TSLWillpower.set(lr, 0);
       await CE.onLongRest(lr);
-      ok(`●●● Wrath calcified into Cruelty`, !CE.hasCondition(lr, "angry") && CE.hasScar(lr, "cruelty"));
-      ok(`●● Fear eased to ● (tier ${CE.getTier(lr, "scared")})`, CE.getTier(lr, "scared") === 1);
-      ok(`● Despair healed`, !CE.hasCondition(lr, "hopeless"));
-      ok(`Boon faded, Willpower refilled (${R.TSLWillpower.get(lr)}/${R.TSLWillpower.getMax(lr)})`,
-        !CE.hasCondition(lr, "valor") && R.TSLWillpower.get(lr) === R.TSLWillpower.getMax(lr));
+      ok(`●●● Wrath → Cruelty, ●●● Shame → The Mask`, !CE.hasCondition(lr, "angry") && CE.hasScar(lr, "cruelty") && CE.hasScar(lr, "mask"));
+      ok(`●● Fear eased to ● (${CE.getTier(lr, "scared")}), ● Despair healed`, CE.getTier(lr, "scared") === 1 && !CE.hasCondition(lr, "hopeless"));
+      ok(`Boon faded, Willpower refilled`, !CE.hasCondition(lr, "valor") && R.TSLWillpower.get(lr) === R.TSLWillpower.getMax(lr));
+      ok(`nine Wounds, eight Boons, four Scars`, CE.ORDER.length === 9 && CE.BOON_ORDER.length === 8 && CE.SCAR_ORDER.length === 4);
     }
 
-    // 11) Give in to a Wound → Willpower (Despair → Inspiration); only if carried
+    // Give in to a Wound → Willpower (Despair → Inspiration); only if carried
     {
       const gi = makeActor("giveA", { cha: 1 });
-      await CE.applyOne(gi, "angry", "X");
+      await CE.applyOne(gi, "jealous", "X");
       await R.TSLWillpower.set(gi, 0);
-      const r1 = await CE.giveIn(gi, "angry");
-      ok(`give in to Wrath → +1 Willpower (${R.TSLWillpower.get(gi)})`, r1?.gained === "willpower" && R.TSLWillpower.get(gi) === 1);
+      const r1 = await CE.giveIn(gi, "jealous");
+      ok(`give in to Jealousy → +1 Willpower`, r1?.gained === "willpower" && R.TSLWillpower.get(gi) === 1);
       ok(`can't give in to a Wound you don't carry`, (await CE.giveIn(gi, "scared")) === null);
       await CE.applyOne(gi, "hopeless", "X");
-      const r3 = await CE.giveIn(gi, "hopeless");
-      ok(`give in to Despair → Inspiration`, r3?.gained === "inspiration" && gi.system.attributes.inspiration === true);
-      ok(`boon is labelled Conviction (not "Resolve")`, CE.getMeta("resolve")?.label === "Conviction");
+      ok(`give in to Despair → Inspiration`, (await CE.giveIn(gi, "hopeless"))?.gained === "inspiration");
     }
 
-    // 12) a5e paths: triad dots → 3-letter skill keys; Strife at system.attributes.strife; no duplicate wounds
+    // a5e: triad dots → 3-letter skill keys; Strife counts the Wounds actually carried
     {
       const tr = makeActor("triadA");
-      await tr.setFlag("tsl-social-conflict", "socialFencing", { triad: { power: 1, attention: 2, order: 0 } });
-      await R.SocialArchetypeManager.syncTriadBonusEffect(tr);
-      const keys = (tr.effects.find((e) => e.flags?.["tsl-social-conflict"]?.triadBonus)?.changes ?? []).map((c) => c.key);
-      ok(`a5e triad AE uses 3-letter keys: ${keys.join(", ")}`,
-        keys.includes("system.skills.ins.bonuses.check") && keys.includes("system.skills.itm.bonuses.check") && !keys.some((k) => /insight|intimidation/.test(k)));
-
+      await tr.setFlag(SCOPE, "socialFencing", { triad: { power: 1, attention: 2, order: 0 } });
+      await SAM.syncTriadBonusEffect(tr);
+      const keys = (tr.effects.find((e) => e.flags?.[SCOPE]?.triadBonus)?.changes ?? []).map((c) => c.key);
+      ok(`a5e triad AE uses 3-letter keys`, keys.includes("system.skills.ins.bonuses.check") && keys.includes("system.skills.itm.bonuses.check"));
       const cp = makeActor("confA");
       cp.system.attributes.strife = 1;
-      await CE.applyOne(cp, "angry", "X");   // what a card pip toggle already did
-      await CE._applyToParticipant({ actorId: "confA", name: "confA",
-        conditions: { angry: true, scared: true, spiteful: false, obsessed: false, hopeless: false } }, "Foe");
+      await CE.applyOne(cp, "angry", "X");
+      await CE._applyToParticipant({ actorId: "confA", name: "confA", conditions: { angry: true, scared: true } }, "Foe");
       const angryCount = cp.effects.filter((e) => CE._condOf(e) === "angry").length;
       ok(`conflict end: no duplicate Wound (${angryCount}), missing one added, Strife 1→${cp.system.attributes.strife}`,
         angryCount === 1 && CE.hasCondition(cp, "scared") && cp.system.attributes.strife === 3);
+      const cq = makeActor("confB"); cq.system.attributes.strife = 0;
+      await CE.applyOne(cq, "shamed", "X");
+      await CE._applyToParticipant({ actorId: "confB", name: "confB", conditions: {} }, "Foe");
+      ok(`a Wound put on the actor directly still counts (Strife ${cq.system.attributes.strife})`, cq.system.attributes.strife === 1);
     }
 
-    // 13) An exchange belongs to its scene: another scene starts fresh
+    // An exchange belongs to its scene
     {
       game.scenes.active = { id: "sceneA" };
       const st = makeActor("staleA", { cha: 2, wis: 1 });
       await EM.ensureActive(st);
-      await EM.adjustResolve(st, -10);
+      await SAM.setActorData(st, { stance: "yield" });
+      await EM.adjustComposure(st, -10);
       ok(`resolved in scene A`, EM.isResolved(st));
       game.scenes.active = { id: "sceneB" };
       ok(`in scene B the old exchange is gone`, !EM.getEncounter(st).active && !EM.getEncounter(st).outcome);
       const fresh = await EM.ensureActive(st);
-      ok(`…and a new one starts there (sceneId ${fresh?.sceneId})`, fresh?.active && fresh.sceneId === "sceneB");
+      ok(`…a new one starts there`, fresh?.active && fresh.sceneId === "sceneB");
       delete game.scenes.active;
     }
 
-    // 14) The conflict window's duel bar renders the composure warnings
-    {
-      const a1 = makeActor("cwA", { cha: 3, wis: 1 });
-      makeActor("cwB", { cha: 2, wis: 2 });
-      const conds = { angry: false, spiteful: false, obsessed: false, scared: false, hopeless: false };
-      R.ConflictStore.state = { active: true, selectedTokenIds: [], turn: 0, log: [], resolved: false, resolution: null,
-        participants: [
-          { tokenId: "t1", actorId: "cwA", name: "cwA", img: "", color: "#e8557a", stats: [], conditions: { ...conds } },
-          { tokenId: "t2", actorId: "cwB", name: "cwB", img: "", color: "#9b6ee8", stats: [], conditions: { ...conds } },
-        ] };
-      const app = Object.create(R.TSLConflictApp.prototype);
-      Object.assign(app, { _pendingRoll: null, _selectedMove: mv("intimidate"), _selectedTarget: 1,
-        _pendingStringSpend: null, _pendingLeverage: null, _gmActingIdx: 0 });
-      await EM.startEncounter(a1, 2, 3);   // one risky miss from breaking off
-      let html = "";
-      try { html = app._renderHTML(await app.getData()); } catch (e) { html = "ERR:" + e.stack; }
-      ok(`conflict bar renders, warns "composure is nearly gone", shows the miss cost`,
-        !/undefined|NaN|ERR:/.test(html) && /composure is nearly gone/.test(html) && /you lose 2 Patience/.test(html));
-      if (/ERR:/.test(html)) console.log(html.slice(0, 600));
-      R.ConflictStore.state = null;
-    }
-
-    // 15) Chronicle console shows YOUR composure; Wounds carry a Give in button
-    {
-      const me = makeActor("chA", { cha: 3, wis: 1 });
-      makeActor("chB", { cha: 2, wis: 2 });
-      await EM.startEncounter(me, 4, 3);
-      const app = Object.create(R.SocialFencingApp.prototype);
-      Object.assign(app, { _actor: me, _fenceTargetId: "chB", _fenceManeuverId: "persuade", _fenceLeverage: null, _fenceStringSpend: false });
-      let html = "";
-      try { html = app._buildManeuverConsole({ isGM: false }); } catch (e) { html = "ERR:" + e.stack; }
-      ok(`console renders "Your composure" + the miss cost, no undefined`,
-        !/undefined|NaN|ERR:/.test(html) && /Your composure/.test(html) && /a miss costs 1/.test(html));
-      if (/ERR:/.test(html)) console.log(html.slice(0, 600));
-      await CE.applyOne(me, "angry", "X");
-      let wh = "";
-      try { wh = app._buildWoundToggles({ activeWounds: { angry: 1 }, willpower: { cur: 1, max: 2 }, isGM: false }); } catch (e) { wh = "ERR:" + e.stack; }
-      ok(`active Wound shows a Give in button`, /data-give-in="angry"/.test(wh) && !/ERR:/.test(wh));
-    }
-
-    // ═══ v1.81 ═══════════════════════════════════════════════════════════════
-    const SAM = R.SocialArchetypeManager, BS = R.TSLBondStore, SCOPE = "tsl-social-conflict";
-
-    // 16) Archetypes & maneuvers: names, explanations, matrix, veil, Invoke Authority
+    // Natures: names, explanations, the matrix, the veil, how each holds up
     {
       const archs = R.SOCIAL_ARCHETYPES;
       const byId = (id) => archs.find((a) => a.id === id);
-      ok(`renamed: Schemer / Idol / Zealot (ids kept)`,
-        byId("machiavellian")?.label === "Schemer" && byId("exalted")?.label === "Idol" && byId("dogmatic")?.label === "Zealot");
-      ok(`every nature explains itself (psych · strong · weak)`, archs.every((a) => a.psych && a.strengths && a.weaknesses));
+      ok(`renamed: Schemer / Idol / Zealot (ids kept)`, byId("machiavellian")?.label === "Schemer" && byId("exalted")?.label === "Idol" && byId("dogmatic")?.label === "Zealot");
+      ok(`every nature explains itself and says how it holds up`, archs.every((a) => a.psych && a.strengths && a.weaknesses && ["yield", "firm"].includes(a.pressed) && a.pressedWhy));
       ok(`every maneuver has a strong and a weak side`, R.SOCIAL_MANEUVERS.every((m) => m.edge && m.risk));
       const rel = (a) => SAM.getManeuverRelationsFor(a);
       ok(`every nature has ≥1 weak spot and ≥1 wall`, archs.every((a) => rel(a).vulnerable.length >= 1 && rel(a).immune.length >= 1));
       const leaks = [];
       for (const pool of [R.ARCHETYPE_TELLS, R.ARCHETYPE_REACTIONS]) for (const lines of Object.values(pool ?? {}))
         for (const line of lines) for (const a of archs) if (line.toLowerCase().includes(a.label.toLowerCase())) leaks.push(`${a.label}: ${line}`);
-      ok(`no tell or reaction names a nature (${leaks.length} leaks)${leaks.length ? " — " + leaks[0] : ""}`, leaks.length === 0);
-      const auth = mv("invoke_authority");
-      const authRel = SAM.getArchetypeRelationsFor(auth);
-      ok(`Invoke Authority: Reason school, cuts the Zealot, bounces off the Tyrant, cashes Rattled`,
-        auth?.group === "order" && authRel.vulnerable.some((a) => a.id === "dogmatic") && authRel.immune.some((a) => a.id === "tyrant")
-        && auth.combos?.rattled?.resolveDamage === 1);
-      ok(`Zealot text matches its mechanics (doubt, not contradiction)`, /unsure|doubt/i.test(byId("dogmatic").hint) && byId("dogmatic").dreads === "Not being sure");
+      ok(`no tell or reaction names a nature (${leaks.length})${leaks.length ? " — " + leaks[0] : ""}`, leaks.length === 0);
+      ok(`every state has a gist and a rule; every state you can refuse names its Wounds`,
+        R.SOCIAL_CONDITION_ORDER.every((id) => R.SOCIAL_CONDITIONS[id].gist && R.SOCIAL_CONDITIONS[id].description
+          && (R.SOCIAL_CONDITIONS[id].noHold || R.SOCIAL_CONDITIONS[id].positive || (R.SOCIAL_CONDITIONS[id].holdAs ?? []).every((w) => CE.getMeta(w)))));
+      ok(`"When pressed": a PC decides in the moment, an NPC follows its nature, the world switch makes NPCs ask`,
+        (() => { const pc = makeActor("wpPC"); const n1 = npc("wpN"); return SAM.getStance(pc) === "ask"; })());
+      const nT = npc("wpT"); await SAM.setArchetype(nT, "tyrant");
+      const nB = npc("wpB"); await SAM.setArchetype(nB, "broker");
+      __settings.set("tsl-social-conflict.npcDefenseAuto", false);
+      const asked = SAM.getStance(nT);
+      __settings.set("tsl-social-conflict.npcDefenseAuto", true);
+      ok(`…Tyrant stands firm, Broker gives ground, auto off → ask`, SAM.getStance(nT) === "firm" && SAM.getStance(nB) === "yield" && asked === "ask");
+      await SAM.setActorData(nB, { stance: "guarded" });
+      ok(`an old v1.82 stance maps over (guarded → firm)`, SAM.getStance(nB) === "firm");
     }
 
-    // 17) Rattled & Enthralled are one-shots; states know about bonds (deep ×2 / won't take)
-    {
-      const A = makeActor("stA", { cha: 3, wis: 1 }), T = makeActor("stT", { cha: 6, wis: 2 });
-      SM.promptOutcome = async () => "failure";
-      await SAM.applyCondition(T, "rattled", A);
-      const a1 = SM.assess(A, T, mv("persuade"), {});
-      ok(`Rattled: DC −5 for the next maneuver, and it spends`, a1.dcMods.some((d) => d.label === "Rattled" && d.value === -5) && a1.consumes.includes("rattled"));
-      await SM.applyOutcome(pay("stA", "stT", "persuade", { outcomeType: "failure", consumed: a1.consumes }));
-      ok(`…gone after one use`, !SAM.getActiveCondition(T, "rattled"));
-
-      await SAM.applyCondition(T, "smitten", A);
-      ok(`Enthralled blocks the charmed one from moving against the charmer`, SM.assess(T, A, mv("persuade"), {}).relation === "blocked");
-      const a2 = SM.assess(A, T, mv("lie"), {});
-      ok(`Enthralled: the charmer's NEXT maneuver (any) gets Advantage and spends it`, a2.advantage && a2.consumes.includes("smitten"));
-      await SM.applyOutcome(pay("stA", "stT", "lie", { outcomeType: "failure", consumed: a2.consumes }));
-      ok(`…and then they're free again`, !SAM.getActiveCondition(T, "smitten") && SM.assess(T, A, mv("persuade"), {}).relation !== "blocked");
-
-      // deep: they have a Crush on the charmer → Charm's Enthralled lasts two uses
-      await BS.add("stT", "stA", { type: "crush", attitude: 2 });
-      SM.promptOutcome = async () => "success";
-      await SM.applyOutcome(pay("stA", "stT", "love_bombing"));
-      const e = SAM.getActiveCondition(T, "smitten");
-      ok(`a Crush makes Enthralled run deep (×${SAM.getCharges(e)})`, !!e && SAM.getCharges(e) === 2);
-      await SAM.spendCondition(T, "smitten");
-      ok(`…one use spent, one left`, !!SAM.getActiveCondition(T, "smitten") && SAM.getCharges(SAM.getActiveCondition(T, "smitten")) === 1);
-      await SAM.spendCondition(T, "smitten");
-      ok(`…then it's gone`, !SAM.getActiveCondition(T, "smitten"));
-
-      // resist: an Enemy won't be charmed
-      const U = makeActor("stU", { cha: 6, wis: 2 });
-      await BS.add("stU", "stA", { type: "enemy", attitude: 1 });
-      ok(`preview says it won't take`, SM.assess(A, U, mv("flatter"), {}).stateFx?.mode === "resist"
-        && /won't take/.test(SM.previewOutcomes(SM.assess(A, U, mv("flatter"), {}), mv("flatter")).hit));
-      await SM.applyOutcome(pay("stA", "stU", "flatter"));
-      ok(`an Enemy shrugs off Enthralled — but the blow still lands`, !SAM.getActiveCondition(U, "smitten") && EM.getEncounter(U).resolve < EM.getEncounter(U).maxResolve);
-
-      // the Answer knows bonds too: an Emotion nature's Beholden won't take on someone who's their enemy
-      const D = makeActor("ansD", { cha: 4, wis: 2 }), E2 = makeActor("ansE", { cha: 3, wis: 2 });
-      await SAM.setArchetype(D, "martyr");
-      await BS.add("ansE", "ansD", { type: "enemy", attitude: 1 });
-      SM.promptOutcome = async () => "botch";
-      await SM.applyOutcome(pay("ansE", "ansD", "persuade", { outcomeType: "botch" }));
-      ok(`the Answer respects the bond (Beholden doesn't take on an enemy)`, !SAM.getActiveCondition(E2, "guilted"));
-      SM.promptOutcome = savedPO;
-    }
-
-    // 18) Hold the Line refuses only the STATE; ●●● can't hold; Overwhelmed = weight ≥ 4
-    {
-      makeActor("hlA", { cha: 3, wis: 1 });
-      const T = makeActor("hlT", { cha: 6, wis: 2 });   // R6 P8
-      SM.promptOutcome = async () => "success";
-      globalThis.__formPick = { "tsl-blow": "take", "tsl-state": "hold-angry" };
-      await SM.applyOutcome(pay("hlA", "hlT", "flatter"));   // 2 dmg + Enthralled
-      ok(`held the line: a Wrath wound instead of Enthralled, but the 2 Resolve still landed (${EM.getEncounter(T).resolve}/6)`,
-        CE.hasCondition(T, "angry") && !SAM.getActiveCondition(T, "smitten") && EM.getEncounter(T).resolve === 4);
-      ok(`the wound remembers who caused it`, CE.getWoundSource(T, "angry") === "hlA");
-      await CE.setTier(T, "angry", 3, "hlA", "hlA");
-      await EM.adjustResolve(T, +6);
-      globalThis.__formPick = { "tsl-blow": "take", "tsl-state": "hold-angry" };
-      await SM.applyOutcome(pay("hlA", "hlT", "flatter"));
-      ok(`a ●●● wound can't take more — the hold isn't offered, the state lands`, !!SAM.getActiveCondition(T, "smitten"));
-      await SAM.removeCondition(T, "smitten");
-      await CE.applyOne(T, "scared", "hlA", "hlA");   // weight 3 + 1 = 4
-      ok(`Wounds weighing 4 → Overwhelmed (load ${CE.woundLoad(T)})`, CE.isOverwhelmed(T));
-      const rBefore = EM.getEncounter(T).resolve, pBefore = EM.getEncounter(T).patience;
-      globalThis.__formPick = { "tsl-blow": "parry", "tsl-state": "hold-spiteful" };
-      await SM.applyOutcome(pay("hlA", "hlT", "flatter"));
-      globalThis.__formPick = null;
-      ok(`Overwhelmed: no parry (Resolve ${rBefore}→${EM.getEncounter(T).resolve}, Patience ${pBefore}→${EM.getEncounter(T).patience}), no hold (Enthralled landed)`,
-        EM.getEncounter(T).resolve === rBefore - 2 && EM.getEncounter(T).patience === pBefore && !!SAM.getActiveCondition(T, "smitten"));
-      SM.promptOutcome = savedPO;
-    }
-
-    // 19) Strings: at most 3 on one person
-    {
-      makeActor("capA"); makeActor("capB");
-      const n = await R.TSLStringStore.add("capA", "capB", 5);
-      ok(`String cap: asked for 5, got ${n}; capped`, n === 3 && R.TSLStringStore.countOn("capA", "capB") === 3 && R.TSLStringStore.isCapped("capA", "capB"));
-    }
-
-    // 20) Bonds after an exchange are type-aware; Wounds about a person settle into bonds
+    // Wounds about a person settle into bonds; bond shifts are type-aware
     {
       makeActor("shL"); makeActor("shW"); makeActor("shF"); makeActor("shG");
       await BS.add("shL", "shW", { type: "enemy", attitude: 2 });
       const r1 = await BS.shiftAfterExchange("shL", "shW", "swayed");
       const r2 = await BS.shiftAfterExchange("shL", "shW", "walked");
-      ok(`Enemy: swayed eases (→${r1.strength}), broke off hardens (→${r2.strength})`, r1.strength === 1 && r2.strength === 2);
-      await BS.add("shF", "shG", { type: "friend", attitude: 1 });
-      const r3 = await BS.shiftAfterExchange("shF", "shG", "swayed");
-      ok(`Friend: swayed deepens (→${r3.strength})`, r3.strength === 2);
-
+      ok(`Enemy: giving in eases (→${r1.strength}), storming off hardens (→${r2.strength})`, r1.strength === 1 && r2.strength === 2);
       const B = makeActor("obB"); makeActor("obS");
       await CE.setTier(B, "obsessed", 3, "obS", "obS");
       await CE.onLongRest(B);
-      const bond = BS.find("obB", "obS"), mirror = BS.find("obS", "obB");
-      ok(`Obsession ●●● overnight → a Crush bond (mirrored), no scar`,
-        bond?.type === "crush" && BS.getStrength("obB", "obS") === 1 && mirror?.type === "crush" && !CE.hasCondition(B, "obsessed") && !CE.hasScar(B, "bound_heart"));
-      const B2 = makeActor("grB"); makeActor("grS");
-      await BS.add("grB", "grS", { type: "rival", attitude: 1 });
-      await CE.setTier(B2, "spiteful", 3, "grS", "grS");
-      await CE.onLongRest(B2);
-      ok(`Grudge ●●● with an existing Rival bond → it deepens (●${BS.getStrength("grB", "grS")}), type kept`,
-        BS.find("grB", "grS")?.type === "rival" && BS.getStrength("grB", "grS") === 2);
-      const B3 = makeActor("obN");
-      await CE.setTier(B3, "obsessed", 3, "someone");
-      await CE.onLongRest(B3);
-      ok(`…with no known source it simply eases to ●● (tier ${CE.getTier(B3, "obsessed")})`, CE.getTier(B3, "obsessed") === 2);
-      ok(`retired scars aren't offered any more`, !CE.SCAR_ORDER.includes("bound_heart") && !CE.SCAR_ORDER.includes("vendetta") && CE.SCAR_ORDER.length === 3);
+      ok(`Obsession ●●● overnight → a Crush bond (mirrored)`, BS.find("obB", "obS")?.type === "crush" && BS.find("obS", "obB")?.type === "crush" && !CE.hasCondition(B, "obsessed"));
     }
 
-    // 21) The triad dots' skill bonus is explicit — in the number, the bar and the Profile
+    // The triad dots' skill bonus is explicit
     {
       const L = makeActor("leanA", { cha: 1 });
       L.system.skills = { itm: { mod: 1, proficient: 0 } };
       await L.setFlag(SCOPE, "socialFencing", { triad: { power: 2, attention: 0, order: 0 } });
       await SAM.syncTriadBonusEffect(L);
-      ok(`Social Leanings: +2 Intimidation read straight from the effect`, SAM.leanSkillBonus(L, "itm") === 2);
-      ok(`a5e-style skill (no .total) now includes it: Intimidate +${SM.getSkillMod(L, mv("intimidate"))} (1 + 2)`, SM.getSkillMod(L, mv("intimidate")) === 3);
-      ok(`the bar can name it`, SM.getLeanInSkill(L, mv("intimidate"))?.value === 2 && SM.getLeanInSkill(L, mv("intimidate"))?.triad === "Power");
-      const app = Object.create(R.SocialFencingApp.prototype);
-      app._actor = L;
-      let html = "";
-      try { html = app._buildProfileTab({ notes: SAM.getCharacterNotes(L), archetype: null, canEdit: true, isGM: false }); } catch (e) { html = "ERR:" + e.stack; }
-      ok(`Profile shows "On your sheet: +2 Intimidation"`, /On your sheet:/.test(html) && /\+2 Intimidation/.test(html) && !/undefined|ERR:/.test(html));
-      if (/ERR:/.test(html)) console.log(html.slice(0, 500));
+      ok(`Social Leanings: +2 Intimidation, and the skill includes it (${SM.getSkillMod(L, mv("intimidate"))})`, SAM.leanSkillBonus(L, "itm") === 2 && SM.getSkillMod(L, mv("intimidate")) === 3);
     }
 
-    // 22) Fewer windows: the GM confirms only close calls (or a natural 1)
+    // The GM confirms only close calls (or a natural 1)
     {
       const c0 = globalThis.__dialogCount;
       const r1 = await savedPO.call(SM, actorA, actorB, mv("persuade"), 20, 14, "crit", { natural: 15 });
       ok(`a clear result applies without a window (${r1})`, r1 === "crit" && globalThis.__dialogCount === c0);
       await savedPO.call(SM, actorA, actorB, mv("persuade"), 15, 14, "success", { natural: 12 });
       await savedPO.call(SM, actorA, actorB, mv("persuade"), 25, 14, "failure", { natural: 1 });
-      ok(`a close call and a natural 1 still ask the GM`, globalThis.__dialogCount === c0 + 2);
+      ok(`a close call and a natural 1 still ask`, globalThis.__dialogCount === c0 + 2);
     }
 
-    // 23) The conflict card shows a deep state as ×2
+    // One roll, one card
     {
-      const a1 = makeActor("dpA", { cha: 3 }), a2 = makeActor("dpB", { cha: 2 });
-      const conds = { angry: false, spiteful: false, obsessed: false, scared: false, hopeless: false };
+      const card = (dice = [3]) => ({ rawDice: dice, systemRoll: false });
+      makeActor("ocA", { cha: 3, wis: 2 });
+      const T = npc("ocT", { cha: 4, wis: 2 }); await SAM.setArchetype(T, "tyrant");   // Power → Rattled
+      SM.promptOutcome = async (_s, _t, _m, _tot, _dc, p) => p;
+      let n0 = globalThis.__cards.length;
+      await SM.applyOutcome(pay("ocA", "ocT", "lie", { outcomeType: "botch", total: 4, natural: 3, card: card() }));
+      let made = globalThis.__cards.slice(n0);
+      const c = made[0]?.content ?? "";
+      ok(`a botched Lie is ONE card (${made.length}): the Answer, caught, Suspicious, Inspiration`,
+        made.length === 1 && /Rattled/.test(c) && /gains a String on/.test(c) && /Suspicious/.test(c) && /Inspiration/.test(c));
+      const P = makeActor("ocP", { cha: 5, wis: 3 });   // 10
+      makeActor("ocB", { cha: 3, wis: 1 });
+      await SM.applyOutcome(pay("ocB", "ocP", "throw_gauntlet", { card: card([15]) }));
+      ok(`Humiliate leaves a lasting Shame (tier ${CE.getTier(P, "shamed")})`, CE.getTier(P, "shamed") === 1);
+      const W = npc("ocW", { cha: 0, wis: 0 }); await SAM.setArchetype(W, "broker");   // 2 → one Humiliate breaks
+      makeActor("ocV", { cha: 3, wis: 1 });
+      n0 = globalThis.__cards.length;
+      await SM.applyOutcome(pay("ocV", "ocW", "throw_gauntlet", { card: card([16]) }));
+      made = globalThis.__cards.slice(n0);
+      ok(`a break: the roll card first, then "Gives in" (${made.length} cards)`, made.length === 2 && /Humiliate/.test(made[0].content) && /Gives in/.test(made[1].content));
+      ok(`a blow that landed shows the target's reaction line`, /tsl-mv-tell/.test(made[0].content));
+      const a = { ...SM.assess(actorA, T, mv("persuade"), {}), advantageReasons: ["Dangling their Desire — the offer speaks for you"], relation: "neutral" };
+      const html = SM._cardContent({ sourceActor: actorA, targetActor: T, maneuver: mv("persuade"), assessment: a,
+        total: 18, outcomeType: "success", outcomeText: "x", rawDice: [12, 6], advantage: true });
+      ok(`advantage wears ADV (not ◎); the higher die is kept`, /tsl-mv-adv">ADV</.test(html) && /tsl-mv-die ">12</.test(html) && /tsl-mv-die--dropped">6</.test(html));
+      SM.promptOutcome = savedPO;
+    }
+
+    // ═══ The windows render ═════════════════════════════════════════════════
+
+    // Conflict window: composure, states (+ State / lever), the result in the bar
+    {
+      const a1 = makeActor("cwA", { cha: 3, wis: 1 }), a2 = makeActor("cwB", { cha: 2, wis: 2 });
       await SAM.applyCondition(a2, "smitten", a1, { charges: 2 });
+      await SAM.applyCondition(a2, "guilted", a1);
+      await CE.applyOne(a2, "shamed", "cwA", "cwA");
       R.ConflictStore.state = { active: true, selectedTokenIds: [], turn: 0, log: [], resolved: false, resolution: null,
         participants: [
-          { tokenId: "t1", actorId: "dpA", name: "dpA", img: "", color: "#e8557a", stats: [], conditions: { ...conds } },
-          { tokenId: "t2", actorId: "dpB", name: "dpB", img: "", color: "#9b6ee8", stats: [], conditions: { ...conds } },
+          { tokenId: "t1", actorId: "cwA", name: "cwA", img: "", color: "#e8557a", stats: [], conditions: {} },
+          { tokenId: "t2", actorId: "cwB", name: "cwB", img: "", color: "#9b6ee8", stats: [], conditions: {} },
         ] };
       const app = Object.create(R.TSLConflictApp.prototype);
-      Object.assign(app, { _pendingRoll: null, _selectedMove: null, _selectedTarget: null, _pendingStringSpend: null, _pendingLeverage: null, _gmActingIdx: 0 });
+      Object.assign(app, { _pendingRoll: null, _selectedMove: mv("intimidate"), _selectedTarget: 1, _pendingStringSpend: null, _pendingLeverage: null, _gmActingIdx: 0 });
+      await EM.startEncounter(a1, 2);   // one risky miss from cracking
       let html = "";
       try { html = app._renderHTML(await app.getData()); } catch (e) { html = "ERR:" + e.stack; }
-      ok(`conflict card: the live state shows as "Enthralled ×2"`, /Enthralled ×2/.test(html) && !/ERR:/.test(html));
+      ok(`conflict window renders: Composure, "nearly gone", the miss cost, no undefined`,
+        !/undefined|NaN|ERR:/.test(html) && /Composure/.test(html) && /composure is nearly gone/.test(html) && /you lose 2 composure/.test(html));
+      ok(`…states as tags (Enthralled ×2), a lever to call, + State for the GM, the Shame wound`,
+        /Enthralled ×2/.test(html) && /data-call-lever="guilted"/.test(html) && /tsl-state-add/.test(html) && /Shame/.test(html));
+      if (/ERR:/.test(html)) console.log(html.slice(0, 600));
+      app._pendingRoll = { kind: "maneuver", moveName: "Intimidate", icon: "fa-hand-fist", target: "cwB", total: 17, dc: 14, outcome: "success", natural: 11 };
+      let rh = "";
+      try { rh = app._renderHTML(await app.getData()); } catch (e) { rh = "ERR:" + e.stack; }
+      ok(`the result shows IN the bar (no overlay), with Continue`, /tsl-bar--result/.test(rh) && /tsl-dice-close/.test(rh) && !/tsl-dice-overlay/.test(rh) && !/ERR:/.test(rh));
       R.ConflictStore.state = null;
     }
 
-    // ═══ v1.82 ═══════════════════════════════════════════════════════════════
-
-    // 24) The three plain basics each have their own identity (Lie no longer dominates)
+    // Chronicle: console, own exchange + levers, result in place, Nature, wounds, codex
     {
-      ok(`Persuade: 1 Resolve but unparryable · Intimidate: 2 Resolve, a miss costs 2 · Lie: String, but can get you caught`,
-        mv("persuade").unparryable === true && mv("persuade").resolveDamage === 1
-        && mv("intimidate").resolveDamage === 2 && mv("intimidate").failPatience === 2
-        && mv("lie").grantStrings === 1 && mv("lie").caughtOnBotch === true);
-      makeActor("gpA", { cha: 3, wis: 1 });
-      const T = makeActor("gpT", { cha: 5, wis: 3 });   // R5 P8
-      SM.promptOutcome = async () => "success";
-      globalThis.__formPick = { "tsl-blow": "parry" };
-      const c0 = globalThis.__dialogCount;
-      await SM.applyOutcome(pay("gpA", "gpT", "persuade"));
-      globalThis.__formPick = null;
-      ok(`Persuade can't be parried: Resolve 5→${EM.getEncounter(T).resolve}, Patience untouched (${EM.getEncounter(T).patience}/8), no window`,
-        EM.getEncounter(T).resolve === 4 && EM.getEncounter(T).patience === 8 && globalThis.__dialogCount === c0);
-      const L = makeActor("gpL", { cha: 3, wis: 2 });
-      makeActor("gpV", { cha: 3, wis: 3 });
-      SM.promptOutcome = async () => "botch";
-      await SM.applyOutcome(pay("gpL", "gpV", "lie", { outcomeType: "botch" }));
-      ok(`a Lie that misses badly gets you caught: they hold a String on you (${holds("gpV", "gpL")})`, holds("gpV", "gpL") === 1);
-      const pv = SM.previewOutcomes(SM.assess(L, game.actors.get("gpV"), mv("lie"), {}), mv("lie"));
-      ok(`…and the stakes line warns about it`, /caught lying/.test(pv.miss));
-      SM.promptOutcome = savedPO;
-    }
-
-    // 25) NPC defence stances — no window for the GM, a clear rule per stance
-    {
-      const npc = (id, o = {}) => { const a = makeActor(id, o); a.hasPlayerOwner = false; return a; };
-      const pc = makeActor("stPC");
-      ok(`player characters always decide (stance "ask")`, SAM.getStance(pc) === "ask");
-      const t = npc("stTyr"); await SAM.setArchetype(t, "tyrant");
-      const m = npc("stMar"); await SAM.setArchetype(m, "martyr");
-      const z = npc("stZea"); await SAM.setArchetype(z, "dogmatic");
-      const n0 = npc("stNone");
-      ok(`by nature: Power → Proud, Emotion → Measured, Reason → Guarded, none → Measured`,
-        SAM.getStance(t) === "proud" && SAM.getStance(m) === "measured" && SAM.getStance(z) === "guarded" && SAM.getStance(n0) === "measured");
-      await SAM.setActorData(n0, { stance: "open" });
-      ok(`an explicit stance wins`, SAM.getStance(n0) === "open");
-      __settings.set("tsl-social-conflict.npcDefenseAuto", false);
-      ok(`world setting off → the GM is asked again`, SAM.getStance(t) === "ask");
-      __settings.set("tsl-social-conflict.npcDefenseAuto", true);
-
-      const base = { defender: n0, damage: 2, patience: 6, maxPatience: 6, status: "smitten", holdOptions: ["angry", "spiteful"] };
-      const auto = (stance, extra = {}) => SM._autoMeet({ ...base, ...extra }, stance);
-      const o1 = auto("open");
-      ok(`Open: takes it, accepts the state`, o1.block === 0 && !o1.riposte && o1.hold === null);
-      const o2 = auto("measured");
-      ok(`Measured: parries down to half composure (block ${o2.block}), holds with a fresh wound (${o2.hold})`, o2.block === 2 && o2.hold === "angry");
-      const o2b = auto("measured", { patience: 4 });
-      ok(`Measured at 4/6: only 1 to spare (block ${o2b.block})`, o2b.block === 1);
-      const o3 = auto("guarded", { patience: 2 });
-      ok(`Guarded: parries all it can even to its last point (block ${o3.block})`, o3.block === 2 && o3.hold);
-      const o4 = auto("proud");
-      ok(`Proud: ripostes when it can`, o4.riposte === true && o4.block === 2);
-      const o4b = auto("proud", { patience: 2 });
-      ok(`Proud with little left: parries but never to its last point (block ${o4b.block})`, !o4b.riposte && o4b.block === 1);
-      const o5 = auto("guarded", { unparryable: true });
-      ok(`no stance parries the unparryable`, o5.block === 0);
-
-      // through the real pipeline: an NPC target meets the blow with NO window
-      makeActor("stAtk", { cha: 3, wis: 1 });
-      const g = npc("stGrd", { cha: 5, wis: 3 });   // R5 P8
-      await SAM.setActorData(g, { stance: "guarded" });
-      SM.promptOutcome = async () => "success";
-      const c0 = globalThis.__dialogCount;
-      await SM.applyOutcome(pay("stAtk", "stGrd", "flatter"));
-      ok(`NPC defended on its own (no window): Resolve ${EM.getEncounter(g).resolve}/5, Patience ${EM.getEncounter(g).patience}/8, held the line: ${CE.hasCondition(g, "angry") || CE.hasCondition(g, "spiteful")}`,
-        globalThis.__dialogCount === c0 && EM.getEncounter(g).resolve === 5 && EM.getEncounter(g).patience === 6
-        && (CE.hasCondition(g, "angry") || CE.hasCondition(g, "spiteful")) && !SAM.getActiveCondition(g, "smitten"));
-      SM.promptOutcome = savedPO;
-
-      // the Profile offers the stance to the GM for an NPC
+      const me = makeActor("chA", { cha: 3, wis: 1 }), them = makeActor("chB", { cha: 2, wis: 2 });
+      await EM.startEncounter(me, 4);
+      await SAM.applyCondition(them, "guilted", me);
+      const savedTokens = canvas.tokens.placeables;
+      canvas.tokens.placeables = [{ actor: them, document: { hidden: false, texture: {} }, visible: true }];
       const app = Object.create(R.SocialFencingApp.prototype);
-      app._actor = t;
+      Object.assign(app, { _actor: me, _fenceTargetId: "chB", _fenceManeuverId: "persuade", _fenceLeverage: null, _fenceStringSpend: false, _fenceRoll: null, _expandedBonds: new Set(), _picking: false });
+      const ctx = await app.getData();
       let html = "";
-      try { html = app._buildProfileTab({ notes: SAM.getCharacterNotes(t), archetype: SAM.getArchetype(t), canEdit: true, isGM: true }); } catch (e) { html = "ERR:" + e.stack; }
-      ok(`Profile shows the Defence stance selector ("By nature (Proud)")`, /name="stance"/.test(html) && /By nature \(Proud\)/.test(html) && !/undefined|ERR:/.test(html));
+      try { html = app._buildFencingTab({ ...ctx, isGM: false }); } catch (e) { html = "ERR:" + e.stack; }
+      ok(`console + own exchange render: Composure, "a miss costs 1", the lever row, no undefined`,
+        !/undefined|NaN|ERR:/.test(html) && /Composure/.test(html) && /a miss costs 1/.test(html) && /Levers you hold/.test(html) && /Call the debt/.test(html));
+      if (/ERR:/.test(html)) console.log(html.slice(0, 600));
+      app._fenceRoll = { name: "Persuade", icon: "fa-comments", target: "chB", total: 9, dc: 15, outcome: "failure", natural: 7 };
+      let rh = "";
+      try { rh = app._buildManeuverConsole({ ...ctx, isGM: false }); } catch (e) { rh = "ERR:" + e.stack; }
+      ok(`the console shows the result where Roll was`, /tsl-bar--result/.test(rh) && /✗ A miss/.test(rh) && /tsl-fence-close/.test(rh) && !/ERR:/.test(rh));
+      canvas.tokens.placeables = savedTokens;
+
+      const t = npc("natT2"); await SAM.setArchetype(t, "duelist");
+      const pa = Object.create(R.SocialFencingApp.prototype); pa._actor = t;
+      let ph = "";
+      try { ph = pa._buildProfileTab({ notes: SAM.getCharacterNotes(t), archetype: SAM.getArchetype(t), canEdit: true, isGM: true }); } catch (e) { ph = "ERR:" + e.stack; }
+      ok(`Profile: one Nature block (Leanings + When pressed "By nature (Stands firm)"), implied dots for the NPC`,
+        /Leanings/.test(ph) && /When pressed/.test(ph) && /By nature \(Stands firm\)/.test(ph) && /implied/.test(ph) && !/undefined|ERR:/.test(ph));
+      const pc = makeActor("natPC");
+      const pp = Object.create(R.SocialFencingApp.prototype); pp._actor = pc;
+      let pch = "";
+      try { pch = pp._buildProfileTab({ notes: SAM.getCharacterNotes(pc), archetype: null, canEdit: true, isGM: false }); } catch (e) { pch = "ERR:" + e.stack; }
+      ok(`a player's Profile: the same Nature block, "Decide each time" chosen, no archetype selector`,
+        /Leanings/.test(pch) && /value="ask" selected/.test(pch) && !/name="archetypeId"/.test(pch) && !/ERR:/.test(pch));
+
+      await CE.applyOne(me, "jealous", "X");
+      let wh = "";
+      try { wh = app._buildWoundToggles({ activeWounds: { jealous: 1 }, willpower: { cur: 1, max: 2 }, isGM: false }); } catch (e) { wh = "ERR:" + e.stack; }
+      ok(`an active Wound has its Give in button`, /data-give-in="jealous"/.test(wh) && !/ERR:/.test(wh));
+
+      const cod = Object.create(R.SocialFencingApp.prototype); cod._actor = actorB;
+      for (const cat of ["start", "moves", "statuses", "openings", "feelings", "natures", "details", "gm"]) {
+        cod._codexCat = cat;
+        let ch = "";
+        try { ch = cod._buildCodexTab({ isGM: true }); } catch (e) { ch = "ERR:" + e.message; }
+        ok(`codex ${cat} renders, no undefined`, ch.length > 100 && !/undefined|NaN|ERR:/.test(ch) && ch.includes(`data-codex-cat="${cat}"`));
+        if (/ERR:/.test(ch)) console.log(ch.slice(0, 300));
+      }
+      cod._codexCat = "statuses";
+      const sh = cod._buildCodexTab({ isGM: true });
+      ok(`the States page answers: automatic? how long? into combat?`, /Are they automatic\?/.test(sh) && /How long\?/.test(sh) && /Into combat\?/.test(sh) && /on the sheet/.test(sh));
+      const anyOld = ["start", "moves", "statuses", "feelings", "natures", "details", "gm"].some((cat) => {
+        cod._codexCat = cat; return /\bResolve\b|\bPatience\b|parr(y|ied)|riposte|break off|broke off/i.test(cod._buildCodexTab({ isGM: true }).replace(/Conviction|resolve:/g, ""));
+      });
+      ok(`no page mentions the old Resolve / Patience / parry`, !anyOld);
     }
 
-    // 26) Basic emotional layer: the Wounds alone
+    // Basic emotional layer: the Wounds alone
     {
       __settings.set("tsl-social-conflict.emotionalLayer", "basic");
       const b = makeActor("basA", { cha: 2 });
       await CE.applyOne(b, "angry", "X");
       const app = Object.create(R.SocialFencingApp.prototype);
-      Object.assign(app, { _actor: b, _fenceTargetId: null, _fenceManeuverId: null, _expandedBonds: new Set(), _picking: false });
-      const ctx = await app.getData();
+      Object.assign(app, { _actor: b, _fenceTargetId: null, _fenceManeuverId: null, _fenceRoll: null, _expandedBonds: new Set(), _picking: false });
       let html = "";
-      try { html = app._buildFencingTab(ctx); } catch (e) { html = "ERR:" + e.stack; }
+      try { html = app._buildFencingTab(await app.getData()); } catch (e) { html = "ERR:" + e.stack; }
       ok(`basic: Wounds stay; no Willpower, Boons, Scars or Give in`,
         /❤ Wounds/.test(html) && !/⬡ Willpower/.test(html) && !/✦ Boons/.test(html) && !/🩹 Scars/.test(html) && !/data-give-in/.test(html) && !/ERR:/.test(html));
-      ok(`basic: wound tooltips drop the Ultimate and Give in lines`, !/Give in:/.test(CE.dossier("angry", 3, "them")) && !/Fury/.test(CE.dossier("angry", 3, "them")));
-      await CE.setTier(b, "angry", 3, "X");
-      await CE.onLongRest(b);
-      ok(`basic: a ●●● Wound about yourself eases instead of scarring (tier ${CE.getTier(b, "angry")}, no Cruelty)`, CE.getTier(b, "angry") === 2 && !CE.hasScar(b, "cruelty"));
-      const k = makeActor("basK"); makeActor("basL");
-      await R.TSLBondStore.add("basK", "basL", { type: "lover", attitude: 3 });
-      const appB = Object.create(R.SocialFencingApp.prototype);
-      Object.assign(appB, { _actor: k, _expandedBonds: new Set(R.TSLBondStore.getList("basK").map((x) => x.id)), _picking: false });
-      let bh = "";
-      try { bh = appB._buildBondsTab(await appB.getData()); } catch (e) { bh = "ERR:" + e.stack; }
-      ok(`basic: a ●●● bond shows no ability / signature`, !/tsl-chr-ability/.test(bh) && !/tsl-chr-signature/.test(bh) && !/ERR:/.test(bh));
-      if (/ERR:/.test(bh)) console.log(bh.slice(0, 500));
-      const cod = Object.create(R.SocialFencingApp.prototype);
-      cod._actor = actorB;
-      cod._codexCat = "feelings";
-      let fh = "";
-      try { fh = cod._buildCodexTab({ isGM: true }); } catch (e) { fh = "ERR:" + e.message; }
-      ok(`basic: the Feelings page is the Wounds alone, no undefined`, /emotional layer — basic/.test(fh) && !/Willpower — the resource/.test(fh) && !/undefined|ERR:/.test(fh));
       __settings.set("tsl-social-conflict.emotionalLayer", "full");
-      let bh2 = "";
-      try { bh2 = appB._buildBondsTab(await appB.getData()); } catch (e) { bh2 = "ERR:" + e.stack; }
-      ok(`full: the same bond shows its ability and signature again`, /tsl-chr-ability/.test(bh2) && /tsl-chr-signature/.test(bh2));
-    }
-
-    // 6) Codex renders without undefined — every page
-    {
-      const app = Object.create(R.SocialFencingApp.prototype);
-      app._actor = actorB;
-      for (const cat of ["start", "moves", "openings", "statuses", "feelings", "details", "natures", "gm"]) {
-        app._codexCat = cat;
-        let html = "";
-        try { html = app._buildCodexTab({ isGM: true }); } catch (e) { html = "ERR:" + e.message; }
-        ok(`codex ${cat} renders, no undefined`, typeof html === "string" && html.length > 100 && !/undefined|NaN|ERR:/.test(html));
-      }
     }
 
     console.log(CARD_SUSPECT ? `(${CARD_SUSPECT} card-suspect lines above)` : "no card suspects");

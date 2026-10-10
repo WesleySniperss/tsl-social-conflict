@@ -1807,8 +1807,8 @@
   border-radius: 50%;
   border: none;
   object-fit: cover;
-  /* core icons/svg/* are black strokes — lift them for the dark theme */
-  filter: invert(0.85);
+  /* core icons/svg/* are WHITE glyphs (fill="#fff") — shown as they are on the dark theme */
+  filter: none; opacity: 0.9;
 }
 
 /* ─── Conflict: maneuver chips ─────────────────────────────────── */
@@ -2343,7 +2343,7 @@
   object-fit: cover;
   flex-shrink: 0;
   margin-top: 1px;
-  filter: invert(0.85);
+  filter: none; opacity: 0.9; background: rgba(255,255,255,0.04); padding: 3px;
 }
 .tsl-codex-status-name {
   font-family: 'Cinzel', serif;
@@ -2404,7 +2404,7 @@
   border: none;
   object-fit: cover;
   opacity: 0.5;
-  filter: invert(0.7);
+  filter: none;
   transition: all 0.15s;
   flex-shrink: 0;
 }
@@ -2419,7 +2419,7 @@
   background: rgba(232,85,122,0.09);
   color: var(--tsl-notes-text);
 }
-.tsl-cond-toggle.active img { opacity: 1; filter: invert(1); }
+.tsl-cond-toggle.active img { opacity: 1; filter: none; }
 
 /* ─── Conflict: GM "start tracks" + locked center ──────────────── */
 
@@ -2837,7 +2837,7 @@
   display: inline-flex; align-items: center; justify-content: center;
   cursor: help; overflow: hidden;
 }
-.tsl-status-dot img { width: 12px; height: 12px; filter: invert(0.85); }
+.tsl-status-dot img { width: 12px; height: 12px; filter: none; }
 
 /* Card footer — conditions + strings on one quiet line */
 .tsl-card-footer {
@@ -3148,7 +3148,7 @@
   cursor: help;
   overflow: hidden;
 }
-.tsl-board-dot img { width: 11px; height: 11px; filter: invert(0.85); }
+.tsl-board-dot img { width: 11px; height: 11px; filter: none; }
 .tsl-board-track {
   font-family: 'Cinzel', serif;
   font-size: 10px;
@@ -4073,7 +4073,7 @@ details.tsl-codex-sub > summary:hover { filter: brightness(1.15); }
 }
 .tsl-fencing .tsl-cond-toggle img {
   width: 18px; height: 18px; border-radius: 0; object-fit: contain;
-  filter: invert(1); opacity: 0.4;
+  filter: none; opacity: 0.45;
 }
 .tsl-fencing .tsl-cond-toggle:hover { color: #f0dfc8; border-color: rgba(255,255,255,0.22); background: rgba(255,255,255,0.05); }
 .tsl-fencing .tsl-cond-toggle:hover img { opacity: 0.75; }
@@ -4081,7 +4081,7 @@ details.tsl-codex-sub > summary:hover { filter: brightness(1.15); }
   color: #fff; background: rgba(232,85,122,0.16); border-color: rgba(232,85,122,0.75);
   box-shadow: 0 0 10px rgba(232,85,122,0.18);
 }
-.tsl-fencing .tsl-cond-toggle.active img { opacity: 1; filter: invert(1); }
+.tsl-fencing .tsl-cond-toggle.active img { opacity: 1; filter: drop-shadow(0 0 3px rgba(255,255,255,0.35)); }
 .tsl-fencing .tsl-boon-toggle.active { background: rgba(123,216,143,0.13); border-color: rgba(123,216,143,0.7); box-shadow: 0 0 10px rgba(123,216,143,0.15); }
 .tsl-fencing .tsl-scar-toggle.active { background: rgba(169,139,230,0.14); border-color: rgba(169,139,230,0.7); box-shadow: 0 0 10px rgba(169,139,230,0.15); }
 .tsl-fencing .tsl-cond-toggle .tsl-wound-tier { margin-left: 2px; padding-left: 0; font-size: 8px; letter-spacing: 1px; }
@@ -4250,7 +4250,7 @@ details.tsl-codex-sub > summary:hover { filter: brightness(1.15); }
 .tsl-dialog .tsl-rollmods .form-group label { color: #d9c4b2; font-family: 'Cinzel', serif; font-size: 12px; }
 .tsl-dialog .dialog-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 .tsl-dialog .dialog-button {
-  flex: 1 1 0; min-width: 0; height: 32px; margin: 0;
+  flex: 1 1 auto; min-width: max-content; height: 32px; margin: 0; padding: 0 12px;
   background: rgba(255,255,255,0.04); color: #e8d6c4;
   border: 1px solid rgba(255,255,255,0.14); border-radius: 6px; box-shadow: none;
   font-family: 'Cinzel', serif; font-size: 12px; letter-spacing: 0.03em; white-space: nowrap;
@@ -4303,3 +4303,316 @@ details.tsl-codex-sub > summary:hover { filter: brightness(1.15); }
 }
 .tsl-fencing .tsl-codex-move-head > b { font-family: 'Cinzel', serif; font-size: 14px; letter-spacing: 0.03em; }
 .tsl-fencing .tsl-codex-move .tsl-codex-gain { white-space: normal; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   v1.84 — one card per roll; icons as they are; the small parts tidied
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── What followed a roll, written into its own card ── */
+.tsl-mv-after {
+  list-style: none; margin: 2px 0 0; padding: 6px 0 0;
+  border-top: 1px dashed rgba(255,255,255,0.08);
+  display: flex; flex-direction: column; gap: 5px;
+}
+.tsl-mv-after-item {
+  margin: 0; padding: 1px 0 1px 8px;
+  border-left: 2px solid rgba(255,255,255,0.18);
+  font-size: 12.5px; line-height: 1.4; font-style: normal; color: #d9c4b2;
+}
+.tsl-mv-after-item b { color: #fff; font-weight: 600; }
+.tsl-mv-after-item i { color: #b9a394; }
+.tsl-mv-after--good { border-left-color: rgba(85,232,133,0.65); }
+.tsl-mv-after--bad  { border-left-color: rgba(232,168,85,0.75); }
+.tsl-mv--info { border-left-color: #806858; }
+/* Advantage from a state/leverage — not the weak spot (that one keeps ◎) */
+.tsl-mv-adv {
+  display: inline-block; vertical-align: 1px; margin-right: 2px;
+  padding: 1px 4px; border-radius: 4px; line-height: 1;
+  font-family: 'Cinzel', serif; font-size: 8.5px; font-style: normal; letter-spacing: 0.06em;
+  color: #9fdcae; background: rgba(85,232,133,0.1); border: 1px solid rgba(85,232,133,0.35);
+}
+
+/* ── Dialog buttons: a tidy grid — two per row, never cut off ── */
+.tsl-dialog .dialog-buttons {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 6px;
+}
+.tsl-dialog .dialog-button {
+  width: 100%; min-width: 0; padding: 0 10px;
+  overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ── Conflict window: only the center scrolls — the cards never get squashed ── */
+#tsl-social-conflict .tsl-header,
+#tsl-social-conflict .tsl-participants,
+#tsl-social-conflict .tsl-log { flex-shrink: 0; }
+
+/* Selection mode: a real title, the close button on the right */
+.tsl-selection-mode .tsl-header { padding: 0 0 12px; margin-bottom: 16px; }
+.tsl-selection-mode .tsl-close-btn { margin-left: auto; }
+.tsl-select-title {
+  display: flex; align-items: center; gap: 9px;
+  font-family: var(--tsl-font-title); font-size: 15px; letter-spacing: 0.06em; color: var(--tsl-text);
+}
+.tsl-select-title i { color: var(--tsl-p0); font-size: 14px; }
+.tsl-selection-instructions p { color: #c9b3a2; }
+.tsl-selection-instructions .tsl-select-count {
+  font-family: var(--tsl-font-title); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--tsl-muted); margin-top: 6px;
+}
+.tsl-selection-mode .tsl-select-token { min-height: 0; height: auto; margin: 0; }
+.tsl-selection-mode .tsl-start-conflict-btn { width: auto; height: auto; min-height: 0; margin: 0 auto; padding: 10px 26px; }
+
+/* Row labels on the participant card: quiet small caps, not boxes */
+#tsl-social-conflict .tsl-row-label,
+#tsl-social-conflict .tsl-row-label--state,
+#tsl-social-conflict .tsl-row-label--wound {
+  background: none; border: none; padding: 0; min-width: 50px; height: auto;
+  font-size: 9px; letter-spacing: 0.12em; opacity: 1;
+}
+#tsl-social-conflict .tsl-row-label--state { color: #a996d6; }
+#tsl-social-conflict .tsl-row-label--wound { color: #e08aa3; }
+
+/* Wounds on the participant card: named toggles, like the States row */
+#tsl-social-conflict .tsl-wounds-row { gap: 3px; }
+#tsl-social-conflict .tsl-wounds-row .tsl-cond-pip {
+  width: auto; height: 20px; min-height: 0; margin: 0; padding: 0 7px 0 6px;
+  display: inline-flex; align-items: center; gap: 4px;
+  border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);
+  background: transparent; box-shadow: none;
+}
+#tsl-social-conflict .tsl-wounds-row .tsl-cond-pip::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%; flex: none;
+  background: var(--cond-color); opacity: 0.75;
+}
+#tsl-social-conflict .tsl-wounds-row .tsl-cond-pip .tsl-cond-pip-name {
+  padding: 0; font-family: 'EB Garamond', serif; font-size: 10.5px; line-height: 1; color: #8f7a6c;
+}
+#tsl-social-conflict .tsl-wounds-row .tsl-cond-pip:not(:disabled):hover { border-color: var(--cond-color); }
+#tsl-social-conflict .tsl-wounds-row .tsl-cond-pip.active {
+  background: color-mix(in srgb, var(--cond-color, #e8557a) 22%, transparent);
+  border-color: var(--cond-color, #e8557a);
+}
+#tsl-social-conflict .tsl-wounds-row .tsl-cond-pip.active .tsl-cond-pip-name { color: #fff; }
+#tsl-social-conflict .tsl-wounds-row .tsl-cond-pip:disabled { cursor: help; opacity: 1; }
+
+/* ── Chronicle roll overlay: stays in view however far down you rolled ── */
+.tsl-fencing .tsl-dice-overlay { align-items: flex-start; }
+.tsl-fencing .tsl-dice-panel { position: sticky; top: 70px; margin-top: 70px; }
+.tsl-fencing .tsl-fence-close {
+  width: auto; height: auto; min-height: 0; margin: 0 auto; padding: 7px 24px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.14); border-radius: 8px;
+  color: #c9b3a2; font-family: 'EB Garamond', serif; font-size: 13px; box-shadow: none;
+}
+.tsl-fencing .tsl-fence-close:hover { color: #fff; border-color: rgba(255,255,255,0.28); background: rgba(255,255,255,0.08); }
+
+/* ── Codex: reading text, not whispers ── */
+.tsl-fencing .tsl-codex-hint-sm,
+.tsl-fencing .tsl-codex-triad-hint {
+  font-style: normal; font-size: 12.5px; line-height: 1.5; color: #c4a7b1;
+}
+.tsl-fencing .tsl-codex-hint-sm i,
+.tsl-fencing .tsl-codex-triad-hint i { font-style: italic; }
+.tsl-fencing .tsl-codex-status-desc { font-size: 12.5px; line-height: 1.45; color: #dcc8b8; }
+.tsl-fencing .tsl-codex-status-combat,
+.tsl-fencing .tsl-codex-status-bonds { font-size: 11.5px; line-height: 1.45; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   v2.0 — one Composure track, behavioural states, levers, Nature, the result
+   shown where you rolled. Shared by the conflict window and the Chronicle.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Composure: the one track ── */
+.tsl-enc-pip--composure.filled,
+.tsl-notes-pip--composure.filled {
+  background: #e8c27a; border-color: #e8c27a; box-shadow: 0 0 5px rgba(232,194,122,0.5);
+}
+.tsl-enc-tracks--low .tsl-enc-pip--composure.filled,
+.tsl-comp--low .tsl-notes-pip--composure.filled {
+  background: #e8705a; border-color: #e8705a; box-shadow: 0 0 6px rgba(232,112,90,0.6);
+}
+#tsl-social-conflict .tsl-enc-track-label { flex: 0 0 auto; margin-right: 2px; }
+.tsl-enc-pips { display: inline-flex; flex-wrap: wrap; gap: 3px; }
+.tsl-enc-count {
+  margin-left: auto; padding-left: 6px; font-family: var(--tsl-font-title, "Cinzel", serif);
+  font-size: 9.5px; color: var(--tsl-muted); flex: none;
+}
+.tsl-enc-tracks--idle { opacity: 0.45; }
+.tsl-enc-tracks--idle .tsl-enc-pip--composure.filled { box-shadow: none; }
+.tsl-enc-done { display: inline-flex; align-items: center; gap: 5px; font-style: normal; }
+.tsl-enc-done i { font-size: 9px; }
+
+.tsl-comp {
+  display: flex; align-items: center; gap: 7px; min-width: 0; cursor: help;
+  font-size: 11px; color: var(--tsl-notes-muted, #b58598);
+}
+.tsl-comp-label {
+  flex: none; font-family: var(--tsl-font-title, "Cinzel", serif);
+  font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #d9c2a8;
+}
+.tsl-comp-pips { display: inline-flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
+.tsl-comp .tsl-notes-pip { width: 11px; height: 11px; flex: none; }
+.tsl-comp-count { flex: none; font-family: var(--tsl-font-title, "Cinzel", serif); font-size: 10px; }
+.tsl-comp--idle { opacity: 0.55; }
+.tsl-comp--idle .tsl-notes-pip--composure.filled { box-shadow: none; }
+.tsl-chr-outcome { display: inline-flex; align-items: center; gap: 6px; font-style: normal; }
+
+/* GM nudges beside a composure line */
+.tsl-comp-ctl { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; flex: none; }
+.tsl-fencing .tsl-comp-ctl button,
+#tsl-social-conflict .tsl-comp-ctl button {
+  width: auto; height: 20px; min-height: 0; margin: 0; padding: 0 7px; line-height: 1;
+  border-radius: 10px; font-size: 11px; box-shadow: none;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); color: #d9c2a8;
+}
+.tsl-fencing .tsl-comp-ctl .tsl-comp-reset { font-family: "EB Garamond", serif; font-size: 11.5px; padding: 0 9px; }
+.tsl-fencing .tsl-comp-ctl button:hover { border-color: rgba(255,255,255,0.3); color: #fff; }
+
+/* ── States: tags with an × (GM) and a lever (the holder) ── */
+.tsl-status-tag { display: inline-flex; align-items: center; gap: 4px; }
+.tsl-status-tag--good { border-style: dashed; }
+.tsl-fencing .tsl-tag-x,
+#tsl-social-conflict .tsl-tag-x {
+  width: auto; height: auto; min-height: 0; margin: 0 -2px 0 1px; padding: 0 2px; line-height: 1;
+  background: transparent; border: none; box-shadow: none;
+  color: inherit; opacity: 0.55; font-size: 11px; cursor: pointer;
+}
+.tsl-fencing .tsl-tag-x:hover,
+#tsl-social-conflict .tsl-tag-x:hover { opacity: 1; color: #fff; }
+.tsl-fencing .tsl-lever-btn,
+#tsl-social-conflict .tsl-lever-btn {
+  width: auto; height: 20px; min-height: 0; margin: 0; padding: 0 8px; line-height: 1;
+  display: inline-flex; align-items: center; gap: 4px; flex: none;
+  border-radius: 10px; box-shadow: none;
+  font-family: var(--tsl-font-title, "Cinzel", serif); font-size: 9.5px; letter-spacing: 0.03em;
+  color: #f2d27a; background: rgba(232,200,85,0.12); border: 1px solid rgba(232,200,85,0.5);
+}
+.tsl-fencing .tsl-lever-btn i,
+#tsl-social-conflict .tsl-lever-btn i { font-size: 9px; }
+.tsl-fencing .tsl-lever-btn:hover,
+#tsl-social-conflict .tsl-lever-btn:hover { background: rgba(232,200,85,0.22); color: #fff; }
+.tsl-row-empty { font-size: 10.5px; font-style: italic; color: var(--tsl-dim, #7a5a66); }
+.tsl-fencing select.tsl-add-select,
+#tsl-social-conflict select.tsl-add-select {
+  width: auto; height: 20px; min-height: 0; margin: 0 0 0 2px; padding: 0 4px;
+  font-size: 10.5px; line-height: 1; border-radius: 10px;
+  background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.18); color: #b9a08e;
+}
+
+/* ── Wounds on the cards: a named pill with its tier ── */
+.tsl-wound-pill {
+  display: inline-flex; align-items: center; gap: 4px; flex: none; cursor: help;
+  height: 20px; padding: 0 7px; border-radius: 10px;
+  font-family: "EB Garamond", serif; font-size: 11px; line-height: 1; color: #f4e6ea;
+  background: color-mix(in srgb, var(--cond-color, #e8557a) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cond-color, #e8557a) 70%, transparent);
+}
+.tsl-wound-pill .tsl-wound-tier { margin: 0; padding: 0; font-size: 8px; letter-spacing: 1px; color: var(--cond-color, #f0a9bd); }
+.tsl-over-tag {
+  flex: none; cursor: help; height: 20px; display: inline-flex; align-items: center; padding: 0 7px;
+  border-radius: 10px; font-family: var(--tsl-font-title, "Cinzel", serif); font-size: 9px; letter-spacing: 0.05em;
+  color: #ff9a8a; background: rgba(232,85,85,0.16); border: 1px solid rgba(232,85,85,0.55);
+}
+.tsl-fc-wounds { margin-top: 2px; }
+
+/* ── Disadvantage mark beside ADV ── */
+.tsl-bar-dis {
+  font-family: var(--tsl-font-title, "Cinzel", serif);
+  font-size: 8px; letter-spacing: 0.08em; color: #e88a8a;
+  border: 1px solid rgba(232,138,138,0.55); border-radius: 7px;
+  padding: 0 5px; cursor: help; flex-shrink: 0; margin-left: 3px;
+}
+
+/* ── The roll's result, in the pinned bar where you clicked Roll ── */
+.tsl-bar--result { gap: 6px; text-align: left; animation: tsl-pop-in 0.25s ease-out; }
+.tsl-res-line { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.tsl-res-move {
+  flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--tsl-font-title, "Cinzel", serif); font-size: 11px; letter-spacing: 0.05em; color: #d9c2a8;
+}
+.tsl-res-move i { font-size: 10px; margin-right: 4px; opacity: 0.8; }
+.tsl-res-total {
+  flex: none; font-family: var(--tsl-font-title, "Cinzel", serif); font-size: 30px; line-height: 1;
+  color: #f4e6d4; text-shadow: 0 0 14px rgba(255,255,255,0.15);
+}
+.tsl-res-grade {
+  align-self: flex-start; cursor: help; padding: 2px 10px; border-radius: 10px;
+  font-family: var(--tsl-font-title, "Cinzel", serif); font-size: 11.5px; letter-spacing: 0.06em;
+}
+.tsl-res-grade--hit  { color: #7fe8a0; background: rgba(85,232,133,0.12); border: 1px solid rgba(85,232,133,0.45); }
+.tsl-res-grade--weak { color: #e8c855; background: rgba(232,200,85,0.12); border: 1px solid rgba(232,200,85,0.45); }
+.tsl-res-grade--miss { color: #f0a0a0; background: rgba(232,85,85,0.12); border: 1px solid rgba(232,85,85,0.45); }
+.tsl-res-grade--wall { color: #e8a855; background: rgba(232,168,85,0.12); border: 1px solid rgba(232,168,85,0.45); }
+.tsl-bar--result-hit  .tsl-res-total { color: #a8f0c0; }
+.tsl-bar--result-miss .tsl-res-total { color: #f0b0b0; }
+.tsl-res-note { font-size: 11px; line-height: 1.4; color: var(--tsl-muted, #a89078); font-style: italic; }
+.tsl-bar--result .tsl-dice-close,
+.tsl-bar--result .tsl-fence-close {
+  width: 100%; height: auto; min-height: 0; margin: 2px 0 0; padding: 7px 0; box-shadow: none;
+  border-radius: 8px; font-family: "EB Garamond", serif; font-size: 13px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.14); color: #d9c2a8;
+}
+.tsl-bar--result .tsl-dice-close:hover,
+.tsl-bar--result .tsl-fence-close:hover { color: #fff; border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.08); }
+
+/* ── Chronicle: this character in the exchange + the levers they hold ── */
+.tsl-self-comp { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.tsl-self-states { margin-top: 6px; gap: 4px; align-items: center; }
+.tsl-levers { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.tsl-levers-title {
+  font-family: var(--tsl-font-title, "Cinzel", serif); font-size: 9.5px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: #e8c855; cursor: help;
+}
+.tsl-lever-row { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.tsl-lever-img { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; flex: none; border: 1px solid rgba(232,200,85,0.4); }
+.tsl-lever-text { flex: 1 1 auto; min-width: 0; font-size: 12px; color: #dcc8b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tsl-fc-self { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.tsl-fc-self .tsl-comp { flex: 0 1 auto; }
+
+/* ── Profile: Nature (Leanings + When pressed) ── */
+.tsl-nature-sub { display: flex; align-items: center; gap: 8px; margin: 2px 0 4px; }
+.tsl-nature-sub--pressed { margin-top: 10px; }
+.tsl-nature-sub-title {
+  flex: none; cursor: help; font-family: var(--tsl-font-title, "Cinzel", serif);
+  font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #d9c2a8;
+  border-bottom: 1px dotted rgba(217,194,168,0.4);
+}
+.tsl-nature-sub--pressed select { flex: 1 1 auto; min-width: 0; width: auto; }
+.tsl-nature .tsl-chr-triad-budget { margin-left: auto; }
+.tsl-chr-triad-pip.implied {
+  background: color-mix(in srgb, var(--triad-color) 28%, transparent);
+  border-style: dashed; border-color: var(--triad-color);
+}
+.tsl-arch-pressed { margin-top: 6px; font-size: 12px; line-height: 1.4; color: #dcc8b8; cursor: help; }
+.tsl-arch-pressed i { font-size: 10px; margin-right: 4px; color: var(--triad-color, #c9a); }
+
+/* ── Codex: the states page ── */
+.tsl-codex-faq { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 10px; }
+.tsl-codex-faq > div {
+  font-size: 12.5px; line-height: 1.5; color: #dcc8b8;
+  padding: 6px 9px; border-left: 2px solid rgba(232,194,122,0.45); background: rgba(255,255,255,0.025); border-radius: 0 6px 6px 0;
+}
+.tsl-codex-status-gist { font-weight: normal; color: var(--tsl-notes-muted, #b58598); font-size: 11.5px; }
+.tsl-codex-status-lever { font-size: 11.5px; line-height: 1.45; color: #f2d27a; margin-top: 2px; }
+.tsl-codex-status-lever i { font-size: 10px; margin-right: 3px; }
+.tsl-codex-status-meta { font-size: 11px; line-height: 1.45; color: #b9a08e; margin-top: 2px; }
+.tsl-codex-auto {
+  display: inline-block; padding: 0 6px; border-radius: 8px; cursor: help; vertical-align: 1px;
+  font-family: var(--tsl-font-title, "Cinzel", serif); font-size: 8.5px; letter-spacing: 0.06em; text-transform: uppercase;
+}
+.tsl-codex-auto--on { color: #7fe8a0; background: rgba(85,232,133,0.1); border: 1px solid rgba(85,232,133,0.4); }
+.tsl-codex-auto--gm { color: #c9b3a2; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.18); }
+
+/* ── Scene map: the composure chip ── */
+.tsl-viz-tr--c { color: #e8c27a; }
+
+/* Codex: lists inside a block read as body text */
+.tsl-fencing .tsl-codex-combo .tsl-codex-how li { color: #d6c1b2; font-size: 12px; }
+.tsl-fencing .tsl-codex-combo .tsl-codex-how { margin-top: 4px; }
+
+/* Pick people for an Ultimate (allies / a rival / whom it is about) */
+.tsl-pick { display: flex; flex-direction: column; gap: 4px; max-height: 320px; overflow-y: auto; }
+.tsl-pick-row { display: flex; align-items: center; gap: 8px; padding: 3px 6px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; }
+.tsl-pick-row:hover { border-color: rgba(255,255,255,0.14); background: rgba(255,255,255,0.03); }
+.tsl-pick-row input { margin: 0; flex: none; }
+.tsl-pick-row img { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex: none; border: 1px solid rgba(255,255,255,0.18); }
+.tsl-pick-row span { font-family: "EB Garamond", serif; font-size: 13px; color: #e6d4c4; }

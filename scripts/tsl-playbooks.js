@@ -10,7 +10,7 @@
  *     strings      — you gain N Strings on the target
  *     stringsOnYou — the target gains N Strings on you
  *     reveal       — the target's profile is revealed in your Chronicle
- *     resolve      — target loses N Resolve (only while their tracks run)
+ *     resolve      — target loses N Composure (only while their exchange runs)
  * Anything else in the move text is adjudicated at the table (Conditions
  * are toggled by the GM on the participant cards).
  *
@@ -29,12 +29,12 @@ const TSL_PLAYBOOKS = [
     moves: [
       {
         id: "pb_bare_fangs", name: "Bare Your Fangs", icon: "fa-paw", stat: "Nerve", target: true,
-        desc: "Drop the mask of civility. On 10+: they back down — you gain 1 String. On 7-9: they yield ground, but you gain the Angry Condition.",
+        desc: "Drop the mask of civility. On 10+: they back down — you gain 1 String. On 7-9: they yield ground, but you gain Wrath.",
         onStrong: { strings: 1 },
       },
       {
         id: "pb_soft_underbelly", name: "Soft Underbelly", icon: "fa-heart", stat: "Passion", target: true,
-        desc: "Show the tender thing you hide. On 10+: true connection — clear one of your Conditions; the honesty chips 1 Resolve if their tracks run. On 7-9: they see you — they gain 1 String on you.",
+        desc: "Show the tender thing you hide. On 10+: true connection — clear one of your Conditions; the honesty takes 1 Composure if theirs is in play. On 7-9: they see you — they gain 1 String on you.",
         onStrong: { resolve: 1 },
         onWeak:   { stringsOnYou: 1 },
       },
@@ -48,7 +48,7 @@ const TSL_PLAYBOOKS = [
     moves: [
       {
         id: "pb_voice_destiny", name: "Voice of Destiny", icon: "fa-sun", stat: "Spirit", target: true,
-        desc: "Speak with the weight of prophecy. On 10+: they believe — 1 String, and 1 Resolve if their tracks run. On 7-9: they believe, but fate demands a price (GM says what).",
+        desc: "Speak with the weight of prophecy. On 10+: they believe — 1 String, and 1 Composure if theirs is in play. On 7-9: they believe, but fate demands a price (GM says what).",
         onStrong: { strings: 1, resolve: 1 },
       },
       {
@@ -65,7 +65,7 @@ const TSL_PLAYBOOKS = [
     moves: [
       {
         id: "pb_in_their_name", name: "In Their Name", icon: "fa-shield", stat: "Passion", target: true,
-        desc: "Invoke who or what you serve. On 10+: undeniable sincerity — 1 String, and 1 Resolve if their tracks run. On 7-9: they are moved but wary of your zeal.",
+        desc: "Invoke who or what you serve. On 10+: undeniable sincerity — 1 String, and 1 Composure if theirs is in play. On 7-9: they are moved but wary of your zeal.",
         onStrong: { strings: 1, resolve: 1 },
       },
       {
@@ -83,7 +83,7 @@ const TSL_PLAYBOOKS = [
     moves: [
       {
         id: "pb_legend_precedes", name: "Legend Precedes You", icon: "fa-crown", stat: "Nerve", target: true,
-        desc: "Let the stories do the talking. On 10+: they treat you as the legend — 1 String, and 1 Resolve if their tracks run. On 7-9: they heard a story, but the GM picks which one.",
+        desc: "Let the stories do the talking. On 10+: they treat you as the legend — 1 String, and 1 Composure if theirs is in play. On 7-9: they heard a story, but the GM picks which one.",
         onStrong: { strings: 1, resolve: 1 },
       },
       {
@@ -105,7 +105,7 @@ const TSL_PLAYBOOKS = [
       },
       {
         id: "pb_speak_thorns", name: "Speak with Thorns", icon: "fa-seedling", stat: "Wit", target: true,
-        desc: "Truth wrapped in briars. On 10+: it lands clean — 1 Resolve if their tracks run, and they cannot be Angry at you for it. On 7-9: it stings — they gain the Angry Condition.",
+        desc: "Truth wrapped in briars. On 10+: it lands clean — 1 Composure if theirs is in play, and they cannot hold Wrath against you for it. On 7-9: it stings — they gain Wrath.",
         onStrong: { resolve: 1 },
       },
     ],
@@ -124,7 +124,7 @@ const TSL_PLAYBOOKS = [
       },
       {
         id: "pb_devils_bargain", name: "Devil's Bargain", icon: "fa-scale-unbalanced", stat: "Wit", target: true,
-        desc: "Offer a deal too clever to refuse. On 10+: it takes — 1 Resolve if their tracks run, and you read their nature. On 7-9: the deal takes, but you owe them too — they gain 1 String on you.",
+        desc: "Offer a deal too clever to refuse. On 10+: it takes — 1 Composure if theirs is in play, and you read their nature. On 7-9: the deal takes, but you owe them too — they gain 1 String on you.",
         onStrong: { resolve: 1, reveal: true },
         onWeak:   { stringsOnYou: 1 },
       },
@@ -156,7 +156,7 @@ const TSL_PLAYBOOKS = [
     moves: [
       {
         id: "pb_unsettling_gaze", name: "Unsettling Gaze", icon: "fa-eye", stat: "Nerve", target: true,
-        desc: "Look at them like you already know. On 10+: they flinch first — 1 String, and 1 Resolve if their tracks run. On 7-9: they flinch, but name you a witch — you gain Scared or Angry (GM picks).",
+        desc: "Look at them like you already know. On 10+: they flinch first — 1 String, and 1 Composure if theirs is in play. On 7-9: they flinch, but name you a witch — you gain Fear or Wrath (GM picks).",
         onStrong: { strings: 1, resolve: 1 },
       },
       {
@@ -174,7 +174,7 @@ const TSL_PLAYBOOKS = [
     moves: [
       {
         id: "pb_disarming_jest", name: "Disarming Jest", icon: "fa-face-laugh", stat: "Grace", target: true,
-        desc: "Break the tension with a joke that cuts true. On 10+: the room exhales — clear one Condition anywhere at the table; the truth in it chips 1 Resolve if their tracks run. On 7-9: funny, but at someone's expense — they gain Angry.",
+        desc: "Break the tension with a joke that cuts true. On 10+: the room exhales — clear one Condition anywhere at the table; the truth in it takes 1 Composure if theirs is in play. On 7-9: funny, but at someone's expense — they gain Wrath.",
         onStrong: { resolve: 1 },
       },
       {

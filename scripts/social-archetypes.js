@@ -44,6 +44,8 @@ const SOCIAL_ARCHETYPES = [
     id: "tyrant",
     label: "Tyrant",
     triad: "power",
+    pressed: "firm",   // when pressed: stands firm (storms off)
+    pressedWhy: "would rather walk out than be seen to bow",
     vulnerabilities: ["appease", "flattery"],
     immunities: ["intimidate", "sovereign"],
     description: "Control-focused antagonist who resists force and bends only to praise.",
@@ -65,6 +67,8 @@ const SOCIAL_ARCHETYPES = [
     id: "machiavellian",
     label: "Schemer",   // id stays "machiavellian" (saved data)
     triad: "power",
+    pressed: "yield",   // when pressed: gives ground (concedes)
+    pressedWhy: "concedes the point when beaten — and starts the next game",
     vulnerabilities: ["deceive", "feigned weakness"],
     immunities: ["pure logic", "shameless"],
     description: "A covert manipulator — patient, cynical, always three moves ahead.",
@@ -84,6 +88,8 @@ const SOCIAL_ARCHETYPES = [
     id: "duelist",
     label: "Duelist",
     triad: "power",
+    pressed: "firm",   // when pressed: stands firm (storms off)
+    pressedWhy: "never yields a contest; storms off swearing a rematch",
     vulnerabilities: ["challenge", "glory"],
     immunities: ["scorn for weakness"],
     description: "A proud contender who must answer any worthy challenge — and despises cheap tricks.",
@@ -105,6 +111,8 @@ const SOCIAL_ARCHETYPES = [
     id: "martyr",
     label: "Martyr",
     triad: "attention",
+    pressed: "yield",   // when pressed: gives ground (concedes)
+    pressedWhy: "gives in, sighing — and makes sure you know what it cost them",
     vulnerabilities: ["stone-walling", "ignore"],
     immunities: ["persuade", "sympathy"],
     description: "Seeks attention through suffering and recoils from sympathy.",
@@ -124,6 +132,8 @@ const SOCIAL_ARCHETYPES = [
     id: "exalted",
     label: "Idol",   // id stays "exalted" (saved data)
     triad: "attention",
+    pressed: "firm",   // when pressed: stands firm (storms off)
+    pressedWhy: "makes a scene of leaving rather than lose before an audience",
     vulnerabilities: ["love bombing"],
     immunities: ["sow doubt", "criticism"],
     description: "Thrives on worship and resists attacks on their ego.",
@@ -143,6 +153,8 @@ const SOCIAL_ARCHETYPES = [
     id: "caretaker",
     label: "Caretaker",
     triad: "attention",
+    pressed: "yield",   // when pressed: gives ground (concedes)
+    pressedWhy: "gives way to keep the peace",
     vulnerabilities: ["guilt", "obligation"],
     immunities: ["selfless focus"],
     description: "Needs to be needed. Obligation and guilt move them; being ignored does not.",
@@ -164,6 +176,8 @@ const SOCIAL_ARCHETYPES = [
     id: "dogmatic",
     label: "Zealot",   // id stays "dogmatic" (saved data)
     triad: "order",
+    pressed: "firm",   // when pressed: stands firm (storms off)
+    pressedWhy: "will not concede the creed; walks out of the heresy",
     vulnerabilities: ["gaslighting", "exploiting dogma", "authority"],
     immunities: ["bribes", "emotions"],
     description: "Trusts rules and ritual more than people — certainty is their armour, and doubt the crack in it.",
@@ -183,6 +197,8 @@ const SOCIAL_ARCHETYPES = [
     id: "hermit",
     label: "Hermit",
     triad: "order",
+    pressed: "firm",   // when pressed: stands firm (storms off)
+    pressedWhy: "withdraws rather than be drawn in",
     vulnerabilities: ["information deficit", "logic puzzles"],
     immunities: ["emotional intimidation"],
     description: "Withdrawn and wary, they can be drawn out by clever reasoning.",
@@ -202,6 +218,8 @@ const SOCIAL_ARCHETYPES = [
     id: "broker",
     label: "Broker",
     triad: "order",
+    pressed: "yield",   // when pressed: gives ground (concedes)
+    pressedWhy: "takes the loss and books it — business is business",
     vulnerabilities: ["deal", "greed"],
     immunities: ["ledger mind"],
     description: "A pragmatist who trusts contracts over feelings and weighs every word for profit.",
@@ -824,14 +842,14 @@ const PROFILE_POINTS = [
     label: "Desire",
     icon: "fa-gem",
     placeholder: "What do they want above all?",
-    hint: "What they want above all. Leverage (once per encounter): dangle it in a duel for Advantage and +1 extra Resolve damage on success.",
+    hint: "What they want above all. Leverage (once per encounter): dangle it in a duel for Advantage and +1 composure damage on success.",
   },
   {
     id: "fear",
     label: "Fear",
     icon: "fa-ghost",
     placeholder: "What do they dread losing or facing?",
-    hint: "What they dread losing or facing. Leverage (once per encounter): press it for +3 on the roll — but a threat that misses backfires: you lose 1 extra Patience.",
+    hint: "What they dread losing or facing. Leverage (once per encounter): press it for +3 on the roll — but a threat that misses backfires: you lose 1 extra composure.",
   },
   {
     id: "weakness",
@@ -911,18 +929,25 @@ const BOND_TYPE_ALIASES = { indebted: "sworn", creditor: "liege" };
  * passive combat aura. Keyed by bond type; Stranger has none.
  */
 const BOND_SIGNATURES = {
-  ally:     { label: "Shoulder to shoulder", text: "Reroll one failed check made toward your shared cause while an ally stands with you." },
-  friend:   { label: "I've got you",         text: "Grant a friend (or take from them) advantage on one save or check — a word at the right moment, from anywhere." },
-  family:   { label: "Blood shields blood",  text: "Take one hit or effect aimed at family (or they for you), halved." },
-  crush:    { label: "For their eyes",       text: "In your crush's presence: turn one ordinary success into a critical, or one failure into a bare success." },
-  lover:    { label: "Something to lose",    text: "When your lover falls or is endangered, act at once — an extra reaction, with advantage." },
-  mentor:   { label: "The old lessons",      text: "Reroll any one d20 by recalling their teaching." },
-  protege:  { label: "Someone is watching",  text: "When your protégé can see you, one action inspires them: advantage on their next roll, and on yours." },
-  rival:    { label: "Prove it",             text: "Once, when directly contesting your rival, treat one d20 as a 15." },
-  enemy:    { label: "Personal",             text: "Against this specific enemy, one strike or maneuver lands twice as hard — hatred makes it count." },
-  sworn:    { label: "For the oath",         text: "Once, act to protect or fulfil your oath to your liege — that action rolls with advantage." },
-  liege:    { label: "By my word",           text: "Once, call your sworn to act on your behalf: they gain advantage on the deed, or you press them with +5." },
-  confidant:{ label: "A word in the dark",   text: "Once, their counsel gives you advantage on a check where their knowledge bears — or you turn a shared secret into a strike (+5 to press an enemy)." },
+  ally:     { label: "Shoulder to shoulder", text: "Reroll one failed check made toward your shared cause while an ally stands with you (GM)." },
+  friend:   { label: "I've got you",         text: "A word at the right moment, from anywhere: advantage on the next roll — yours or your friend's, you choose (automatic).",
+              fx: { choose: [{ label: "My friend", partner: { adv: true, ends: "roll" } }, { label: "Me", self: { adv: true, ends: "roll" } }] } },
+  family:   { label: "Blood shields blood",  text: "Take one hit or effect aimed at family (or they for you), halved (GM)." },
+  crush:    { label: "For their eyes",       text: "In your crush's presence: turn one ordinary success into a critical, or one failure into a bare success (GM)." },
+  lover:    { label: "Something to lose",    text: "When your lover falls or is endangered, act at once — an extra reaction (GM), and your next roll has advantage (automatic).",
+              fx: { self: { adv: true, ends: "roll" } } },
+  mentor:   { label: "The old lessons",      text: "Reroll any one d20 by recalling their teaching (GM)." },
+  protege:  { label: "Someone is watching",  text: "When your protégé can see you, one action inspires them: advantage on their next roll, and on yours (automatic).",
+              fx: { self: { adv: true, ends: "roll" }, partner: { adv: true, ends: "roll" } } },
+  rival:    { label: "Prove it",             text: "Once, when directly contesting your rival, treat one d20 as a 15 (GM)." },
+  enemy:    { label: "Personal",             text: "Against this specific enemy, one blow lands twice as hard — your next maneuver against them takes double composure (automatic); a strike's damage doubles (GM).",
+              fx: { edge: { vs: "partner", double: true } } },
+  sworn:    { label: "For the oath",         text: "Once, act to protect or fulfil your oath to your liege — that roll has advantage (automatic).",
+              fx: { self: { adv: true, ends: "roll" } } },
+  liege:    { label: "By my word",           text: "Once, call your sworn to act on your behalf: they gain advantage on the deed — or you press them, +5 on your next roll (automatic, you choose).",
+              fx: { choose: [{ label: "They act — advantage", partner: { adv: true, ends: "roll" } }, { label: "I press them — +5", self: { bonus: 5, ends: "roll" } }] } },
+  confidant:{ label: "A word in the dark",   text: "Once, their counsel gives you advantage on the next roll where their knowledge bears — or a shared secret becomes a strike, +5 on your next roll (automatic, you choose).",
+              fx: { choose: [{ label: "Their counsel — advantage", self: { adv: true, ends: "roll" } }, { label: "A secret as a weapon — +5", self: { bonus: 5, ends: "roll" } }] } },
 };
 
 /**
@@ -947,100 +972,86 @@ const BOND_ABILITIES = {
 };
 
 /**
- * Social Fencing statuses. Applied as Active Effects; every one of them
- * has a real mechanical bite that assess()/rollManeuver() reads:
+ * Social Fencing STATES (v2.0) — what a moment in the conversation does to a
+ * person. Every state changes what the one carrying it DOES (a compulsion or a
+ * restriction) or hands someone a LEVER against them — never a bare "+2 to the
+ * next roll". The rule follows from the name: a provoked person lashes out at
+ * whoever provoked them, a cowed one won't challenge whoever cowed them, a
+ * beholden one owes a debt that can be called in. assess() / applyOutcome()
+ * read these (see the `engine` notes on each).
  *
- *   rattled   — one-shot: the NEXT maneuver against them faces DC −5, then fades.
- *   smitten   — one-shot (Enthralled): the charmer's next maneuver against them
- *               gains Advantage; until it's used they can't act against the charmer.
- *   provoked  — one-shot: the NEXT maneuver against them gains +2, then fades.
- *   guilted   — one-shot: the guilter's next maneuver rolls with Advantage, then fades.
- *   desperate — one-shot: the next attention maneuver (Flatter, Charm)
- *               by anyone rolls with Advantage, then fades.
- *   defiant   — walls off ALL maneuvers until a successful read (or 10 min).
- *
- * oneShot statuses are consumed automatically by applyOutcome after the roll
- * they influenced.
- *
- * `bonds` — statuses KNOW WHO put them there (v1.81). The TARGET's bond toward
- * the one applying it decides how it lands:
- *   deepen — it runs deep: it lasts TWO uses instead of one (charges: 2);
- *   resist — it doesn't take at all (the maneuver's other effects still land).
- * Bond types read from the target's side: "mentor" = the source is their mentor,
- * "sworn" = they gave the source their word, etc.
+ * Fields:
+ *   gist        — the one-line meaning (the fiction).
+ *   description — the rule, in one or two plain sentences.
+ *   holdAs      — Hold the Line: the Wounds one may carry INSTEAD of taking this
+ *                 state (refusing it turns it into the matching lasting feeling).
+ *   noHold      — can't be refused (it's protective, or a consequence of the
+ *                 OTHER side's mistake).
+ *   positive    — a good state (from Reassure): never shrugged off by Steadied,
+ *                 never refused.
+ *   lever       — the one who put it there can CALL it in (a button), once.
+ *   bonds       — the TARGET's bond toward the one applying it bends how it
+ *                 lands: `deepen` → two charges (it lasts / can be called twice),
+ *                 `resist` → it doesn't take at all.
+ *   combat      — the rider if the talk turns to steel (goes into the effect).
+ *   seconds / rounds — out of combat the scene holds it; in combat rounds bind.
  */
 const SOCIAL_CONDITIONS = {
-  // Icons are core Foundry status icons (icons/svg/*) — present in every install.
-  // `combat` — the rider that matters if talk turns to steel: it goes into the
-  // Active Effect's description so the debuff follows them into the fight.
-  // `midiChanges` — automation for dnd5e tables running midi-qol (harmless
-  // no-ops elsewhere).
-  // `links` — matching SYSTEM status ids added to the effect's `statuses`,
-  //   so a5e/dnd5e native condition automation (e.g. A5E's own Rattled)
-  //   picks the status up as if applied from the core list.
-  // `dnd5eChanges` — plain numeric Active Effect changes for dnd5e.
-  // `a5eChanges` — Level Up (standalone a5e) changes via the system's own
-  //   roll-mode flags (value 1 = advantage, −1 = disadvantage, mode OVERRIDE),
-  //   the same encoding a5e's built-in conditions use.
-  rattled: {
-    id: "rattled",
-    label: "Rattled",
-    icon: "icons/svg/daze.svg",
-    color: "#9b6ee8",
-    seconds: 3600,
-    rounds: 1,
-    oneShot: true,
-    description: "Composure cracked: the next maneuver against them faces DC −5, then this fades. No reactions or expertise dice.",
-    bonds: { deepen: ["mentor", "confidant"], why: "doubt from someone whose judgement they trust cuts deeper" },
-    combat: "Shaken: −2 on saving throws (disadvantage on A5E), no expertise dice, no reactions (standard A5E Rattled).",
-    links: ["rattled"],
-    // Flat numbers apply on dnd5e core with no midi needed; a5e reads its own
-    // roll-mode flags natively — both hit real saves outside the module.
-    dnd5eChanges: [{ key: "system.bonuses.abilities.save", mode: 2, value: "-2" }],
-    a5eChanges: [
-      { key: "flags.a5e.effects.expertiseDice", mode: 5, value: 0, priority: 200 },
-      { key: "flags.a5e.effects.rollMode.savingThrow.all", mode: 5, value: -1, priority: 50 },
-    ],
-  },
-  smitten: {
-    id: "smitten",
-    label: "Enthralled",
-    icon: "icons/svg/regen.svg",
-    color: "#e8557a",
-    seconds: 3600,
-    rounds: 1,
-    oneShot: true,
-    description: "Charmed: the charmer's next maneuver against them rolls with Advantage, then this fades — until it's used, they cannot act against the charmer.",
-    bonds: { deepen: ["crush", "lover"], resist: ["enemy"], why: "longing makes the spell hold; you can't charm hatred" },
-    combat: "Cannot attack or knowingly harm the charmer (A5E Charmed). Once while enthralled, the charmer may press ONE plausible demand — WIS save or comply. GM: if the charmer's side harms them, the spell curdles — Enthralled breaks into Provoked against the charmer.",
-    links: ["charmed"],
-  },
+  // Icons are core Foundry status icons (icons/svg/*, WHITE glyphs) — present
+  // in every install. `dnd5eChanges` — plain numeric Active Effect changes for
+  // dnd5e. `a5eChanges` — Level Up (a5e) roll-mode flags (1 = advantage,
+  // −1 = disadvantage, mode OVERRIDE), the encoding a5e's own conditions use.
+  // `links` — the matching SYSTEM status (A5E Rattled) that stands in for ours.
+
+  // ── Set on the TARGET by your maneuvers ─────────────────────────────────────
   provoked: {
-    id: "provoked",
-    label: "Provoked",
-    icon: "icons/svg/fire.svg",
-    color: "#e8a855",
-    seconds: 600,
-    rounds: 1,
-    oneShot: true,
-    description: "Off balance with anger: the next maneuver against them gains +2, then this fades.",
+    id: "provoked", label: "Provoked", icon: "icons/svg/fire.svg", color: "#e8a855",
+    seconds: 600, rounds: 1,
+    gist: "Seeing red.",
+    description: "Their next maneuver must be aimed at the one who provoked them, and they can't hold the line against that person — anger drops the guard. It passes once they've lashed out. Humiliate cashes it (+1).",
+    holdAs: ["angry", "spiteful"],
     bonds: { deepen: ["rival", "enemy"], why: "old hostility takes the bait twice" },
-    combat: "Red mist — fixated on the provoker (A5E Fixated: they must move toward them, and can barely notice anyone else). GM: advantage / +2 attacking the PROVOKER, disadvantage / −2 attacking anyone else. Their guard drops: −2 AC (automatic).",
+    combat: "Red mist — fixated on the provoker: they must move toward and strike at them if they can, and barely notice anyone else (GM). Their guard drops: −2 AC (automatic).",
     links: ["fixated"],
     dnd5eChanges: [{ key: "system.attributes.ac.bonus", mode: 2, value: "-2" }],
     a5eChanges: [{ key: "system.attributes.ac.changes.bonuses.value", mode: 2, value: "-2" }],
   },
+  rattled: {
+    id: "rattled", label: "Rattled", icon: "icons/svg/daze.svg", color: "#9b6ee8",
+    seconds: 3600, rounds: 1,
+    gist: "Lost the thread.",
+    description: "Their next maneuver rolls with disadvantage — they can't find their words. Invoke Authority cashes it (+1): shaken, they grab the certainty you offer.",
+    holdAs: ["doubting", "scared"],
+    bonds: { deepen: ["mentor", "confidant"], why: "doubt from someone whose judgement they trust cuts deeper" },
+    combat: "Shaken: −2 on saving throws (disadvantage on A5E), no expertise dice, no reactions (standard A5E Rattled).",
+    links: ["rattled"],
+    dnd5eChanges: [{ key: "system.bonuses.abilities.save", mode: 2, value: "-2" }],
+    a5eChanges: [
+      { key: "flags.a5e.effects.expertiseDice.all", mode: 5, value: 0, priority: 200 },
+      { key: "flags.a5e.effects.rollMode.abilitySave.all", mode: 5, value: -1, priority: 50 },
+    ],
+  },
+  smitten: {
+    id: "smitten", label: "Enthralled", icon: "icons/svg/regen.svg", color: "#e8557a",
+    seconds: 3600, rounds: 3,
+    gist: "Under your spell.",
+    description: "They can't move against the one who charmed them, and if their composure breaks against that person they give in — they'd never storm off from them. The charmer can ask one favor: a reasonable request, granted — and the spell ends. A Power move from the charmer breaks it into Provoked.",
+    holdAs: ["obsessed", "jealous"],
+    lever: { label: "Ask a favor", icon: "fa-hand-holding-heart",
+             text: "grants one reasonable request — and the spell ends" },
+    bonds: { deepen: ["crush", "lover"], resist: ["enemy"], why: "longing makes the spell hold; you can't charm hatred" },
+    combat: "Can't attack or knowingly harm the charmer (A5E Charmed). If the charmer's side harms them, the spell curdles into Provoked against the charmer (GM).",
+  },
   guilted: {
-    id: "guilted",
-    label: "Beholden",
-    icon: "icons/svg/net.svg",
-    color: "#c07ce8",
-    seconds: 600,
-    rounds: 3,
-    oneShot: true,
-    description: "Weighed down by obligation: the one they owe gets Advantage on their next maneuver, then this fades.",
+    id: "guilted", label: "Beholden", icon: "icons/svg/net.svg", color: "#c07ce8",
+    seconds: 3600, rounds: 3,
+    gist: "They owe you.",
+    description: "They owe the one who laid the debt on them. That person can call it in once: a truthful answer to one question, or one reasonable request — and a secret of theirs (a dossier point) is whispered to the caller. Calling it ends the debt.",
+    holdAs: ["shamed", "spiteful"],
+    lever: { label: "Call the debt", icon: "fa-scale-balanced",
+             text: "must answer one question truthfully or grant one reasonable request" },
     bonds: { deepen: ["family", "friend", "sworn"], resist: ["enemy"], why: "debts to your own weigh double; they owe an enemy nothing" },
-    combat: "The weight drags every swing: −2 on their weapon attacks (disadvantage on A5E). GM: no reactions against the one they owe; if that one draws blood, Beholden collapses into Rattled.",
+    combat: "The weight drags every swing: −2 on their weapon attacks (disadvantage on A5E). No reactions against the one they owe (GM).",
     dnd5eChanges: [
       { key: "system.bonuses.mwak.attack", mode: 2, value: "-2" },
       { key: "system.bonuses.rwak.attack", mode: 2, value: "-2" },
@@ -1048,47 +1059,106 @@ const SOCIAL_CONDITIONS = {
     a5eChanges: [{ key: "flags.a5e.effects.rollMode.attack.all", mode: 5, value: -1, priority: 50 }],
   },
   desperate: {
-    id: "desperate",
-    label: "Desperate",
-    icon: "icons/svg/falling.svg",
-    color: "#5588e8",
-    seconds: 600,
-    rounds: 3,
-    oneShot: true,
-    description: "Starved and grasping: the next Flatter or Charm against them rolls with Advantage, and a Bargain cashes it for an extra String. Fades once used.",
+    id: "desperate", label: "Desperate", icon: "icons/svg/falling.svg", color: "#5588e8",
+    seconds: 600, rounds: 3,
+    gist: "Can't afford to lose you.",
+    description: "They can't afford to lose the one who made them so: if their composure breaks against that person, they give in — they never storm off from them. And they grab any lifeline: Charm cashes it (+1), Bargain cashes it (+1 String).",
+    holdAs: ["jealous", "hopeless"],
     bonds: { deepen: ["crush", "lover"], resist: ["enemy"], why: "losing the one they long for starves them twice; no one craves an enemy's attention" },
-    combat: "All-in: +2 on their weapon attacks (advantage on A5E) and they CRIT on a 19–20 (auto on dnd5e; on A5E lower their weapon's crit threshold to 19). They fight recklessly — −2 AC. A drowning swing that lands, lands hard.",
+    combat: "All-in: +2 on their weapon attacks (advantage on A5E) and they CRIT on a 19–20 (auto on dnd5e). They fight recklessly — −2 AC.",
     dnd5eChanges: [
       { key: "system.bonuses.mwak.attack", mode: 2, value: "+2" },
       { key: "system.bonuses.rwak.attack", mode: 2, value: "+2" },
       { key: "system.attributes.ac.bonus", mode: 2, value: "-2" },
-      { key: "flags.dnd5e.weaponCriticalThreshold", mode: 6, value: "19" },
+      { key: "flags.dnd5e.weaponCriticalThreshold", mode: 3, value: "19" },
     ],
     a5eChanges: [
       { key: "flags.a5e.effects.rollMode.attack.all", mode: 5, value: 1, priority: 50 },
       { key: "system.attributes.ac.changes.bonuses.value", mode: 2, value: "-2" },
     ],
   },
+  humbled: {
+    id: "humbled", label: "Humbled", icon: "icons/svg/down.svg", color: "#b0806a",
+    seconds: 3600, rounds: 3,
+    gist: "Taken down a peg.",
+    description: "No one fears the punchline: their Intimidation and Performance maneuvers roll with disadvantage until they land a maneuver and win back some face.",
+    holdAs: ["shamed", "angry"],
+    combat: "Their threats ring hollow: −2 on Intimidation and Performance checks (automatic).",
+    dnd5eChanges: [{ key: "system.skills.itm.bonuses.check", mode: 2, value: "-2" }, { key: "system.skills.prf.bonuses.check", mode: 2, value: "-2" }],
+    a5eChanges:   [{ key: "system.skills.itm.bonuses.check", mode: 2, value: "-2" }, { key: "system.skills.prf.bonuses.check", mode: 2, value: "-2" }],
+  },
+  cowed: {
+    id: "cowed", label: "Cowed", icon: "icons/svg/cowled.svg", color: "#8a7a9a",
+    seconds: 3600, rounds: 3,
+    gist: "Afraid of you.",
+    description: "They don't dare challenge the one who cowed them: no Power maneuvers (Flatter, Play Weak, Humiliate) and no Intimidate against that person.",
+    holdAs: ["scared", "spiteful"],
+    bonds: { resist: ["enemy", "rival"], why: "you can't frighten someone who has already decided to hate you" },
+    combat: "They hesitate to strike the one who cowed them: −2 on attacks against that person (GM), and they won't willingly move closer to them.",
+  },
+  exposed: {
+    id: "exposed", label: "Exposed", icon: "icons/svg/light.svg", color: "#e8d27a",
+    seconds: 3600, rounds: 10,
+    gist: "Caught out.",
+    description: "Their lie is out: their Deception maneuvers roll with disadvantage — nobody believes them now — and the one who exposed them learns their Mask (whispered).",
+    holdAs: ["shamed", "scared"],
+    combat: "Their cover is blown: −2 on Deception checks (automatic).",
+    dnd5eChanges: [{ key: "system.skills.dec.bonuses.check", mode: 2, value: "-2" }],
+    a5eChanges:   [{ key: "system.skills.dec.bonuses.check", mode: 2, value: "-2" }],
+  },
+  intrigued: {
+    id: "intrigued", label: "Intrigued", icon: "icons/svg/book.svg", color: "#55b8a8",
+    seconds: 3600, rounds: 3,
+    gist: "Hooked.",
+    description: "They want to know more: the next Read Them or Cross-Examine aimed at them succeeds on its own — they tell you more than they meant to.",
+    holdAs: ["obsessed", "doubting"],
+    combat: "Distracted by curiosity: −2 on Perception checks (automatic).",
+    dnd5eChanges: [{ key: "system.skills.prc.bonuses.check", mode: 2, value: "-2" }],
+    a5eChanges:   [{ key: "system.skills.prc.bonuses.check", mode: 2, value: "-2" }],
+  },
+  suspicious: {
+    id: "suspicious", label: "Suspicious", icon: "icons/svg/eye.svg", color: "#c8a050",
+    seconds: 3600, rounds: 10, noHold: true,
+    gist: "They smell a rat.",
+    description: "They're listening for the lie: the Deception maneuvers of whoever tripped this (Mock, Lie, Play Weak, Undermine) roll with disadvantage against them. An honest Persuade from that person clears it. Comes from a lie that misses badly.",
+    combat: "On guard against that person: they can't be surprised by them, and that person's feints have disadvantage against them (GM).",
+  },
   defiant: {
-    id: "defiant",
-    label: "Defiant",
-    icon: "icons/svg/holy-shield.svg",
-    color: "#e8c855",
-    seconds: 600,
-    rounds: 3,
-    oneShot: false,
-    description: "Walls up: immune to social maneuvers (only Read Them slips through — and a successful read breaks the wall). Triggered by striking an archetype's immunity.",
-    combat: "Dug in: +2 on their saving throws (advantage on A5E) — charm and fear break against the wall — but they cannot willingly retreat, disengage, or be talked out of the confrontation.",
+    id: "defiant", label: "Defiant", icon: "icons/svg/holy-shield.svg", color: "#e8c855",
+    seconds: 600, rounds: 3, noHold: true,
+    gist: "Walled up.",
+    description: "Immune to social maneuvers — only Read Them slips through, and a successful read breaks the wall. Comes from pressing a nature where it can't be reached.",
+    combat: "Dug in: +2 on their saving throws (advantage on A5E) — charm and fear break against the wall — but they won't retreat, disengage, or be talked out of the confrontation.",
     dnd5eChanges: [{ key: "system.bonuses.abilities.save", mode: 2, value: "+2" }],
-    a5eChanges: [{ key: "flags.a5e.effects.rollMode.savingThrow.all", mode: 5, value: 1, priority: 50 }],
+    a5eChanges: [{ key: "flags.a5e.effects.rollMode.abilitySave.all", mode: 5, value: 1, priority: 50 }],
+  },
+
+  // ── Set on an ALLY by Reassure ───────────────────────────────────────────────
+  steadied: {
+    id: "steadied", label: "Steadied", icon: "icons/svg/anchor.svg", color: "#7bd88f",
+    seconds: 3600, rounds: 3, positive: true, noHold: true,
+    gist: "Calm and collected.",
+    description: "The next state anyone tries to put on them doesn't take — they shrug it off. From Reassure.",
+    combat: "+2 on their next saving throw against charm or fear (GM).",
+  },
+  undaunted: {
+    id: "undaunted", label: "Undaunted", icon: "icons/svg/wing.svg", color: "#a6e07b",
+    seconds: 3600, rounds: 3, positive: true, noHold: true,
+    gist: "Nothing to lose.",
+    description: "Their next maneuver costs no composure if it misses — they're fearless. From a clean Reassure.",
+    combat: "Fearless: advantage on their next saving throw against fear (GM).",
   },
 };
 
 /** Total Extended Triad points a character may distribute across the three triads. */
 const TRIAD_POINT_POOL = 4;
 
-/** Status ids in display order. */
-const SOCIAL_CONDITION_ORDER = ["rattled", "smitten", "provoked", "guilted", "desperate", "defiant"];
+/** State ids in display order — the target's states first, the two good ones last. */
+const SOCIAL_CONDITION_ORDER = [
+  "provoked", "rattled", "smitten", "guilted", "desperate", "humbled",
+  "cowed", "exposed", "intrigued", "suspicious", "defiant",
+  "steadied", "undaunted",
+];
 
 class SocialArchetypeManager {
   static getFlagScope() {
@@ -1195,6 +1265,25 @@ class SocialArchetypeManager {
     return { dots, total, ruling };
   }
 
+  /**
+   * How someone with NO archetype reads (a player character, usually): the
+   * ruling school of their Leanings, a split build, or nothing set yet.
+   * For those who see the truth (GM, owner) — others deduce it. Null when
+   * no dots are set.
+   */
+  static leaningRead(actor) {
+    const p = SocialArchetypeManager.getDefensiveProfile(actor);
+    if (!p.total) return null;
+    if (p.ruling) {
+      const t = SOCIAL_TRIADS[p.ruling];
+      const short = (t?.label ?? p.ruling).replace("Triad of ", "");
+      return { triad: p.ruling, label: `Leans ${short}`, color: t?.color ?? "#806858", icon: t?.icon ?? "fa-user",
+        tip: `No archetype — read by their Leanings: ${short} rules (a clear lead of 2+●). The school that beats it gets +2 against them, the one it beats −2, and a bad miss against them earns their Answer.` };
+    }
+    return { triad: null, label: "Split nature", color: "#9a8a7a", icon: "fa-shuffle",
+      tip: "No archetype, and their Leanings are split — no ruling school: unreadable (no +2/−2 against them), but no Answer either." };
+  }
+
   static getArchetypeOptions() {
     return SOCIAL_ARCHETYPES.map((arch) => ({ id: arch.id, label: arch.label, triad: arch.triad }));
   }
@@ -1236,7 +1325,66 @@ class SocialArchetypeManager {
     return pool?.length ? pool[Math.floor(Math.random() * pool.length)] : null;
   }
 
-  static buildConditionEffect(conditionId, sourceActor = null) {
+  /**
+   * How long a state lasts, in a form Foundry expires ON ITS OWN: mid-fight in
+   * ROUNDS (they tick at the bearer's turn), otherwise in game-time SECONDS.
+   * Foundry reads ONE unit — when both were given, seconds won, so a "1 round"
+   * state used to last 600 rounds of combat. Legacy keys on purpose: v13 reads
+   * them natively, v14 migrates them to { value, units }.
+   */
+  static stateDuration(meta, actor = null) {
+    let inFight = false;
+    try { inFight = !!actor?.inCombat; } catch { /* no combat API */ }
+    return inFight && meta?.rounds ? { rounds: meta.rounds } : { seconds: meta?.seconds ?? 3600 };
+  }
+
+  /** "1 h" / "10 min" — a state's out-of-combat span, for the tooltips. */
+  static _spanLabel(seconds = 3600) {
+    const min = Math.round(seconds / 60);
+    return min >= 60 ? `${Math.round(min / 60)} h` : `${min} min`;
+  }
+
+  /**
+   * One wording for a state's hover text wherever it shows (conflict card,
+   * Chronicle, scene map): what it means, the rule, who can call it in, how
+   * long it lasts, how to refuse it, and what it does in a fight.
+   */
+  static stateTooltip(id, { charges = 1, source = null } = {}) {
+    const m = SOCIAL_CONDITIONS[id];
+    if (!m) return "";
+    const esc = foundry.utils.escapeHTML;
+    const rounds = m.rounds ?? 1;
+    const holds = (m.holdAs ?? []).map(w =>
+      (typeof TSLConditionEffects !== "undefined" ? TSLConditionEffects.getMeta(w)?.label : null) ?? w);
+    return [
+      `<b>${esc(m.label)}</b> — <i>${esc(m.gist ?? "")}</i>${source ? ` · from ${esc(source)}` : ""}`,
+      esc(m.description),
+      m.lever ? `<b>${esc(m.lever.label)}:</b> whoever put it there can call it in once — the target ${esc(m.lever.text)}.` : null,
+      charges > 1 ? "<b>×2</b> — it runs deep through a bond: two uses." : null,
+      `<b>Lasts:</b> until it's used, or ${SocialArchetypeManager._spanLabel(m.seconds)} of game time · ${rounds} round${rounds > 1 ? "s" : ""} in a fight. A long rest ends it.`,
+      !m.noHold && !m.positive && holds.length ? `<b>Refuse it:</b> hold the line — carry ${holds.map(esc).join(" or ")} instead.` : null,
+      m.combat ? `<b>In a fight:</b> ${esc(m.combat)}` : null,
+    ].filter(Boolean).join("<br>");
+  }
+
+  /**
+   * Remove every social state from this actor — a long rest ends them all.
+   * Only OUR effects: a system condition (A5E Rattled from a spell) stays
+   * unless the module put it there.
+   */
+  static async clearStates(actor) {
+    if (!actor?.effects) return;
+    const scope = SocialArchetypeManager.getFlagScope();
+    const ids = actor.effects.filter(e => {
+      const f = e.flags?.[scope];
+      if (f?.condition && SOCIAL_CONDITIONS[f.condition]) return true;
+      return SOCIAL_CONDITION_ORDER.some(id => e.statuses?.has?.(`tsl-${id}`)
+        || (f && SOCIAL_CONDITIONS[id]?.nativeAlias && e.statuses?.has?.(SOCIAL_CONDITIONS[id].nativeAlias)));
+    }).map(e => e.id);
+    if (ids.length) await actor.deleteEmbeddedDocuments("ActiveEffect", ids);
+  }
+
+  static buildConditionEffect(conditionId, sourceActor = null, targetActor = null) {
     const meta = SOCIAL_CONDITIONS[conditionId];
     if (!meta) return null;
     const sourceName = sourceActor?.name || "Social Fencing";
@@ -1261,10 +1409,9 @@ class SocialArchetypeManager {
       icon:  meta.icon,
       origin: `module.${SocialArchetypeManager.getFlagScope()}`,
       disabled: false,
-      // In a combat encounter the status ticks down by ROUNDS (1 by default,
-      // 3 for the heavier Beholden / Desperate / Defiant); out of combat the
-      // seconds keep it around for the scene. Whichever runs out first wins.
-      duration: { seconds: meta.seconds ?? 3600, ...(meta.rounds ? { rounds: meta.rounds } : {}) },
+      // In a fight it ticks down by ROUNDS; otherwise game time runs it out.
+      // (Without a target — the HUD palette entry — it's the time span.)
+      duration: SocialArchetypeManager.stateDuration(meta, targetActor),
       // SINGLE status only (no native links) — a5e's HUD needs exactly one
       // status id to recognise the effect as active and let you remove it by
       // clicking. The native-condition behaviour lives in the combat text now.
@@ -1289,6 +1436,15 @@ class SocialArchetypeManager {
    * or a strength-0 bond → no effect.
    */
   static stateBondFx(targetActor, sourceActor, conditionId) {
+    // A Scar can shut a state out entirely (The Hollow: fear and charm find
+    // nothing to hold) — checked first, whoever applies it.
+    if (targetActor && typeof TSLConditionEffects !== "undefined") {
+      for (const scarId of TSLConditionEffects.getScars(targetActor)) {
+        const sm = TSLConditionEffects.getScarMeta(scarId);
+        if ((sm?.numbStates ?? []).includes(conditionId))
+          return { mode: "resist", type: scarId, label: sm.label, why: "nothing reaches them any more" };
+      }
+    }
     const rules = SOCIAL_CONDITIONS[conditionId]?.bonds;
     if (!rules || !targetActor || !sourceActor || typeof TSLBondStore === "undefined") return { mode: null };
     const bond = TSLBondStore.find(targetActor.id, sourceActor.id);
@@ -1305,42 +1461,58 @@ class SocialArchetypeManager {
    * bondLabel }. `opts.ignoreBonds` skips the check (GM toggles).
    */
   static async applyStateWithBonds(actor, conditionId, sourceActor = null, opts = {}) {
+    const meta = SOCIAL_CONDITIONS[conditionId];
     const fx = opts.ignoreBonds ? { mode: null } : SocialArchetypeManager.stateBondFx(actor, sourceActor, conditionId);
     if (fx.mode === "resist") return { applied: false, deep: false, resisted: true, bondLabel: fx.label, why: fx.why };
+    // Steadied: the next state anyone tries to put on them doesn't take — they
+    // shrug it off (and the calm is spent). Good states are never shrugged off.
+    if (!opts.ignoreSteadied && meta && !meta.positive
+        && SocialArchetypeManager.getActiveCondition(actor, "steadied")) {
+      await SocialArchetypeManager.spendCondition(actor, "steadied");
+      return { applied: false, deep: false, resisted: false, shrugged: true };
+    }
     await SocialArchetypeManager.applyCondition(actor, conditionId, sourceActor, { charges: fx.mode === "deep" ? 2 : 1 });
     return { applied: true, deep: fx.mode === "deep", resisted: false, bondLabel: fx.label, why: fx.why };
   }
 
   /**
-   * NPC DEFENCE STANCES (v1.82) — how an NPC meets a landed blow on its own,
-   * so the GM isn't asked every time. Stored as `socialFencing.stance`
-   * (default "nature"). Player characters always decide for themselves.
+   * WHEN PRESSED (v2.0) — the half of a character's NATURE that says how they
+   * hold up under pressure. The same choice for everyone; it decides two things:
+   *   • a state put on them — accept it, or Hold the Line (carry a Wound instead);
+   *   • their composure breaking — give in (concede), or storm off.
+   * Stored as `socialFencing.stance`. Defaults: an NPC follows its NATURE (the
+   * archetype's `pressed`), a player character decides in the moment ("ask").
    */
-  static get DEFENSE_STANCES() {
+  static get PRESSED_STANCES() {
     return {
-      nature:   { label: "By nature", tip: "Follows their nature: Power natures are Proud, Emotion natures Measured, Reason natures Guarded (no nature set: Measured)." },
-      open:     { label: "Open",      tip: "Takes every blow and accepts every state — never spends composure. Honest and easy to reach, and they stay in the conversation." },
-      measured: { label: "Measured",  tip: "Parries only while their composure stays above half; refuses a state only when they can carry a FRESH wound (one they don't have yet)." },
-      guarded:  { label: "Guarded",   tip: "Parries every blow it can and refuses every state it can — a wall that wears down its own composure (it may break off)." },
-      proud:    { label: "Proud",     tip: "Answers force with force: ripostes whenever it can, otherwise parries — but never down to its own last point — and refuses to wear any state." },
-      ask:      { label: "Ask me",    tip: "The GM decides each blow in the window, as for a player character." },
+      nature: { label: "By nature",     tip: "Follows their archetype: some natures give ground, others stand firm (each nature's card says which)." },
+      yield:  { label: "Gives ground",  tip: "Accepts what's put on them, and when their composure breaks they give in — they concede the point." },
+      firm:   { label: "Stands firm",   tip: "Refuses a state by carrying a FRESH Wound while they can, and when their composure breaks they storm off rather than concede — carrying a Grudge." },
+      ask:    { label: "Decide each time", tip: "A window asks every time — accept or hold the line; give in or storm off. Player characters default to this." },
     };
   }
+  /** Back-compat alias (v1.82 named these defence stances). */
+  static get DEFENSE_STANCES() { return SocialArchetypeManager.PRESSED_STANCES; }
 
   /**
-   * The stance an actor actually defends with right now: "ask" for player
-   * characters (or when the world setting turns NPC auto-defence off), else
-   * the NPC's chosen stance, with "nature" resolved through its archetype.
+   * How an actor actually holds up right now: "yield" | "firm" | "ask".
+   * Player characters default to "ask" (they decide in the moment) but may pick
+   * a fixed one; an NPC defaults to its nature. The world setting
+   * `npcDefenseAuto` off → every NPC asks the GM. Old v1.82 stances map over:
+   * open/measured → yield, guarded/proud → firm.
    */
   static getStance(actor) {
-    if (!actor || actor.hasPlayerOwner) return "ask";
-    let auto = true;
-    try { auto = game.settings.get(SOCIAL_FENCING_SCOPE, "npcDefenseAuto") !== false; } catch { /* default on */ }
-    if (!auto) return "ask";
-    const raw = SocialArchetypeManager.getActorData(actor).stance ?? "nature";
-    if (raw !== "nature") return SocialArchetypeManager.DEFENSE_STANCES[raw] ? raw : "measured";
-    const triad = SocialArchetypeManager.getArchetype(actor)?.triad;
-    return { power: "proud", attention: "measured", order: "guarded" }[triad] ?? "measured";
+    if (!actor) return "ask";
+    const legacy = { open: "yield", measured: "yield", guarded: "firm", proud: "firm" };
+    let raw = SocialArchetypeManager.getActorData(actor).stance ?? (actor.hasPlayerOwner ? "ask" : "nature");
+    raw = legacy[raw] ?? raw;
+    if (!actor.hasPlayerOwner) {
+      let auto = true;
+      try { auto = game.settings.get(SOCIAL_FENCING_SCOPE, "npcDefenseAuto") !== false; } catch { /* default on */ }
+      if (!auto) return "ask";
+    }
+    if (raw === "nature") return SocialArchetypeManager.getArchetype(actor)?.pressed ?? "yield";
+    return ["yield", "firm", "ask"].includes(raw) ? raw : "ask";
   }
 
   /** How many uses a state has left (1 unless it "runs deep"). */
@@ -1386,7 +1558,7 @@ class SocialArchetypeManager {
       }
       return eff;
     }
-    const effectData = SocialArchetypeManager.buildConditionEffect(conditionId, sourceActor);
+    const effectData = SocialArchetypeManager.buildConditionEffect(conditionId, sourceActor, actor);
     if (!effectData) return;
     effectData.flags[scope].charges = charges;
     await actor.createEmbeddedDocuments("ActiveEffect", [effectData]);
@@ -1461,8 +1633,10 @@ class SocialArchetypeManager {
     // nativeAlias: on systems whose OWN condition covers ours (A5E Rattled)
     // we register no duplicate — the native status counts as the social one.
     const alias = SOCIAL_CONDITIONS[conditionId]?.nativeAlias;
+    // `active === false` — disabled, or EXPIRED: Foundry v14 runs a state's
+    // time out by marking it expired (suppressed), not by deleting it.
     return actor?.effects.find(e =>
-      !e.disabled && (
+      !e.disabled && e.active !== false && (
         e.flags?.[SocialArchetypeManager.getFlagScope()]?.condition === conditionId
         || e.statuses?.has?.(`tsl-${conditionId}`)
         || (alias && e.statuses?.has?.(alias))

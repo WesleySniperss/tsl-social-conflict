@@ -114,6 +114,22 @@ class TSLGMActions {
           await SocialManeuverRoller.applyOutcome(args);
           break;
 
+        case "callLever":
+          // Someone calls in a lever state they hold (Beholden's debt, an
+          // Enthralled favor) — the GM spends it and tells the table.
+          await SocialManeuverRoller.callLever(args.holderId, args.targetId, args.stateId);
+          break;
+
+        case "fireUltimate":
+          // ⚡ a ●●● Wound / Boon or a Scar — Willpower spent, effects on the sheets
+          await TSLMoments.fireUltimate(args);
+          break;
+
+        case "invokeSignature":
+          // ★ a ●●● bond's once-per-rest signature — effects on both sheets
+          await TSLMoments.invokeSignature(args);
+          break;
+
         case "kiss":
           ConflictStore.resolveKiss(args.pIdx, args.targetIdx);
           break;
