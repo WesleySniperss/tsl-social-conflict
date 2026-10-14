@@ -77,7 +77,7 @@ class TSLStringStore {
     await TSLStringStore._saveList(actorId, list);
   }
 
-  // ── Convenience wrappers (called from conflict-store.js) ─────────────────────
+  // ── Convenience wrappers (the Ask and the Chronicle) ────────────────────────
 
   /**
    * Add `count` entries pre-labelled with the target actor's name, up to the
@@ -125,10 +125,10 @@ class TSLStringStore {
     }
     const guard  = mode === "guard";
     const label  = `String on ${target.name}`;
-    const tally  = guard ? { ac: 5 } : { attack: 5, check: 5, save: 5 };
-    const changes = (typeof TSLBondAuras !== "undefined") ? TSLBondAuras._changes(tally, label) : [];
+    const changes = guard ? TSLStringStore._changes({ ac: 5 }, label)
+                          : TSLStringStore._changes({ attack: 5, check: 5, save: 5 }, label);
     await holder.createEmbeddedDocuments("ActiveEffect", [{
-      name: guard ? `🎭 ${label} — +5 AC` : `🎭 ${label} — +5`,
+      name: guard ? `${label} — +5 AC` : `${label} — +5`,
       img: "icons/svg/net.svg",
       origin: `module.${STRING_FLAG}`,
       disabled: false,
@@ -145,9 +145,12 @@ class TSLStringStore {
     const esc  = foundry.utils.escapeHTML;
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: holder }),
-      content: `<div class="tsl-maneuver-card tsl-mv--success"><div class="tsl-mv-outcome tsl-mv-outcome--success">🎭 <b>${esc(holder.name)}</b> pulls a String on <b>${esc(target.name)}</b> — ${guard
-        ? "<b>+5 AC</b> against their next attack (it's on the sheet now)"
-        : "<b>+5</b> to the next attack, check or save against them (it's on the sheet now)"}. ${left} String${left === 1 ? "" : "s"} left.</div></div>`,
+      content: `<div class="tsl-x-card tsl-x--good">
+        <div class="tsl-x-head"><i class="fas fa-masks-theater"></i><span class="tsl-x-title">A String is pulled</span></div>
+        <div class="tsl-x-who">${esc(holder.name)} → ${esc(target.name)}</div>
+        <div class="tsl-x-outcome">${guard ? "+5 AC against their next attack" : "+5 to the next attack, check or save against them"}</div>
+        <ul class="tsl-x-after"><li class="tsl-x-after-item">It's on the sheet now and ends by itself once used. ${left} String${left === 1 ? "" : "s"} left on them.</li></ul>
+      </div>`,
     });
     return true;
   }
@@ -178,35 +181,40 @@ class TSLStringStore {
     });
   }
 
-  // ── Helpers ──────────────────────────────────────────────────────────────────
+  // ── The effect a pull puts on the sheet ──────────────────────────────────────
 
   /**
-   * Build display data for a participant in the conflict app.
-   * Returns null if the current user can't see this participant's strings.
-   *
-   * held:     enriched list of string entries (label, targetName, targetIdx)
-   * incoming: aggregated counts of strings others hold on this participant
+   * Real Active Effect changes for { attack, check, save, ac } on the current
+   * system. AC is a plain number on both. On dnd5e the attack/check/save
+   * bonuses are formula fields; on a5e `system.bonuses.*` are RECORDS — a flat
+   * key does nothing there — so the bonus goes through the system's own
+   * CUSTOM key `flags.a5e.effects.bonuses.<kind>`, whose value is the bonus
+   * record as JSON (how a5e's own content does it).
    */
-  static forParticipant(participant, allParticipants) {
-    if (!TSLStringStore.canSee(participant.actorId)) return null;
-
-    const rawHeld = TSLStringStore.getList(participant.actorId);
-
-    const held = rawHeld.map(e => ({
-      ...e,
-      targetName: allParticipants.find(p => p.actorId === e.targetActorId)?.name ?? null,
-      targetIdx:  allParticipants.findIndex(p => p.actorId === e.targetActorId),
-    }));
-
-    const incoming = allParticipants
-      .filter(p => p.actorId !== participant.actorId)
-      .map(p => {
-        const count = TSLStringStore.getList(p.actorId)
-          .filter(e => e.targetActorId === participant.actorId).length;
-        return count > 0 ? { actorId: p.actorId, name: p.name, count } : null;
-      })
-      .filter(Boolean);
-
-    return { held, incoming };
+  static _changes(tally, label) {
+    const isA5e = game.system.id === "a5e";
+    const out = [];
+    const num = (key, v) => out.push({ key, mode: 2, value: `${v > 0 ? "+" : ""}${v}`, priority: 20 });
+    const a5e = (kind, n, context) => out.push({
+      key: `flags.a5e.effects.bonuses.${kind}`, mode: 0, priority: 20,
+      value: JSON.stringify({ label, formula: `${n}`, default: true, img: "icons/svg/net.svg", context }),
+    });
+    const abilities = ["str", "dex", "con", "int", "wis", "cha"];
+    if (tally.save) {
+      if (isA5e) a5e("abilities", tally.save, { types: ["save"], abilities, requiresProficiency: false });
+      else num("system.bonuses.abilities.save", tally.save);
+    }
+    if (tally.check) {
+      if (isA5e) a5e("abilities", tally.check, { types: ["check"], abilities, requiresProficiency: false });
+      else num("system.bonuses.abilities.check", tally.check);
+    }
+    if (tally.ac) num(isA5e ? "system.attributes.ac.changes.bonuses.value" : "system.attributes.ac.bonus", tally.ac);
+    if (tally.attack) {
+      if (isA5e) a5e("attacks", tally.attack, {
+        attackTypes: ["meleeWeaponAttack", "rangedWeaponAttack", "meleeSpellAttack", "rangedSpellAttack"],
+        spellLevels: [], requiresProficiency: false });
+      else { num("system.bonuses.mwak.attack", tally.attack); num("system.bonuses.rwak.attack", tally.attack); }
+    }
+    return out;
   }
 }

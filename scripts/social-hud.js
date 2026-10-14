@@ -36,7 +36,7 @@ class SocialHUD {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "control-icon tsl-hud-fencing";
-    btn.setAttribute("data-tooltip", "Social Chronicle — profile & bonds");
+    btn.setAttribute("data-tooltip", "Social Chronicle — talk, profile, bonds");
     btn.setAttribute("aria-label",   "Social Chronicle");
     btn.innerHTML = '<i class="fas fa-address-book" inert></i>';
     btn.addEventListener("click", (e) => {

@@ -1,17 +1,19 @@
 /**
  * tsl-social-conflict | bond-store.js
  *
- * Chronicle of Bonds — persistent relationship entries between actors.
- * Stored as actor flags, editable by the actor's owner and the GM.
+ * Chronicle of Bonds — persistent relationships between actors, stored as
+ * actor flags and editable by the actor's owner and the GM.
  *
  * Flag path: actor.flags["tsl-social-conflict"]["bonds"]
- * Value: [{ id, targetActorId, type, attitude, perceivedArchetypeId, profileKnown, notes }]
+ * Value: [{ id, targetActorId, type, attitude, notes }]
  *
- *   type                 — bond type id from BOND_TYPES (social-archetypes.js)
- *   attitude             — how THIS actor feels about the target, -3..+3.
- *                          Used as a DC shift when the target tries to sway this actor.
- *   perceivedArchetypeId — what this actor BELIEVES the target's archetype is (may be wrong)
- *   profileKnown         — true once verified (Read Them / Cross-Examine success)
+ *   type     — bond type id from BOND_TYPES (social-archetypes.js)
+ *   attitude — the bond's STRENGTH, 0..3 ● (the old name is kept for saved
+ *              data; pre-rework ±3 values read as their absolute value)
+ *
+ * A bond is ONE relationship: its type and strength are mirrored onto the
+ * other actor (the counterpart type for mentor ↔ protégé, sworn ↔ liege).
+ * Notes stay private to each side.
  */
 
 console.log("TSL | Loading bond-store.js...");
@@ -33,21 +35,10 @@ class TSLBondStore {
     return TSLBondStore.getList(actorId).find(b => b.targetActorId === targetActorId) ?? null;
   }
 
-  /**
-   * Attitude of `actorId` toward `targetActorId` (-3..+3, 0 if no bond).
-   * In Social Fencing this shifts the DC to sway `actorId`.
-   */
-  static getAttitude(actorId, targetActorId) {
-    return TSLBondStore.find(actorId, targetActorId)?.attitude ?? 0;
-  }
-
-  /** Does any actor owned by the current user hold a verified read on target? */
-  static profileKnownByUser(targetActorId) {
-    if (game.user.isGM) return true;
-    return game.actors.contents.some(a =>
-      a.isOwner &&
-      TSLBondStore.getList(a.id).some(b => b.targetActorId === targetActorId && b.profileKnown)
-    );
+  /** The STRENGTH (0..3) of `actorId`'s bond toward `targetActorId`. */
+  static getStrength(actorId, targetActorId) {
+    const bond = TSLBondStore.find(actorId, targetActorId);
+    return bond ? Math.min(3, Math.abs(bond.attitude ?? 0)) : 0;
   }
 
   static canEdit(actorId) {
@@ -69,22 +60,15 @@ class TSLBondStore {
     const list = TSLBondStore.getList(actorId);
     const existing = list.find(b => b.targetActorId === targetActorId);
     if (existing) return existing;
-
     const entry = {
       id: foundry.utils.randomID(),
       targetActorId,
-      type:                 data.type ?? "stranger",
-      // `attitude` stores the bond's STRENGTH 0..3 (name kept for save
-      // compatibility — older ±3 values read as their absolute strength)
-      attitude:             data.attitude ?? 1,
-      perceivedArchetypeId: data.perceivedArchetypeId ?? null,
-      profileKnown:         data.profileKnown ?? false,
-      notes:                data.notes ?? "",
+      type:     data.type ?? "stranger",
+      attitude: data.attitude ?? 1,
+      notes:    data.notes ?? "",
     };
     list.push(entry);
     await TSLBondStore._saveList(actorId, list);
-    // A bond is ONE shared relationship — mirror the type + strength onto the
-    // other actor's record of you (personal read/notes are never mirrored).
     if (!_mirrored) await TSLBondStore._mirror(actorId, targetActorId, { type: entry.type, attitude: entry.attitude });
     return entry;
   }
@@ -95,7 +79,7 @@ class TSLBondStore {
     if (!entry) return;
     Object.assign(entry, updates);
     await TSLBondStore._saveList(actorId, list);
-    // Only the SHARED facets (type, strength) sync; a read/notes edit does not.
+    // Only the SHARED facets (type, strength) sync; notes do not.
     if (!_mirrored && ("type" in updates || "attitude" in updates)) {
       await TSLBondStore._mirror(actorId, entry.targetActorId, {
         type:     "type" in updates     ? entry.type     : undefined,
@@ -106,29 +90,12 @@ class TSLBondStore {
 
   static async remove(actorId, bondId, _mirrored = false) {
     const entry = TSLBondStore.getList(actorId).find(b => b.id === bondId);
-    const list  = TSLBondStore.getList(actorId).filter(b => b.id !== bondId);
-    await TSLBondStore._saveList(actorId, list);
+    await TSLBondStore._saveList(actorId, TSLBondStore.getList(actorId).filter(b => b.id !== bondId));
     // Ending a relationship ends it on both sides.
     if (!_mirrored && entry && TSLBondStore._canWrite(entry.targetActorId)) {
       const rev = TSLBondStore.find(entry.targetActorId, actorId);
       if (rev) await TSLBondStore.remove(entry.targetActorId, rev.id, true);
     }
-  }
-
-  /**
-   * The ●●● signature perk is once per long rest. `sigUsed` lives on the bond
-   * entry (personal — never mirrored, since `update` only mirrors type/attitude).
-   */
-  static async markSignatureUsed(actorId, bondId) {
-    await TSLBondStore.update(actorId, bondId, { sigUsed: true });
-  }
-
-  /** Refresh every signature on this actor — called on a long rest. */
-  static async clearSignatures(actorId) {
-    const list = TSLBondStore.getList(actorId);
-    let changed = false;
-    for (const b of list) if (b.sigUsed) { b.sigUsed = false; changed = true; }
-    if (changed) await TSLBondStore._saveList(actorId, list);
   }
 
   /** Can the current user write flags on this actor? (GM always; owners of it.) */
@@ -138,11 +105,9 @@ class TSLBondStore {
   }
 
   /**
-   * Write the mirror of a bond onto the target actor's record of the source —
-   * same STRENGTH, the counterpart TYPE (mentor↔protégé, sworn↔liege;
-   * everything else symmetric). Requires write access to the other actor (the
-   * GM always has it); a player editing a bond toward an actor they don't own
-   * simply won't push the mirror — the GM reconciles it on next load.
+   * Write the mirror of a bond onto the other actor — same strength, the
+   * counterpart type. Needs write access to the other actor (the GM always
+   * has it); otherwise the GM reconciles it on the next load.
    */
   static async _mirror(actorId, targetActorId, { type, attitude } = {}) {
     if (actorId === targetActorId || !TSLBondStore._canWrite(targetActorId)) return;
@@ -156,17 +121,15 @@ class TSLBondStore {
   }
 
   /**
-   * GM-side: ensure every recorded bond has its mirror on the other actor.
-   * Non-destructive — only CREATES a missing counterpart (never overwrites an
-   * existing, possibly-different one), so it can't start an edit war with a
-   * legacy asymmetric bond. Editing either side afterwards re-syncs both.
+   * GM, on load: give every bond its missing mirror. Non-destructive — it only
+   * creates a missing counterpart, never overwrites a differing one.
    */
   static async reconcileAll() {
     if (!game.user.isGM) return;
     for (const a of (game.actors?.contents ?? [])) {
       for (const b of TSLBondStore.getList(a.id)) {
         if (!game.actors.get(b.targetActorId)) continue;
-        if (TSLBondStore.find(b.targetActorId, a.id)) continue;   // already mirrored
+        if (TSLBondStore.find(b.targetActorId, a.id)) continue;
         await TSLBondStore.add(b.targetActorId, a.id,
           { type: SocialArchetypeManager.getBondMirror(b.type), attitude: b.attitude }, true);
       }
@@ -174,87 +137,51 @@ class TSLBondStore {
   }
 
   /**
-   * The STRENGTH (0..3) of `actorId`'s bond toward `targetActorId`.
-   * Pre-rework saves stored attitude −3..+3 — read as absolute strength.
+   * How a technique moves what one side feels for the other (`fromId`'s bond toward `toId`).
+   *   warm  — the Heart won them over, or they crossed a line for you: +1 ● (a
+   *           hostile bond eases −1 instead). No bond yet: they become a Friend ●.
+   *   cool  — a door slammed, a heart broken: a warm bond cools −1 ●, a hostile
+   *           one hardens +1 ●. Only an existing bond moves.
+   *   sour  — they gave in to Pressure and will remember it: a hostile bond
+   *           hardens +1 ●; a warm one cools −1 ● and, once empty, turns into a
+   *           Rival ●. No bond (or a Stranger) becomes a Rival ●.
+   *   enemy — blackmail: whatever it was, they're your Enemy now (●●, or one
+   *           hotter if they already hated you).
+   * Returns { type, strength, delta, hostile, turned, created } after the
+   * change, or null when nothing moved.
    */
-  static getStrength(actorId, targetActorId) {
-    const bond = TSLBondStore.find(actorId, targetActorId);
-    if (!bond) return 0;
-    return Math.min(3, Math.abs(bond.attitude ?? 0));
-  }
-
-  /**
-   * Deepen or cool the bond by delta (strength clamped 0..3). Creates the
-   * bond if missing. Fencing outcomes write history: being swayed deepens
-   * the bond toward the winner, walking away cools it.
-   */
-  static async shiftAttitude(actorId, targetActorId, delta) {
-    if (!delta || actorId === targetActorId) return null;
+  static async shift(fromId, toId, how) {
+    if (!fromId || !toId || fromId === toId) return null;
+    const bond = TSLBondStore.find(fromId, toId);
+    const type = bond ? SocialArchetypeManager.getBondType(bond.type) : null;
+    const hostile = !!type?.hostile;
+    const cur = bond ? Math.min(3, Math.abs(bond.attitude ?? 0)) : 0;
     const clamp = (v) => Math.max(0, Math.min(3, v));
-    const bond = TSLBondStore.find(actorId, targetActorId);
-    if (bond) {
-      const next = clamp(Math.min(3, Math.abs(bond.attitude ?? 0)) + delta);
-      await TSLBondStore.update(actorId, bond.id, { attitude: next });
-      return next;
+    const set = async (patch) => {
+      if (bond) await TSLBondStore.update(fromId, bond.id, patch);
+      else await TSLBondStore.add(fromId, toId, patch);
+    };
+
+    if (how === "enemy") {
+      const strength = hostile ? clamp(cur + 1) : 2;
+      if (bond && type.id === "enemy" && strength === cur) return null;
+      await set({ type: "enemy", attitude: strength });
+      return { type: "enemy", strength, delta: 1, hostile: true, turned: !!bond && type.id !== "enemy", created: !bond };
     }
-    await TSLBondStore.add(actorId, targetActorId, { attitude: clamp(delta) });
-    return clamp(delta);
-  }
-
-  /**
-   * How an exchange's END moves the loser's bond toward the winner (v1.81).
-   * Strength means warmth for most types — being swayed draws you closer (+1),
-   * breaking off cools it (−1). But for a HOSTILE bond (Enemy, Rival) strength
-   * is the heat of the hostility, so it runs the other way: being swayed by
-   * them eases it (−1), breaking off from them hardens it (+1).
-   * Returns { delta, hostile, type, strength } (strength after the change).
-   */
-  static async shiftAfterExchange(loserId, winnerId, outcome) {
-    const bond    = TSLBondStore.find(loserId, winnerId);
-    const type    = bond ? SocialArchetypeManager.getBondType(bond.type).id : null;
-    const hostile = type === "enemy" || type === "rival";
-    const delta   = (outcome === "swayed" ? 1 : -1) * (hostile ? -1 : 1);
-    const strength = await TSLBondStore.shiftAttitude(loserId, winnerId, delta);
-    return { delta, hostile, type, strength };
-  }
-
-  /**
-   * A Wound about someone settled overnight (v1.81): it becomes a bond of
-   * `bondType` toward them (strength ●), or — if they already share a bond —
-   * deepens it by one. Mirrored like every bond. GM side (writes both actors).
-   * Returns { created, type, strength }.
-   */
-  static async deepenFromWound(bearerId, sourceId, bondType) {
-    if (!bearerId || !sourceId || bearerId === sourceId) return null;
-    const bond = TSLBondStore.find(bearerId, sourceId);
-    if (bond) {
-      const strength = await TSLBondStore.shiftAttitude(bearerId, sourceId, +1);
-      return { created: false, type: SocialArchetypeManager.getBondType(bond.type).id, strength };
+    if (how === "sour" && (!bond || type.id === "stranger" || (!hostile && cur <= 1))) {
+      await set({ type: "rival", attitude: 1 });
+      return { type: "rival", strength: 1, delta: -1, hostile: true, turned: !!bond, created: !bond };
     }
-    await TSLBondStore.add(bearerId, sourceId, { type: bondType, attitude: 1 });
-    return { created: true, type: bondType, strength: 1 };
-  }
-
-  /**
-   * A successful read (Read Them / Cross-Examine) — GM side.
-   * Creates/updates the source's bond: perceived archetype becomes the real one.
-   */
-  static async reveal(sourceActorId, targetActorId) {
-    const target = game.actors.get(targetActorId);
-    if (!target) return;
-    const realArchetypeId = SocialArchetypeManager.getActorData(target)?.archetypeId ?? null;
-
-    const bond = TSLBondStore.find(sourceActorId, targetActorId);
-    if (bond) {
-      await TSLBondStore.update(sourceActorId, bond.id, {
-        perceivedArchetypeId: realArchetypeId,
-        profileKnown: true,
-      });
-    } else {
-      await TSLBondStore.add(sourceActorId, targetActorId, {
-        perceivedArchetypeId: realArchetypeId,
-        profileKnown: true,
-      });
+    if (!bond) {
+      if (how !== "warm") return null;
+      await set({ type: "friend", attitude: 1 });
+      return { type: "friend", strength: 1, delta: 1, hostile: false, turned: false, created: true };
     }
+    // warm: +1 (hostile eases); cool / sour: −1 (hostile hardens).
+    const delta = (how === "warm" ? 1 : -1) * (hostile ? -1 : 1);
+    const strength = clamp(cur + delta);
+    if (strength === cur) return null;
+    await set({ attitude: strength });
+    return { type: type.id, strength, delta, hostile, turned: false, created: false };
   }
 }

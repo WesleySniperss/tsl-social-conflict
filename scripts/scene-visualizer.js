@@ -9,11 +9,12 @@
  *     The GM's overview of the whole web; a player sees only their own cast.
  * Both can be open at the same time.
  *
- * Nodes = portrait + Composure + ⚔ States + ❤ Wounds; edges = bonds
- * (colour = school, thickness = strength). When a maneuver resolves anywhere,
- * a "social pulse" is broadcast to every client and animated here: a beam
- * actor → target, a flash on the one hit, a floating result, and — if the
- * blow ended the exchange — the gave-in / stormed-off drama.
+ * Nodes = portraits (an NPC whose nature the party has figured out wears its
+ * name); edges = bonds (colour = approach, thickness = strength). When an ask
+ * or a read resolves anywhere, a "social pulse" is broadcast to every client
+ * and animated here: a beam speaker → NPC, a flash, and the answer floating
+ * over them — "yes", "yes, but…", "no" — and the door closing when a proud
+ * one ends the talk.
  *
  * ZOOM scales the MAP inside a fixed viewport (the window keeps its size; the
  * map scrolls when zoomed past the viewport). Resize the window for more map.
@@ -139,25 +140,19 @@ class TSLSceneVisualizer extends _TSLVizBase {
 
   /** Build a node record from an actor (+ optional token for scene art). */
   _nodeData(actor, tok) {
-    const enc    = SocialEncounterManager.getEncounter(actor);
-    const conds  = SocialArchetypeManager.getActiveConditions(actor);
-    const wounds = (typeof TSLConditionEffects !== "undefined")
-      ? TSLConditionEffects.ORDER.filter(id => TSLConditionEffects.hasCondition(actor, id))
-      : [];
+    const arch = SocialArchetypeManager.getArchetype(actor);
     return {
       id: actor.id,
       name: actor.name,
       img: actor.img || tok?.document?.texture?.src || "icons/svg/mystery-man.svg",
-      enc, conds, wounds,
+      named: arch && SocialArchetypeManager.isRevealed(actor) ? arch : null,
       hasBond: TSLBondStore.getList(actor.id).length > 0,
-      overwhelmed: (typeof TSLConditionEffects !== "undefined")
-        && TSLConditionEffects.isOverwhelmed(actor),   // Wounds weighing 4+ (sum of tiers)
+      openings: TSLTalk.openings(actor).map(o => o.type),
     };
   }
 
   static _isRelevant(nd, actor) {
-    return actor.hasPlayerOwner || nd.hasBond || nd.conds.length || nd.wounds.length
-      || nd.enc.active || nd.enc.outcome;
+    return SocialArchetypeManager.isPC(actor) || nd.hasBond || !!nd.named || nd.openings.length > 0;
   }
 
   /**
@@ -216,6 +211,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
         edges.set(key, {
           aId, bId,
           label: type.label,
+          type: type.id,
           school: type.school,
           color: TSLSceneVisualizer.schoolColor(type.school),
           strength,
@@ -262,7 +258,6 @@ class TSLSceneVisualizer extends _TSLVizBase {
         <span class="tsl-viz-title"><i class="fas ${world ? "fa-globe" : "fa-people-arrows"}"></i> ${world ? "Web of Bonds" : "The Social Scene"}</span>
         <span class="tsl-viz-sub">${subLabel}</span>
         ${modeBtn}
-        ${(!world && game.user.isGM) ? `<button class="tsl-viz-conflict" data-tooltip="Start a Social Conflict — the shared roll board — with the tokens you have selected on the canvas.">⚔ Conflict</button>` : ""}
         <span class="tsl-viz-zoom" data-tooltip="Zoom the MAP (or scroll-wheel over it). Drag a portrait to rearrange.">
           <button class="tsl-viz-zoom-btn" data-zoom="out">−</button>
           <button class="tsl-viz-zoom-btn" data-zoom="reset" data-tooltip="Reset zoom & layout">⟲</button>
@@ -274,7 +269,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
     if (!nodes.length) {
       const empty = world
         ? "No relationships yet anywhere — set bonds in any character's Chronicle and the whole web appears here."
-        : `No social scene yet — no bonded characters, tracks or wounds on the canvas. Set relationships in a token's Chronicle, and they'll appear here.${game.user.isGM ? " Or select tokens and hit ⚔ Conflict above." : ""}`;
+        : "No social scene yet — no bonded characters on the canvas. Set relationships in a token's Chronicle, and they'll appear here.";
       return `<div class="tsl-viz-root">
         ${head(world ? "no bonds recorded yet" : "nobody on the map yet")}
         <div class="tsl-viz-empty">${empty}</div>
@@ -301,7 +296,8 @@ class TSLSceneVisualizer extends _TSLVizBase {
       const a = this._nodePos[e.aId], b = this._nodePos[e.bId];
       const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
       const dots = "●".repeat(e.strength) + "○".repeat(3 - e.strength);
-      const tip  = `${esc(e.label)} — strength ${e.strength}/3 · ${SOCIAL_TRIADS?.[e.school]?.label ?? "—"}`;
+      const ap   = APPROACHES[SocialArchetypeManager.bondApproach(e.type)];
+      const tip  = `${esc(e.label)} — strength ${e.strength}/3${ap ? ` · +${e.strength} on ${ap.label} against each other` : ""}`;
       return `<div class="tsl-viz-edge-chip" data-a="${e.aId}" data-b="${e.bId}" style="left:${mx.toFixed(1)}px;top:${my.toFixed(1)}px;--edge-col:${e.color}"
         data-tooltip="${tip}"><span class="tsl-viz-edge-type">${esc(e.label)}</span><span class="tsl-viz-edge-dots">${dots}</span></div>`;
     }).join("");
@@ -309,36 +305,26 @@ class TSLSceneVisualizer extends _TSLVizBase {
     // ── Nodes ──
     const nodeHtml = nodes.map(nd => {
       const p = this._nodePos[nd.id];
-      const tracks = nd.enc.active
-        ? `<div class="tsl-viz-tracks" data-tooltip="Composure ${nd.enc.composure} of ${nd.enc.maxComposure} — how much pressure they can still take. At 0 they've lost the exchange.">
-             <span class="tsl-viz-tr tsl-viz-tr--c">${nd.enc.composure}/${nd.enc.maxComposure}</span>
-           </div>`
-        : nd.enc.outcome
-          ? `<div class="tsl-viz-outcome tsl-viz-outcome--${nd.enc.outcome}" data-tooltip="${foundry.utils.escapeHTML(SocialEncounterManager.outcomeTip(nd.enc.outcome))}">${nd.enc.outcome === "swayed" ? "gave in" : "stormed off"}</div>`
-          : "";
-      const stateTags = nd.conds.map(c =>
-        `<span class="tsl-viz-dot tsl-viz-dot--state" style="--dot:${c.meta.color ?? "#9b6ee8"}" data-tooltip="${SocialArchetypeManager.stateTooltip(c.id, { charges: c.charges, source: c.sourceActorId ? game.actors.get(c.sourceActorId)?.name : null }).replaceAll('"', "&quot;")}"></span>`
-      ).join("");
-      const woundTags = nd.wounds.map(id => {
-        const m = TSLConditionEffects.getMeta(id);
-        return `<span class="tsl-viz-dot tsl-viz-dot--wound" data-tooltip="❤ <b>${esc(m?.label ?? id)}</b> — a lasting Wound"></span>`;
-      }).join("");
-      const tags = (stateTags || woundTags)
-        ? `<div class="tsl-viz-tags">${stateTags}${woundTags}</div>` : "";
-      return `<div class="tsl-viz-node ${nd.overwhelmed ? "overwhelmed" : ""}" data-actor-id="${nd.id}"
+      const named = nd.named
+        ? `<div class="tsl-viz-named" style="--c:${SOCIAL_TRIADS[nd.named.triad]?.color ?? "#9b6ee8"}" data-tooltip="${esc(`Figured out: ${nd.named.label} — ${nd.named.description}`)}">${esc(nd.named.label)}</div>`
+        : "";
+      return `<div class="tsl-viz-node" data-actor-id="${nd.id}"
                    style="left:${(p.x - 46).toFixed(1)}px;top:${(p.y - 46).toFixed(1)}px"
-                   data-tooltip="${esc(nd.name)}${nd.overwhelmed ? " — Overwhelmed" : ""} · click to open their Chronicle">
+                   data-tooltip="${esc(nd.name)} · click to open their Chronicle">
         <img class="tsl-viz-portrait" src="${nd.img}" alt="">
         <div class="tsl-viz-name">${esc(nd.name)}</div>
-        ${tracks}${tags}
+        ${named}
+        ${nd.openings.length ? `<div class="tsl-viz-openings">${nd.openings.map(t => `<span style="--c:${APPROACHES[t].color}" data-tooltip="${esc(`${OPENINGS[t].label} — ${OPENINGS[t].hint}. The next ask is ${OPENING_BONUS} easier.`)}">${OPENINGS[t].label}</span>`).join("")}</div>` : ""}
       </div>`;
     }).join("");
 
     const legend = `
       <div class="tsl-viz-legend">
-        <span data-tooltip="Power — rivalry, oaths of dominance">◼ <i style="color:${TSLSceneVisualizer.schoolColor("power")}">Power</i></span>
-        <span data-tooltip="Emotion — love, family, longing">◼ <i style="color:${TSLSceneVisualizer.schoolColor("attention")}">Emotion</i></span>
-        <span data-tooltip="Reason — allegiance, trust, the given word">◼ <i style="color:${TSLSceneVisualizer.schoolColor("order")}">Reason</i></span>
+        ${APPROACH_ORDER.map(id => {
+          const ap = APPROACHES[id];
+          const types = BOND_TYPES.filter(t => SocialArchetypeManager.bondApproach(t.id) === id).map(t => t.label).join(", ");
+          return `<span data-tooltip="${esc(`${ap.label} bonds — ${types}`)}"><span style="color:${ap.color}">◼</span> <i style="color:${ap.color}">${ap.label}</i></span>`;
+        }).join("")}
         <span class="tsl-viz-legend-note">line thickness = bond strength</span>
       </div>`;
 
@@ -372,12 +358,6 @@ class TSLSceneVisualizer extends _TSLVizBase {
     el.querySelector(".tsl-viz-mode")?.addEventListener("click", (e) => {
       e.stopPropagation();
       TSLSceneVisualizer.open(e.currentTarget.dataset.openMode);
-    });
-
-    // GM: start the shared Social Conflict roll board from the selected tokens.
-    el.querySelector(".tsl-viz-conflict")?.addEventListener("click", () => {
-      if (typeof TSLHudButton !== "undefined") TSLHudButton._handleClick();
-      else if (typeof TSLConflictApp !== "undefined") TSLConflictApp.openSelection(canvas.tokens?.controlled ?? []);
     });
 
     // Click a node → open that character's Chronicle (GM anyone, owner own).
@@ -489,10 +469,11 @@ class TSLSceneVisualizer extends _TSLVizBase {
   // ── Live pulses (called on every client via the socket) ─────────────────────
 
   /**
-   * Animate a resolved maneuver on BOTH windows that are open.
-   * { srcId, tgtId, group, outcome, damage, resolved, resolvedSrc } —
-   * `resolved` ends the TARGET's exchange, `resolvedSrc` the ATTACKER's
-   * (their own misses cracked them).
+   * Animate a technique that just resolved, on BOTH windows that are open.
+   * { srcId, tgtId, technique, approach, job, grade, paid, rel, ended, granted }
+   * — `grade` strong | success | failure | botch; `paid` whether a "yes,
+   * but" was paid; `ended` when a proud one ended the talk; `granted` when
+   * they did what was asked.
    */
   static pulse(data) {
     for (const key of ["scene", "world"]) {
@@ -502,24 +483,23 @@ class TSLSceneVisualizer extends _TSLVizBase {
     }
   }
 
-  _playPulse({ srcId, tgtId, group, outcome, damage, heal, resolved, resolvedSrc } = {}) {
+  _playPulse({ srcId, tgtId, technique = null, approach, job = null, grade, paid = null, rel = null, ended = false, granted = false } = {}) {
     const root = this.element?.[0];
     const stage = root?.querySelector(".tsl-viz-canvas");   // the scaled coord space
     const svg   = root?.querySelector(".tsl-viz-svg");
     if (!stage || !svg) return;
 
-    // Hold off any auto re-render (from this outcome's flag/effect changes) until
-    // the whole animation has played — otherwise it flashes for a split second.
+    // Hold off any auto re-render (from this outcome's flag changes) until the
+    // whole animation has played — otherwise it flashes for a split second.
     this._animatingUntil = Math.max(this._animatingUntil, Date.now() + 3600);
 
-    const kind = (outcome === "immune" || outcome === "blocked") ? "wall"
-      : (outcome === "success" || outcome === "crit") ? "hit"
-      : "miss";
+    const hit = grade === "strong" || grade === "success";
+    const kind = rel === "wall" && !hit ? "wall" : hit ? "hit" : "miss";
     const src = this._nodePos[srcId];
     const tgt = this._nodePos[tgtId];
 
-    // Beam from src → tgt (only if both are on the map).
-    if (src && tgt) {
+    // Beam from src → tgt (only if both are on the map and they differ).
+    if (src && tgt && srcId !== tgtId) {
       const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
       line.setAttribute("x1", src.x); line.setAttribute("y1", src.y);
       line.setAttribute("x2", tgt.x); line.setAttribute("y2", tgt.y);
@@ -550,9 +530,12 @@ class TSLSceneVisualizer extends _TSLVizBase {
 
     // Float the result over the target — long enough to actually READ it.
     if (tgt) {
-      const label = kind === "wall" ? "walled off"
-        : kind === "hit" ? (damage > 0 ? `−${damage} composure` : heal > 0 ? `+${heal} composure` : "it lands")
-        : "miss";
+      const label = job === "read" || approach === "read" ? (hit ? "read" : "noticed")
+        : job === "open" ? (hit ? (OPENINGS[approach]?.label ?? "opened").toLowerCase() : "steeled")
+        : job === "gambit" ? (hit ? "it works" : "it blows up")
+        : grade === "strong" ? "yes"
+        : grade === "success" ? (technique === "demand" ? "gives in" : paid ? "yes, for a price" : "a price refused")
+        : "no";
       const float = document.createElement("div");
       float.className = `tsl-viz-float tsl-viz-float--${kind}`;
       float.textContent = label;
@@ -562,29 +545,27 @@ class TSLSceneVisualizer extends _TSLVizBase {
       setTimeout(() => float.remove(), 3000);
     }
 
-    // Resolution drama: this blow ended an exchange — for the target, the
-    // attacker, or both. Gave in = a warm break; stormed off = the node greys out
-    // and drifts. Held long enough to read.
-    if (resolved)    this._playResolution(stage, tgtNode, tgt, resolved);
-    if (resolvedSrc) this._playResolution(stage,
-      stage.querySelector(`.tsl-viz-node[data-actor-id="${srcId}"]`), src, resolvedSrc);
+    // A proud one refused something big and ended the talk: the door closes.
+    if (ended) this._playResolution(stage, tgtNode, tgt, "ended");
+    else if (granted && (grade === "strong" || job === "gambit")) this._playResolution(stage, tgtNode, tgt, "yes");
   }
 
-  /** The gave-in / stormed-off climax on one node (stored ids "swayed" / "walked"). */
-  _playResolution(stage, node, pos, resolved) {
+  /** The climax on the NPC's node: a warm yes, or the door closing. */
+  _playResolution(stage, node, pos, what) {
     if (!node) return;
-    node.classList.add(`resolve-${resolved}`);
-    setTimeout(() => node.classList.remove(`resolve-${resolved}`), 3200);
+    const tone = what === "ended" ? "walked" : "swayed";
+    node.classList.add(`resolve-${tone}`);
+    setTimeout(() => node.classList.remove(`resolve-${tone}`), 3200);
     if (!pos) return;
     const burst = document.createElement("div");
-    burst.className = `tsl-viz-burst tsl-viz-burst--${resolved}`;
+    burst.className = `tsl-viz-burst tsl-viz-burst--${tone}`;
     burst.style.left = `${pos.x}px`;
     burst.style.top  = `${pos.y}px`;
     stage.appendChild(burst);
     setTimeout(() => burst.remove(), 1800);
     const word = document.createElement("div");
-    word.className = `tsl-viz-resolveword tsl-viz-resolveword--${resolved}`;
-    word.textContent = resolved === "swayed" ? "GAVE IN" : "STORMED OFF";
+    word.className = `tsl-viz-resolveword tsl-viz-resolveword--${tone}`;
+    word.textContent = what === "ended" ? "DOOR CLOSED" : "AGREED";
     word.style.left = `${pos.x}px`;
     word.style.top  = `${pos.y}px`;
     stage.appendChild(word);

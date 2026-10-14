@@ -1,228 +1,70 @@
 /**
  * tsl-social-conflict | main.js
- * Module entry point.
+ * Module entry point: settings, the ready hook, one-time data migrations.
  */
+
+const TSL_SCOPE = "tsl-social-conflict";
 
 Hooks.once("init", () => {
   console.log("TSL | Social Conflict module initialising...");
 
-  game.settings.register("tsl-social-conflict", "conflictMode", {
-    name: "Conflict mode",
-    hint: "Which layers the conflict window shows. Social Fencing only (the DEFAULT): classic D&D social combat — d20 maneuvers, the Composure track, states, no 2d6 layer. Full: also adds the TSL 2d6 emotional moves (Speak from the Heart…). TSL only: pure Thirsty Sword Lesbians (2d6 moves, Conditions, Strings, playbooks — no d20 maneuvers or tracks).",
-    scope: "world",
-    config: true,
-    type: String,
-    choices: {
-      fencing: "Social Fencing only (classic D&D)",
-      both:    "Full — Social Fencing + TSL 2d6 moves",
-      tsl:     "TSL only (pure Thirsty Sword Lesbians)",
-    },
-    default: "fencing",
-    onChange: () => {
-      TSLConflictApp?.instance?.render(true);
-      SocialFencingDialog?._instances?.forEach(app => app.render(true));
-    },
+  game.settings.register(TSL_SCOPE, "useSystemRollDialog", {
+    name: "Use the system's roll dialog",
+    hint: "Asks and Reads open the SYSTEM's own skill-check dialog (A5E: advantage, expertise dice, situational modifiers) instead of a plain d20. The module's bonuses (leaning, bond, lever, help) ride along as a pre-filled situational modifier. On systems without that dialog a plain d20 is rolled.",
+    scope: "world", config: true, type: Boolean, default: true,
   });
 
-  game.settings.register("tsl-social-conflict", "useSystemRollDialog", {
-    name: "Use the system's roll dialog (A5E)",
-    hint: "Maneuver rolls open the system's OWN skill-check dialog — advantage, expertise dice and situational mods live there — instead of the module's slim prompt. The module's fencing bonuses ride along as a pre-filled situational modifier. On systems without a skill-check dialog the slim prompt is used. Outcome, hidden DC and consequences still resolve through the module.",
-    scope: "world",
-    config: true,
-    type: Boolean,
-    default: true,
-  });
-
-  game.settings.register("tsl-social-conflict", "bondAuraRange", {
-    name: "Bond aura reach (combat)",
-    hint: "Bonds reach into a real fight. While a bonded person stands within this many feet, each relationship type gives its own effect — an ally sharpens your attacks, a friend steadies your saves, family covers your guard, a lover makes you fight to protect rather than press, a rival gets your blood up. Doubles at ●●●, and any one lever caps at ±2. Set 0 to switch bond combat auras off entirely.",
-    scope: "world",
-    config: true,
-    type: Number,
-    default: 15,
-  });
-
-  game.settings.register("tsl-social-conflict", "socialDcBonus", {
-    name: "Social difficulty (global DC bonus)",
-    hint: "A flat modifier added to EVERY social DC, on top of the per-target math (10 + WIS save + INT save, or passive Insight). Raise it if your table finds people too easy to sway; lower it for a softer game. 0 = the base numbers. Try +2 or +3 to make every read/persuasion a real gamble.",
-    scope: "world",
-    config: true,
-    type: Number,
-    default: 0,
+  game.settings.register(TSL_SCOPE, "socialDcBonus", {
+    name: "Social difficulty",
+    hint: "Added to every NPC's DC on top of 10 + proficiency + the better of WIS/INT (a small ask is 4 easier, an ask against their interests 4 harder). Raise it if people are too easy to move at your table.",
+    scope: "world", config: true, type: Number, default: 0,
     range: { min: -5, max: 10, step: 1 },
   });
 
-  game.settings.register("tsl-social-conflict", "gmDecidesOutcome", {
-    name: "GM adjudicates every maneuver",
-    hint: "After a maneuver roll the GM confirms whether it beat the hidden difficulty — clean hit, success, failure or a fumble — with the computed result pre-selected (one click). By default only close calls are asked (next setting). Turn off to resolve automatically against the DC.",
-    scope: "world",
-    config: true,
-    type: Boolean,
-    default: true,
-  });
-
-  game.settings.register("tsl-social-conflict", "gmConfirmCloseOnly", {
-    name: "…only on close calls",
-    hint: "With the setting above on, the GM is asked only when the total lands within 2 of the hidden DC (or on a natural 1) — clear hits and clear misses apply at once. Turn off to confirm every single roll.",
-    scope: "world",
-    config: true,
-    type: Boolean,
-    default: true,
-  });
-
-  game.settings.register("tsl-social-conflict", "enableHoldLine", {
-    name: "Hold the Line",
-    hint: "When a maneuver puts a state on someone, they may hold the line: refuse the STATE by carrying the matching lasting Wound instead (refuse Provoked and it festers as Wrath). The composure hit always lands. A Wound already at ●●● can't take more; Wounds weighing 4+ (sum of tiers) = Overwhelmed: no more holding the line. You can't hold the line against the one who provoked you.",
-    scope: "world",
-    config: true,
-    type: Boolean,
-    default: true,
-  });
-
-  game.settings.register("tsl-social-conflict", "npcDefenseAuto", {
-    name: "NPCs act on their nature when pressed",
-    hint: "An NPC decides on its own — no window for you — whether to hold the line against a state and, when its composure breaks, whether to give in or storm off. It follows 'When pressed' in its Chronicle → Profile (by default its archetype: some natures give ground, others stand firm). Player characters decide in the moment unless they set their own. Turn off to decide for every NPC yourself.",
-    scope: "world",
-    config: true,
-    type: Boolean,
-    default: true,
-  });
-
-  game.settings.register("tsl-social-conflict", "emotionalLayer", {
-    name: "Emotional layer",
-    hint: "How much of the emotional layer the table uses. FULL: Wounds plus Willpower, Ultimates, Give in, Boons, Scars and the bonds' ●● abilities / ●●● signatures. BASIC: only the Wounds (tiers, urges, how they heal) — fewer moving parts; a Wound left at ●●● just eases instead of scarring (a Wound about someone still becomes a bond).",
-    scope: "world",
-    config: true,
-    type: String,
-    choices: {
-      full:  "Full — Wounds, Willpower, Boons, Scars, bond abilities",
-      basic: "Basic — Wounds only",
-    },
-    default: "full",
-    onChange: () => {
-      SocialFencingDialog?._instances?.forEach(app => app.render(true));
-      TSLConflictApp?.instance?.render(true);
-    },
-  });
-
-  game.settings.register("tsl-social-conflict", "enableKiss", {
-    name: "Enable “Finally Kiss” move",
-    hint: "Show the Thirsty Sword Lesbians special move that ends a conflict with a mutual kiss (+1 attitude both ways). Always available in TSL-only mode.",
-    scope: "world",
-    config: true,
-    type: Boolean,
-    default: false,
+  // Which data migrations have run in this world (hidden).
+  game.settings.register(TSL_SCOPE, "dataVersion", {
+    scope: "world", config: false, type: Number, default: 0,
   });
 });
 
 Hooks.once("vtools.ready", () => {
-  console.log("TSL | vtools ready, registering HUD button");
   try {
-    if (typeof TSLHudButton !== "undefined") {
-      TSLHudButton.register();
-    } else {
-      console.warn("TSL | TSLHudButton not found");
-    }
+    if (typeof TSLHudButton !== "undefined") TSLHudButton.register();
   } catch (err) {
-    console.error("TSL | Error registering TSLHudButton:", err);
+    console.error("TSL | Error registering the toolbar button:", err);
   }
 });
 
-// Effects already examined this SESSION — so the canvasReady sweep never
-// re-touches the same effect. A migration that (for an unlinked token's
-// synthetic effect) doesn't fully round-trip must not re-fire on every scene
-// load: that update storm was making other modules re-render every time
-// (e.g. mini-tracker's context-menu teardown crashed on each one). One look
-// per effect per session; a genuine fix still lands once.
-const _syncedConditionEffects = new Set();
-
 /**
- * Refresh already-applied fencing statuses to the CURRENT combat automation.
- * Effects created by older module versions (or bare HUD toggles) carry stale
- * or empty `changes` — they never pick up new riders retroactively on their
- * own. GM client only; cheap no-op when everything already matches.
- */
-async function syncExistingConditionEffects(actors) {
-  if (!game.user?.isGM) return;
-  for (const actor of actors) {
-    if (!actor?.effects) continue;
-    for (const id of SOCIAL_CONDITION_ORDER) {
-      // A native-aliased condition (A5E's own Rattled) is the system's to
-      // manage — never normalise it. Everything else (including a flagless
-      // HUD-toggled tsl-status) is ours to keep current.
-      if (SOCIAL_CONDITIONS[id]?.nativeAlias) continue;
-      const eff = SocialArchetypeManager.getActiveCondition(actor, id);
-      if (!eff?.update) continue;
-      // One examination per effect per session — bounds any imperfect
-      // round-trip to a single write instead of one on every canvasReady.
-      if (eff.uuid) {
-        if (_syncedConditionEffects.has(eff.uuid)) continue;
-        _syncedConditionEffects.add(eff.uuid);
-      }
-      const fx = SocialArchetypeManager.buildConditionEffect(id);
-      // Old versions folded native links (charmed/fixated/rattled) into the
-      // status set, making the effect un-removable from a5e's HUD. Normalise
-      // any such effect back to a single status id.
-      const curStatuses = [...(eff.statuses ?? [])];
-      const badStatuses = curStatuses.length !== 1 || curStatuses[0] !== `tsl-${id}`;
-      // Compare CANONICALLY, not by raw JSON: Foundry stores change `value` as a
-      // string and fills in `priority`, while buildConditionEffect emits numbers
-      // and often no priority — a raw JSON compare is ALWAYS unequal, so the
-      // effect got re-updated on every canvasReady (spamming re-renders, which
-      // tripped mini-tracker's context-menu teardown). Match key|mode|value and
-      // whitespace-normalised description; ignore priority.
-      const canonChanges = (cs) => (cs ?? []).map(c => `${c.key}|${c.mode}|${String(c.value)}`).join("§");
-      const canonText = (s) => (s ?? "").replace(/\s+/g, " ").trim();
-      const stale = canonChanges(eff.changes) !== canonChanges(fx.changes)
-        || canonText(eff.description) !== canonText(fx.description);
-      if (!stale && !badStatuses) continue;
-      try {
-        const patch = { changes: fx.changes, description: fx.description };
-        if (badStatuses) patch.statuses = [`tsl-${id}`];
-        await eff.update(patch);
-        console.log(`TSL | Refreshed ${id} on ${actor.name}${badStatuses ? " (fixed status set)" : ""}`);
-      } catch (err) {
-        console.warn(`TSL | Could not refresh ${id} on ${actor.name}:`, err);
-      }
-    }
-  }
-}
-
-/**
- * Rescue chronicle data written to TOKEN DELTAS by pre-1.9.5 versions.
- * Back then the Chronicle app wrote to an unlinked token's synthetic actor,
- * so every token kept a private copy of bonds/strings/profile. Merge each
- * token-local copy up into the WORLD actor (union, world data wins) and wipe
- * the delta so nothing shadows the shared chronicle. GM client, idempotent.
+ * Rescue chronicle data written to TOKEN DELTAS by pre-1.9.5 versions (each
+ * unlinked token kept a private copy). Merge it into the world actor and wipe
+ * the delta. GM client, idempotent.
  */
 async function migrateTokenChronicles() {
   if (!game.user?.isGM) return;
-  const scope = "tsl-social-conflict";
   for (const scene of game.scenes ?? []) {
     for (const tok of scene.tokens ?? []) {
       if (tok.actorLink) continue;
-      const delta = tok.delta?.flags?.[scope];
+      const delta = tok.delta?.flags?.[TSL_SCOPE];
       if (!delta || foundry.utils.isEmpty(delta)) continue;
       const base = game.actors.get(tok.actorId);
       if (!base) continue;
       try {
-        if (delta.socialFencing && !base.getFlag(scope, "socialFencing"))
-          await base.setFlag(scope, "socialFencing", delta.socialFencing);
+        if (delta.socialFencing && !base.getFlag(TSL_SCOPE, "socialFencing"))
+          await base.setFlag(TSL_SCOPE, "socialFencing", delta.socialFencing);
         if (Array.isArray(delta.bonds) && delta.bonds.length) {
-          const bonds = base.getFlag(scope, "bonds") ?? [];
+          const bonds = base.getFlag(TSL_SCOPE, "bonds") ?? [];
           const have  = new Set(bonds.map(b => b.targetActorId));
           const extra = delta.bonds.filter(b => b?.targetActorId && !have.has(b.targetActorId));
-          if (extra.length) await base.setFlag(scope, "bonds", [...bonds, ...extra]);
+          if (extra.length) await base.setFlag(TSL_SCOPE, "bonds", [...bonds, ...extra]);
         }
         if (Array.isArray(delta.stringList) && delta.stringList.length) {
-          const strings = base.getFlag(scope, "stringList") ?? [];
+          const strings = base.getFlag(TSL_SCOPE, "stringList") ?? [];
           const have    = new Set(strings.map(s => s.id));
           const extra   = delta.stringList.filter(s => s?.id && !have.has(s.id));
-          if (extra.length) await base.setFlag(scope, "stringList", [...strings, ...extra]);
+          if (extra.length) await base.setFlag(TSL_SCOPE, "stringList", [...strings, ...extra]);
         }
-        if (delta.encounter && !base.getFlag(scope, "encounter"))
-          await base.setFlag(scope, "encounter", delta.encounter);
-        await tok.delta.update({ [`flags.-=${scope}`]: null });
+        await tok.delta.update({ [`flags.-=${TSL_SCOPE}`]: null });
         console.log(`TSL | Migrated token-local chronicle of "${tok.name}" (${scene.name}) into actor "${base.name}"`);
       } catch (err) {
         console.warn(`TSL | Chronicle migration failed for token "${tok.name}":`, err);
@@ -232,193 +74,61 @@ async function migrateTokenChronicles() {
 }
 
 /**
- * Rebuild "Social Leanings" effects written by versions that used long skill
- * names (system.skills.insight…) — a5e keys skills by 3-letter ids, so those
- * effects never did anything there. GM client, idempotent: an effect already
- * on the right keys is left alone.
+ * v3: the emotional layer (Wounds, Boons, Scars, Willpower, moments), the
+ * fencing states, the bond auras and the Leanings skill effect are gone. Remove the Active Effects those versions put
+ * on sheets — they would otherwise keep their old riders (−AC, disadvantage…)
+ * with nothing left to explain or end them — and their bookkeeping flags.
+ * Pulled Strings stay (Pull is still part of v3). GM client, once per world.
  */
-async function resyncTriadBonusEffects() {
+async function migrateToV3() {
   if (!game.user?.isGM) return;
-  const scope = "tsl-social-conflict";
-  const stale = /^system\.skills\.(insight|intimidation|deception)\./;
-  for (const actor of game.actors?.contents ?? []) {
-    const eff = actor.effects?.find?.(e => e.flags?.[scope]?.triadBonus);
-    // Rebuild old-key effects AND ones still carrying the pre-1.81 description
-    // (the bonus is explained in the effect itself now).
-    if (!eff || !((eff.changes ?? []).some(c => stale.test(c.key ?? "")) || !String(eff.description ?? "").includes("maneuvers included"))) continue;
-    try {
-      await SocialArchetypeManager.syncTriadBonusEffect(actor);
-      console.log(`TSL | Rebuilt Social Leanings on ${actor.name} (skill keys)`);
-    } catch (err) {
-      console.warn(`TSL | Could not rebuild Social Leanings on ${actor.name}:`, err);
+  let version = 0;
+  try { version = Number(game.settings.get(TSL_SCOPE, "dataVersion")) || 0; } catch { /* new world */ }
+  if (version >= 3) return;
+
+  const isOld = (e) => {
+    const f = e.flags?.[TSL_SCOPE];
+    if (f && !f.stringPull) return true;
+    return [...(e.statuses ?? [])].some(s => typeof s === "string" && s.startsWith("tsl-") && s !== "tsl-string-pull");
+  };
+  const actors = [...(game.actors?.contents ?? [])];
+  for (const scene of game.scenes ?? []) {
+    for (const tok of scene.tokens ?? []) if (!tok.actorLink && tok.actor) actors.push(tok.actor);
+  }
+  let removed = 0;
+  for (const actor of actors) {
+    const ids = (actor.effects ?? []).filter(isOld).map(e => e.id);
+    if (ids.length) {
+      try { await actor.deleteEmbeddedDocuments("ActiveEffect", ids); removed += ids.length; }
+      catch (err) { console.warn(`TSL | v3 cleanup failed on ${actor.name}:`, err); }
     }
+    for (const key of ["encounter", "willpower", "woundTrack", "exchange"]) {
+      if (actor.getFlag?.(TSL_SCOPE, key) === undefined) continue;
+      try { await actor.unsetFlag(TSL_SCOPE, key); } catch { /* ignore */ }
+    }
+  }
+  await game.settings.set(TSL_SCOPE, "dataVersion", 3);
+  if (removed) {
+    console.log(`TSL | v3: removed ${removed} old social effect(s)`);
+    ui.notifications?.info?.(`TSL Social Conflict v3: removed ${removed} old social effect(s) from sheets (states, wounds, scars). Strings, bonds and dossiers are kept.`);
   }
 }
 
 Hooks.once("ready", () => {
-  console.log("TSL | Social Conflict ready hook firing");
+  // The socket FIRST — it carries every player action to the GM. A migration
+  // below that threw must never leave the GM deaf to the players.
+  try { TSLSocket.register(); }
+  catch (err) { console.error("TSL | Error registering the socket:", err); }
 
-  // Register the real-time socket FIRST — before any data migration below that
-  // could throw. This is the channel that carries PLAYER actions to the GM
-  // (maneuver outcomes, moves, kiss, yield). If a later migration step errored,
-  // an un-registered listener meant the GM silently received nothing a player
-  // did, while the GM's own direct actions still worked — the "GM outcome menu
-  // only fires when the GM rolls for themselves" bug. Never let it be skipped.
-  try {
-    console.log("TSL | Registering TSLSocket...");
-    if (typeof TSLSocket !== "undefined") {
-      TSLSocket.register();
-      console.log("TSL | TSLSocket registered");
-    } else {
-      console.warn("TSL | TSLSocket class not found");
-    }
-  } catch (err) {
-    console.error("TSL | Error registering TSLSocket:", err);
-  }
-
-  // Register our statuses into the token HUD's palette. Two rules learned the
-  // hard way on a5e:
-  //   1) SINGLE status per effect. a5e only treats an effect as "active"
-  //      (and therefore removable by clicking it in the HUD) when it carries
-  //      exactly ONE status id — so we do NOT fold native-condition links into
-  //      the status set (that made Rattled/Enthralled/Provoked un-removable).
-  //      The mechanical bite still rides along via dnd5e/a5eChanges.
-  //   2) a5e SORTS the palette alphabetically by name, so a common prefix is
-  //      the only way to group ours: fencing States get "⚔ ", Wounds get "❤ "
-  //      — both sort to the top, States before Wounds, instead of scattering.
-  try {
-    for (const id of SOCIAL_CONDITION_ORDER) {
-      const meta = SOCIAL_CONDITIONS[id];
-      if (!meta || CONFIG.statusEffects.some(s => s.id === `tsl-${id}`)) continue;
-      // If the SYSTEM already ships a same-named condition (A5E's own Rattled),
-      // DON'T add a duplicate — remember it as an alias. The module then applies
-      // that native single-status condition directly (so it's removable), and
-      // getActiveCondition/removeCondition match it. No "⚔ Rattled" twin.
-      const twin = (meta.links ?? []).find(l => CONFIG.statusEffects.some(s =>
-        s.id === l && game.i18n.localize(s.name ?? "") === meta.label));
-      if (twin) {
-        meta.nativeAlias = twin;
-        console.log(`TSL | ${meta.label}: reusing the system's native "${twin}" (no duplicate)`);
-        continue;
-      }
-      const fx = SocialArchetypeManager.buildConditionEffect(id);
-      CONFIG.statusEffects.push({
-        id: `tsl-${id}`,
-        name: `⚔ ${meta.label}`,
-        img: meta.icon,
-        description: fx.description,
-        changes: fx.changes,
-        duration: fx.duration,
-        statuses: [],                 // the entry id IS the single status
-        flags: fx.flags,
-      });
-    }
-    // The lasting emotional WOUNDS join the SAME palette (❤ prefix) — findable
-    // and grouped right below the States. Without this they were invisible in
-    // the token HUD, only appliable via Hold the Line / the card pips.
-    if (typeof TSLConditionEffects !== "undefined") {
-      for (const id of TSLConditionEffects.ORDER) {
-        if (CONFIG.statusEffects.some(s => s.id === `tsl-wound-${id}`)) continue;
-        const w = TSLConditionEffects.buildHudStatus(id);
-        if (w) CONFIG.statusEffects.push(w);
-      }
-    }
-    console.log("TSL | Social States (⚔) + Wounds (❤) registered — single-status, grouped");
-  } catch (err) {
-    console.error("TSL | Error registering status effects:", err);
-  }
-
-  // Bring statuses applied by OLDER versions up to the current automation —
-  // world actors now, scene token actors (incl. unlinked) once canvas is up.
-  // Then rescue pre-1.9.5 token-local chronicles into the shared world actor.
-  // Each guarded on its own: a failure in one migration must never cascade and
-  // take down the rest of the ready hook (the socket is already registered above).
-  try { syncExistingConditionEffects(game.actors?.contents ?? []); }
-  catch (err) { console.error("TSL | syncExistingConditionEffects failed:", err); }
-  try { migrateTokenChronicles(); }
-  catch (err) { console.error("TSL | migrateTokenChronicles failed:", err); }
-  try { resyncTriadBonusEffects(); }
-  catch (err) { console.error("TSL | resyncTriadBonusEffects failed:", err); }
-  // A bond is one shared relationship — fill in any missing mirror so both
-  // sides show it (safe/idempotent; only creates gaps, never overwrites).
-  try { if (typeof TSLBondStore !== "undefined") TSLBondStore.reconcileAll?.(); }
-  catch (err) { console.error("TSL | TSLBondStore.reconcileAll failed:", err); }
-  // Bonds reach into combat: recompute proximity auras as people move.
-  try { if (typeof TSLBondAuras !== "undefined") TSLBondAuras.register(); }
-  catch (err) { console.error("TSL | TSLBondAuras.register failed:", err); }
+  migrateToV3().catch(err => console.error("TSL | v3 migration failed:", err));
+  migrateTokenChronicles().catch(err => console.error("TSL | migrateTokenChronicles failed:", err));
+  // A bond is one shared relationship — fill in any missing mirror.
+  TSLBondStore.reconcileAll().catch(err => console.error("TSL | TSLBondStore.reconcileAll failed:", err));
   // A pulled String is a real effect — end it once it has done its job.
   try { TSLStringStore.registerPullHooks(); }
   catch (err) { console.error("TSL | String pull hooks failed:", err); }
-  // Ultimates and bond Signatures put moments on sheets — end them on time.
-  try { TSLMoments.registerHooks(); }
-  catch (err) { console.error("TSL | Moment hooks failed:", err); }
-  // Scars carried from before v2.0 had no numbers on them — bring them up to date.
-  if (game.user.isGM) {
-    TSLConditionEffects.resyncScars?.()
-      .then(n => { if (n) console.log(`TSL | Brought ${n} Scar effect(s) up to date`); })
-      .catch(err => console.error("TSL | resyncScars failed:", err));
-  }
-  // Foundry v14 runs a timed effect out by marking it EXPIRED (it stays on the
-  // actor, greyed). A social state that has run out is simply over — tidy it
-  // away so the token and the HUD don't keep showing it. Active GM only.
-  Hooks.on("updateActiveEffect", (effect, change) => {
-    try {
-      if (change?.duration?.expired !== true) return;
-      if (!game.user.isGM || (game.users.activeGM && !game.users.activeGM.isSelf)) return;
-      const f = effect.flags?.["tsl-social-conflict"];
-      if (f?.condition && SOCIAL_CONDITIONS[f.condition]) effect.delete();
-    } catch (err) { console.warn("TSL | expired-state cleanup failed:", err); }
-  });
-  Hooks.on("canvasReady", () => {
-    // Defensive: if another module rebuilt the status palette after our ready
-    // hook, re-add any missing Wounds so they stay selectable on the token HUD.
-    if (typeof TSLConditionEffects !== "undefined") {
-      const n = TSLConditionEffects.ensureRegistered?.() ?? 0;
-      if (n) console.log(`TSL | Re-registered ${n} missing Wound status(es) on canvasReady`);
-    }
-    // Same belt-and-suspenders for the fencing States (⚔): re-assert each
-    // entry's id-KEY so core's ActiveEffect.fromStatusEffect (keyed lookup)
-    // can always resolve it — a HUD click throws "Invalid status ID" otherwise.
-    try {
-      const se = CONFIG.statusEffects;
-      if (se && typeof se.find === "function") {
-        for (const id of SOCIAL_CONDITION_ORDER) {
-          if (SOCIAL_CONDITIONS[id]?.nativeAlias) continue;   // system owns Rattled
-          const entry = se.find(s => s.id === `tsl-${id}`);
-          if (entry && se[`tsl-${id}`] !== entry) se[`tsl-${id}`] = entry;
-        }
-      }
-    } catch (err) { console.warn("TSL | state key re-assert failed:", err); }
-    syncExistingConditionEffects(
-      (canvas.tokens?.placeables ?? []).map(t => t.actor).filter(Boolean)
-    );
-  });
+  try { SocialHUD.register(); }
+  catch (err) { console.error("TSL | SocialHUD failed:", err); }
 
-  try {
-    console.log("TSL | Registering TSLConditionEffects...");
-    if (typeof TSLConditionEffects !== "undefined") {
-      TSLConditionEffects.registerRestHooks();
-      TSLConditionEffects.registerSpellHooks();
-      console.log("TSL | TSLConditionEffects registered");
-    } else {
-      console.warn("TSL | TSLConditionEffects class not found");
-    }
-  } catch (err) {
-    console.error("TSL | Error registering TSLConditionEffects:", err);
-  }
-
-  try {
-    console.log("TSL | Checking for SocialHUD...");
-    if (typeof SocialHUD !== "undefined") {
-      console.log("TSL | SocialHUD found, registering...");
-      SocialHUD.register();
-      console.log("TSL | SocialHUD registered");
-    } else {
-      console.warn("TSL | SocialHUD class not found — social notes HUD will be unavailable");
-    }
-  } catch (err) {
-    console.error("TSL | Error registering SocialHUD:", err);
-  }
-
-  console.log("TSL | Ready hook complete");
+  console.log("TSL | Ready");
 });

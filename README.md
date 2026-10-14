@@ -1,40 +1,114 @@
 # TSL: Social Conflict
 
-A social-intrigue toolkit for **Foundry VTT v13+** (v14 verified): a **Chronicle of Bonds** (relationships & profiling), a **Social Fencing** minigame (d20 maneuvers vs a hidden difficulty), and a live **Social Scene** relationship map. Inspired by the emotional mechanics of **Thirsty Sword Lesbians** and the social maneuvering of Vampire: the Masquerade. Built for **dnd5e** and **a5e** (Level Up), with a generic fallback.
+Social conflict for **Foundry VTT v13+** (v14 verified), built for **dnd5e** and **a5e** (Level Up). You want something from an NPC who doesn't want to give it, and the person matters more than the dice. Every NPC has a hidden **psychological nature**: a **key** that opens them, a **wall** they close against, and a **price** they name when they give in. Read them first, and a modest character beats a silver tongue who never looked. Inspired by the emotional mechanics of **Thirsty Sword Lesbians**.
 
-## Three windows
+## Twelve techniques
 
-- **Chronicle** — right-click a token → the address-book button. A per-character dossier, and where you actually fence (the **Fencing** tab). The **Codex** tab is the full, always-current in-app manual (paged, collapsible, with a worked example scene).
-- **Social Scene** — the VTools toolbar **Social** button (everyone can open it). A live relationship map: portraits as nodes, bonds as the lines between them (colour = school, thickness = strength), with live roll/effect pulses (a beam, a flash, the composure that falls, the gave-in / stormed-off drama). Drag the portraits to arrange it; **zoom the map** with the buttons or scroll-wheel (the window stays put, the map scrolls inside). It comes in **two views**: *This scene* (only the current scene — what players see) and *All bonds* (the whole web of relationships, GM overview) — switch with the header button; both can be open at once. The GM starts a shared conflict from the **⚔ Conflict** button here.
-- **Conflict window** — the shared roll board when the GM launches a scene; every client sees it and acts from their own copy.
+No turns, no tracks, no declared goal. Say your line, pick the **technique** it really is, and roll once against a **visible DC = 10 + their proficiency + the better of WIS/INT**. The roll goes through the system's own skill dialog. Every technique is an approach doing a job:
 
-## Chronicle of Bonds
+| | Pressure | Heart | Reason |
+|---|---|---|---|
+| **Open** — get them ready | Shake | Flatter | Tempt |
+| **Ask** — get it now | Demand | Appeal | Bargain |
+| **Read** — learn something | Provoke | Confide | Study |
+| **Gambit** — all in | Blackmail | Seduce | Deceive |
 
-- **Profile** — one **Nature** block for everyone, player character or NPC: **Leanings** (a 4-dot pool across the Power / Emotion / Reason schools — the schools you reach for, and how others read you) and **When pressed** (how you hold up: accept a state or hold the line; give in or storm off). An NPC follows its archetype for both until the GM changes it; a player sets their own. The GM also sets the NPC's hidden **archetype** (9 natures). Then the **profiling dossier**: **Desire / Fear / Weakness** are leverage doors; **Mask / The Line** help you read them. Plus a GM-only **Agenda** and free **Notes**. Hover any label for its hint.
-- **Bonds** — one shared relationship per pair, **mirrored on both actors**: a **type** (ally, friend, family, crush, lover, mentor, protégé, rival, enemy, sworn, liege, confidant) and a **strength ●–●●●**. A bond bends the numbers (a school edge and skill edges on maneuvers, the guard DC, a String handed over when you turn Power on someone close), projects a **combat aura** to allies in reach, unlocks a distinctive **ability at ●●** and a once-per-rest **signature** at ●●●. Add a bond from the scene list or by clicking a token on the map.
-- Players open only chronicles of actors they own; what they know about anyone else lives in their own Bonds.
+- **Openings.** A hit with an Open leaves a mood on them: *Shaken*, *Moved* or *Curious*.
+  - Each opening makes the next ask 4 easier, and counts as leverage.
+  - An ask spends them. Any other miss closes one.
+  - So the question at the heart of every talk is: ask now, or risk one more technique?
+- **Asks** are sized by what they cost *them*:
 
-## Social Fencing
+  | Size | What it is | DC |
+  |---|---|---|
+  | Small | a favour, a door | −4 |
+  | Costly | something it costs them to give | — |
+  | Against them | against their interests or loyalties | +4 |
 
-- **One track: Composure.** Everyone in an exchange has it — **2 + CHA + WIS** (never below 2). A maneuver that lands takes it down (General 1 · archetype schools 2 · Humiliate 3, +1 on a weak spot, +1 on a clean hit); **your own misses take yours** (1, a risky move 2) — pressing is never free. At 0 you've **lost the exchange**, and you choose how: **give in** (concede the point — the bond toward the winner deepens) or **storm off** (refuse, but carry a **Grudge** — the bond cools). Either way the winner takes a String and a winning NPC's agenda advances. Players decide in the moment; NPCs follow their nature. Someone **Desperate** can't storm off from the one they're desperate about; someone **Enthralled** would never storm off from the one who charmed them. Composure arms itself on the first maneuver — no setup — and an exchange ends with its scene (or a GM reset).
-- **Seventeen maneuvers in four schools.** **General** holds the basics — read · mock · goad · persuade · threaten · lie — plus **Reassure**, the one you aim at a friend (composure back, and *Steadied*). The three archetype schools (**Power · Emotion · Reason**) are the deeper game. Each maneuver rolls a main social skill; if you're **trained** in its support skill, your proficiency bonus rides on top. A **natural 1** always misses. Each has a real tactic behind it (cold reading, ingratiation, triangulation, guilt induction, sowing doubt, strategic use of evidence, reciprocity, appeal to authority…), and the Codex shows its strong and weak side, who it cuts and who it bounces off, plus a content note on the ones that model real abuse tactics.
-- **States change what people do.** Never a bare "+2 next roll": **Provoked** must answer whoever provoked them and can't hold the line against them · **Rattled** fumbles their next maneuver · **Humbled**'s threats fall flat until they win back face · **Cowed** won't dare challenge you · **Exposed**'s lies stop working (and you learn their Mask) · **Intrigued** tells your next read everything · **Desperate** can't walk away from you · **Suspicious** hears your every lie · **Defiant** walls up until a read cracks it. Two are **levers** you call in with a button: **Beholden** (call the debt — a true answer or a favor, plus one of their secrets) and **Enthralled** (ask a favor). Reassure gives the good ones: **Steadied** (the next state doesn't take) and **Undaunted** (the next miss costs nothing). A state from someone who matters in the right way **runs deep** (two uses); from someone they're set against it **won't take**.
-- **How long, and in a fight?** States are short: spent by the very thing they cause, or run out with game time — in combat, by **rounds** (Foundry ticks them down on the bearer's turn) — and a **long rest clears them all**. They stay on the token when talk turns to steel: AC, attack, save and skill riders are real numbers on the sheet (marked *on the sheet* in the Codex); the target-dependent ones are a one-line GM rule.
-- **Hold the Line.** When a state would land on you, refuse it by carrying the matching lasting **Wound** instead (refuse Provoked and it festers as Wrath or a Grudge). The composure hit still lands. Not against the one who provoked you, not with that Wound at ●●●, and not once you're **Overwhelmed** (Wounds weighing 4+).
-- **Hidden difficulty & the deduction loop.** The social DC (10 + their WIS save + INT save, or passive Insight) is GM-only. Archetypes are hidden too: a successful **Read Them** whispers a tell, you write your best guess in the target's Bond (*Read as…*), and the weak/strong marks (◎/✕/▲) then follow **your theory** — a wrong guess shows wrong marks and the *outcome* corrects you. The dice always resolve against the truth.
-- **Nine natures, grounded in real psychology.** The three schools follow Karen Horney's three ways of coping with people — *against* them (Power: Tyrant · Schemer · Duelist), *toward* them (Emotion: Martyr · Idol · Caretaker), *away* from them (Reason: Zealot · Hermit · Broker). Each nature names the character type it's drawn from, spells out what it's **strong** against and **weak** to, and how it holds up **when pressed**. Every nature is vulnerable to some maneuvers (advantage, a deeper blow) and immune to others (press one and they turn **Defiant**). **Openings (⊕):** a state or Wound on the target makes a matching maneuver stronger.
-- **Strings — trump cards, in a fight too.** Burn one for **+5** after a missed maneuver against that person — or **Pull** it from your Bonds: **Strike** (+5 to your next attack, check or save against them) or **Guard** (+5 AC against their next attack). A pull goes on your sheet as a real effect and ends itself once used. At most **3** on any one person. Earned by opening your heart in play, by maneuvers that hand you a lever (reads, Lie, Play Weak, Bargain…), or by winning an exchange.
-- **Wounds, Boons, Scars.** Nine lasting **Wounds** (Wrath, Grudge, Obsession, Jealousy, Fear, Doubt, Shame, Grief, Despair) escalate through three tiers and push the one who carries them — **give in** to the urge to regain Willpower. A long rest eases a Wound one tier; one left at ●●● calcifies — into a permanent **Scar** if it's about you (Wrath → Cruelty, Fear → The Cold, Despair → The Hollow, Shame → The Mask: real numbers on the sheet plus rules the module enforces, and immunity to that Wound), into a **bond** if it's about someone (Obsession → Crush, Grudge → Enemy). Doubt, Jealousy and Grief never set — a rest only eases them. Eight **Boons** (Valor, Devotion, Conviction, Hope, Calm, Trust, Pride, Joy) are the GM's rewards. At ●●● a Wound or Boon (and the Cruelty Scar) has a ⚡ **Ultimate** for 1 Willpower, and a ●●● bond has a once-per-rest ★ **Signature** — what they say is *automatic* goes on the sheets as a short effect that ends itself after the roll or the turn (advantage, AC, +N, a save that counts as a 20, an edge on your next maneuver, a guard against challengers…); what says *GM* the table plays. On A5E, Wounds carried out of a conflict-window ending add **Strife**. *Basic or full* emotional layer is a world setting.
-- **Your triad dots, shown not hidden.** Besides +1 per dot on their school's maneuvers, a player character's dots add to an everyday skill on the sheet (Power → Intimidation, Emotion → Insight, Reason → Deception); the Profile lists it and every roll bar says "incl. +N leaning".
-- **The result where you rolled; one roll, one card.** The roll's result appears in the pinned bar, exactly where you clicked Roll. Every maneuver posts a single chat card: the dice, each bonus as a small +/− chip, the outcome — and, written into that same card, everything that followed (the state taken or the line held, a wound, their Answer, a wall going up or cracking). Only a decided exchange gets a card of its own. The GM is asked to confirm a roll only on a close call (within 2 of the DC) or a natural 1.
-- Optional layers: the **TSL 2d6 feelings moves**, Hold the Line, GM adjudication, and a global **Social difficulty** dial in Settings.
+  An ask against them needs leverage: an opening, their Desire or Fear, a String, or a deep bond.
+- **Reads** answer one question for the whole party (two on a strong hit). Study is safe. Provoke gets them talking but sours the bond. Confide warms it but exposes you.
+- **Gambits** bring their own leverage and leave lasting marks:
+  - **Blackmail** plays on their Fear and makes an enemy.
+  - **Seduce** plays on their Desire.
+  - **Deceive** works until the GM brings the lie out — then they turn on you.
 
-## Usage
+What winning costs depends on the approach:
 
-1. **Prep** — right-click a token → the Chronicle → fill in Profile (Nature) & Bonds. Hover any label for a hint; read the **Codex** tab for the full walkthrough.
-2. **Fence** — open a character's Chronicle → **Fencing** tab → pick a target, pick a maneuver, roll. (Or the GM opens the **Social** scene and hits **⚔ Conflict** to launch a shared board.)
-3. Composure starts automatically. Crack theirs before yours runs out — every miss costs you. Set up a state, then press it (⊕); call in a lever when you hold one; read targets to reveal tells; spend Strings for +5.
-4. The exchange ends when someone **gives in** or **storms off**, on a **Yield**, or a **Finally Kiss**. Any states linger into a fight that follows.
+| Approach | When it works | When it misses |
+|---|---|---|
+| **Pressure** | They give in without a price, but remember it: the bond sours. | Nothing extra. |
+| **Heart** | The bond warms. | You exposed yourself: they take a String on you. |
+| **Reason** | A clean deal; "yes, but" names their price. | Nothing extra. |
+
+What they say:
+
+| Result | When | What happens |
+|---|---|---|
+| **Strong hit** | 5 over, or a 20 | It works. An ask or gambit for something big also hands you a String on them. |
+| **Hit** | a hit | It works. An Appeal or a Bargain gets "yes, but": their nature names the price; you pay, or you walk away. |
+| **Miss** | a miss | They push back their own way. A proud nature, refused something big, closes the door for the scene. |
+| **Bad miss** | 5 under, or a 1 | It costs you: they take a String on you. |
+
+After a miss you may burn a String on them for +5. Your roll adds:
+- the skill that fits your words;
+- +1 per Leanings dot in that approach;
+- +● for a bond that runs that way;
+- +2 for their known Desire or Fear;
+- +2 when a friend helps.
+
+## Nine natures
+
+The natures follow Karen Horney's three ways of coping with people:
+- moving **against** them — Power: Tyrant, Schemer, Duelist;
+- moving **toward** them — Emotion: Martyr, Idol, Caretaker;
+- moving **away** from them — Order: Zealot, Hermit, Broker.
+
+Each nature is grounded in a real character type. Each has:
+- a **key** approach: on all four of its techniques you roll a second d20 and keep the better;
+- a **wall** approach: a second d20, keep the worse;
+- its own **price** for a "yes, but";
+- its own pushback on a no;
+- whether it keeps listening after refusing something big.
+
+The second die is rolled after the first, so nothing before the roll gives the nature away; the result does. Inside a triad all three key/wall pairs differ, so knowing someone's way is never enough.
+
+**Reading people.** A hit answers one question for the whole party:
+- what they want;
+- what they fear;
+- what would open them;
+- what would close them;
+- what they'd want in return;
+- whether they end it after a no.
+
+The party keeps every answer. Once it knows the key and the wall, the nature is named and its whole card opens.
+
+## Strings and bonds
+
+- **Strings** are a hold on one person, at most 3 each. A String can be:
+  - spent for **+5** after a miss against them;
+  - used as leverage for an ask against their interests, or for Blackmail;
+  - **Pulled** in a fight. Strike gives +5 to your next attack, check or save against them. Guard gives +5 AC against their next attack. Either one is a real effect on your sheet that ends itself.
+- **Bonds** are one shared relationship per pair, mirrored on both actors: a type (friend, lover, rival, enemy, sworn, confidant…) and a strength ●–●●●.
+  - A bond gives +1 per ● on techniques of the approach it runs: Heart for love and family, Pressure for rivals and enemies, Reason for allies, oaths and trust.
+  - Heart wins warm bonds (a stranger becomes a Friend).
+  - Pressure wins sour them (a stranger becomes a Rival).
+  - Blackmail and exposed lies make Enemies.
+  - Slammed doors and broken hearts cool bonds.
+
+## Windows
+
+- **Chronicle**: right-click a token, then the address-book button. It has four tabs:
+  - *Profile*: an NPC's nature, dossier and Agenda for the GM, and what the party has learned for players; a player character's Leanings;
+  - *Bonds*;
+  - **Talk**: the twelve techniques, the NPC's openings, the roll. On an NPC's own sheet this tab is the GM's cheat sheet: key, wall, price, pushback, the lies they believe, and buttons to ask them as any character on the scene;
+  - *Codex*: the in-game manual.
+- **Social Scene**: the **Social** button on the VTools toolbar. It is a live relationship map for everyone: portraits, bonds as lines, openings and named natures, and every roll animated as it happens. *This scene* is for the table; *All bonds* is for the GM.
+
+## Settings
+
+A global social-difficulty dial, and whether rolls use the system's own skill dialog.
+
+Upgrading from 2.x: the first world load removes the old states, wounds, scars and auras from sheets. Bonds, Strings, dossiers and natures are kept.
 
 Requires the **vtools** module.
 

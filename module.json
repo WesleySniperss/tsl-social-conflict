@@ -1,8 +1,8 @@
 {
   "id": "tsl-social-conflict",
   "title": "TSL: Social Conflict",
-  "description": "Social Fencing: a Foundry module blending A5E-style social tactics with Thirsty Sword Lesbians narrative conflict.",
-  "version": "2.0.0",
+  "description": "Social scenes for D&D 5e and Level Up (a5e): twelve techniques — open them up, ask, read them, or go all in with blackmail, seduction or a lie — through Pressure, Heart or Reason. Every NPC has a hidden psychological nature that decides how each one lands: the approach that opens them, the one they close against, the price they name, how they push back. Hold Strings on people, build bonds. Inspired by Thirsty Sword Lesbians (Powered by Lesbians).",
+  "version": "3.0.0",
   "compatibility": {
     "minimum": "13",
     "verified": "14",
@@ -22,25 +22,18 @@
   "bugs": "https://github.com/WesleySniperss/tsl-social-conflict/issues",
   "scripts": [
     "scripts/socket.js",
-    "scripts/stat-resolver.js",
-    "scripts/condition-effects.js",
+    "scripts/social-archetypes.js",
     "scripts/string-store.js",
     "scripts/bond-store.js",
-    "scripts/bond-auras.js",
-    "scripts/social-archetypes.js",
-    "scripts/tsl-playbooks.js",
-    "scripts/social-encounter.js",
-    "scripts/social-maneuvers.js",
+    "scripts/talk.js",
     "scripts/social-notes-app.js",
     "scripts/social-hud.js",
-    "scripts/conflict-store.js",
-    "scripts/conflict-app.js",
     "scripts/scene-visualizer.js",
     "scripts/hud-button.js",
     "scripts/main.js"
   ],
   "styles": [
-    "styles/conflict.css"
+    "styles/tsl.css"
   ],
   "languages": [
     {
