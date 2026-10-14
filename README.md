@@ -36,7 +36,7 @@ What winning costs depends on the approach:
 
 | Approach | When it works | When it misses |
 |---|---|---|
-| **Pressure** | They give in without a price, but remember it: the bond sours. | Nothing extra. |
+| **Pressure** | They give in without a price, but remember it: the bond sours, and they take a String on you. | Nothing extra. |
 | **Heart** | The bond warms. | You exposed yourself: they take a String on you. |
 | **Reason** | A clean deal; "yes, but" names their price. | Nothing extra. |
 
@@ -46,8 +46,8 @@ What they say:
 |---|---|---|
 | **Strong hit** | 5 over, or a 20 | It works. An ask or gambit for something big also hands you a String on them. |
 | **Hit** | a hit | It works. An Appeal or a Bargain gets "yes, but": their nature names the price; you pay, or you walk away. |
-| **Miss** | a miss | They push back their own way. A proud nature, refused something big, closes the door for the scene. |
-| **Bad miss** | 5 under, or a 1 | It costs you: they take a String on you. |
+| **Miss** | a miss | They push back their own way, and it hurts: you take their nature's **emotion** (anything but a quiet Study). A proud nature, refused something big, closes the door for the scene. |
+| **Bad miss** | 5 under, or a 1 | As a miss, and they take a String on you as well. |
 
 After a miss you may burn a String on them for +5. Your roll adds:
 - the skill that fits your words;
@@ -55,6 +55,33 @@ After a miss you may burn a String on them for +5. Your roll adds:
 - +● for a bond that runs that way;
 - +2 for their known Desire or Fear;
 - +2 when a friend helps.
+
+## Emotions and scars
+
+Five emotions, as in Thirsty Sword Lesbians. Anyone can carry them, a player character or an NPC. They show as status icons on the token; the GM can also toggle them from the Token HUD.
+
+| Emotion | On whoever feels it | For whoever plays on it | Let it go |
+|---|---|---|---|
+| **Angry** | −2 on Heart | +2 to Pressure against them | lash out: hurt someone, or break something |
+| **Frightened** | −2 on Pressure | +2 to Pressure against them | back down, or flee what scares you |
+| **Guilty** | −2 on everything against the one you wronged | +2 to Heart from the one they wronged | make amends |
+| **Insecure** | −2 on Reason | +2 to Heart against them | prove yourself with a reckless risk |
+| **Hopeless** | −2 on asks and gambits | +2 to Reason against them | give something up, or accept comfort |
+
+A friend's comfort lets any of them go, too. Where emotions come from:
+- **a miss**: each nature hits back with its own emotion (the Tyrant frightens you, the Duelist makes you angry, the Martyr makes you guilty…);
+- **a String** spent on someone (Bonds → Hurt): players do it to NPCs, and the GM's NPCs do it to players;
+- **gambits**: Blackmail leaves them Frightened; a broken heart leaves you Hopeless; a lie brought out leaves them Angry.
+
+Take an emotion you already carry, and it leaves a **scar** instead. A scar is permanent, one per emotion, and a twist rather than just a wound:
+
+| Scar | From | For good |
+|---|---|---|
+| Short Fuse | Angry | +1 Pressure, −1 Heart |
+| Flinch | Frightened | +1 on Reads, −1 Pressure |
+| Debt | Guilty | +1 Heart, −1 Reason |
+| The Mask | Insecure | +1 on Gambits, −1 on Reads |
+| Hollow | Hopeless | +1 Reason, −1 on Opens |
 
 ## Nine natures
 
@@ -67,7 +94,7 @@ Each nature is grounded in a real character type. Each has:
 - a **key** approach: on all four of its techniques you roll a second d20 and keep the better;
 - a **wall** approach: a second d20, keep the worse;
 - its own **price** for a "yes, but";
-- its own pushback on a no;
+- its own pushback on a no, and the emotion it leaves on you when you miss;
 - whether it keeps listening after refusing something big.
 
 The second die is rolled after the first, so nothing before the roll gives the nature away; the result does. Inside a triad all three key/wall pairs differ, so knowing someone's way is never enough.
@@ -86,6 +113,7 @@ The party keeps every answer. Once it knows the key and the wall, the nature is 
 
 - **Strings** are a hold on one person, at most 3 each. A String can be:
   - spent for **+5** after a miss against them;
+  - spent to **Hurt** them: make them feel an emotion;
   - used as leverage for an ask against their interests, or for Blackmail;
   - **Pulled** in a fight. Strike gives +5 to your next attack, check or save against them. Guard gives +5 AC against their next attack. Either one is a real effect on your sheet that ends itself.
 - **Bonds** are one shared relationship per pair, mirrored on both actors: a type (friend, lover, rival, enemy, sworn, confidant…) and a strength ●–●●●.
@@ -98,9 +126,9 @@ The party keeps every answer. Once it knows the key and the wall, the nature is 
 ## Windows
 
 - **Chronicle**: right-click a token, then the address-book button. It has four tabs:
-  - *Profile*: an NPC's nature, dossier and Agenda for the GM, and what the party has learned for players; a player character's Leanings;
+  - *Profile*: an NPC's nature, dossier and Agenda for the GM, and what the party has learned for players; a player character's Leanings, emotions and scars;
   - *Bonds*;
-  - **Talk**: the twelve techniques, the NPC's openings, the roll. On an NPC's own sheet this tab is the GM's cheat sheet: key, wall, price, pushback, the lies they believe, and buttons to ask them as any character on the scene;
+  - **Talk**: the twelve techniques, your emotions and theirs, the NPC's openings, the roll. On an NPC's own sheet this tab is the GM's cheat sheet: key, wall, price, pushback, the lies they believe, and buttons to ask them as any character on the scene;
   - *Codex*: the in-game manual.
 - **Social Scene**: the **Social** button on the VTools toolbar. It is a live relationship map for everyone: portraits, bonds as lines, openings and named natures, and every roll animated as it happens. *This scene* is for the table; *All bonds* is for the GM.
 
@@ -108,7 +136,7 @@ The party keeps every answer. Once it knows the key and the wall, the nature is 
 
 A global social-difficulty dial, and whether rolls use the system's own skill dialog.
 
-Upgrading from 2.x: the first world load removes the old states, wounds, scars and auras from sheets. Bonds, Strings, dossiers and natures are kept.
+Upgrading from 2.x: the first world load removes the old v2 states, wounds, scars and auras from sheets; v3's emotions and scars replace them. Bonds, Strings, dossiers and natures are kept.
 
 Requires the **vtools** module.
 

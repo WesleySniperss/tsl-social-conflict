@@ -32,7 +32,7 @@ const APPROACHES = {
     id: "pressure", label: "Pressure", icon: "fa-hand-fist", color: "#e8557a", leaning: "power",
     gist: "Come at them hard.",
     examples: "a challenge, a threat, shame, coldness, provocation, shaking their certainty, a higher law",
-    cost: "They give in without a price — but they remember it: the bond sours.",
+    cost: "They give in without a price — but they remember it: the bond sours, and they take a String on you.",
     skills: ["itm", "dec", "prf", "per", "ath"],
   },
   heart: {
@@ -75,7 +75,8 @@ const SOCIAL_TRIADS = {
  * The nine natures. `key` / `wall` are approach ids; `keyText` / `wallText`
  * say how that looks in a scene. `price` — what they want in return when they
  * say "yes, but" (`string: true` = paying it hands them a String on you).
- * `press` — how they push back when they say no. `pressed` — after refusing
+ * `press` — how they push back when they say no; `hurts` — the emotion that
+ * pushback leaves on whoever missed against them. `pressed` — after refusing
  * something big: "firm" ends the talk, "yield" keeps listening (`pressedWhy`
  * says how). `psych` grounds the type in real psychology.
  */
@@ -91,6 +92,7 @@ const SOCIAL_ARCHETYPES = [
     wallText: "A direct challenge or a threat. Force that pushes back triggers reactance: they dig in on principle.",
     price: { text: "Ask it as a favour — on your knee, where their people can see.", string: false },
     press: "An order in front of witnesses: obey, or lose face.",
+    hurts: "frightened",
     pressed: "firm",
     pressedWhy: "would rather end it than be seen to bend",
     description: "Control-focused antagonist who resists force and bends only to praise.",
@@ -114,6 +116,7 @@ const SOCIAL_ARCHETYPES = [
     wallText: "Logic and cross-examination. They keep their head, talk their way out, and read you while you read them.",
     price: { text: "A favour, to be named later.", string: true },
     press: "Help with a hook in it — a favour you'll pay for later.",
+    hurts: "insecure",
     pressed: "yield",
     pressedWhy: "says no with a smile — and keeps the game going",
     description: "A covert manipulator — patient, cynical, always three moves ahead.",
@@ -137,6 +140,7 @@ const SOCIAL_ARCHETYPES = [
     wallText: "Pity, pleading or playing small. Weakness earns their contempt, not a lowered guard.",
     price: { text: "Earn it — best them at something first, in front of others.", string: false },
     press: "A public challenge: take it, or admit you're the lesser.",
+    hurts: "angry",
     pressed: "firm",
     pressedWhy: "turns away from anyone who asks too much — come back with a challenge",
     description: "A proud contender who must answer any worthy challenge — and despises cheap tricks.",
@@ -162,6 +166,7 @@ const SOCIAL_ARCHETYPES = [
     wallText: "Sympathy and help. Warmth feeds the martyrdom; they push it away and suffer louder.",
     price: { text: "Say out loud what it costs them — and let them remind you of it.", string: true },
     press: "“After everything I've done for you…” — your move becomes their wound.",
+    hurts: "guilty",
     pressed: "yield",
     pressedWhy: "refuses, sighing — and stays to make you feel it",
     description: "Seeks attention through suffering and recoils from sympathy.",
@@ -185,6 +190,7 @@ const SOCIAL_ARCHETYPES = [
     wallText: "Criticism, or a joke at their expense. It isn't heard as information but as an attack — and answered with rage.",
     price: { text: "The credit is theirs — publicly, and you'll back the story.", string: false },
     press: "They steal the room — your words drown in their performance.",
+    hurts: "insecure",
     pressed: "firm",
     pressedWhy: "makes a scene of leaving rather than be asked for too much",
     description: "Thrives on worship and resists attacks on their ego.",
@@ -208,6 +214,7 @@ const SOCIAL_ARCHETYPES = [
     wallText: "A cold bargain. Offer them a trade and you insult them — they give, they don't sell.",
     price: { text: "Let them do more than you asked — and owe them for it.", string: true },
     press: "Care you never asked for, that leaves you owing.",
+    hurts: "guilty",
     pressed: "yield",
     pressedWhy: "can't bear to leave you without help — they stay",
     description: "Needs to be needed. Obligation and guilt move them; a bargain insults them.",
@@ -233,6 +240,7 @@ const SOCIAL_ARCHETYPES = [
     wallText: "Argument. Logic is their fortress — they out-argue you chapter and verse. A bribe is an insult.",
     price: { text: "Swear to keep the rule — they'll hold you to your word.", string: true },
     press: "They quote the law and name your sin — you're an offender, not a partner.",
+    hurts: "angry",
     pressed: "firm",
     pressedWhy: "will not discuss the creed further — the door closes",
     description: "Trusts rules and ritual more than people — certainty is their armour, and doubt the crack in it.",
@@ -256,6 +264,7 @@ const SOCIAL_ARCHETYPES = [
     wallText: "Public pressure, shouting, a scene. They simply close the door.",
     price: { text: "A truth for a truth — tell them something real about yourself.", string: false },
     press: "Silence — then one precise question, straight into what hurts.",
+    hurts: "hopeless",
     pressed: "firm",
     pressedWhy: "withdraws — the conversation is over",
     description: "Withdrawn and wary, they can be drawn out by clever reasoning.",
@@ -279,6 +288,7 @@ const SOCIAL_ARCHETYPES = [
     wallText: "Sentiment. Feelings buy nothing in their ledger.",
     price: { text: "Pay — something of real value, here and now.", string: false },
     press: "A counter-price — or an old debt brought back to the table.",
+    hurts: "hopeless",
     pressed: "yield",
     pressedWhy: "no deal — but the shop stays open",
     description: "A pragmatist who trusts contracts over feelings and weighs every word for profit.",

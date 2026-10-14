@@ -70,8 +70,12 @@ class TSLGMActions {
     try {
       switch (action) {
         case "talkResolve":
-          // A technique — apply what follows (openings, Strings, bonds, lies, knowledge), post its card.
+          // A technique — apply what follows (openings, emotions, Strings, bonds, lies, knowledge), post its card.
           await TSLTalk.resolve(args);
+          break;
+        case "stringHurt":
+          // A String spent to make someone feel something.
+          await TSLEmotions.hurt(args);
           break;
         default:
           console.warn(`TSL | Unknown GM action: ${action}`);

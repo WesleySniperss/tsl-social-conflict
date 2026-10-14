@@ -596,3 +596,29 @@
 .tsl-cx-grid > b i { color: var(--c); font-size: 0.9em; }
 .tsl-cx-grid > i { font-style: normal; font-family: var(--tsl-title); font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--tsl-muted); text-align: left; align-self: center; }
 .tsl-cx-grid > span { color: var(--tsl-text); }
+
+/* ── Emotions & scars (v3) ────────────────────────────────────────────────── */
+
+.tsl-emos { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.tsl-emo {
+  display: inline-flex; align-items: center; gap: 5px; padding: 1px 4px 1px 6px; border-radius: 10px;
+  font-size: 12.5px; color: #fff; background: color-mix(in srgb, var(--c) 22%, rgba(0, 0, 0, 0.4));
+  border: 1px solid color-mix(in srgb, var(--c) 80%, transparent);
+}
+.tsl-emo img, .tsl-scar img, .tsl-emo-ico { width: 16px; height: 16px; border: none; vertical-align: middle; filter: invert(1) opacity(0.85); }
+.tsl-fencing .tsl-emo-x {
+  width: 18px; height: 18px; margin: 0; padding: 0; line-height: 1; flex: 0 0 18px; box-shadow: none; cursor: pointer;
+  border: none; border-radius: 50%; background: rgba(0, 0, 0, 0.35); color: var(--tsl-soft); font-size: 13px;
+}
+.tsl-fencing .tsl-emo-x:hover { background: rgba(255, 255, 255, 0.18); color: #fff; }
+.tsl-scar {
+  display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px 1px 6px; border-radius: 10px;
+  font-size: 12.5px; color: #f3c9c0; background: rgba(120, 20, 20, 0.35); border: 1px dashed rgba(220, 90, 80, 0.7);
+}
+.tsl-you { padding-top: 7px; padding-bottom: 7px; }
+.tsl-x-card--slim .tsl-x-head { margin-bottom: 2px; }
+.tsl-x-card .tsl-emo-ico, .chat-message .tsl-x-card img.tsl-emo-ico { display: inline-block; width: 15px; height: 15px; margin: 0 3px 0 0; vertical-align: -3px; border: none; filter: invert(1) opacity(0.85); }
+.tsl-cx-card-head .tsl-emo-ico { filter: invert(1) opacity(0.9); }
+.tsl-viz-emos { display: flex; gap: 2px; justify-content: center; margin-top: 2px; }
+.tsl-viz-emos img { width: 15px; height: 15px; border: none; border-radius: 50%; padding: 1px; background: rgba(0, 0, 0, 0.65); filter: invert(1); }
+.tsl-math-part--neg { color: #eca1a1; }

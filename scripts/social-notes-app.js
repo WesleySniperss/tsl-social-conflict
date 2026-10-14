@@ -224,6 +224,12 @@ class SocialFencingApp extends _SocialAppBase {
         ${rows}
       </section>
       <section class="tsl-sec">
+        <div class="tsl-sec-head"><span class="tsl-sec-title">Emotions & scars</span></div>
+        ${this._emotionRow(this._actor, { label: "Now", canClear: canEdit, scars: true })
+          || `<p class="tsl-note">Nothing weighs on ${esc(this._actor.name)} right now.</p>`}
+        <p class="tsl-note">Miss against someone and they hit back with their emotion; a String spent on you can do it too. Each costs −2 somewhere until you act it out. Take one you already carry, and it leaves a scar — for good.</p>
+      </section>
+      <section class="tsl-sec">
         <div class="tsl-sec-head"><span class="tsl-sec-title">Notes</span></div>
         <textarea name="notes" rows="4" placeholder="Who they are with people — history, wants, what they hide…" ${dis}>${esc(notes.notes)}</textarea>
       </section>`;
@@ -277,8 +283,10 @@ class SocialFencingApp extends _SocialAppBase {
     const learned = isGM ? "" : READ_ORDER.filter(q => known[q] && (!carded || q === "desire" || q === "fear")).map(q =>
       `<span>${READ_QUESTIONS[q].short}</span><span>${esc(TSLTalk.answerFor(npc, q))}</span>`).join("");
 
+    const feeling = this._emotionRow(npc, { label: "Feeling", canClear: isGM });
     return `
       ${natureSec}
+      ${feeling ? `<section class="tsl-sec">${feeling}</section>` : ""}
       <section class="tsl-sec">
         <div class="tsl-sec-head"><span class="tsl-sec-title">What the party knows</span></div>
         <div class="tsl-known-row">${knownChips}</div>
@@ -354,7 +362,9 @@ class SocialFencingApp extends _SocialAppBase {
               <button type="button" class="tsl-icon-btn" data-str-adj="1" data-target="${b.targetActorId}" ${b.stringCount >= STRING_CAP ? "disabled" : ""} data-tooltip="Gain a String on them — e.g. when you open your heart to them in play (the GM's call)">+</button>
               <button type="button" class="tsl-icon-btn" data-str-adj="-1" data-target="${b.targetActorId}" ${b.stringCount ? "" : "disabled"} data-tooltip="Remove a String">−</button>
               <button type="button" class="tsl-btn tsl-pull" data-pull="${b.targetActorId}" ${b.stringCount ? "" : "disabled"}
-                data-tooltip="PULL — burn one: STRIKE (+5 to your next attack, check or save against them) or GUARD (+5 AC against their next attack). It goes on your sheet and ends itself once used.">Pull +5</button>` : ""}
+                data-tooltip="PULL — burn one: STRIKE (+5 to your next attack, check or save against them) or GUARD (+5 AC against their next attack). It goes on your sheet and ends itself once used.">Pull +5</button>
+              <button type="button" class="tsl-btn tsl-pull" data-hurt="${b.targetActorId}" ${b.stringCount ? "" : "disabled"}
+                data-tooltip="HURT — spend one to make them feel something: Angry, Frightened, Guilty, Insecure or Hopeless. Say how, in the scene — the GM says if it fits.">Hurt</button>` : ""}
           </div>
           <input type="text" class="tsl-bond-notes" data-bond-id="${b.id}" value="${esc(b.notes ?? "")}" placeholder="History, debts, secrets between you…" ${dis}>
         </div>`;
@@ -399,7 +409,9 @@ class SocialFencingApp extends _SocialAppBase {
     const picking = this._picking && this._pickMode === "target";
     const opts = npcs.map(a => `<option value="${a.id}" ${a.id === this._tTarget ? "selected" : ""}>${esc(a.name)}</option>`).join("");
     const extra = tgt && !npcs.some(a => a.id === tgt.id) ? `<option value="${tgt.id}" selected>${esc(tgt.name)}</option>` : "";
+    const mine = this._emotionRow(this._actor, { label: "You", canClear: ctx.canEdit, scars: true });
     return `
+      ${mine ? `<section class="tsl-sec tsl-you">${mine}</section>` : ""}
       <section class="tsl-sec">
         <div class="tsl-target-row">
           <select class="tsl-t-target"><option value="">Who are you talking to?</option>${extra}${opts}</select>
@@ -460,8 +472,27 @@ class SocialFencingApp extends _SocialAppBase {
       </div>
       <div class="tsl-facts">${facts}</div>
       ${this._openingsRow(npc, { gm: isGM })}
+      ${this._emotionRow(npc, { label: "Feeling", canClear: isGM })}
       ${arch && named && !isGM ? `<details class="tsl-x-card-open"><summary>Their nature</summary>${this._archetypeCard(arch)}</details>` : ""}
     </section>`;
+  }
+
+  /** What someone feels — and the scars they carry — as tags. × lets an emotion go (its owner or the GM). */
+  _emotionRow(actor, { label = "Feeling", canClear = false, scars = false } = {}) {
+    const esc = foundry.utils.escapeHTML;
+    const emos = TSLEmotions.of(actor);
+    const sc = scars ? TSLEmotions.scars(actor) : [];
+    if (!emos.length && !sc.length) return "";
+    const tags = emos.map(e => {
+      const d = EMOTIONS[e.id];
+      const by = game.actors.get(e.by)?.name;
+      const toward = e.toward ? game.actors.get(e.toward)?.name : null;
+      const tip = `<b>${d.label}</b>${by ? ` — from ${by}` : ""}<br>On them: ${d.spoilsText}${toward ? ` (toward ${toward})` : ""}.<br>For others: ${d.opensText}.<br><i>Let it go: ${d.clear}</i>`;
+      return `<span class="tsl-emo" style="--c:${d.color}" data-tooltip="${esc(tip)}"><img src="${d.img}" alt=""> ${d.label}${toward ? ` → ${esc(toward)}` : ""}${canClear
+        ? `<button type="button" class="tsl-emo-x" data-emo-clear="${actor.id}" data-emo="${e.id}" aria-label="Let it go" data-tooltip="Let it go — act it out, or a friend's comfort">×</button>` : ""}</span>`;
+    }).join("");
+    const scarTags = sc.map(id => `<span class="tsl-scar" data-tooltip="${esc(`<b>Scar — ${SCARS[id].label}</b><br>${SCARS[id].text}`)}"><img src="icons/svg/blood.svg" alt=""> ${SCARS[id].label}</span>`).join("");
+    return `<div class="tsl-emos"><span class="tsl-openings-label">${label}</span>${tags}${scarTags}</div>`;
   }
 
   /** The openings on them, as tags (the next ask is easier for each). */
@@ -536,7 +567,7 @@ class SocialFencingApp extends _SocialAppBase {
           <i class="fas ${l === "desire" ? "fa-gem" : "fa-ghost"}"></i> Their ${l === "desire" ? "Desire" : "Fear"} +${LEVER_BONUS}</button>`).join("");
       const strings = pv.strings ? `<span class="tsl-note tsl-t-strings" data-tooltip="Burn one for +${STRING_SPEND_BONUS} after a miss — you'll be asked.">
         <i class="fas fa-masks-theater"></i> ${pv.strings} String${pv.strings > 1 ? "s" : ""} on them</span>` : "";
-      const math = pv.parts.map(p => `<span class="tsl-math-part">${p.value >= 0 ? "+" : "−"}${Math.abs(p.value)} ${esc(p.label)}</span>`).join("");
+      const math = pv.parts.map(p => `<span class="tsl-math-part ${p.value < 0 ? "tsl-math-part--neg" : ""}">${p.value >= 0 ? "+" : "−"}${Math.abs(p.value)} ${esc(p.label)}</span>`).join("");
       const dcMods = pv.dcMods.map(m => ` ${m.value >= 0 ? "+" : "−"}${Math.abs(m.value)} ${esc(m.label)}`).join("");
       const verb = { open: "roll", ask: "ask", read: "read", gambit: "all in" }[pv.job];
       body = `
@@ -605,10 +636,10 @@ class SocialFencingApp extends _SocialAppBase {
           <span>Key</span><span><b>${APPROACHES[arch.key].label}</b> — ${esc(arch.keyText)}</span>
           <span>Wall</span><span><b>${APPROACHES[arch.wall].label}</b> — ${esc(arch.wallText)}</span>
           <span>Yes, but</span><span>${esc(arch.price.text)}${arch.price.string ? " <i>(a String on the asker)</i>" : ""}</span>
-          <span>On a no</span><span>${esc(arch.press)}</span>
+          <span>On a no</span><span>${esc(arch.press)} <i>Every miss but a Study leaves the speaker <b>${EMOTIONS[arch.hurts]?.label ?? "shaken"}</b>.</i></span>
           <span>After a no</span><span>${stance === "firm" ? "they end it — the door is closed for the scene" : stance === "yield" ? "they keep listening" : "your call"}</span>
         </div>` : `<p class="tsl-note">No nature set — pick one in Profile, and this becomes your cheat sheet.</p>`}
-        <p class="tsl-note">Roll only when they're unwilling and it matters. The players pick the technique and size the ask — say so if the words don't match.</p>
+        <p class="tsl-note">Roll only when they're unwilling and it matters. The players pick the technique and size the ask — say so if the words don't match. Their Strings are yours to spend: Bonds → Hurt.</p>
       </section>
       ${lies.length ? `<section class="tsl-sec">
         <div class="tsl-sec-head"><span class="tsl-sec-title">Lies they believe</span><span class="tsl-gm-tag">GM</span></div>
@@ -626,6 +657,7 @@ class SocialFencingApp extends _SocialAppBase {
       { id: "start",   label: "How it works", icon: "fa-play" },
       { id: "ap",      label: "Techniques",   icon: "fa-hand-fist" },
       { id: "read",    label: "Reading",      icon: "fa-eye" },
+      { id: "emo",     label: "Emotions",     icon: "fa-heart-crack" },
       { id: "natures", label: "Natures",      icon: "fa-masks-theater" },
       { id: "bonds",   label: "Strings & bonds", icon: "fa-link" },
       ...(isGM ? [{ id: "gm", label: "GM", icon: "fa-crown" }] : []),
@@ -688,6 +720,28 @@ class SocialFencingApp extends _SocialAppBase {
         <h3>Nine natures, three ways of coping</h3>
         <p>Karen Horney described three ways people cope with others — moving <b>against</b> them (Power), <b>toward</b> them (Emotion), <b>away</b> from them (Order). Inside a triad every nature has a different key and wall: knowing someone's way is never enough. Read the person.</p>`;
 
+      case "emo": return `
+        <h3>Five emotions</h3>
+        <p>As in Thirsty Sword Lesbians, anyone can carry them — your character, or the person you're talking to. They show on the token. Each one costs whoever feels it, and helps whoever plays on it — until it's let go.</p>
+        ${EMOTION_ORDER.map(id => {
+          const d = EMOTIONS[id];
+          return `<div class="tsl-cx-card" style="--c:${d.color}">
+            <div class="tsl-cx-card-head"><img class="tsl-emo-ico" src="${d.img}" alt=""> ${d.label}</div>
+            <p><b>On you</b> ${esc(d.spoilsText)}.</p>
+            <p><b>On them</b> ${esc(d.opensText)}.</p>
+            <p><b>Let it go</b> ${esc(d.clear)} <span class="tsl-cx-small">Or a friend's comfort.</span></p>
+          </div>`;
+        }).join("")}
+        <h3>Where they come from</h3>
+        <ul>
+          <li><b>A miss</b> — anything but a quiet Study: the person hits back with their nature's emotion. Each nature hurts in its own way (Natures).</li>
+          <li><b>A String</b> spent on someone (Bonds → Hurt) — players on NPCs, and the GM's NPCs on players. Say how, in the scene.</li>
+          <li><b>Gambits</b> — Blackmail leaves them Frightened; a broken heart leaves you Hopeless; a lie brought out leaves them Angry.</li>
+        </ul>
+        <h3>Scars</h3>
+        <p>Take an emotion you already carry, and it leaves a <b>scar</b> instead — for good, one per emotion. A scar is a twist, not just a wound:</p>
+        <ul>${Object.values(SCARS).map(sc => `<li><b>${sc.label}</b> (${EMOTIONS[sc.from].label}) — ${esc(sc.text)}</li>`).join("")}</ul>`;
+
       case "natures": return `
         <h3>The nine natures</h3>
         <p>The catalog is open to everyone; who is which is not.</p>
@@ -699,6 +753,7 @@ class SocialFencingApp extends _SocialAppBase {
               <p><span class="tsl-cx-k"><i class="fas fa-key"></i> ${APPROACHES[x.key].label}</span> ${esc(x.keyText)}</p>
               <p><span class="tsl-cx-w"><i class="fas fa-door-closed"></i> ${APPROACHES[x.wall].label}</span> ${esc(x.wallText)}</p>
               <p><span class="tsl-cx-p"><i class="fas fa-handshake"></i> Price</span> ${esc(x.price.text)}${x.price.string ? " <i>(a String on you)</i>" : ""}</p>
+              <p><span class="tsl-cx-w"><i class="fas fa-heart-crack"></i> Hurts</span> ${esc(x.press)} Miss against them and you're <b>${EMOTIONS[x.hurts]?.label ?? "shaken"}</b>.</p>
               <p class="tsl-cx-small">After a no, they ${x.pressed === "firm" ? "end it" : "keep listening"} — ${esc(x.pressedWhy)}. ${esc(x.psych)}</p>
             </div>`).join("")}`).join("")}`;
 
@@ -708,9 +763,10 @@ class SocialFencingApp extends _SocialAppBase {
         <ul>
           <li><b>After a miss</b> against them: burn one for <b>+${STRING_SPEND_BONUS}</b>.</li>
           <li><b>Pull it in a fight</b> (Bonds → Pull): <b>Strike</b> +5 to your next attack, check or save against them, or <b>Guard</b> +5 AC against their next attack. It goes on your sheet and ends itself.</li>
+          <li><b>Hurt</b> (Bonds → Hurt): spend one to make them feel something — an emotion. The GM's NPCs do it to you too.</li>
           <li>Holding one is <b>leverage</b> — for an ask against their interests, or for Blackmail.</li>
         </ul>
-        <p>You gain one on a strong hit with an ask or a gambit for something big (it cost them more than they show), and when you open your heart in play — the GM hands it over. They gain one on you when a Heart technique misses, when your threat or your lie fails, when you pay certain prices, and on a bad miss.</p>
+        <p>You gain one on a strong hit with an ask or a gambit for something big (it cost them more than they show), and when you open your heart in play — the GM hands it over. They gain one on you when you win by Pressure (they'll pay you back), when a Heart technique misses, when your threat or your lie fails, when you pay certain prices, and on a bad miss.</p>
         <h3>Bonds</h3>
         <p>A bond is a type and a strength (●–●●●), shared by both people. Your bond toward someone gives <b>+1 per ●</b> on techniques of the approach it runs:</p>
         <ul>${APPROACH_ORDER.map(id => `<li><b>${APPROACHES[id].label}</b> — ${BOND_TYPES.filter(t => SocialArchetypeManager.bondApproach(t.id) === id).map(t => t.label).join(", ")}</li>`).join("")}</ul>
@@ -731,6 +787,8 @@ class SocialFencingApp extends _SocialAppBase {
           <li><b>Don't let them re-roll the same ask</b> without something new: an opening, a lever, a String, another technique.</li>
           <li><b>Their Line</b> is real: an ask that crosses it is simply refused — no roll.</li>
           <li><b>Lies come out</b> when the story says so — bring them out from their Talk tab.</li>
+          <li><b>Play the emotions.</b> An Angry NPC snaps; a Frightened one gives ground. Let an emotion go (× on its tag) when it's acted out — and hold the players to theirs.</li>
+          <li><b>Their Strings are your weapons.</b> When an NPC has a hold on someone, spend it (their Bonds → Hurt) at the moment it would land.</li>
           <li><b>Reward the heart:</b> when a player opens up in character, give them a String on the one they opened up to (Bonds → +).</li>
         </ul>
         <h3>Content</h3>
@@ -753,8 +811,8 @@ class SocialFencingApp extends _SocialAppBase {
         <ul>
           <li><b>Strong hit</b> (5 over, or a 20) — it works. An ask or gambit for something big also hands you a String on them.</li>
           <li><b>Hit</b> — it works; an Appeal or a Bargain gets "yes, but": their nature names the price — pay it, or walk away.</li>
-          <li><b>Miss</b> — they push back their own way. A proud one, refused something big, closes the door for the scene.</li>
-          <li><b>Bad miss</b> (5 under, or a 1) — and it costs you: a String on you.</li>
+          <li><b>Miss</b> — they push back their own way, and it hurts: you take their nature's <b>emotion</b> (−2 somewhere until you act it out) — anything but a quiet Study. A proud one, refused something big, closes the door for the scene.</li>
+          <li><b>Bad miss</b> (5 under, or a 1) — and a String on you as well.</li>
         </ul>
         <p>After a miss you may burn a String on them for +${STRING_SPEND_BONUS}.</p>
         <h3>The person</h3>
@@ -824,6 +882,13 @@ class SocialFencingApp extends _SocialAppBase {
     });
     on("[data-open-clear]", "click", (_e, n) => { if (game.user.isGM) TSLTalk.clearOpenings(game.actors.get(n.dataset.openClear)); });
     on("[data-lie-out]", "click", (_e, n) => { if (game.user.isGM) TSLTalk.exposeLie(this._actor, n.dataset.lieOut); });
+    on("[data-emo-clear]", "click", async (_e, n) => {
+      const actor = game.actors.get(n.dataset.emoClear);
+      if (!actor || !(game.user.isGM || actor.isOwner)) return;
+      const how = await this._promptLetGo(actor, n.dataset.emo);
+      if (how) await TSLEmotions.clear(actor, n.dataset.emo, how);
+      this.render(false);
+    });
     on("[data-t-clear-result]", "click", () => { this._tResult = null; this.render(false); });
 
     if (!canEdit) return;
@@ -878,12 +943,59 @@ class SocialFencingApp extends _SocialAppBase {
       } else await TSLStringStore.spend(this._actor.id, n.dataset.target);
       this.render(false);
     });
+    on("[data-hurt]", "click", async (_e, n) => {
+      const target = game.actors.get(n.dataset.hurt);
+      if (!target) return;
+      const emotion = await this._promptHurt(target);
+      if (emotion) await TSLGMActions.request("stringHurt", { holderId: this._actor.id, targetId: target.id, emotion });
+      this.render(false);
+    });
     on("[data-pull]", "click", async (_e, n) => {
       const target = game.actors.get(n.dataset.pull);
       if (!target) return;
       const mode = await this._promptPull(target);
       if (mode) await TSLStringStore.pull(this._actor, target, mode);
       this.render(false);
+    });
+  }
+
+  /** Which emotion a String buys — the GM judges that the moment fits. */
+  async _promptHurt(target) {
+    const esc = foundry.utils.escapeHTML;
+    return new Promise(resolve => {
+      const buttons = {};
+      for (const id of EMOTION_ORDER) buttons[id] = { label: EMOTIONS[id].label, callback: () => resolve(id) };
+      buttons.cancel = { label: "Keep it", callback: () => resolve(null) };
+      new Dialog({
+        title: `${this._actor.name} pulls a String on ${target.name}`,
+        content: `<div class="tsl-dlg"><p>Spend one String on <b>${esc(target.name)}</b> to make them feel something — say how, in the scene. The GM says if it fits.</p>
+          <ul class="tsl-dlg-list">${EMOTION_ORDER.map(id => `<li><b>${EMOTIONS[id].label}</b> — ${esc(EMOTIONS[id].spoilsText)}.</li>`).join("")}</ul></div>`,
+        buttons,
+        default: "cancel",
+        close: () => resolve(null),
+      }, tslDialogOptions({ width: 480 })).render(true);
+    });
+  }
+
+  /** Letting an emotion go: acted out in the scene, or a friend's comfort. */
+  async _promptLetGo(actor, id) {
+    const esc = foundry.utils.escapeHTML;
+    const d = EMOTIONS[id];
+    if (!d) return null;
+    const friends = this._scenePcs(actor.id).slice(0, 3);
+    return new Promise(resolve => {
+      const buttons = { act: { label: "Acted it out", callback: () => resolve("act") } };
+      for (const fr of friends) buttons[`f${fr.id}`] = { label: `${fr.name} comforts them`, callback: () => resolve(fr.id) };
+      buttons.cancel = { label: "Not yet", callback: () => resolve(null) };
+      new Dialog({
+        title: `${actor.name} — let go of ${d.label}?`,
+        content: `<div class="tsl-dlg"><p>${esc(d.label)} goes when it's acted out in the scene:</p>
+          <p class="tsl-dlg-price">${esc(d.clear)}</p>
+          <p class="notes">Or a friend comforts them.</p></div>`,
+        buttons,
+        default: "act",
+        close: () => resolve(null),
+      }, tslDialogOptions()).render(true);
     });
   }
 

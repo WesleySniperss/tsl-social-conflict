@@ -148,6 +148,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
       named: arch && SocialArchetypeManager.isRevealed(actor) ? arch : null,
       hasBond: TSLBondStore.getList(actor.id).length > 0,
       openings: TSLTalk.openings(actor).map(o => o.type),
+      emotions: TSLEmotions.of(actor).map(e => e.id),
     };
   }
 
@@ -314,6 +315,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
         <img class="tsl-viz-portrait" src="${nd.img}" alt="">
         <div class="tsl-viz-name">${esc(nd.name)}</div>
         ${named}
+        ${nd.emotions.length ? `<div class="tsl-viz-emos">${nd.emotions.map(id => `<img src="${EMOTIONS[id].img}" alt="" data-tooltip="${esc(`${EMOTIONS[id].label} — ${EMOTIONS[id].spoilsText}`)}">`).join("")}</div>` : ""}
         ${nd.openings.length ? `<div class="tsl-viz-openings">${nd.openings.map(t => `<span style="--c:${APPROACHES[t].color}" data-tooltip="${esc(`${OPENINGS[t].label} — ${OPENINGS[t].hint}. The next ask is ${OPENING_BONUS} easier.`)}">${OPENINGS[t].label}</span>`).join("")}</div>` : ""}
       </div>`;
     }).join("");

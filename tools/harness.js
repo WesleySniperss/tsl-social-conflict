@@ -199,6 +199,7 @@ const EXPORTS = ["SocialArchetypeManager", "TSLTalk", "TSLStringStore", "TSLBond
   "SocialFencingDialog", "TSLGMActions", "TSLSocket", "TSLSceneVisualizer", "TSLHudButton",
   "SOCIAL_ARCHETYPES", "SOCIAL_TRIADS", "APPROACHES", "APPROACH_ORDER", "ASK_SIZES", "ASK_ORDER",
   "TECHNIQUES", "TECH_JOBS", "JOB_ORDER", "OPENINGS", "OPENING_BONUS", "LEVER_BONUS",
+  "TSLEmotions", "EMOTIONS", "EMOTION_ORDER", "SCARS",
   "READ_QUESTIONS", "READ_ORDER", "ARCHETYPE_TELLS", "ARCHETYPE_REACTIONS", "BOND_TYPES", "PROFILE_POINTS",
   "SKILL_LABELS", "STRING_CAP", "migrateToV3"];
 let api;
@@ -343,7 +344,7 @@ if (require.main === module) (async () => {
       SS.countOn("aD", "aQ") === 1 && /door is closed/.test(lastCard()) && /A public challenge/.test(lastCard()));
     const b = npc("aB", "broker");
     await roll(q, b, { technique: "demand", size: "costly" }, [4]);
-    ok(`a yielding nature keeps listening; a Pressure miss costs nothing more`, !/door is closed/.test(lastCard()) && SS.countOn("aB", "aQ") === 0);
+    ok(`a yielding nature keeps listening — but the miss still hurts: their emotion, no String`, !/door is closed/.test(lastCard()) && SS.countOn("aB", "aQ") === 0 && R.TSLEmotions.has(q, "hopeless"));
     await roll(q, b, { technique: "bargain", size: "small" }, [15, 2]);
     ok(`a strong yes to a small ask: no String (favours can't be farmed)`, SS.countOn("aQ", "aB") === 0);
     const t = npc("aT", "tyrant");
@@ -412,6 +413,78 @@ if (require.main === module) (async () => {
     ok(`Deceive caught: a String on you, and the door closes — even on a yielding nature`, SS.countOn("gM", "gP") === 1 && /catches the lie/.test(lastCard()) && /door is closed/.test(lastCard()));
   }
 
+  // ═══ Emotions & scars ═══════════════════════════════════════════════════════
+  {
+    const E = R.EMOTIONS, TE = R.TSLEmotions;
+    ok(`five emotions: each spoils something, opens something, is let go some way, and scars`,
+      R.EMOTION_ORDER.length === 5 && R.EMOTION_ORDER.every((id) => E[id].spoilsText && R.APPROACHES[E[id].opens] && E[id].clear && R.SCARS[E[id].scar]?.from === id));
+    ok(`every nature hurts with an emotion of its own`, R.SOCIAL_ARCHETYPES.every((a) => E[a.hurts]) && new Set(R.SOCIAL_ARCHETYPES.map((a) => a.hurts)).size === 5);
+    globalThis.CONFIG = globalThis.CONFIG ?? {};
+    CONFIG.statusEffects = [{ id: "dead", name: "Dead", img: "icons/svg/skull.svg" }];
+    TE.registerStatuses(); TE.registerStatuses();
+    ok(`the five join the Token HUD's statuses, once`, CONFIG.statusEffects.filter((x) => x.id.startsWith("tsl-emo-")).length === 5);
+
+    const p = pc("eP"), q = pc("eQ"), n = npc("eN", "tyrant"), m = npc("eM", "martyr");
+    const parts = (src, tgt, tech) => T.preview(src, tgt, { technique: tech }).parts.filter((x) => /you're|they're|scar/.test(x.label)).map((x) => `${x.label} ${x.value}`).join(", ");
+    await TE.add(p, "angry", { by: "eN" });
+    ok(`Angry on you: −2 on Heart (${parts(p, n, "appeal")}), nothing on Pressure`, parts(p, n, "appeal") === "you're Angry -2" && parts(p, n, "demand") === "");
+    await TE.add(q, "hopeless");
+    ok(`Hopeless: −2 on asks and gambits, not on opens or reads`, parts(q, n, "bargain") === "you're Hopeless -2" && parts(q, n, "deceive") === "you're Hopeless -2" && parts(q, n, "tempt") === "" && parts(q, n, "study") === "");
+    await TE.add(q, "guilty", { toward: "eM" });
+    ok(`Guilty toward someone: −2 on everything against them, nobody else`, /Guilty -2/.test(parts(q, m, "tempt")) && !/Guilty/.test(parts(q, n, "tempt")));
+    await TE.add(n, "frightened", { by: "eP" });
+    ok(`a Frightened NPC: +2 to Pressure against them`, /they're Frightened 2/.test(parts(q, n, "demand")) && !/Frightened/.test(parts(q, n, "appeal")));
+    await TE.add(m, "guilty", { by: "eP", toward: "eP" });
+    ok(`an NPC Guilty toward you: +2 to your Heart — only yours`, /they're Guilty 2/.test(parts(p, m, "flatter")) && !/they're Guilty/.test(parts(q, m, "flatter")));
+    const sc = await TE.add(p, "angry");
+    ok(`already Angry: a scar instead — Short Fuse (+1 Pressure, −1 Heart, for good)`, sc.scar === "shortFuse" && /scar — Short Fuse 1/.test(parts(p, n, "demand")) && /scar — Short Fuse -1/.test(parts(p, n, "appeal")));
+    ok(`…once: the third time leaves nothing more`, (await TE.add(p, "angry")).scar === null && TE.scars(p).length === 1);
+    ok(`an NPC doesn't scar`, (await TE.add(n, "frightened")).scar === null && TE.scars(n).length === 0);
+    await p.createEmbeddedDocuments("ActiveEffect", [{ name: "Insecure", statuses: ["tsl-emo-insecure"] }]);
+    ok(`a status toggled by hand on the HUD counts`, TE.has(p, "insecure"));
+    await TE.clear(p, "angry", "eQ");
+    ok(`let go — a friend's comfort; one line in the chat`, !TE.has(p, "angry") && /lets go of Angry/.test(lastCard()) && /comforts them/.test(lastCard()));
+
+    // Where they come from, on the real pipeline.
+    const s1 = pc("eS"), t1 = npc("eT", "tyrant");                          // wall Pressure; hurts: Frightened
+    await roll(s1, t1, { technique: "shake" }, [14, 3]);
+    ok(`a missed Shake into the Tyrant's wall: their pushback leaves you Frightened`, TE.has(s1, "frightened") && /is <b>Frightened<\/b>/.test(lastCard()) && /An order in front of witnesses/.test(lastCard()));
+    await roll(s1, t1, { technique: "tempt" }, [2]);
+    ok(`miss again while still Frightened: a scar — Flinch`, TE.scars(s1).includes("flinch") && /leaves a scar/.test(lastCard()));
+    const s2 = pc("eU"), h = npc("eH", "hermit");
+    await roll(s2, h, { technique: "study" }, [3, 2]);
+    ok(`a quiet Study that misses costs no emotion`, TE.of(s2).length === 0);
+    const c = npc("eC", "exalted");                                         // Idol hurts Insecure — but heartbreak is Hopeless
+    await SAM.setKnown(c, { desire: true });
+    await roll(s2, c, { technique: "seduce", size: "costly" }, [2, 3]);
+    ok(`a broken heart leaves you Hopeless (not the nature's Insecure)`, TE.has(s2, "hopeless") && !TE.has(s2, "insecure"));
+    const s3 = pc("eV"), d = npc("eD", "duelist");                          // key Pressure
+    for (let i = 0; i < 3; i++) await roll(s3, d, { technique: "demand", size: "small" }, [12, 12]);
+    ok(`winning by Pressure costs: three Demands — they hold ${SS.countOn("eD", "eV")} Strings on you`, SS.countOn("eD", "eV") === 3);
+    const s4 = pc("eW"), b = npc("eB", "broker");
+    await SAM.setKnown(b, { fear: true });
+    await roll(s4, b, { technique: "blackmail", size: "costly" }, [16]);
+    ok(`Blackmail lands: they're Frightened of you — and they'll pay you back (a String on you)`, TE.has(b, "frightened") && SS.countOn("eB", "eW") === 1);
+
+    // A player spends a String to hurt an NPC — through the GM.
+    const sent = [];
+    const emit = game.socket.emit;
+    game.socket.emit = (_n, msg) => sent.push(msg);
+    game.user.isGM = false;
+    await SS.add("eW", "eB", 1);
+    await R.TSLGMActions.request("stringHurt", { holderId: "eW", targetId: "eB", emotion: "insecure" });
+    game.user.isGM = true;
+    game.socket.emit = emit;
+    ok(`a player's Hurt travels to the GM`, sent.length === 1 && sent[0].data.action === "stringHurt" && !TE.has(b, "insecure"));
+    const held = SS.countOn("eW", "eB");
+    await R.TSLGMActions.handle(sent[0].data);
+    ok(`…who spends one String (${held} → ${SS.countOn("eW", "eB")}) and makes them Insecure`, TE.has(b, "insecure") && SS.countOn("eW", "eB") === held - 1 && /pulls a String/.test(lastCard()));
+    const g = npc("eG", "machiavellian"), liar = pc("eL");
+    await g.setFlag(SCOPE, "lies", [{ id: "l1", byId: "eL", at: 1 }]);
+    await T.exposeLie(g, "l1");
+    ok(`a lie brought out leaves them Angry`, TE.has(g, "angry"));
+  }
+
   // ═══ Bonds ══════════════════════════════════════════════════════════════════
   {
     for (const id of ["bA", "bB", "bC", "bD", "bE", "bF"]) makeActor(id);
@@ -463,6 +536,26 @@ if (require.main === module) (async () => {
       && sent[0].data.action === "talkResolve" && sent[0].data.args?.technique === "shake" && !SAM.getKnown(n).wall);
     await R.TSLGMActions.handle(sent[0].data);
     ok(`the GM applies it (the wall is now known)`, SAM.getKnown(n).wall);
+    // No GM connected: refuse before anything is rolled or a String burned.
+    const gm = game.users.activeGM;
+    game.users.activeGM = null;
+    game.user.isGM = false;
+    await SS.add("lP", "lN", 1);
+    const lost = await roll(p, n, { technique: "bargain", size: "costly" }, [3], ["burn"]);
+    game.user.isGM = true;
+    game.users.activeGM = gm;
+    ok(`with no GM connected a player's roll is refused — nothing rolled, no String spent`, lost === null && SS.countOn("lP", "lN") === 1);
+    // The GM resolves in the SPEAKER's scene, even while looking at another one.
+    const sp = pc("lS"), sn = npc("lO", "broker");
+    globalThis.__forceDice = [15];
+    const pay = await T.roll(sp, sn, { technique: "shake" });
+    globalThis.__forceDice = null;
+    await sn.unsetFlag(SCOPE, "openings");
+    const viewed = canvas.scene;
+    canvas.scene = { id: "gm-elsewhere" };
+    await T.resolve(pay);
+    canvas.scene = viewed;
+    ok(`the GM, looking at another scene, still opens them in the speaker's scene`, open(sn) === "pressure");
   }
 
   // ═══ v3 migration ═══════════════════════════════════════════════════════════
@@ -504,13 +597,13 @@ if (require.main === module) (async () => {
     };
     const quiet = console.log;
     console.log = () => {};
-    const key = await rate({ technique: "appeal" }), flat = await rate({ technique: "demand" }), wall = await rate({ technique: "bargain" });
+    const key = await rate({ technique: "appeal" }), flat = await rate({ technique: "demand", N: 1000 }), wall = await rate({ technique: "bargain" });
     const plainKeyLever = await rate({ who: "plain", technique: "appeal", lever: "desire" });
-    const prepared = await rate({ technique: "demand", prep: "shake" });
+    const prepared = await rate({ technique: "demand", prep: "shake", N: 1000 });
     console.log = quiet;
     ok(`the person decides: face +7 — key ${key}%, plain ${flat}%, wall ${wall}%`, key - flat >= 15 && flat - wall >= 15);
     ok(`understanding beats charisma: +2 with the key and a lever ${plainKeyLever}% vs the face on plain ground ${flat}%`, plainKeyLever >= flat - 3);
-    ok(`preparing pays: Shake, then Demand ${prepared}% vs a cold Demand ${flat}%`, prepared - flat >= 8);
+    ok(`preparing still pays, though a missed Shake now costs an emotion: Shake, then Demand ${prepared}% vs a cold Demand ${flat}%`, prepared - flat >= 5);
   }
 
   // ═══ The UI renders ═════════════════════════════════════════════════════════
@@ -556,11 +649,18 @@ if (require.main === module) (async () => {
     const none = await render(P, "talk", {});
     ok(`Talk with nobody picked asks whom you're talking to`, !bad(none) && /Who are you talking to/.test(none));
     const result = await render(P, "talk", { _tTarget: "uiN", _tResult: { technique: "appeal", grade: "success", total: 17, dc: 14, rel: "key", paid: true } });
+    await R.TSLEmotions.add(P, "frightened", { by: "uiN" });
+    await R.TSLEmotions.add(N, "insecure", { by: "uiP" });
+    const felt = await render(P, "talk", { _tTarget: "uiN", _tTech: "demand" });
+    ok(`Talk shows what weighs on you (with ×) and what they feel — and it counts in the roll`, !bad(felt)
+      && /tsl-you/.test(felt) && /data-emo-clear="uiP"/.test(felt) && /Feeling/.test(felt) && /Insecure/.test(felt) && /you(?:'|&#39;)re Frightened/.test(felt));
     ok(`the result shows where you rolled`, !bad(result) && /Appeal: They do it — for a price/.test(result) && /you paid their price/.test(result));
     const bonds = await render(P, "bonds", { _expandedBonds: new Set([BS.find("uiP", "uiN").id]) });
-    ok(`bonds: type, strength, Strings and Pull`, !bad(bonds) && /tsl-str-track/.test(bonds) && /Pull \+5/.test(bonds) && /Rival/.test(bonds));
+    ok(`bonds: type, strength, Strings, Pull and Hurt`, !bad(bonds) && /tsl-str-track/.test(bonds) && /Pull \+5/.test(bonds) && /data-hurt="uiN"/.test(bonds) && /Rival/.test(bonds));
+    const pcProfile2 = await render(P, "profile");
+    ok(`a character's profile lists emotions & scars`, !bad(pcProfile2) && /Emotions &amp; scars|Emotions & scars/.test(pcProfile2) && /Frightened/.test(pcProfile2));
     let codexOk = true, words = 0;
-    for (const c of ["start", "ap", "read", "natures", "bonds", "gm"]) {
+    for (const c of ["start", "ap", "read", "emo", "natures", "bonds", "gm"]) {
       const h = await render(P, "codex", { _codexCat: c });
       if (bad(h)) codexOk = false;
       if (c === "gm" && /Running it/.test(h)) codexOk = false;
@@ -572,7 +672,7 @@ if (require.main === module) (async () => {
     const gmTalk = await render(P, "talk", { _tTarget: "uiN", _tTech: "demand" });
     ok(`the GM sees the truth (the nature tagged hidden) and can clear openings`, !bad(gmTalk) && /Schemer/.test(gmTalk) && /hidden/.test(gmTalk) && /data-open-clear="uiN"/.test(gmTalk));
     const sheet = await render(N, "talk");
-    ok(`an NPC's own Talk tab is the GM's cheat sheet — with the lies they believe`, !bad(sheet) && /Playing them/.test(sheet) && /Yes, but/.test(sheet)
+    ok(`an NPC's own Talk tab is the GM's cheat sheet — with the lies they believe`, !bad(sheet) && /Playing them/.test(sheet) && /Yes, but/.test(sheet) && /leaves the speaker <b>Insecure<\/b>/.test(sheet)
       && /Help with a hook/.test(sheet) && /data-lie-out="lie1"/.test(sheet) && /Lyra lied to them/.test(sheet));
     ok(`…and it offers to ask them as each character on the scene`, /data-t-as="uiP"/.test(sheet) && /data-t-as="uiQ"/.test(sheet) && !/data-t-as="uiN"/.test(sheet));
     const opened = R.SocialFencingDialog.open(P, { tab: "talk", target: "uiN" });

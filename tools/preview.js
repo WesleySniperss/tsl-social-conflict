@@ -136,14 +136,23 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
     await r(lyra, duke, { technique: "deceive", size: "costly" }, [17, 9]);                  // a lie into his wall — it holds
     await r(mira, duke, { technique: "seduce", size: "small" }, [5, 2]);                     // his Desire
     await T.exposeLie(duke, T.lies(duke)[0]?.id);                                            // the lie comes out
+    await SS.add("lyra", "duke", 1);
+    await R.TSLEmotions.hurt({ holderId: "lyra", targetId: "duke", emotion: "insecure" });   // Lyra pulls a String: he's Insecure
+    await R.TSLEmotions.clear(mira, "frightened", "lyra");                                    // Lyra comforts Mira
   }
   const li = (c) => `<li class="chat-message message flexcol"><header class="message-header flexrow"><h4 class="message-sender">${c.speaker?.alias ?? "Lyra Vane"}</h4><span class="message-metadata"><time class="message-timestamp">just now</time></span></header><div class="message-content">${c.content ?? ""}</div></li>`;
   for (let i = 0; i < cards.length; i += 4) {
     page(`chat-${i / 4 + 1}`, `<section id="shot-chat" class="sidebar-tab chat-sidebar"><ol id="chat-log" class="chat-log plain">${cards.slice(i, i + 4).map(li).join("")}</ol></section>`, 340, 1700);
   }
 
-  // Sister Ilse: unread, her Desire known, Shaken by Lyra, and a lie of Lyra's on record — for the windows.
+  // Sister Ilse: unread, her Desire known, Shaken by Lyra, Guilty toward Mira, and a lie of Lyra's on record.
+  // Lyra carries an emotion and a scar; Mira is Angry — for the windows.
   await SAM.setKnown(ilse, { desire: true });
+  await R.TSLEmotions.add(ilse, "guilty", { by: "mira", toward: "mira" });
+  await R.TSLEmotions.add(lyra, "angry", { by: "duke" });
+  await R.TSLEmotions.add(lyra, "angry", { by: "duke" });
+  await R.TSLEmotions.add(lyra, "hopeless", { by: "duke" });
+  await R.TSLEmotions.add(mira, "angry", { by: "roell" });
   await ilse.setFlag("tsl-social-conflict", "openings", { sceneId: T._sceneId(), list: [{ type: "pressure", byId: "lyra" }] });
   await ilse.setFlag("tsl-social-conflict", "lies", [{ id: "lie1", byId: "lyra", at: Date.now() }]);
 
@@ -163,7 +172,7 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
   page("chronicle-talk-notarget", await chron(lyra, "talk", {}, "player"), 560, 400);
   page("chronicle-talk-gm", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "bargain" }), 560, 1250);
   page("chronicle-talk-npc-gm", await chron(ilse, "talk"), 560, 1000);
-  for (const cat of ["start", "ap", "read", "natures", "bonds", "gm"]) {
+  for (const cat of ["start", "ap", "read", "emo", "natures", "bonds", "gm"]) {
     page(`chronicle-codex-${cat}`, await chron(lyra, "codex", { _codexCat: cat }), 560, 1500);
   }
 
@@ -182,6 +191,8 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
     await T.promptQuestions(ilse, 1);
     await T.promptStringBurn(lyra, roell, 12, 14, 1);
     await new R.SocialFencingApp(lyra)._promptPull(roell);
+    await new R.SocialFencingApp(lyra)._promptHurt(roell);
+    await new R.SocialFencingApp(lyra)._promptLetGo(lyra, "angry");
     const dl = dialogs.map((d) => windowHTML({ id: "dlg", classes: d.opts?.classes ?? ["dialog"], title: d.title ?? "Dialog", width: d.opts?.width ?? 400,
       inner: `<div class="dialog-content">${d.content ?? ""}</div><div class="dialog-buttons">${Object.entries(d.buttons ?? {}).map(([k, b]) => `<button class="dialog-button ${k} ${k === d.default ? "default bright" : ""}">${b.icon ?? ""} ${b.label ?? k}</button>`).join("")}</div>` })).join("");
     page("dialogs", dl || "<p>no dialogs</p>", 520, 1700);

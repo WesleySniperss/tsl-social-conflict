@@ -86,10 +86,12 @@ async function migrateToV3() {
   try { version = Number(game.settings.get(TSL_SCOPE, "dataVersion")) || 0; } catch { /* new world */ }
   if (version >= 3) return;
 
+  // v2's states, wounds, scars and auras — never a pulled String, nor v3's emotions and scars.
   const isOld = (e) => {
     const f = e.flags?.[TSL_SCOPE];
-    if (f && !f.stringPull) return true;
-    return [...(e.statuses ?? [])].some(s => typeof s === "string" && s.startsWith("tsl-") && s !== "tsl-string-pull");
+    if (f?.stringPull || f?.emotion || f?.scar) return false;
+    if (f) return true;
+    return [...(e.statuses ?? [])].some(s => typeof s === "string" && s.startsWith("tsl-") && s !== "tsl-string-pull" && !s.startsWith("tsl-emo-"));
   };
   const actors = [...(game.actors?.contents ?? [])];
   for (const scene of game.scenes ?? []) {
@@ -113,6 +115,12 @@ async function migrateToV3() {
     ui.notifications?.info?.(`TSL Social Conflict v3: removed ${removed} old social effect(s) from sheets (states, wounds, scars). Strings, bonds and dossiers are kept.`);
   }
 }
+
+// The five emotions join the Token HUD's status palette (after every system has set its own).
+Hooks.once("setup", () => {
+  try { TSLEmotions.registerStatuses(); }
+  catch (err) { console.error("TSL | Emotion statuses failed:", err); }
+});
 
 Hooks.once("ready", () => {
   // The socket FIRST — it carries every player action to the GM. A migration
