@@ -125,14 +125,12 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
       globalThis.__dialogQueue = [];
       return p;
     };
-    await r(lyra, roell, { technique: "study" }, [14], ["o2"]);                              // Study: what would open him? (the key)
-    await r(lyra, roell, { technique: "flatter" }, [9, 6]);                                  // his key: Moved
-    await r(mira, roell, { technique: "tempt" }, [3]);                                       // a miss — the opening closes
-    await r(lyra, roell, { technique: "flatter" }, [12, 4]);                                 // Moved again
-    await r(lyra, roell, { technique: "appeal", size: "costly" }, [6, 3]);                   // the opening spent: a strong yes
+    await r(lyra, roell, { technique: "read" }, [14], ["o2"]);                               // Read: what would open him? (the key)
+    await r(lyra, roell, { technique: "appeal", size: "costly" }, [6, 3], ["pay"]);           // his key: yes, but — on her knee
     await r(mira, roell, { technique: "demand", size: "small" }, [16, 4]);                   // his wall, but it lands: he gives in, and remembers
-    await r(mira, duke, { technique: "provoke" }, [14], ["o1", "o0"]);                       // Provoke, strong: two answers, a rival
-    await r(lyra, duke, { technique: "blackmail", size: "against" }, [11]);                  // his Fear: an enemy
+    await r(mira, roell, { technique: "bargain", size: "costly" }, [3]);                     // a no: he leaves her Frightened, the door closes
+    await r(mira, duke, { technique: "read" }, [17], ["o1", "o0"]);                          // a strong Read: his Fear and his Desire
+    await r(lyra, duke, { technique: "blackmail", size: "against" }, [11]);                  // his Fear: an enemy, Frightened
     await r(lyra, duke, { technique: "deceive", size: "costly" }, [17, 9]);                  // a lie into his wall — it holds
     await r(mira, duke, { technique: "seduce", size: "small" }, [5, 2]);                     // his Desire
     await T.exposeLie(duke, T.lies(duke)[0]?.id);                                            // the lie comes out
@@ -145,7 +143,7 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
     page(`chat-${i / 4 + 1}`, `<section id="shot-chat" class="sidebar-tab chat-sidebar"><ol id="chat-log" class="chat-log plain">${cards.slice(i, i + 4).map(li).join("")}</ol></section>`, 340, 1700);
   }
 
-  // Sister Ilse: unread, her Desire known, Shaken by Lyra, Guilty toward Mira, and a lie of Lyra's on record.
+  // Sister Ilse: unread, her Desire known, Guilty toward Mira, and a lie of Lyra's on record.
   // Lyra carries an emotion and a scar; Mira is Angry — for the windows.
   await SAM.setKnown(ilse, { desire: true });
   await R.TSLEmotions.add(ilse, "guilty", { by: "mira", toward: "mira" });
@@ -153,7 +151,6 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
   await R.TSLEmotions.add(lyra, "angry", { by: "duke" });
   await R.TSLEmotions.add(lyra, "hopeless", { by: "duke" });
   await R.TSLEmotions.add(mira, "angry", { by: "roell" });
-  await ilse.setFlag("tsl-social-conflict", "openings", { sceneId: T._sceneId(), list: [{ type: "pressure", byId: "lyra" }] });
   await ilse.setFlag("tsl-social-conflict", "lies", [{ id: "lie1", byId: "lyra", at: Date.now() }]);
 
   page("chronicle-profile-npc", await chron(roell, "profile"), 560, 1250);
@@ -162,13 +159,12 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
   page("chronicle-bonds", await chron(lyra, "bonds", { _expandedBonds: new Set(BS.getList("lyra").slice(0, 1).map((b) => b.id)) }, "player"), 560, 700);
   page("chronicle-talk-player", await chron(mira, "talk", { _tTarget: "ilse", _tTech: "appeal", _tSize: "costly", _tHelper: "lyra", _tLever: "desire" }, "player"), 560, 1150);
   page("chronicle-talk-blackmail", await chron(mira, "talk", { _tTarget: "ilse", _tTech: "blackmail", _tSize: "against" }, "player"), 560, 1150);
-  page("chronicle-talk-read", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "study" }, "player"), 560, 1050);
-  page("chronicle-talk-open", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "tempt" }, "player"), 560, 1050);
+  page("chronicle-talk-read", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "read" }, "player"), 560, 1050);
   page("chronicle-talk-named", await chron(lyra, "talk", { _tTarget: "duke", _tTech: "appeal", _tSize: "small" }, "player"), 560, 1150);
   page("chronicle-talk-result", await chron(lyra, "talk", { _tTarget: "duke",
     _tResult: { technique: "appeal", grade: "success", total: 18, dc: 15, rel: "key", paid: true } }, "player"), 560, 1000);
   page("chronicle-talk-result-read", await chron(mira, "talk", { _tTarget: "duke",
-    _tResult: { technique: "provoke", grade: "success", total: 18, dc: 15, rel: "plain", questions: ["fear"] } }, "player"), 560, 1000);
+    _tResult: { technique: "read", grade: "success", total: 18, dc: 15, rel: "plain", questions: ["fear"] } }, "player"), 560, 1000);
   page("chronicle-talk-notarget", await chron(lyra, "talk", {}, "player"), 560, 400);
   page("chronicle-talk-gm", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "bargain" }), 560, 1250);
   page("chronicle-talk-npc-gm", await chron(ilse, "talk"), 560, 1000);

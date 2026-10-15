@@ -5,16 +5,14 @@
  *
  * Social play is a conversation, not a duel: nobody declares a goal, there are
  * no turns and no tracks. When a character wants something from an NPC who
- * doesn't want to give it, they use a TECHNIQUE: say the line, pick one of
- * twelve, roll once against a visible DC. Each technique is an APPROACH
- * (Pressure · Heart · Reason) doing a JOB:
- *   OPEN   — get them ready. A hit leaves an OPENING on them (Shaken · Moved ·
- *            Curious): the next ask is 4 easier per opening, and an opening
- *            counts as leverage. An ask spends them all; any other miss
- *            closes one.
- *   ASK    — get what you want now, sized by what it costs THEM.
+ * doesn't want to give it, they say the line and pick what it really is —
+ * one of seven TECHNIQUES — and roll once against a visible DC:
+ *   ASK    — get what you want now, sized by what it costs THEM; the way you
+ *            come at them (Pressure · Heart · Reason) decides what winning
+ *            costs: Demand · Appeal · Bargain.
+ *   ALL IN — a gambit on leverage, with consequences that last: Blackmail ·
+ *            Seduce · Deceive.
  *   READ   — learn something about them for the whole party.
- *   GAMBIT — all in, on leverage: Blackmail · Seduce · Deceive.
  *
  * What winning costs depends on the approach:
  *   Pressure — they give in without a price, but remember it: the bond sours,
@@ -31,9 +29,9 @@
  *   PRESS — how they push back on a "no"; a proud ("firm") nature ends the
  *           talk after refusing something big.
  *   HURTS — the emotion that pushback leaves on whoever missed against them
- *           (emotions.js): every miss but a quiet Study costs one.
+ *           (emotions.js): every miss but a Read costs one.
  *
- * Rolls happen on the speaker's client; what follows (openings, Strings,
+ * Rolls happen on the speaker's client; what follows (emotions, Strings,
  * bonds, party knowledge, lies) is applied on the GM client through the
  * TSLGMActions relay, which posts ONE card per roll.
  */
@@ -48,8 +46,6 @@ const STRING_SPEND_BONUS = 5;
 const HELP_BONUS = 2;
 /** Playing on their known Desire or Fear. */
 const LEVER_BONUS = 2;
-/** Each opening on them makes the next ask or gambit this much easier. */
-const OPENING_BONUS = 4;
 
 /** The module's own dark dialog look. A fresh object each call (Foundry merges options). */
 function tslDialogOptions(extra = {}) {
@@ -72,60 +68,41 @@ const ASK_SIZES = {
 };
 const ASK_ORDER = ["small", "costly", "against"];
 
-/** What a successful Open leaves on them — one kind per approach. */
-const OPENINGS = {
-  pressure: { id: "pressure", label: "Shaken",  hint: "they feel small and want it to stop" },
-  heart:    { id: "heart",    label: "Moved",   hint: "they feel warmth, pity or pride" },
-  reason:   { id: "reason",   label: "Curious", hint: "they see something in it for them" },
-};
-
-/** The four jobs a technique can do. */
+/** What a technique does. */
 const TECH_JOBS = {
-  open:   { id: "open",   label: "Open",   icon: "fa-unlock",       hint: `Get them ready. A hit leaves an opening: the next ask is ${OPENING_BONUS} easier per opening.` },
-  ask:    { id: "ask",    label: "Ask",    icon: "fa-hand-holding", hint: "Get what you want, now." },
+  ask:    { id: "ask",    label: "Ask",    icon: "fa-hand-holding", hint: "Get what you want, now. How you come at them decides what winning costs." },
+  gambit: { id: "gambit", label: "All in", icon: "fa-dice",         hint: "A gamble on leverage — it works on anything, and the consequences last." },
   read:   { id: "read",   label: "Read",   icon: "fa-eye",          hint: "Learn something about them — for the whole party." },
-  gambit: { id: "gambit", label: "Gambit", icon: "fa-dice",         hint: "All in, on leverage — the consequences last." },
 };
-const JOB_ORDER = ["open", "ask", "read", "gambit"];
+const JOB_ORDER = ["ask", "gambit", "read"];
 
-/** The twelve techniques: an approach doing a job. */
+/**
+ * The seven techniques: three asks and three gambits (one per approach), and
+ * the Read. `line` — what it looks like in a scene (shown under its name);
+ * `rule` — what it does.
+ */
 const TECHNIQUES = {
-  shake:     { approach: "pressure", job: "open",   label: "Shake",     skills: ["itm", "dec", "prf", "ath"],
-    line: "a threat, shame, coldness — make them feel small",
-    rule: "Hit: they're Shaken." },
   demand:    { approach: "pressure", job: "ask",    label: "Demand",    skills: ["itm", "per", "ath", "dec"],
     line: "do it — or else",
     rule: "Hit: they give in — no price, but they remember it: the bond sours, and they take a String on you." },
-  provoke:   { approach: "pressure", job: "read",   label: "Provoke",   skills: ["dec", "itm", "prf", "ins"],
-    line: "needle them until they say too much",
-    rule: "Hit: they blurt out an answer (two on a strong hit) — and resent you for it: the bond sours." },
-  blackmail: { approach: "pressure", job: "gambit", label: "Blackmail", skills: ["itm", "dec", "inv"], needs: "fear",
-    line: "their Fear, or the hold you have on them",
-    rule: "Needs their Fear or a String on them. Hit: they do it, Frightened of you — your enemy now, and they'll pay you back (a String on you). Miss: they call your bluff — enemies all the same, and a String on you." },
-  flatter:   { approach: "heart",    job: "open",   label: "Flatter",   skills: ["per", "prf", "dec"],
-    line: "admiration, charm, sympathy",
-    rule: "Hit: they're Moved. Miss: they see through it — a String on you." },
   appeal:    { approach: "heart",    job: "ask",    label: "Appeal",    skills: ["per", "prf", "ins"],
     line: "ask from the heart",
     rule: "Hit: they do it, and the bond warms — a plain hit for their price. Miss: you showed your heart — a String on you." },
-  confide:   { approach: "heart",    job: "read",   label: "Confide",   skills: ["ins", "per"],
-    line: "open up, so they open up too",
-    rule: "Hit: an answer (two on a strong hit), and the bond warms. Miss: you exposed yourself — a String on you." },
-  seduce:    { approach: "heart",    job: "gambit", label: "Seduce",    skills: ["per", "prf", "dec"], needs: "desire",
-    line: "their Desire, or what's already between you",
-    rule: "Needs their Desire or a bond of ●●. Hit: they do it for you — the bond deepens. Miss: heartbreak — the bond cools, a String on you, and you're Hopeless." },
-  tempt:     { approach: "reason",   job: "open",   label: "Tempt",     skills: ["per", "dec", "his", "inv"],
-    line: "a hint of gain, a mystery, a door left ajar",
-    rule: "Hit: they're Curious." },
   bargain:   { approach: "reason",   job: "ask",    label: "Bargain",   skills: ["per", "inv", "ins", "his"],
     line: "make it worth their while",
     rule: "Hit: a deal — on your terms on a strong hit, for their price on a plain one. Nothing lingers." },
-  study:     { approach: "reason",   job: "read",   label: "Study",     skills: ["ins", "inv"],
-    line: "watch them; ask the one right question",
-    rule: "Hit: an answer (two on a strong hit). Nothing else — the one technique whose miss costs no emotion." },
+  blackmail: { approach: "pressure", job: "gambit", label: "Blackmail", skills: ["itm", "dec", "inv"], needs: "fear",
+    line: "their Fear, or your hold on them",
+    rule: "Needs their Fear or a String on them. Hit: they do it, Frightened of you — your enemy now, and they'll pay you back (a String on you). Miss: they call your bluff — enemies all the same, and a String on you." },
+  seduce:    { approach: "heart",    job: "gambit", label: "Seduce",    skills: ["per", "prf", "dec"], needs: "desire",
+    line: "their Desire, or what's between you",
+    rule: "Needs their Desire or a bond of ●●. Hit: they do it for you — the bond deepens. Miss: heartbreak — the bond cools, a String on you, and you're Hopeless." },
   deceive:   { approach: "reason",   job: "gambit", label: "Deceive",   skills: ["dec"],
     line: "a lie that works — until it doesn't",
     rule: "Hit: they believe it and act — the lie stays on record until the GM brings it out. Miss: caught — a String on you, and the door closes." },
+  read:      { approach: null,       job: "read",   label: "Read them", skills: ["ins", "inv", "his"],
+    line: "watch, listen, ask the one right question",
+    rule: "Hit: one answer about them for the whole party (two on a strong hit). Miss: they notice — but it costs no emotion. Bad miss: they read you instead (a String on you)." },
 };
 for (const [id, t] of Object.entries(TECHNIQUES)) t.id = id;
 const TECHNIQUE_ORDER = Object.keys(TECHNIQUES);
@@ -156,7 +133,6 @@ const TALK_GRADES = {
 
 /** The grade in words, by what the technique was doing. */
 const JOB_GRADES = {
-  open:   { strong: "They open up",        success: "They open up",       failure: "They steel themselves", botch: "They steel themselves — and it costs you" },
   read:   { strong: "They show you a lot", success: "You see something",  failure: "They notice",           botch: "They notice — and read you" },
   gambit: { strong: "It works",            success: "It works",           failure: "It blows up",           botch: "It blows up — badly" },
 };
@@ -227,15 +203,14 @@ class TSLTalk {
       + Math.max(TSLTalk.abilityMod(actor, "wis"), TSLTalk.abilityMod(actor, "int"));
   }
 
-  /** The DC: the person, the table's dial, the size of an ask, the openings it spends. */
-  static dcFor(npc, size = null, openings = 0) {
+  /** The DC: the person, the table's dial, the size of an ask. */
+  static dcFor(npc, size = null) {
     const base = TSLTalk.baseDC(npc);
     const mods = [];
     const dial = Number(TSLTalk._setting("socialDcBonus", 0)) || 0;
     if (dial) mods.push({ label: "table difficulty", value: dial });
     const ask = size ? ASK_SIZES[size] : null;
     if (ask?.dc) mods.push({ label: ask.label.toLowerCase(), value: ask.dc });
-    if (openings > 0) mods.push({ label: `${openings} opening${openings > 1 ? "s" : ""}`, value: -OPENING_BONUS * openings });
     return { base, mods, dc: base + mods.reduce((sum, m) => sum + m.value, 0) };
   }
 
@@ -272,33 +247,7 @@ class TSLTalk {
     return JOB_GRADES[tech.job]?.[grade] ?? grade;
   }
 
-  // ── Openings & lies (on the NPC) ──────────────────────────────────────────
-
-  static _sceneId() {
-    return (typeof canvas !== "undefined" && canvas?.scene?.id) || game.scenes?.viewed?.id || null;
-  }
-
-  /**
-   * The openings on them in a scene (by default the one this client is
-   * looking at) — [{ type, byId }]. Another scene's read as none. The GM
-   * resolves with the SPEAKER's scene: the GM may be looking at another one.
-   */
-  static openings(npc, sceneId = TSLTalk._sceneId()) {
-    const o = npc?.getFlag?.(TALK_SCOPE, "openings");
-    if (!o || !Array.isArray(o.list) || o.sceneId !== sceneId) return [];
-    return o.list.filter(x => OPENINGS[x?.type]);
-  }
-
-  static async _setOpenings(npc, list, sceneId = TSLTalk._sceneId()) {
-    if (!list.length) return npc.unsetFlag(TALK_SCOPE, "openings");
-    return npc.setFlag(TALK_SCOPE, "openings", { sceneId, list });
-  }
-
-  /** The GM wipes the slate (a new scene, a pause, a change of heart). */
-  static async clearOpenings(npc) {
-    if (!game.user.isGM || !npc) return;
-    await npc.unsetFlag(TALK_SCOPE, "openings");
-  }
+  // ── Lies (on the NPC) ─────────────────────────────────────────────────────
 
   /** The lies they believe — [{ id, byId, at }]. */
   static lies(npc) {
@@ -338,12 +287,12 @@ class TSLTalk {
 
   /**
    * Everything the speaker sees before rolling, built only from what is
-   * VISIBLE (skills, Leanings, bonds, help, levers, openings, the DC). It
+   * VISIBLE (skills, Leanings, bonds, help, levers, emotions, the DC). It
    * never consults the key or the wall — those show in the result.
    */
   static preview(src, npc, { technique = null, approach = null, size = "costly", skill = null, helperId = null, lever = null } = {}) {
-    // An older caller may name only an approach (or "read"): use that approach's ask (or Study).
-    if (!TECHNIQUES[technique]) technique = approach === "read" ? "study" : (techniqueFor(approach, "ask") ?? "appeal");
+    // An older caller may name only an approach (or "read"): use that approach's ask (or the Read).
+    if (!TECHNIQUES[technique]) technique = approach === "read" ? "read" : (techniqueFor(approach, "ask") ?? "appeal");
     const tech = TECHNIQUES[technique];
     const job = tech.job, ap = tech.approach;
     const sized = job === "ask" || job === "gambit";
@@ -353,8 +302,7 @@ class TSLTalk {
     const known = SocialArchetypeManager.getKnown(npc);
     const points = SocialArchetypeManager.getCharacterNotes(npc).points;
     const strings = TSLStringStore.countOn(src.id, npc.id);
-    const openings = TSLTalk.openings(npc);
-    const bond = TSLTalk.bondBonus(src, npc, ap);
+    const bond = ap ? TSLTalk.bondBonus(src, npc, ap) : 0;
     const tie = TSLBondStore.find(src.id, npc.id) ? TSLBondStore.getStrength(src.id, npc.id) : 0;
 
     // A lever is a known Desire or Fear: you play on it in an ask; a gambit
@@ -364,7 +312,7 @@ class TSLTalk {
     else lever = lever && leverOk[lever] ? lever : null;
 
     const parts = [{ label: SKILL_LABELS[skill] ?? skill, value: TSLTalk.skillMod(src, skill), base: true }];
-    const lean = SocialArchetypeManager.leaningDots(src, ap);
+    const lean = ap ? SocialArchetypeManager.leaningDots(src, ap) : 0;
     if (lean) parts.push({ label: `${APPROACHES[ap].label} leaning`, value: lean });
     if (bond) parts.push({ label: `bond — ${SocialArchetypeManager.getBondType(TSLBondStore.find(src.id, npc.id)?.type).label}`, value: bond });
     if (lever) parts.push({ label: lever === "desire" ? "their Desire" : "their Fear", value: LEVER_BONUS });
@@ -373,14 +321,12 @@ class TSLTalk {
     parts.push(...TSLEmotions.rollParts(src, npc, technique));
     const mod = parts.reduce((sum, p) => sum + p.value, 0);
 
-    const dcInfo = TSLTalk.dcFor(npc, size, sized ? openings.length : 0);
+    const dcInfo = TSLTalk.dcFor(npc, size);
 
     let blocked = null;
     if (!TSLTalk.isNpc(npc)) blocked = "You talk to NPCs — pick someone the GM plays.";
-    else if (job === "open" && openings.some(o => o.type === ap))
-      blocked = `They're already ${OPENINGS[ap].label} — cash it in with an ask, or open them another way.`;
-    else if (job === "ask" && size === "against" && !lever && !strings && bond < 2 && !openings.length)
-      blocked = "Something against their interests needs leverage: an opening, their Desire or Fear, a String on them, or a deep bond (●●) that runs this way.";
+    else if (job === "ask" && size === "against" && !lever && !strings && bond < 2)
+      blocked = "Something against their interests needs leverage: their Desire or Fear, a String on them, or a deep bond (●●) that runs this way — or go all in.";
     else if (technique === "blackmail" && !known.fear && !strings)
       blocked = "Blackmail needs a hold on them: learn their Fear, or hold a String on them.";
     else if (technique === "seduce" && !known.desire && tie < 2)
@@ -389,7 +335,7 @@ class TSLTalk {
     return {
       technique, job, approach: ap, isRead: job === "read", sized, size, skill, parts, mod,
       helperId: helper && helper.id !== src.id ? helper.id : null,
-      lever, leverOk, strings, known, points, openings,
+      lever, leverOk, strings, known, points,
       dc: dcInfo.dc, dcBase: dcInfo.base, dcMods: dcInfo.mods, blocked,
     };
   }
@@ -473,7 +419,6 @@ class TSLTalk {
     const payload = {
       srcId: src.id, npcId: npc.id, technique: pv.technique, approach: pv.approach, job: pv.job,
       size: pv.size, skill: pv.skill, helperId: pv.helperId, lever: pv.lever, parts: pv.parts, mod: pv.mod,
-      openingsUsed: pv.sized ? pv.openings.length : 0, sceneId: TSLTalk._sceneId(),
       total, natural, dice, natureDie, rel, dc: pv.dc, grade, stringSpent, systemRoll, rollData,
       questions, paid,
     };
@@ -576,7 +521,7 @@ class TSLTalk {
 
   /**
    * Apply a roll. GM client only — players reach it through the relay.
-   * Openings, Strings, bonds, lies and party knowledge change here; one card
+   * Emotions, Strings, bonds, lies and party knowledge change here; one card
    * is posted.
    */
   static async resolve(p) {
@@ -614,21 +559,7 @@ class TSLTalk {
       note(`<i class="fas fa-door-closed"></i> <b>${APPROACHES[ap].label}</b> closes them — the worse of two dice.`, "bad");
     }
 
-    // Openings (in the speaker's scene): an ask or a gambit spends them all, hit or miss.
-    const sceneId = p.sceneId !== undefined ? p.sceneId : TSLTalk._sceneId();
-    let openings = TSLTalk.openings(npc, sceneId);
-    const openingsBefore = openings.map(o => o.type).join();
-    if (sized && openings.length) openings = [];
-
     switch (job) {
-      case "open": {
-        if (hit) {
-          if (!openings.some(o => o.type === ap)) openings.push({ type: ap, byId: src.id });
-          note(`<i class="fas fa-unlock"></i> ${who} is <b>${OPENINGS[ap].label}</b> — ${OPENINGS[ap].hint}. The next ask is ${OPENING_BONUS} easier.`, "good");
-        } else if (ap === "heart") stringOnYou = "They see through it";
-        break;
-      }
-
       case "read": {
         if (hit) {
           for (const q of (p.questions ?? []).filter(id => READ_QUESTIONS[id])) {
@@ -636,11 +567,8 @@ class TSLTalk {
             note(`<i class="fas fa-eye"></i> <b>${READ_QUESTIONS[q].label}</b> ${esc(TSLTalk.answerFor(npc, q))}`, "good");
           }
           if (!(p.questions ?? []).length) note(`<i class="fas fa-eye"></i> They have nothing left to hide from you.`, "");
-          if (ap === "pressure") await shift("sour", "They won't forget being needled.");
-          else if (ap === "heart") await shift("warm", "You opened up to each other.");
         } else {
           note("They notice you studying them — they won't let you read them again this scene.", "bad");
-          if (ap === "heart") stringOnYou = "You opened up for nothing";
         }
         break;
       }
@@ -732,22 +660,17 @@ class TSLTalk {
       }
     }
 
-    // Any miss: a bad one costs you a String; outside an ask they collect
-    // themselves (an opening closes); a proud one, refused something big, is done.
+    // Any miss: the nature hits back; a bad one costs you a String; a proud
+    // one, refused something big, is done.
     if (!hit) {
-      // The nature hits back with its own emotion — anything but a quiet Study.
-      const emo = tech.id === "seduce" ? "hopeless" : tech.id === "study" ? null : arch?.hurts;
+      // The nature hits back with its own emotion — anything but a Read.
+      const emo = tech.id === "seduce" ? "hopeless" : job === "read" ? null : arch?.hurts;
       if (emo) {
-        if (arch?.press && (job === "open" || job === "read")) note(`<i>${esc(arch.press)}</i>`, "");
         const r = await TSLEmotions.add(src, emo, { by: npc.id, toward: emo === "guilty" ? npc.id : null });
         if (r?.added) note(`<img class="tsl-emo-ico" src="${EMOTIONS[emo].img}" alt=""> ${you} is <b>${EMOTIONS[emo].label}</b> (${esc(EMOTIONS[emo].spoilsText)}) — until it is let go.`, "bad");
         else if (r?.scar) note(`<img class="tsl-emo-ico" src="icons/svg/blood.svg" alt=""> ${you} was already ${EMOTIONS[emo].label} — it leaves a scar: <b>${SCARS[r.scar].label}</b>. ${esc(SCARS[r.scar].text)}`, "bad");
       }
       if (p.grade === "botch" && !stringOnYou) stringOnYou = job === "read" ? "They read you instead" : "It costs you";
-      if (!sized && openings.length) {
-        const lost = openings.pop();
-        note(`They collect themselves — no longer ${OPENINGS[lost.type].label}.`, "bad");
-      }
       if (sized && big && firm && !ended) {
         ended = true;
         note(`They're done talking — that door is closed for this scene.`, "bad");
@@ -760,7 +683,6 @@ class TSLTalk {
       if (n) note(`${stringOnYou}: they take a <b>String</b> on ${you}.`, "bad");
     }
     if (p.stringSpent) note(`${you} burned a String on them (+${STRING_SPEND_BONUS}).`, "");
-    if (openings.map(o => o.type).join() !== openingsBefore) await TSLTalk._setOpenings(npc, openings, sceneId);
 
     // What the party learned — and once they know the key AND the wall, the
     // nature is named to the table.
@@ -799,7 +721,7 @@ class TSLTalk {
     const esc = foundry.utils.escapeHTML;
     const ap = APPROACHES[tech.approach];
     const sized = tech.job === "ask" || tech.job === "gambit";
-    const title = `${ap?.label ?? ""} · ${tech.label}${sized ? ` · ${ASK_SIZES[p.size]?.short ?? ""}` : ""}`;
+    const title = `${ap ? `${ap.label} · ` : ""}${tech.label}${sized ? ` · ${ASK_SIZES[p.size]?.short ?? ""}` : ""}`;
     const tag = rel === "key" ? `<span class="tsl-x-tag tsl-x-tag--key"><i class="fas fa-key"></i> Key</span>`
       : rel === "wall" ? `<span class="tsl-x-tag tsl-x-tag--wall"><i class="fas fa-door-closed"></i> Wall</span>` : "";
     let kept = false;
@@ -815,10 +737,9 @@ class TSLTalk {
     const base = (p.parts ?? []).find(x => x.base);
     const bonus = (p.parts ?? []).filter(x => !x.base).map(x =>
       `<span class="tsl-x-bonus ${x.value < 0 ? "tsl-x-bonus--neg" : ""}">${x.value >= 0 ? "+" : "−"}${Math.abs(x.value)} ${esc(x.label)}</span>`).join("")
-      + (p.openingsUsed ? `<span class="tsl-x-bonus tsl-x-bonus--open">DC −${OPENING_BONUS * p.openingsUsed} · ${p.openingsUsed} opening${p.openingsUsed > 1 ? "s" : ""}</span>` : "")
       + (p.stringSpent ? `<span class="tsl-x-bonus">+${STRING_SPEND_BONUS} String</span>` : "");
     return `<div class="tsl-x-card tsl-x--${p.grade}">
-      <div class="tsl-x-head"><i class="fas ${ap?.icon ?? "fa-comments"}"></i><span class="tsl-x-title">${esc(title)}</span>${tag}</div>
+      <div class="tsl-x-head"><i class="fas ${ap?.icon ?? TECH_JOBS[tech.job]?.icon ?? "fa-comments"}"></i><span class="tsl-x-title">${esc(title)}</span>${tag}</div>
       <div class="tsl-x-who">${esc(src.name)} → ${esc(npc.name)}</div>
       <div class="tsl-x-roll">${diceHTML}
         <span class="tsl-x-mod">${p.systemRoll ? "system check" : `${(base?.value ?? 0) >= 0 ? "+" : "−"}${Math.abs(base?.value ?? 0)} ${esc(SKILL_LABELS[p.skill] ?? p.skill)}`}</span>

@@ -12,7 +12,7 @@
  * Each is let go by acting it out in character, or by a friend's comfort.
  *
  * Where they come from:
- *   • a miss (anything but Study): the NPC hits back with its nature's emotion;
+ *   • a miss (anything but a Read): the NPC hits back with its nature's emotion;
  *   • a String spent on someone ("Hurt") — both ways, the GM's NPCs too;
  *   • gambits: Blackmail frightens them, a broken heart leaves you Hopeless,
  *     a lie brought out leaves them Angry.
@@ -83,8 +83,8 @@ const SCARS = {
     plus: { job: "gambit" },        minus: { job: "read" },
     text: "+1 on Gambits (you lie well), −1 on Reads (you can't see past your own mask) — for good." },
   hollow:    { id: "hollow",    label: "Hollow",     from: "hopeless",
-    plus: { approach: "reason" },   minus: { job: "open" },
-    text: "+1 on Reason, −1 on Opens (you can't warm anyone up) — for good." },
+    plus: { approach: "reason" },   minus: { approach: "heart" },
+    text: "+1 on Reason, −1 on Heart (you can't warm anyone up any more) — for good." },
 };
 
 class TSLEmotions {

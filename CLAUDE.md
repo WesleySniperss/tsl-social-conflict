@@ -1,8 +1,8 @@
 # TSL: Social Conflict
 
-Foundry VTT module — social conflict for D&D (dnd5e, a5e) inspired by **Thirsty Sword Lesbians**: you want something from an NPC who doesn't want to give it — say the line, pick one of **twelve techniques** (Pressure · Heart · Reason × Open · Ask · Read · Gambit), roll once; **openings** prepare a big ask, and the NPC's hidden **psychological nature** shapes every result: a key, a wall, a price, how they push back — and the **emotion** it leaves on whoever misses (five TSL emotions on everyone; a repeated one leaves a **scar**).
+Foundry VTT module — social conflict for D&D (dnd5e, a5e) inspired by **Thirsty Sword Lesbians**: you want something from an NPC who doesn't want to give it — say the line, pick one of **seven techniques** (Demand · Appeal · Bargain to ask, Blackmail · Seduce · Deceive to go all in, or Read them), roll once; the NPC's hidden **psychological nature** shapes every result: a key, a wall, a price, how they push back — and the **emotion** it leaves on whoever misses (five TSL emotions on everyone; a repeated one leaves a **scar**).
 
-**v3 (3.0.0) is a rebuild.** The design and its measured numbers live in `docs/v3-design.md` (Ukrainian) — read it before changing rules. v1/v2 (Composure, 17 maneuvers, wounds/boons/scars, the conflict window, the TSL 2d6 mode) are in git history and the v2.0.0 release. The v3 draft "exchange" (Sway, an Agenda clock, rounds, the NPC's counter-roll, three states) was dropped before release for **the Ask** (the user, 2026-10-14: "якось щось не те" — it still had a duel's skeleton). The bare Ask then played "boring, shallow, too few techniques" (the user, same day), so **Techniques** went on top of it — the user's pick of three options: 12 techniques with distinct jobs, three openings (moods, not points), and a cost per approach. After a review the same day (the user: "а статуси, шрами, рани?"), **emotions & scars** (v3.1.0) closed two measured holes — free retries of Opens, and Pressure's "cost" that was a bonus — and brought back statuses/wounds/scars in TSL's lean form. Don't resurrect the exchange or v2 without a reason from play — and don't strip the techniques back to one roll.
+**v3 (3.0.0) is a rebuild.** The design and its measured numbers live in `docs/v3-design.md` (Ukrainian) — read it before changing rules. v1/v2 (Composure, 17 maneuvers, wounds/boons/scars, the conflict window, the TSL 2d6 mode) are in git history and the v2.0.0 release. The v3 draft "exchange" (Sway, an Agenda clock, rounds, the NPC's counter-roll, three states) was dropped before release for **the Ask** (the user, 2026-10-14: "якось щось не те" — it still had a duel's skeleton). The bare Ask then played "boring, shallow, too few techniques" (the user, same day), so **Techniques** went on top of it — the user's pick of three options: 12 techniques with distinct jobs, three openings (moods, not points), and a cost per approach. After a review the same day (the user: "а статуси, шрами, рани?"), **emotions & scars** (v3.1.0) closed two measured holes — free retries of Opens, and Pressure's "cost" that was a bonus — and brought back statuses/wounds/scars in TSL's lean form. Then (2026-10-15, the user) **openings and the Open row went** ("наративно не мають сенсу"), the **three Reads became one**, and the talk target became **the map** (Foundry targeting, T, or Pick on the map — no list: "what if there are 50?"). Don't resurrect the exchange or v2 without a reason from play — and don't strip the techniques back to one roll.
 
 ## License
 - TSL open license: **Powered by Lesbians** (poweredbylesbians.com); code and text **CC BY-SA 4.0**.
@@ -17,7 +17,7 @@ Foundry VTT module — social conflict for D&D (dnd5e, a5e) inspired by **Thirst
 1. **Understand the person.** Knowing an NPC beats charisma. (Measured: a +2 character who knows the key beats a +7 face pressing blind.)
 2. **What you say matters.** The line comes first; the technique is what the line really is (the GM holds them to it).
 3. **The only mystery is the person.** Numbers are open (the DC is visible); the nature is hidden — but readable.
-4. **Everyone at the table can contribute.** One opens, another asks; a friend helps (+2); any skill that fits the words.
+4. **Everyone at the table can contribute.** One reads, another asks; a friend helps (+2); a String can set up a friend's ask (Hurt → an emotion on them); any skill that fits the words.
 5. **Consequences outlive the scene.** Emotions last until acted out, scars for good; Strings and bonds carry into the campaign and into combat.
 6. **The core fits on one screen.** Resist adding layers in response to "it feels thin" — first ask what decision the core loop is missing (that mistake built v2).
 
@@ -30,11 +30,11 @@ scripts/
   string-store.js       TSLStringStore — Strings (cap 3), spend, Pull (real AE, ends itself) + its per-system changes
   bond-store.js         TSLBondStore — bonds mirrored on both actors, shift (warm | cool | sour | enemy)
   emotions.js           TSLEmotions — EMOTIONS (5, TSL) + SCARS (5) as ActiveEffects: of/has/add (repeat → scar)/clear, rollParts, hurt (String → emotion), HUD statuses
-  talk.js               TSLTalk — TECHNIQUES (12), OPENINGS, ASK_SIZES; DCs, preview, roll (speaker), prompts (price, questions, String burn),
-                        resolve (GM), openings & lies on the NPC, exposeLie, card, pulse
-  social-notes-app.js   The Chronicle (Profile · Bonds · Talk · Codex); an NPC's own Talk tab = the GM's cheat sheet + "Ask them as" buttons (open a PC's Talk already facing the NPC: `open(pc, {tab, target})`)
+  talk.js               TSLTalk — TECHNIQUES (7), ASK_SIZES; DCs, preview, roll (speaker), prompts (price, questions, String burn),
+                        resolve (GM), lies on the NPC, exposeLie, card, pulse
+  social-notes-app.js   The Chronicle (Profile · Bonds · Talk · Codex); the talk target follows Foundry targeting (`targetToken` hook) or Pick on the map; an NPC's own Talk tab = the GM's cheat sheet + "Ask them as" buttons (open a PC's Talk already facing the NPC: `open(pc, {tab, target})`)
   social-hud.js         Token HUD button + actor context menu → Chronicle
-  scene-visualizer.js   The Social Scene (relationship map, openings, named natures, live pulses) — "scene" and "world" windows
+  scene-visualizer.js   The Social Scene (relationship map, emotions, named natures, live pulses) — "scene" and "world" windows
   hud-button.js         VTools "Social" button → Scene
   main.js               settings, ready hook, migrations (token chronicles; v3 cleanup)
 styles/tsl.css          all styling
@@ -44,12 +44,13 @@ tools/preview.js        static renders + headless-Chrome screenshots of every su
 ```
 
 ## How it works
-- **Techniques** — no exchange object, no clocks, no turns. **There is no declared goal** (the user, 2026-10-13: "ціль в соціалці постійно міняється"). `TECHNIQUES`: each is an approach × a job (`techniqueFor(ap, job)`):
-  - **open** (shake/flatter/tempt) — a hit adds that approach's OPENING;
-  - **ask** (demand/appeal/bargain) — sized `ASK_SIZES` small −4 / costly 0 / against +4;
-  - **read** (provoke/confide/study) — 1 question, 2 on strong;
-  - **gambit** (blackmail/seduce/deceive) — any size, its own leverage, no price.
-- **Openings** (`flags.openings {sceneId, list:[{type, byId}]}`, one per approach): each is −4 (`OPENING_BONUS`) on the next ask/gambit DC and counts as leverage for "against". An ask/gambit spends ALL of them (hit or miss); any other miss pops one. Another scene's read as none; the GM clears them (`clearOpenings`).
+- **Techniques** — no exchange object, no clocks, no turns. **There is no declared goal** (the user, 2026-10-13: "ціль в соціалці постійно міняється"). `TECHNIQUES` (7): an approach × a job (`techniqueFor(ap, job)`), plus the Read:
+  - **ask** (demand/appeal/bargain) — sized `ASK_SIZES` small −4 / costly 0 / against +4 ("against" needs a lever, a String or a bond ●●+ that matches);
+  - **gambit** (blackmail/seduce/deceive), the "All in" row — any size, its own leverage, no price;
+  - **read** — `approach: null` (no Leanings, no bond, no key/wall die): 1 question, 2 on strong; a miss costs no emotion.
+  - Each technique has a `line` (shown under its name in Talk: what it looks like in a scene) and a `rule`.
+- **No openings** since v3.2 (a dead `flags.openings` may linger on old NPCs; nothing reads it). Preparation is an **emotion** on the target (+2 for the approach that plays on it).
+- **The talk target** is a token on the map: the Chronicle's `targetToken` hook follows this user's Foundry targeting (T), and `_targeted()` picks it up on render; "Pick on the map" uses the capture listener. No list.
 - **Costs by approach** (applied in resolve):
   - Pressure wins → no price, bond `shift sour` (none/stranger → Rival ●);
   - Heart wins → `shift warm` (none → Friend ●); Heart misses → a String on the speaker;
@@ -58,20 +59,20 @@ tools/preview.js        static renders + headless-Chrome screenshots of every su
   - Blackmail needs known Fear (+2 lever) or a held String → hit `shift enemy`; miss enemy + String on you.
   - Seduce needs known Desire (+2) or a bond ●● → hit warm; miss cool + String.
   - Deceive → hit records a lie (`flags.lies`); the GM's `exposeLie` → enemy + 2 Strings; miss → String + door closed (any nature).
-- **Roll** (speaker's client, `TSLTalk.roll`): `preview()` builds the visible math (skill + Leanings + bond ● + lever + help vs DC `10 + prof + max(WIS, INT)` + dial + size − 4×openings). It never consults the nature. A KEY approach rolls a second d20 and keeps the better, a WALL keeps the worse — on all four techniques of the approach, reads included. Grades: strong (DC+5 / nat 20), success, failure, botch (DC−5 / nat 1). A miss may burn a String (+5). Then `TSLGMActions.request("talkResolve", payload)` with `technique`.
+- **Roll** (speaker's client, `TSLTalk.roll`): `preview()` builds the visible math (skill + Leanings + bond ● + lever + help ± emotions vs DC `10 + prof + max(WIS, INT)` + dial + size). It never consults the nature. A KEY approach rolls a second d20 and keeps the better, a WALL keeps the worse — on the ask and the gambit of that approach (a Read has no approach). Grades: strong (DC+5 / nat 20), success, failure, botch (DC−5 / nat 1). A miss may burn a String (+5). Then `TSLGMActions.request("talkResolve", payload)` with `technique`.
 - **Resolve** (GM only): re-derives key/wall from the truth, records knowledge.
   - Strong + big ask/gambit → a String on them (small gives none — anti-farming).
   - Misses: at most ONE String on the speaker per roll (Heart, Fear lever, gambit blow-up, botch). A firm nature refusing a big ask/gambit closes the door + `shift cool`.
   - Names the nature once key AND wall are known. ONE card, then a pulse `{technique, approach, job, grade, paid, rel, ended, granted}`.
 - "The door is closed for the scene" / "they won't be read again this scene" are narrative — the GM holds them.
-- **Emotions & scars** (`emotions.js`): an emotion is an AE with `statuses: ["tsl-emo-<id>"]` + `flags.emotion {id, by, toward}` (a HUD toggle without the flag counts too). `rollParts(src, tgt, technique)` adds −2 for the speaker's own (Angry→Heart, Frightened→Pressure, Insecure→Reason, Guilty→everything vs `toward`, Hopeless→ask/gambit), ±1 for scars, +2 for the target's (`opens` approach; Guilty only for its `toward`). Sources: every miss except Study → the nature's `hurts` (Seduce → Hopeless); Blackmail → NPC Frightened; exposeLie → NPC Angry; `stringHurt` GM action (Bonds → Hurt). A PC taking one they carry → the scar (once). Pressure wins also give the NPC a String on the speaker. Clearing: × on the tag (owner/GM) → act it out or a friend's comfort → one chat line.
+- **Emotions & scars** (`emotions.js`): an emotion is an AE with `statuses: ["tsl-emo-<id>"]` + `flags.emotion {id, by, toward}` (a HUD toggle without the flag counts too). `rollParts(src, tgt, technique)` adds −2 for the speaker's own (Angry→Heart, Frightened→Pressure, Insecure→Reason, Guilty→everything vs `toward`, Hopeless→ask/gambit), ±1 for scars, +2 for the target's (`opens` approach; Guilty only for its `toward`). Sources: every miss except a Read → the nature's `hurts` (Seduce → Hopeless); Blackmail → NPC Frightened; exposeLie → NPC Angry; `stringHurt` GM action (Bonds → Hurt). A PC taking one they carry → the scar (once). Pressure wins also give the NPC a String on the speaker. Clearing: × on the tag (owner/GM) → act it out or a friend's comfort → one chat line.
 - **Knowledge:** `socialFencing.known {desire,fear,key,wall,price,pressed}` + `revealed` — shared by the party, kept for good. Players never see the archetype (or the GM's dossier) until it is named; the GM sees the truth marked "hidden".
 
 ## Data on actor flags (scope `tsl-social-conflict`)
 - `socialFencing` — `{ archetypeId, revealed, known, stance (after a no: nature|yield|firm|ask), intent (Agenda — GM text, what they want from the party), notes, triad {power, attention, order} (Leanings dots, PCs; pool 4), points {desire, fear, mask, line} }`. Archetype ids are legacy-stable (`machiavellian` = Schemer, `exalted` = Idol, `dogmatic` = Zealot).
 - `bonds` — `[{ id, targetActorId, type, attitude (= strength 0..3), notes }]`, mirrored.
 - `stringList` — `[{ id, label, targetActorId }]`.
-- `openings` — on NPCs: `{ sceneId, list: [{ type (pressure|heart|reason), byId }] }`.
+- `openings` — dead since v3.2 (v3.0–3.1 moods); nothing reads it.
 - `lies` — on NPCs: `[{ id, byId, at }]`, until the GM brings one out.
 - ActiveEffects: emotions (`flags.emotion`, status `tsl-emo-*`) and scars (`flags.scar`) — `migrateToV3` leaves them alone.
 - `exchange` / `encounter` / `willpower` / `woundTrack` — dead; `migrateToV3` unsets them.
@@ -95,7 +96,7 @@ tools/preview.js        static renders + headless-Chrome screenshots of every su
 - UI text is hardcoded English (i18n is a TODO); talk to the user in Ukrainian.
 
 ## Known issues / TODO
-- [ ] Playtest one real scene; tune the strong threshold (DC+5), the opening bonus (4), the emotion penalty (2), the size shifts (±4) and the lever bonus from it (`docs/v3-design.md` §5).
+- [ ] Playtest one real scene; tune the strong threshold (DC+5), the emotion penalty (2), the size shifts (±4) and the lever bonus from it (`docs/v3-design.md` §5).
 - [ ] Multiplayer socket test (player rolls → GM resolves) in a live world.
 - [ ] Migrate ApplicationV1 → V2 and Dialog → DialogV2 before ~v16.
 - [ ] i18n: move UI strings into `lang/en.json`, add `uk.json`.

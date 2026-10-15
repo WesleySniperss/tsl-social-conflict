@@ -2,21 +2,16 @@
 
 Social conflict for **Foundry VTT v13+** (v14 verified), built for **dnd5e** and **a5e** (Level Up). You want something from an NPC who doesn't want to give it, and the person matters more than the dice. Every NPC has a hidden **psychological nature**: a **key** that opens them, a **wall** they close against, and a **price** they name when they give in. Read them first, and a modest character beats a silver tongue who never looked. Inspired by the emotional mechanics of **Thirsty Sword Lesbians**.
 
-## Twelve techniques
+## Seven techniques
 
-No turns, no tracks, no declared goal. Say your line, pick the **technique** it really is, and roll once against a **visible DC = 10 + their proficiency + the better of WIS/INT**. The roll goes through the system's own skill dialog. Every technique is an approach doing a job:
+No turns, no tracks, no declared goal. **Target** the NPC you're talking to on the map (hover their token, press **T**), say your line, pick the **technique** it really is, and roll once against a **visible DC = 10 + their proficiency + the better of WIS/INT**. The roll goes through the system's own skill dialog.
 
 | | Pressure | Heart | Reason |
 |---|---|---|---|
-| **Open** — get them ready | Shake | Flatter | Tempt |
-| **Ask** — get it now | Demand | Appeal | Bargain |
-| **Read** — learn something | Provoke | Confide | Study |
-| **Gambit** — all in | Blackmail | Seduce | Deceive |
+| **Ask** — get it now | **Demand** — do it, or else | **Appeal** — ask from the heart | **Bargain** — make it worth their while |
+| **All in** — a gamble on leverage | **Blackmail** — their Fear, or your hold on them | **Seduce** — their Desire, or what's between you | **Deceive** — a lie that works, until it doesn't |
+| **Read them** — learn something | *no approach* — watch, listen, ask the one right question | | |
 
-- **Openings.** A hit with an Open leaves a mood on them: *Shaken*, *Moved* or *Curious*.
-  - Each opening makes the next ask 4 easier, and counts as leverage.
-  - An ask spends them. Any other miss closes one.
-  - So the question at the heart of every talk is: ask now, or risk one more technique?
 - **Asks** are sized by what they cost *them*:
 
   | Size | What it is | DC |
@@ -25,12 +20,12 @@ No turns, no tracks, no declared goal. Say your line, pick the **technique** it 
   | Costly | something it costs them to give | — |
   | Against them | against their interests or loyalties | +4 |
 
-  An ask against them needs leverage: an opening, their Desire or Fear, a String, or a deep bond.
-- **Reads** answer one question for the whole party (two on a strong hit). Study is safe. Provoke gets them talking but sours the bond. Confide warms it but exposes you.
-- **Gambits** bring their own leverage and leave lasting marks:
-  - **Blackmail** plays on their Fear and makes an enemy.
-  - **Seduce** plays on their Desire.
+  An ask against them needs leverage: their Desire or Fear, a String on them, or a deep bond — or go all in.
+- **All in** works at any size and names no price, but it leaves a lasting mark:
+  - **Blackmail** plays on their Fear: they do it, and they're your enemy now.
+  - **Seduce** plays on their Desire or your bond: they do it for you.
   - **Deceive** works until the GM brings the lie out — then they turn on you.
+- **Read them** answers one question for the whole party (two on a strong hit). A missed Read never costs you an emotion.
 
 What winning costs depends on the approach:
 
@@ -46,7 +41,7 @@ What they say:
 |---|---|---|
 | **Strong hit** | 5 over, or a 20 | It works. An ask or gambit for something big also hands you a String on them. |
 | **Hit** | a hit | It works. An Appeal or a Bargain gets "yes, but": their nature names the price; you pay, or you walk away. |
-| **Miss** | a miss | They push back their own way, and it hurts: you take their nature's **emotion** (anything but a quiet Study). A proud nature, refused something big, closes the door for the scene. |
+| **Miss** | a miss | They push back their own way, and it hurts: you take their nature's **emotion** (anything but a Read). A proud nature, refused something big, closes the door for the scene. |
 | **Bad miss** | 5 under, or a 1 | As a miss, and they take a String on you as well. |
 
 After a miss you may burn a String on them for +5. Your roll adds:
@@ -81,7 +76,7 @@ Take an emotion you already carry, and it leaves a **scar** instead. A scar is p
 | Flinch | Frightened | +1 on Reads, −1 Pressure |
 | Debt | Guilty | +1 Heart, −1 Reason |
 | The Mask | Insecure | +1 on Gambits, −1 on Reads |
-| Hollow | Hopeless | +1 Reason, −1 on Opens |
+| Hollow | Hopeless | +1 Reason, −1 Heart |
 
 ## Nine natures
 
@@ -128,9 +123,9 @@ The party keeps every answer. Once it knows the key and the wall, the nature is 
 - **Chronicle**: right-click a token, then the address-book button. It has four tabs:
   - *Profile*: an NPC's nature, dossier and Agenda for the GM, and what the party has learned for players; a player character's Leanings, emotions and scars;
   - *Bonds*;
-  - **Talk**: the twelve techniques, your emotions and theirs, the NPC's openings, the roll. On an NPC's own sheet this tab is the GM's cheat sheet: key, wall, price, pushback, the lies they believe, and buttons to ask them as any character on the scene;
+  - **Talk**: who you're talking to (your target on the map), the seven techniques, your emotions and theirs, the roll. On an NPC's own sheet this tab is the GM's cheat sheet: key, wall, price, pushback, the lies they believe, and buttons to ask them as any character on the scene;
   - *Codex*: the in-game manual.
-- **Social Scene**: the **Social** button on the VTools toolbar. It is a live relationship map for everyone: portraits, bonds as lines, openings and named natures, and every roll animated as it happens. *This scene* is for the table; *All bonds* is for the GM.
+- **Social Scene**: the **Social** button on the VTools toolbar. It is a live relationship map for everyone: portraits, bonds as lines, emotions and named natures, and every roll animated as it happens. *This scene* is for the table; *All bonds* is for the GM.
 
 ## Settings
 

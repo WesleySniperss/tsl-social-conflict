@@ -70,7 +70,7 @@ class TSLGMActions {
     try {
       switch (action) {
         case "talkResolve":
-          // A technique — apply what follows (openings, emotions, Strings, bonds, lies, knowledge), post its card.
+          // A technique — apply what follows (emotions, Strings, bonds, lies, knowledge), post its card.
           await TSLTalk.resolve(args);
           break;
         case "stringHurt":

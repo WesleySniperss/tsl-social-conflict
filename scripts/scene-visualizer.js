@@ -147,13 +147,12 @@ class TSLSceneVisualizer extends _TSLVizBase {
       img: actor.img || tok?.document?.texture?.src || "icons/svg/mystery-man.svg",
       named: arch && SocialArchetypeManager.isRevealed(actor) ? arch : null,
       hasBond: TSLBondStore.getList(actor.id).length > 0,
-      openings: TSLTalk.openings(actor).map(o => o.type),
       emotions: TSLEmotions.of(actor).map(e => e.id),
     };
   }
 
   static _isRelevant(nd, actor) {
-    return SocialArchetypeManager.isPC(actor) || nd.hasBond || !!nd.named || nd.openings.length > 0;
+    return SocialArchetypeManager.isPC(actor) || nd.hasBond || !!nd.named || nd.emotions.length > 0;
   }
 
   /**
@@ -316,7 +315,6 @@ class TSLSceneVisualizer extends _TSLVizBase {
         <div class="tsl-viz-name">${esc(nd.name)}</div>
         ${named}
         ${nd.emotions.length ? `<div class="tsl-viz-emos">${nd.emotions.map(id => `<img src="${EMOTIONS[id].img}" alt="" data-tooltip="${esc(`${EMOTIONS[id].label} — ${EMOTIONS[id].spoilsText}`)}">`).join("")}</div>` : ""}
-        ${nd.openings.length ? `<div class="tsl-viz-openings">${nd.openings.map(t => `<span style="--c:${APPROACHES[t].color}" data-tooltip="${esc(`${OPENINGS[t].label} — ${OPENINGS[t].hint}. The next ask is ${OPENING_BONUS} easier.`)}">${OPENINGS[t].label}</span>`).join("")}</div>` : ""}
       </div>`;
     }).join("");
 
@@ -533,7 +531,6 @@ class TSLSceneVisualizer extends _TSLVizBase {
     // Float the result over the target — long enough to actually READ it.
     if (tgt) {
       const label = job === "read" || approach === "read" ? (hit ? "read" : "noticed")
-        : job === "open" ? (hit ? (OPENINGS[approach]?.label ?? "opened").toLowerCase() : "steeled")
         : job === "gambit" ? (hit ? "it works" : "it blows up")
         : grade === "strong" ? "yes"
         : grade === "success" ? (technique === "demand" ? "gives in" : paid ? "yes, for a price" : "a price refused")
