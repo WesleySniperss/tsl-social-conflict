@@ -8,15 +8,32 @@ const TSL_SCOPE = "tsl-social-conflict";
 Hooks.once("init", () => {
   console.log("TSL | Social Conflict module initialising...");
 
+  // The module's language — each user's own. "Auto" follows Foundry's language.
+  // Registered first: every other text below is in that language.
+  game.settings.register(TSL_SCOPE, "language", {
+    name: "Language / Мова",
+    hint: "The language of this module's windows and chat cards. Auto follows Foundry's own language. — Мова вікон і карток модуля. «Авто» — як у самого Foundry.",
+    scope: "client", config: true, type: String, default: "auto",
+    choices: { auto: "Auto / Авто", en: "English", uk: "Українська" },
+    onChange: (v) => {
+      TSLi18n.setLanguage(v);
+      try { TSLEmotions.registerStatuses(); } catch { /* not ready */ }
+      TSLi18n.rerender();
+    },
+  });
+  let pick = "auto";
+  try { pick = game.settings.get(TSL_SCOPE, "language"); } catch { /* first run */ }
+  TSLi18n.setLanguage(pick);
+
   game.settings.register(TSL_SCOPE, "useSystemRollDialog", {
-    name: "Use the system's roll dialog",
-    hint: "Asks and Reads open the SYSTEM's own skill-check dialog (A5E: advantage, expertise dice, situational modifiers) instead of a plain d20. The module's bonuses (leaning, bond, lever, help) ride along as a pre-filled situational modifier. On systems without that dialog a plain d20 is rolled.",
+    name: _t("Use the system's roll dialog"),
+    hint: _t("Asks and Reads open the SYSTEM's own skill-check dialog (A5E: advantage, expertise dice, situational modifiers) instead of a plain d20. The module's bonuses (leaning, bond, lever, help) ride along as a pre-filled situational modifier. On systems without that dialog a plain d20 is rolled."),
     scope: "world", config: true, type: Boolean, default: true,
   });
 
   game.settings.register(TSL_SCOPE, "socialDcBonus", {
-    name: "Social difficulty",
-    hint: "Added to every NPC's DC on top of 10 + proficiency + the better of WIS/INT (a small ask is 4 easier, an ask against their interests 4 harder). Raise it if people are too easy to move at your table.",
+    name: _t("Social difficulty"),
+    hint: _t("Added to every NPC's DC on top of 10 + proficiency + the better of WIS/INT (a small ask is 4 easier, an ask against their interests 4 harder). Raise it if people are too easy to move at your table."),
     scope: "world", config: true, type: Number, default: 0,
     range: { min: -5, max: 10, step: 1 },
   });
@@ -112,7 +129,7 @@ async function migrateToV3() {
   await game.settings.set(TSL_SCOPE, "dataVersion", 3);
   if (removed) {
     console.log(`TSL | v3: removed ${removed} old social effect(s)`);
-    ui.notifications?.info?.(`TSL Social Conflict v3: removed ${removed} old social effect(s) from sheets (states, wounds, scars). Strings, bonds and dossiers are kept.`);
+    ui.notifications?.info?.(_t("TSL Social Conflict v3: removed {n} old social effect(s) from sheets (states, wounds, scars). Strings, bonds and dossiers are kept.", { n: removed }));
   }
 }
 

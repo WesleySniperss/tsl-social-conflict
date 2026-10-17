@@ -139,7 +139,8 @@ class TSLBondStore {
   /**
    * How a technique moves what one side feels for the other (`fromId`'s bond toward `toId`).
    *   warm  — the Heart won them over, or they crossed a line for you: +1 ● (a
-   *           hostile bond eases −1 instead). No bond yet: they become a Friend ●.
+   *           hostile bond eases −1 instead). No bond yet (or a Stranger): they
+   *           become a Friend ●.
    *   cool  — a door slammed, a heart broken: a warm bond cools −1 ●, a hostile
    *           one hardens +1 ●. Only an existing bond moves.
    *   sour  — they gave in to Pressure and will remember it: a hostile bond
@@ -172,10 +173,10 @@ class TSLBondStore {
       await set({ type: "rival", attitude: 1 });
       return { type: "rival", strength: 1, delta: -1, hostile: true, turned: !!bond, created: !bond };
     }
-    if (!bond) {
+    if (!bond || (how === "warm" && type.id === "stranger")) {
       if (how !== "warm") return null;
       await set({ type: "friend", attitude: 1 });
-      return { type: "friend", strength: 1, delta: 1, hostile: false, turned: false, created: true };
+      return { type: "friend", strength: 1, delta: 1, hostile: false, turned: !!bond, created: !bond };
     }
     // warm: +1 (hostile eases); cool / sour: −1 (hostile hardens).
     const delta = (how === "warm" ? 1 : -1) * (hostile ? -1 : 1);

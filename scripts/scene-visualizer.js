@@ -10,7 +10,7 @@
  * Both can be open at the same time.
  *
  * Nodes = portraits (an NPC whose nature the party has figured out wears its
- * name); edges = bonds (colour = approach, thickness = strength). When an ask
+ * name; one who shows a face — a mask or not — wears "seems …" until then); edges = bonds (colour = approach, thickness = strength). When an ask
  * or a read resolves anywhere, a "social pulse" is broadcast to every client
  * and animated here: a beam speaker → NPC, a flash, and the answer floating
  * over them — "yes", "yes, but…", "no" — and the door closing when a proud
@@ -66,7 +66,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
     return foundry.utils.mergeObject(super.defaultOptions, {
       id: "tsl-scene-visualizer",
       classes: ["tsl-viz"],
-      title: "Social Scene",
+      title: _t("Social Scene"),
       template: null,
       width: 620,
       height: 640,          // fixed — the MAP zooms inside, not the window
@@ -82,7 +82,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
     const app = new TSLSceneVisualizer({
       mode: key,
       id:      key === "world" ? "tsl-relationship-visualizer" : "tsl-scene-visualizer",
-      title:   key === "world" ? "Web of Bonds — all relationships" : "Social Scene",
+      title:   key === "world" ? _t("Web of Bonds — all relationships") : _t("Social Scene"),
       classes: ["tsl-viz", key === "world" ? "tsl-viz--world" : "tsl-viz--scene"],
     });
     TSLSceneVisualizer._instances[key] = app;
@@ -146,13 +146,15 @@ class TSLSceneVisualizer extends _TSLVizBase {
       name: actor.name,
       img: actor.img || tok?.document?.texture?.src || "icons/svg/mystery-man.svg",
       named: arch && SocialArchetypeManager.isRevealed(actor) ? arch : null,
+      seems: SocialArchetypeManager.isRevealed(actor) ? null : SocialArchetypeManager.getShown(actor),
+      unmasked: !SocialArchetypeManager.isRevealed(actor) && SocialArchetypeManager.getKnown(actor).mask && !!SocialArchetypeManager.getMask(actor),
       hasBond: TSLBondStore.getList(actor.id).length > 0,
       emotions: TSLEmotions.of(actor).map(e => e.id),
     };
   }
 
   static _isRelevant(nd, actor) {
-    return SocialArchetypeManager.isPC(actor) || nd.hasBond || !!nd.named || nd.emotions.length > 0;
+    return SocialArchetypeManager.isPC(actor) || nd.hasBond || !!nd.named || !!nd.seems || nd.emotions.length > 0;
   }
 
   /**
@@ -249,29 +251,29 @@ class TSLSceneVisualizer extends _TSLVizBase {
     // Header — the GM starts an actual Social Conflict from the scene view, and
     // can jump to the other window (all-bonds ↔ this-scene).
     const modeBtn = world
-      ? `<button class="tsl-viz-mode" data-open-mode="scene" data-tooltip="Switch to just this scene — what players see"><i class="fas fa-clapperboard"></i> This scene</button>`
+      ? `<button class="tsl-viz-mode" data-open-mode="scene" data-tooltip="${_t("Switch to just this scene — what players see")}"><i class="fas fa-clapperboard"></i> ${_t("This scene")}</button>`
       : (game.user.isGM
-          ? `<button class="tsl-viz-mode" data-open-mode="world" data-tooltip="Open the full web — every relationship in the world"><i class="fas fa-globe"></i> All bonds</button>`
+          ? `<button class="tsl-viz-mode" data-open-mode="world" data-tooltip="${_t("Open the full web — every relationship in the world")}"><i class="fas fa-globe"></i> ${_t("All bonds")}</button>`
           : "");
     const head = (subLabel) => `
       <div class="tsl-viz-head">
-        <span class="tsl-viz-title"><i class="fas ${world ? "fa-globe" : "fa-people-arrows"}"></i> ${world ? "Web of Bonds" : "The Social Scene"}</span>
+        <span class="tsl-viz-title"><i class="fas ${world ? "fa-globe" : "fa-people-arrows"}"></i> ${world ? _t("Web of Bonds") : _t("The Social Scene")}</span>
         <span class="tsl-viz-sub">${subLabel}</span>
         ${modeBtn}
-        <span class="tsl-viz-zoom" data-tooltip="Zoom the MAP (or scroll-wheel over it). Drag a portrait to rearrange.">
+        <span class="tsl-viz-zoom" data-tooltip="${_t("Zoom the MAP (or scroll-wheel over it). Drag a portrait to rearrange.")}">
           <button class="tsl-viz-zoom-btn" data-zoom="out">−</button>
-          <button class="tsl-viz-zoom-btn" data-zoom="reset" data-tooltip="Reset zoom & layout">⟲</button>
+          <button class="tsl-viz-zoom-btn" data-zoom="reset" data-tooltip="${_t("Reset zoom & layout")}">⟲</button>
           <button class="tsl-viz-zoom-btn" data-zoom="in">+</button>
         </span>
-        <button class="tsl-viz-refresh" data-tooltip="Redraw"><i class="fas fa-rotate"></i></button>
+        <button class="tsl-viz-refresh" data-tooltip="${_t("Redraw")}"><i class="fas fa-rotate"></i></button>
       </div>`;
 
     if (!nodes.length) {
       const empty = world
-        ? "No relationships yet anywhere — set bonds in any character's Chronicle and the whole web appears here."
-        : "No social scene yet — no bonded characters on the canvas. Set relationships in a token's Chronicle, and they'll appear here.";
+        ? _t("No relationships yet anywhere — set bonds in any character's Chronicle and the whole web appears here.")
+        : _t("No social scene yet — no bonded characters on the canvas. Set relationships in a token's Chronicle, and they'll appear here.");
       return `<div class="tsl-viz-root">
-        ${head(world ? "no bonds recorded yet" : "nobody on the map yet")}
+        ${head(world ? _t("no bonds recorded yet") : _t("nobody on the map yet"))}
         <div class="tsl-viz-empty">${empty}</div>
       </div>`;
     }
@@ -297,7 +299,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
       const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
       const dots = "●".repeat(e.strength) + "○".repeat(3 - e.strength);
       const ap   = APPROACHES[SocialArchetypeManager.bondApproach(e.type)];
-      const tip  = `${esc(e.label)} — strength ${e.strength}/3${ap ? ` · +${e.strength} on ${ap.label} against each other` : ""}`;
+      const tip  = `${_t("{type} — strength {n}/3", { type: esc(e.label), n: e.strength })}${ap ? ` · ${_t("+{n} on {approach} against each other", { n: e.strength, approach: ap.label })}` : ""}`;
       return `<div class="tsl-viz-edge-chip" data-a="${e.aId}" data-b="${e.bId}" style="left:${mx.toFixed(1)}px;top:${my.toFixed(1)}px;--edge-col:${e.color}"
         data-tooltip="${tip}"><span class="tsl-viz-edge-type">${esc(e.label)}</span><span class="tsl-viz-edge-dots">${dots}</span></div>`;
     }).join("");
@@ -306,11 +308,16 @@ class TSLSceneVisualizer extends _TSLVizBase {
     const nodeHtml = nodes.map(nd => {
       const p = this._nodePos[nd.id];
       const named = nd.named
-        ? `<div class="tsl-viz-named" style="--c:${SOCIAL_TRIADS[nd.named.triad]?.color ?? "#9b6ee8"}" data-tooltip="${esc(`Figured out: ${nd.named.label} — ${nd.named.description}`)}">${esc(nd.named.label)}</div>`
+        ? `<div class="tsl-viz-named" style="--c:${SOCIAL_TRIADS[nd.named.triad]?.color ?? "#9b6ee8"}" data-tooltip="${esc(_t("Figured out: {nature} — {description}", { nature: nd.named.label, description: nd.named.description }))}">${esc(nd.named.label)}</div>`
+        : nd.seems
+        ? `<div class="tsl-viz-named tsl-viz-named--seems ${nd.unmasked ? "tsl-viz-named--mask" : ""}" style="--c:${SOCIAL_TRIADS[nd.seems.triad]?.color ?? "#9b6ee8"}" data-tooltip="${esc(nd.unmasked
+            ? _t("A mask: they only play the {mask}. Who they really are is still unread.", { mask: nd.seems.label })
+            : _t("What they show: the {nature} — maybe their true face, maybe a mask.", { nature: nd.seems.label }))}">${nd.unmasked
+            ? `<i class="fas fa-mask"></i> ${esc(nd.seems.label)}` : esc(_t("seems: {nature}", { nature: nd.seems.label }))}</div>`
         : "";
       return `<div class="tsl-viz-node" data-actor-id="${nd.id}"
                    style="left:${(p.x - 46).toFixed(1)}px;top:${(p.y - 46).toFixed(1)}px"
-                   data-tooltip="${esc(nd.name)} · click to open their Chronicle">
+                   data-tooltip="${esc(_t("{name} · click to open their Chronicle", { name: nd.name }))}">
         <img class="tsl-viz-portrait" src="${nd.img}" alt="">
         <div class="tsl-viz-name">${esc(nd.name)}</div>
         ${named}
@@ -323,9 +330,9 @@ class TSLSceneVisualizer extends _TSLVizBase {
         ${APPROACH_ORDER.map(id => {
           const ap = APPROACHES[id];
           const types = BOND_TYPES.filter(t => SocialArchetypeManager.bondApproach(t.id) === id).map(t => t.label).join(", ");
-          return `<span data-tooltip="${esc(`${ap.label} bonds — ${types}`)}"><span style="color:${ap.color}">◼</span> <i style="color:${ap.color}">${ap.label}</i></span>`;
+          return `<span data-tooltip="${esc(_t("{approach} bonds — {types}", { approach: ap.label, types }))}"><span style="color:${ap.color}">◼</span> <i style="color:${ap.color}">${ap.label}</i></span>`;
         }).join("")}
-        <span class="tsl-viz-legend-note">line thickness = bond strength</span>
+        <span class="tsl-viz-legend-note">${_t("line thickness = bond strength")}</span>
       </div>`;
 
     // A FIXED viewport scrolls; the inner canvas is the map, scaled by zoom.
@@ -334,7 +341,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
     const z = this._zoom || 1;
     return `
       <div class="tsl-viz-root">
-        ${head(`${nodes.length} ${world ? "in the web" : "on the map"} · ${edges.length} bond${edges.length === 1 ? "" : "s"} · ${Math.round(z * 100)}%`)}
+        ${head(`${world ? _t("in the web: {n}", { n: nodes.length }) : _t("on the map: {n}", { n: nodes.length })} · ${_t("bonds: {n}", { n: edges.length })} · ${Math.round(z * 100)}%`)}
         <div class="tsl-viz-viewport">
           <div class="tsl-viz-stage" style="width:${(size * z).toFixed(0)}px;height:${(size * z).toFixed(0)}px">
             <div class="tsl-viz-canvas" style="width:${size}px;height:${size}px;transform:scale(${z});transform-origin:0 0">
@@ -395,7 +402,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
             const actor = game.actors.get(id);
             if (!actor) return;
             if (!game.user.isGM && !actor.isOwner) {
-              ui.notifications.info(`${actor.name}: you can only open a Chronicle you own.`);
+              ui.notifications.info(_t("{name}: you can only open a Chronicle you own.", { name: actor.name }));
               return;
             }
             openChronicle(actor);
@@ -530,11 +537,11 @@ class TSLSceneVisualizer extends _TSLVizBase {
 
     // Float the result over the target — long enough to actually READ it.
     if (tgt) {
-      const label = job === "read" || approach === "read" ? (hit ? "read" : "noticed")
-        : job === "gambit" ? (hit ? "it works" : "it blows up")
-        : grade === "strong" ? "yes"
-        : grade === "success" ? (technique === "demand" ? "gives in" : paid ? "yes, for a price" : "a price refused")
-        : "no";
+      const label = job === "read" || approach === "read" ? (hit ? _t("read") : _t("noticed"))
+        : job === "gambit" ? (hit ? _t("it works") : _t("it blows up"))
+        : grade === "strong" ? _t("yes")
+        : grade === "success" ? (technique === "demand" ? _t("gives in") : paid ? _t("yes, for a price") : _t("a price refused"))
+        : _t("no");
       const float = document.createElement("div");
       float.className = `tsl-viz-float tsl-viz-float--${kind}`;
       float.textContent = label;
@@ -564,7 +571,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
     setTimeout(() => burst.remove(), 1800);
     const word = document.createElement("div");
     word.className = `tsl-viz-resolveword tsl-viz-resolveword--${tone}`;
-    word.textContent = what === "ended" ? "DOOR CLOSED" : "AGREED";
+    word.textContent = what === "ended" ? _t("DOOR CLOSED") : _t("AGREED");
     word.style.left = `${pos.x}px`;
     word.style.top  = `${pos.y}px`;
     stage.appendChild(word);

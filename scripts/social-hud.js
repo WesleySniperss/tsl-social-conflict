@@ -36,8 +36,8 @@ class SocialHUD {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "control-icon tsl-hud-fencing";
-    btn.setAttribute("data-tooltip", "Social Chronicle — talk, profile, bonds");
-    btn.setAttribute("aria-label",   "Social Chronicle");
+    btn.setAttribute("data-tooltip", _t("Social Chronicle — talk, profile, bonds"));
+    btn.setAttribute("aria-label",   _t("Social Chronicle"));
     btn.innerHTML = '<i class="fas fa-address-book" inert></i>';
     btn.addEventListener("click", (e) => {
       e.preventDefault();
@@ -51,7 +51,7 @@ class SocialHUD {
 
   static onGetActorContextOptions(app, menuItems) {
     menuItems.push({
-      name:      "Social Chronicle",
+      name:      _t("Social Chronicle"),
       icon:      '<i class="fas fa-address-book"></i>',
       condition: () => true,
       callback:  li => {

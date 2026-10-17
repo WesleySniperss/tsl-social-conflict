@@ -79,9 +79,9 @@ const SCARS = {
   debt:      { id: "debt",      label: "Debt",       from: "guilty",
     plus: { approach: "heart" },    minus: { approach: "reason" },
     text: "+1 on Heart, −1 on Reason (you can't bargain with people) — for good." },
-  mask:      { id: "mask",      label: "The Mask",   from: "insecure",
+  mask:      { id: "mask",      label: "Two Faces",  from: "insecure",
     plus: { job: "gambit" },        minus: { job: "read" },
-    text: "+1 on Gambits (you lie well), −1 on Reads (you can't see past your own mask) — for good." },
+    text: "+1 on Gambits (you lie well), −1 on Reads (you no longer trust any face) — for good." },
   hollow:    { id: "hollow",    label: "Hollow",     from: "hopeless",
     plus: { approach: "reason" },   minus: { approach: "heart" },
     text: "+1 on Reason, −1 on Heart (you can't warm anyone up any more) — for good." },
@@ -96,7 +96,8 @@ class TSLEmotions {
     if (!Array.isArray(CONFIG?.statusEffects)) return;
     for (const id of EMOTION_ORDER) {
       const sid = TSLEmotions.statusId(id);
-      if (CONFIG.statusEffects.some(s => s.id === sid)) continue;
+      const have = CONFIG.statusEffects.find(s => s.id === sid);
+      if (have) { have.name = EMOTIONS[id].label; continue; }
       CONFIG.statusEffects.push({ id: sid, name: EMOTIONS[id].label, img: EMOTIONS[id].img });
     }
   }
@@ -135,7 +136,7 @@ class TSLEmotions {
       const scar = SCARS[e.scar];
       if (!SocialArchetypeManager.isPC(actor) || TSLEmotions.scars(actor).includes(scar.id)) return { id, added: false, scar: null };
       await actor.createEmbeddedDocuments("ActiveEffect", [{
-        name: `Scar — ${scar.label}`, img: "icons/svg/blood.svg", description: scar.text,
+        name: _t("Scar — {scar}", { scar: scar.label }), img: "icons/svg/blood.svg", description: scar.text,
         flags: { [EMOTION_SCOPE]: { scar: scar.id } },
       }]);
       return { id, added: false, scar: scar.id };
@@ -158,8 +159,8 @@ class TSLEmotions {
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor }),
       content: `<div class="tsl-x-card tsl-x--success tsl-x-card--slim">
-        <div class="tsl-x-head"><img class="tsl-emo-ico" src="${EMOTIONS[id].img}" alt=""><span class="tsl-x-title">${esc(actor.name)} lets go of ${esc(EMOTIONS[id].label)}</span></div>
-        <div class="tsl-x-who">${friend ? `${esc(friend.name)} comforts them.` : esc(EMOTIONS[id].clear)}</div>
+        <div class="tsl-x-head"><img class="tsl-emo-ico" src="${EMOTIONS[id].img}" alt=""><span class="tsl-x-title">${_t("{who} lets go of {emotion}", { who: esc(actor.name), emotion: esc(EMOTIONS[id].label) })}</span></div>
+        <div class="tsl-x-who">${friend ? _t("{friend} comforts them.", { friend: esc(friend.name) }) : esc(EMOTIONS[id].clear)}</div>
       </div>`,
     });
     return true;
@@ -185,18 +186,18 @@ class TSLEmotions {
       const spoiled = s.approach ? s.approach === tech.approach
         : s.jobs ? s.jobs.includes(tech.job)
         : s.toward ? (!e.toward || e.toward === tgt?.id) : false;
-      if (spoiled) parts.push({ label: `you're ${EMOTIONS[e.id].label}`, value: -EMOTION_PENALTY });
+      if (spoiled) parts.push({ label: _t("you're {emotion}", { emotion: EMOTIONS[e.id].label }), value: -EMOTION_PENALTY });
     }
     const fits = (r) => r.approach ? r.approach === tech.approach : r.job === tech.job;
     for (const id of TSLEmotions.scars(src)) {
       const sc = SCARS[id];
-      if (fits(sc.plus)) parts.push({ label: `scar — ${sc.label}`, value: 1 });
-      if (fits(sc.minus)) parts.push({ label: `scar — ${sc.label}`, value: -1 });
+      if (fits(sc.plus)) parts.push({ label: _t("scar — {scar}", { scar: sc.label }), value: 1 });
+      if (fits(sc.minus)) parts.push({ label: _t("scar — {scar}", { scar: sc.label }), value: -1 });
     }
     for (const e of TSLEmotions.of(tgt)) {
       if (EMOTIONS[e.id].opens !== tech.approach) continue;
       if (e.id === "guilty" && e.toward && e.toward !== src.id) continue;
-      parts.push({ label: `they're ${EMOTIONS[e.id].label}`, value: EMOTION_BONUS });
+      parts.push({ label: _t("they're {emotion}", { emotion: EMOTIONS[e.id].label }), value: EMOTION_BONUS });
     }
     return parts;
   }
@@ -213,13 +214,13 @@ class TSLEmotions {
     if (!await TSLStringStore.spend(holder.id, target.id)) return;
     const r = await TSLEmotions.add(target, emotion, { by: holder.id, toward: emotion === "guilty" ? holder.id : null });
     const esc = foundry.utils.escapeHTML;
-    const line = r?.added ? `${esc(target.name)} is <b>${esc(e.label)}</b> — ${esc(e.spoilsText)}.`
-      : r?.scar ? `${esc(target.name)} was already ${esc(e.label)} — it leaves a scar: <b>${esc(SCARS[r.scar].label)}</b> (${esc(SCARS[r.scar].text)})`
-      : `${esc(target.name)} already feels it.`;
+    const line = r?.added ? _t("{who} is <b>{emotion}</b> — {spoils}.", { who: esc(target.name), emotion: esc(e.label), spoils: esc(e.spoilsText) })
+      : r?.scar ? _t("{who} was already {emotion} — it leaves a scar: <b>{scar}</b> ({text})", { who: esc(target.name), emotion: esc(e.label), scar: esc(SCARS[r.scar].label), text: esc(SCARS[r.scar].text) })
+      : _t("{who} already feels it.", { who: esc(target.name) });
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: holder }),
       content: `<div class="tsl-x-card tsl-x--botch tsl-x-card--slim">
-        <div class="tsl-x-head"><i class="fas fa-masks-theater"></i><span class="tsl-x-title">${esc(holder.name)} pulls a String on ${esc(target.name)}</span></div>
+        <div class="tsl-x-head"><i class="fas fa-masks-theater"></i><span class="tsl-x-title">${_t("{holder} pulls a String on {target}", { holder: esc(holder.name), target: esc(target.name) })}</span></div>
         <ul class="tsl-x-after"><li class="tsl-x-after-item tsl-x-after--bad">${line}</li></ul>
       </div>`,
     });

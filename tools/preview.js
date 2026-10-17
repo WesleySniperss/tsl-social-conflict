@@ -3,10 +3,11 @@
  * Foundry's own window chrome + core CSS, so they can be screenshotted outside a
  * live world (headless Chrome). Dev tooling only — never loaded by Foundry.
  *
- * Run:   node tools/preview.js <outDir> [foundryPublicDir] [--shoot] [--only=a,b]
+ * Run:   node tools/preview.js <outDir> [foundryPublicDir] [--shoot] [--only=a,b] [--lang=uk]
  *   --shoot   also screenshots every page with headless Chrome ($CHROME or the
  *             default install path) into <outDir>/<page>.png
  *   --only    limit to page names containing one of the given fragments
+ *   --lang    the module's language for every page (en | uk; default en)
  * Env:   FOUNDRY_PUBLIC          Foundry's resources/app/public dir
  *        TSL_PREVIEW_PORTRAITS   a folder with a.webp / b.webp (optional portraits)
  */
@@ -20,6 +21,8 @@ const args = process.argv.slice(2);
 const flags = new Set(args.filter((a) => a.startsWith("--")).map((a) => a.split("=")[0]));
 const only = (args.find((a) => a.startsWith("--only=")) ?? "").slice(7).split(",").filter(Boolean);
 const positional = args.filter((a) => !a.startsWith("--"));
+const LANG = (args.find((a) => a.startsWith("--lang=")) ?? "").slice(7) || "en";
+R.TSLi18n.setLanguage(LANG);
 
 const ROOT = path.resolve(__dirname, "..");
 const OUT = path.resolve(positional[0] ?? path.join(ROOT, "preview-out"));
@@ -73,6 +76,10 @@ async function setup() {
   await BS.add("lyra", "mira", { type: "lover", attitude: 3 });
   await BS.add("mira", "ilse", { type: "ally", attitude: 1 });
   await SS.add("lyra", "roell", 1);
+  // The faces they show: Roell his own, the duke a mask (a Schemer playing the Caretaker), Ilse a mask too.
+  await SAM.setActorData(roell, { maskId: "tyrant" });
+  await SAM.setActorData(duke, { maskId: "caretaker" });
+  await SAM.setActorData(ilse, { maskId: "martyr" });
 }
 
 // ── page shell ───────────────────────────────────────────────────────────────
@@ -112,7 +119,7 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
     app._tab = tab; Object.assign(app, extra);
     const html = await safe(async () => app._buildHTML(await app.getData()));
     game.user.isGM = true;
-    return windowHTML({ id: `tsl-social-fencing-${actor.id}`, classes: ["tsl-fencing"], title: `${actor.name} — Chronicle`, width: 520, inner: html });
+    return windowHTML({ id: `tsl-social-fencing-${actor.id}`, classes: ["tsl-fencing"], title: app.title, width: 520, inner: html });
   };
 
   // ── Chat cards from the real pipeline: an evening at the river gate ──
@@ -129,6 +136,7 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
     await r(lyra, roell, { technique: "appeal", size: "costly" }, [6, 3], ["pay"]);           // his key: yes, but — on her knee
     await r(mira, roell, { technique: "demand", size: "small" }, [16, 4]);                   // his wall, but it lands: he gives in, and remembers
     await r(mira, roell, { technique: "bargain", size: "costly" }, [3]);                     // a no: he leaves her Frightened, the door closes
+    await r(lyra, roell, { technique: "bargain", size: "costly", witnesses: true }, [9], ["pay"]); // before his men: he hardens (−2), yet gives — everyone saw it
     await r(mira, duke, { technique: "read" }, [17], ["o1", "o0"]);                          // a strong Read: his Fear and his Desire
     await r(lyra, duke, { technique: "blackmail", size: "against" }, [11]);                  // his Fear: an enemy, Frightened
     await r(lyra, duke, { technique: "deceive", size: "costly" }, [17, 9]);                  // a lie into his wall — it holds
@@ -157,14 +165,14 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
   page("chronicle-profile-npc-player", await chron(duke, "profile", {}, "player"), 560, 1000);
   page("chronicle-profile-pc", await chron(lyra, "profile", {}, "player"), 560, 620);
   page("chronicle-bonds", await chron(lyra, "bonds", { _expandedBonds: new Set(BS.getList("lyra").slice(0, 1).map((b) => b.id)) }, "player"), 560, 700);
-  page("chronicle-talk-player", await chron(mira, "talk", { _tTarget: "ilse", _tTech: "appeal", _tSize: "costly", _tHelper: "lyra", _tLever: "desire" }, "player"), 560, 1150);
+  page("chronicle-talk-player", await chron(mira, "talk", { _tTarget: "ilse", _tTech: "appeal", _tSize: "costly", _tHelper: "lyra", _tLever: "desire", _tWitnesses: true }, "player"), 560, 1250);
   page("chronicle-talk-blackmail", await chron(mira, "talk", { _tTarget: "ilse", _tTech: "blackmail", _tSize: "against" }, "player"), 560, 1150);
   page("chronicle-talk-read", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "read" }, "player"), 560, 1050);
   page("chronicle-talk-named", await chron(lyra, "talk", { _tTarget: "duke", _tTech: "appeal", _tSize: "small" }, "player"), 560, 1150);
   page("chronicle-talk-result", await chron(lyra, "talk", { _tTarget: "duke",
-    _tResult: { technique: "appeal", grade: "success", total: 18, dc: 15, rel: "key", paid: true } }, "player"), 560, 1000);
+    _tResult: { technique: "appeal", grade: "success", total: 18, dc: 15, rel: "key", paid: true, witnesses: true, audience: -2 } }, "player"), 560, 1000);
   page("chronicle-talk-result-read", await chron(mira, "talk", { _tTarget: "duke",
-    _tResult: { technique: "read", grade: "success", total: 18, dc: 15, rel: "plain", questions: ["fear"] } }, "player"), 560, 1000);
+    _tResult: { technique: "read", grade: "strong", total: 21, dc: 15, rel: "plain", questions: ["fear"], readString: true } }, "player"), 560, 1000);
   page("chronicle-talk-notarget", await chron(lyra, "talk", {}, "player"), 560, 400);
   page("chronicle-talk-gm", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "bargain" }), 560, 1250);
   page("chronicle-talk-npc-gm", await chron(ilse, "talk"), 560, 1000);
@@ -184,7 +192,7 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
     dialogs.length = 0;
     await T.promptPrice(duke, T.priceOf(duke));
     await T.promptPrice(roell, T.priceOf(roell));
-    await T.promptQuestions(ilse, 1);
+    await T.promptQuestions(ilse, 2, { string: true });
     await T.promptStringBurn(lyra, roell, 12, 14, 1);
     await new R.SocialFencingApp(lyra)._promptPull(roell);
     await new R.SocialFencingApp(lyra)._promptHurt(roell);

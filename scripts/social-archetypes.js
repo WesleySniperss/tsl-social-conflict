@@ -76,7 +76,9 @@ const SOCIAL_TRIADS = {
  * say how that looks in a scene. `price` — what they want in return when they
  * say "yes, but" (`string: true` = paying it hands them a String on you).
  * `press` — how they push back when they say no; `hurts` — the emotion that
- * pushback leaves on whoever missed against them. `pressed` — after refusing
+ * pushback leaves on whoever missed against them. `audience` — what witnesses
+ * do to an ask (+2 they bend, −2 they harden, 0 nothing; `audienceWhy` says
+ * why) — hidden, like the key and the wall. `pressed` — after refusing
  * something big: "firm" ends the talk, "yield" keeps listening (`pressedWhy`
  * says how). `psych` grounds the type in real psychology.
  */
@@ -93,6 +95,8 @@ const SOCIAL_ARCHETYPES = [
     price: { text: "Ask it as a favour — on your knee, where their people can see.", string: false },
     press: "An order in front of witnesses: obey, or lose face.",
     hurts: "frightened",
+    audience: -2,
+    audienceWhy: "never bend where their people can see",
     pressed: "firm",
     pressedWhy: "would rather end it than be seen to bend",
     description: "Control-focused antagonist who resists force and bends only to praise.",
@@ -117,6 +121,8 @@ const SOCIAL_ARCHETYPES = [
     price: { text: "A favour, to be named later.", string: true },
     press: "Help with a hook in it — a favour you'll pay for later.",
     hurts: "insecure",
+    audience: -2,
+    audienceWhy: "deal only behind closed doors",
     pressed: "yield",
     pressedWhy: "says no with a smile — and keeps the game going",
     description: "A covert manipulator — patient, cynical, always three moves ahead.",
@@ -141,6 +147,8 @@ const SOCIAL_ARCHETYPES = [
     price: { text: "Earn it — best them at something first, in front of others.", string: false },
     press: "A public challenge: take it, or admit you're the lesser.",
     hurts: "angry",
+    audience: 2,
+    audienceWhy: "an audience turns it into a challenge they must answer",
     pressed: "firm",
     pressedWhy: "turns away from anyone who asks too much — come back with a challenge",
     description: "A proud contender who must answer any worthy challenge — and despises cheap tricks.",
@@ -167,6 +175,8 @@ const SOCIAL_ARCHETYPES = [
     price: { text: "Say out loud what it costs them — and let them remind you of it.", string: true },
     press: "“After everything I've done for you…” — your move becomes their wound.",
     hurts: "guilty",
+    audience: 2,
+    audienceWhy: "a sacrifice only counts if someone sees it",
     pressed: "yield",
     pressedWhy: "refuses, sighing — and stays to make you feel it",
     description: "Seeks attention through suffering and recoils from sympathy.",
@@ -191,6 +201,8 @@ const SOCIAL_ARCHETYPES = [
     price: { text: "The credit is theirs — publicly, and you'll back the story.", string: false },
     press: "They steal the room — your words drown in their performance.",
     hurts: "insecure",
+    audience: 2,
+    audienceWhy: "perform generosity for the room",
     pressed: "firm",
     pressedWhy: "makes a scene of leaving rather than be asked for too much",
     description: "Thrives on worship and resists attacks on their ego.",
@@ -215,6 +227,8 @@ const SOCIAL_ARCHETYPES = [
     price: { text: "Let them do more than you asked — and owe them for it.", string: true },
     press: "Care you never asked for, that leaves you owing.",
     hurts: "guilty",
+    audience: 0,
+    audienceWhy: "give the same, whoever is watching",
     pressed: "yield",
     pressedWhy: "can't bear to leave you without help — they stay",
     description: "Needs to be needed. Obligation and guilt move them; a bargain insults them.",
@@ -241,6 +255,8 @@ const SOCIAL_ARCHETYPES = [
     price: { text: "Swear to keep the rule — they'll hold you to your word.", string: true },
     press: "They quote the law and name your sin — you're an offender, not a partner.",
     hurts: "angry",
+    audience: -2,
+    audienceWhy: "can't be seen to bend the rule",
     pressed: "firm",
     pressedWhy: "will not discuss the creed further — the door closes",
     description: "Trusts rules and ritual more than people — certainty is their armour, and doubt the crack in it.",
@@ -265,6 +281,8 @@ const SOCIAL_ARCHETYPES = [
     price: { text: "A truth for a truth — tell them something real about yourself.", string: false },
     press: "Silence — then one precise question, straight into what hurts.",
     hurts: "hopeless",
+    audience: -2,
+    audienceWhy: "close up in a crowd",
     pressed: "firm",
     pressedWhy: "withdraws — the conversation is over",
     description: "Withdrawn and wary, they can be drawn out by clever reasoning.",
@@ -289,6 +307,8 @@ const SOCIAL_ARCHETYPES = [
     price: { text: "Pay — something of real value, here and now.", string: false },
     press: "A counter-price — or an old debt brought back to the table.",
     hurts: "hopeless",
+    audience: -2,
+    audienceWhy: "never deal with witnesses",
     pressed: "yield",
     pressedWhy: "no deal — but the shop stays open",
     description: "A pragmatist who trusts contracts over feelings and weighs every word for profit.",
@@ -898,7 +918,7 @@ const ARCHETYPE_TELLS = {
 /**
  * The dossier on someone. Desire and Fear are LEVERS: once the party knows
  * them (Read, or the GM tells them), an ask that plays on one gets +2 — and
- * counts as the leverage an ask against their interests needs. Mask and The
+ * counts as the leverage an ask against their interests needs. Face and The
  * Line are for reading and playing them.
  */
 const PROFILE_POINTS = [
@@ -917,11 +937,11 @@ const PROFILE_POINTS = [
     hint: "What they dread. A LEVER: once the party knows it, an ask that presses it gets +2 — and counts as leverage. A threat cuts both ways: if the ask fails, they take a String on you.",
   },
   {
-    id: "mask",
-    label: "Mask",
+    id: "mask",          // saved data keeps the id
+    label: "Face",
     icon: "fa-masks-theater",
-    placeholder: "How they present vs who they are…",
-    hint: "The face they show the world — and what it hides. For reading and playing them.",
+    placeholder: "How they present — and what it hides…",
+    hint: "Free notes: how they present, and what it hides. (The Mask under Nature is what the party is shown.)",
   },
   {
     id: "line",
@@ -977,7 +997,7 @@ const BOND_TYPE_ALIASES = { indebted: "sworn", creditor: "liege" };
 const TRIAD_POINT_POOL = 4;
 
 /** What the party may have learned about someone — the Read questions. */
-const KNOWN_FACTS = ["desire", "fear", "key", "wall", "price", "pressed"];
+const KNOWN_FACTS = ["desire", "fear", "key", "wall", "price", "pressed", "mask", "audience"];
 
 class SocialArchetypeManager {
   static getFlagScope() { return SOCIAL_FENCING_SCOPE; }
@@ -1002,6 +1022,27 @@ class SocialArchetypeManager {
     return SocialArchetypeManager.getArchetypeById(SocialArchetypeManager.getActorData(actor).archetypeId);
   }
 
+  /**
+   * The face they show the world (Nature / Demeanor): the nature the party
+   * sees at first — `maskId`. Their true nature shown openly, or another one
+   * worn as a MASK. Null when they show nothing (unreadable).
+   */
+  static getShown(actor) {
+    return SocialArchetypeManager.getArchetypeById(SocialArchetypeManager.getActorData(actor).maskId);
+  }
+
+  /** The MASK — a face that is not their nature. Null when they show nothing, or their true face. */
+  static getMask(actor) {
+    const d = SocialArchetypeManager.getActorData(actor);
+    if (!d.maskId || d.maskId === d.archetypeId) return null;
+    return SocialArchetypeManager.getArchetypeById(d.maskId);
+  }
+
+  /** What witnesses do to an ask: +2 they bend, −2 they harden, 0 nothing. */
+  static audienceOf(actor) {
+    return SocialArchetypeManager.getArchetype(actor)?.audience ?? 0;
+  }
+
   static async setArchetype(actor, archetypeId) {
     const archetype = SocialArchetypeManager.getArchetypeById(archetypeId);
     if (!actor || !archetype) return null;
@@ -1021,7 +1062,7 @@ class SocialArchetypeManager {
 
   /**
    * What the party has learned about this person — one flag per Read
-   * question (desire, fear, key, wall, price, pressed). Shared by everyone at the
+   * question (desire, fear, key, wall, price, pressed, mask, audience). Shared by everyone at the
    * table and kept for good: knowledge of a person is campaign-long.
    */
   static getKnown(actor) {
@@ -1040,6 +1081,7 @@ class SocialArchetypeManager {
     const data = SocialArchetypeManager.getActorData(actor);
     return {
       archetypeId: data.archetypeId || null,
+      maskId: data.maskId || null,
       intent: data.intent || "",
       notes: data.notes || "",
       stance: data.stance || null,
@@ -1090,7 +1132,7 @@ class SocialArchetypeManager {
   /** A veiled line of how this nature visibly gives way (the key landing). */
   static pickReaction(archId) {
     const pool = ARCHETYPE_REACTIONS[archId];
-    return pool?.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+    return pool?.length ? _t(pool[Math.floor(Math.random() * pool.length)]) : null;
   }
 
   /** A veiled observation about this nature (flavour for a Read). */
@@ -1107,10 +1149,10 @@ class SocialArchetypeManager {
    */
   static get PRESSED_STANCES() {
     return {
-      nature: { label: "By nature",          tip: "Follows their archetype — each nature's card says what it does after refusing something big." },
-      yield:  { label: "Keeps listening",    tip: "After refusing something big, they still hear you out — you can try again with something new." },
-      firm:   { label: "Ends it",            tip: "After refusing something big, they end the conversation — that door is closed for the scene, and the bond cools." },
-      ask:    { label: "Decide each time",   tip: "You decide in the moment (the card reminds you to)." },
+      nature: { label: _t("By nature"),        tip: _t("Follows their archetype — each nature's card says what it does after refusing something big.") },
+      yield:  { label: _t("Keeps listening"),  tip: _t("After refusing something big, they still hear you out — you can try again with something new.") },
+      firm:   { label: _t("Ends it"),          tip: _t("After refusing something big, they end the conversation — that door is closed for the scene, and the bond cools.") },
+      ask:    { label: _t("Decide each time"), tip: _t("You decide in the moment (the card reminds you to).") },
     };
   }
 

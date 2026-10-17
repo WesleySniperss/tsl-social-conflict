@@ -2,7 +2,7 @@
 
 Foundry VTT module — social conflict for D&D (dnd5e, a5e) inspired by **Thirsty Sword Lesbians**: you want something from an NPC who doesn't want to give it — say the line, pick one of **seven techniques** (Demand · Appeal · Bargain to ask, Blackmail · Seduce · Deceive to go all in, or Read them), roll once; the NPC's hidden **psychological nature** shapes every result: a key, a wall, a price, how they push back — and the **emotion** it leaves on whoever misses (five TSL emotions on everyone; a repeated one leaves a **scar**).
 
-**v3 (3.0.0) is a rebuild.** The design and its measured numbers live in `docs/v3-design.md` (Ukrainian) — read it before changing rules. v1/v2 (Composure, 17 maneuvers, wounds/boons/scars, the conflict window, the TSL 2d6 mode) are in git history and the v2.0.0 release. The v3 draft "exchange" (Sway, an Agenda clock, rounds, the NPC's counter-roll, three states) was dropped before release for **the Ask** (the user, 2026-10-14: "якось щось не те" — it still had a duel's skeleton). The bare Ask then played "boring, shallow, too few techniques" (the user, same day), so **Techniques** went on top of it — the user's pick of three options: 12 techniques with distinct jobs, three openings (moods, not points), and a cost per approach. After a review the same day (the user: "а статуси, шрами, рани?"), **emotions & scars** (v3.1.0) closed two measured holes — free retries of Opens, and Pressure's "cost" that was a bonus — and brought back statuses/wounds/scars in TSL's lean form. Then (2026-10-15, the user) **openings and the Open row went** ("наративно не мають сенсу"), the **three Reads became one**, and the talk target became **the map** (Foundry targeting, T, or Pick on the map — no list: "what if there are 50?"). Don't resurrect the exchange or v2 without a reason from play — and don't strip the techniques back to one roll.
+**v3 (3.0.0) is a rebuild.** The design and its measured numbers live in `docs/v3-design.md` (Ukrainian) — read it before changing rules. v1/v2 (Composure, 17 maneuvers, wounds/boons/scars, the conflict window, the TSL 2d6 mode) are in git history and the v2.0.0 release. The v3 draft "exchange" (Sway, an Agenda clock, rounds, the NPC's counter-roll, three states) was dropped before release for **the Ask** (the user, 2026-10-14: "якось щось не те" — it still had a duel's skeleton). The bare Ask then played "boring, shallow, too few techniques" (the user, same day), so **Techniques** went on top of it — the user's pick of three options: 12 techniques with distinct jobs, three openings (moods, not points), and a cost per approach. After a review the same day (the user: "а статуси, шрами, рани?"), **emotions & scars** (v3.1.0) closed two measured holes — free retries of Opens, and Pressure's "cost" that was a bonus — and brought back statuses/wounds/scars in TSL's lean form. Then (2026-10-15, the user) **openings and the Open row went** ("наративно не мають сенсу"), the **three Reads became one**, and the talk target became **the map** (Foundry targeting, T, or Pick on the map — no list: "what if there are 50?"). Then (2026-10-17, v3.3.0, the user: "мені все ще не вистачає вайбу втм") the **VtM layer**: **masks** (Nature / Demeanor), **witnesses** (Elysium), the court-intrigue tone, and a thought-through **String economy** instead of Boons ("струни ж дають бонуси, і в бою теж, треба лише гарно продумати за що їх отримують") — plus **Ukrainian**, with a language setting. Don't resurrect the exchange or v2 without a reason from play — and don't strip the techniques back to one roll.
 
 ## License
 - TSL open license: **Powered by Lesbians** (poweredbylesbians.com); code and text **CC BY-SA 4.0**.
@@ -24,13 +24,15 @@ Foundry VTT module — social conflict for D&D (dnd5e, a5e) inspired by **Thirst
 ## Files
 ```
 scripts/
+  i18n.js               _t("English text", {placeholders}) → the user's language; TSLi18n (resolve auto/en/uk, setLanguage, apply = data texts translated in place, originals kept in a hidden __en, rerender)
+  i18n-uk.js            TSL_UK — the Ukrainian dictionary, English text as the key (~900 entries; the harness checks coverage)
   socket.js             TSLSocket (SOCIAL_PULSE, GM_ACTION relay) + TSLGMActions (player actions run on the GM)
   social-archetypes.js  APPROACHES (+ `cost`: what winning that way costs), SOCIAL_TRIADS, 9 SOCIAL_ARCHETYPES (key/wall/price/press/pressed), tells & reactions pools,
                         PROFILE_POINTS, BOND_TYPES, SocialArchetypeManager (flags, known facts, stance)
   string-store.js       TSLStringStore — Strings (cap 3), spend, Pull (real AE, ends itself) + its per-system changes
   bond-store.js         TSLBondStore — bonds mirrored on both actors, shift (warm | cool | sour | enemy)
   emotions.js           TSLEmotions — EMOTIONS (5, TSL) + SCARS (5) as ActiveEffects: of/has/add (repeat → scar)/clear, rollParts, hurt (String → emotion), HUD statuses
-  talk.js               TSLTalk — TECHNIQUES (7), ASK_SIZES; DCs, preview, roll (speaker), prompts (price, questions, String burn),
+  talk.js               TSLTalk — TECHNIQUES (7), ASK_SIZES, READ_QUESTIONS (8); DCs, preview, roll (speaker), prompts (price, questions + the strong Read's String, String burn),
                         resolve (GM), lies on the NPC, exposeLie, card, pulse
   social-notes-app.js   The Chronicle (Profile · Bonds · Talk · Codex); the talk target follows Foundry targeting (`targetToken` hook) or Pick on the map; an NPC's own Talk tab = the GM's cheat sheet + "Ask them as" buttons (open a PC's Talk already facing the NPC: `open(pc, {tab, target})`)
   social-hud.js         Token HUD button + actor context menu → Chronicle
@@ -40,14 +42,14 @@ scripts/
 styles/tsl.css          all styling
 docs/v3-design.md       the design (Ukrainian) — rules, decisions, measured balance
 tools/harness.js        stubbed-Foundry tests (node tools/harness.js) — run after EVERY change
-tools/preview.js        static renders + headless-Chrome screenshots of every surface
+tools/preview.js        static renders + headless-Chrome screenshots of every surface (--lang=uk for Ukrainian)
 ```
 
 ## How it works
 - **Techniques** — no exchange object, no clocks, no turns. **There is no declared goal** (the user, 2026-10-13: "ціль в соціалці постійно міняється"). `TECHNIQUES` (7): an approach × a job (`techniqueFor(ap, job)`), plus the Read:
   - **ask** (demand/appeal/bargain) — sized `ASK_SIZES` small −4 / costly 0 / against +4 ("against" needs a lever, a String or a bond ●●+ that matches);
   - **gambit** (blackmail/seduce/deceive), the "All in" row — any size, its own leverage, no price;
-  - **read** — `approach: null` (no Leanings, no bond, no key/wall die): 1 question, 2 on strong; a miss costs no emotion.
+  - **read** — `approach: null` (no Leanings, no bond, no key/wall die, no witnesses): 1 question; a strong hit — a 2nd question OR a String on them ("you saw where it hurts", payload `readString`); a miss costs no emotion. 8 questions: desire, fear, key, wall, price, pressed, mask (only if they show a face — `TSLTalk.openQuestions`), audience.
   - Each technique has a `line` (shown under its name in Talk: what it looks like in a scene) and a `rule`.
 - **No openings** since v3.2 (a dead `flags.openings` may linger on old NPCs; nothing reads it). Preparation is an **emotion** on the target (+2 for the approach that plays on it).
 - **The talk target** is a token on the map: the Chronicle's `targetToken` hook follows this user's Foundry targeting (T), and `_targeted()` picks it up on render; "Pick on the map" uses the capture listener. No list.
@@ -59,6 +61,9 @@ tools/preview.js        static renders + headless-Chrome screenshots of every su
   - Blackmail needs known Fear (+2 lever) or a held String → hit `shift enemy`; miss enemy + String on you.
   - Seduce needs known Desire (+2) or a bond ●● → hit warm; miss cool + String.
   - Deceive → hit records a lie (`flags.lies`); the GM's `exposeLie` → enemy + 2 Strings; miss → String + door closed (any nature).
+- **Witnesses** (asks & gambits): the player picks In private / Before witnesses (`_tWitnesses` → `witnesses`). The nature's `audience` (+2 bend / −2 harden / 0, `audienceWhy`) is added AFTER the dice like key/wall (the preview never consults it); `known.audience` learned. A public yes → a String on them ("Everyone saw them give it"); a public no → Insecure ("loses face", unless the nature already hurt with Insecure).
+- **Masks**: `socialFencing.maskId` = the nature they SHOW (GM: Profile → Nature → Mask). `getShown` (any face) / `getMask` (a face ≠ their nature). Players see "seems: X" + "How they seem" (Talk, Scene); key/wall/price are always the true nature's. The mask question names an open face at once; a mask is known as a mask; key+wall known → named → "The mask falls". Default (no maskId) = "Nature unread", as before.
+- **Strings** = a debt, a weakness seen, a line crossed before others. Yours on them: strong + big ask/gambit, a yes before witnesses, a strong Read, the GM's + (they open up to you). Theirs on you: a Pressure/Blackmail win, a Heart miss / broken heart, a caught threat/bluff/lie (exposed lie: 2), a price that is a debt, a botch. One each way per roll. `TSLStringStore.add` makes a **Stranger** bond when none exists (so the String shows in Bonds for Pull/Hurt); `shift warm` turns a Stranger into a Friend ●.
 - **Roll** (speaker's client, `TSLTalk.roll`): `preview()` builds the visible math (skill + Leanings + bond ● + lever + help ± emotions vs DC `10 + prof + max(WIS, INT)` + dial + size). It never consults the nature. A KEY approach rolls a second d20 and keeps the better, a WALL keeps the worse — on the ask and the gambit of that approach (a Read has no approach). Grades: strong (DC+5 / nat 20), success, failure, botch (DC−5 / nat 1). A miss may burn a String (+5). Then `TSLGMActions.request("talkResolve", payload)` with `technique`.
 - **Resolve** (GM only): re-derives key/wall from the truth, records knowledge.
   - Strong + big ask/gambit → a String on them (small gives none — anti-farming).
@@ -69,7 +74,7 @@ tools/preview.js        static renders + headless-Chrome screenshots of every su
 - **Knowledge:** `socialFencing.known {desire,fear,key,wall,price,pressed}` + `revealed` — shared by the party, kept for good. Players never see the archetype (or the GM's dossier) until it is named; the GM sees the truth marked "hidden".
 
 ## Data on actor flags (scope `tsl-social-conflict`)
-- `socialFencing` — `{ archetypeId, revealed, known, stance (after a no: nature|yield|firm|ask), intent (Agenda — GM text, what they want from the party), notes, triad {power, attention, order} (Leanings dots, PCs; pool 4), points {desire, fear, mask, line} }`. Archetype ids are legacy-stable (`machiavellian` = Schemer, `exalted` = Idol, `dogmatic` = Zealot).
+- `socialFencing` — `{ archetypeId, maskId (the nature they show), revealed, known (+ mask, audience), stance (after a no: nature|yield|firm|ask), intent (Agenda — GM text, what they want from the party), notes, triad {power, attention, order} (Leanings dots, PCs; pool 4), points {desire, fear, mask (labelled "Face" since v3.3), line} }`. Archetype ids are legacy-stable (`machiavellian` = Schemer, `exalted` = Idol, `dogmatic` = Zealot).
 - `bonds` — `[{ id, targetActorId, type, attitude (= strength 0..3), notes }]`, mirrored.
 - `stringList` — `[{ id, label, targetActorId }]`.
 - `openings` — dead since v3.2 (v3.0–3.1 moods); nothing reads it.
@@ -78,7 +83,7 @@ tools/preview.js        static renders + headless-Chrome screenshots of every su
 - `exchange` / `encounter` / `willpower` / `woundTrack` — dead; `migrateToV3` unsets them.
 
 ## Settings
-`useSystemRollDialog` (default true), `socialDcBonus` (0), hidden `dataVersion` (migrations).
+`language` (client; auto | en | uk — auto follows `game.i18n.lang`; registered first in init, switches live), `useSystemRollDialog` (default true), `socialDcBonus` (0), hidden `dataVersion` (migrations).
 
 ## Hard-won platform lessons (still true)
 - **`"socket": true` in module.json** is what makes Foundry relay `module.<id>` socket events. Without it every player → GM message is silently dropped. Changing it, or adding a new script file to the manifest, needs a **world restart**, not F5.
@@ -93,13 +98,15 @@ tools/preview.js        static renders + headless-Chrome screenshots of every su
 - CSS variables `--tsl-*` (dark: `--tsl-bg #150c0f`, text `#f0dfc8`, accent `#e8557a`); approach colours Pressure `#e8557a`, Heart `#9b6ee8`, Reason `#55b8e8`; gold `#e0b45e` (`--tsl-sway`, a legacy name) for sizes, prices and strong results; red `#d0574d` for walls and bad results. Fonts: Cinzel titles, EB Garamond body (with fallbacks).
 - **No emoji in UI** — Font Awesome icons (key = `fa-key`, wall = `fa-door-closed`, read = `fa-eye`).
 - Dialogs use `tslDialogOptions()` (dark theme). One card per roll; the result also shows where Roll was clicked.
-- UI text is hardcoded English (i18n is a TODO); talk to the user in Ukrainian.
+- **Every word on screen goes through `_t("English", {placeholders})`** — a plain double-quoted literal (the harness scans for them). A new string needs its Ukrainian in `scripts/i18n-uk.js` (the harness fails on a missing key or a lost {placeholder}). Data texts (natures, techniques, emotions, bonds…) are translated in place by `TSLi18n.apply()` — add new data fields to it. Ukrainian style: the NPC is "вони" (no gendered verbs), the player "ти"; terms Струна, Зв'язок, Натура, Маска, Ключ/Стіна, При свідках, Просити/Ва-банк/Читати, СК, КБ. Chat cards are written in the language of the client that creates them.
+- Fonts: Cinzel / EB Garamond aren't loaded — the stacks fall back to Modesto Condensed / Signika (Latin only), then Palatino Linotype / Georgia for Cyrillic. Keep Cyrillic-capable fallbacks; Ukrainian labels are longer — check `--lang=uk` screenshots.
+- Talk to the user in Ukrainian.
 
 ## Known issues / TODO
 - [ ] Playtest one real scene; tune the strong threshold (DC+5), the emotion penalty (2), the size shifts (±4) and the lever bonus from it (`docs/v3-design.md` §5).
 - [ ] Multiplayer socket test (player rolls → GM resolves) in a live world.
 - [ ] Migrate ApplicationV1 → V2 and Dialog → DialogV2 before ~v16.
-- [ ] i18n: move UI strings into `lang/en.json`, add `uk.json`.
+- [x] i18n: English + Ukrainian via `_t` (v3.3.0). Foundry's `lang/*.json` isn't used — the module keeps its own dictionary.
 
 ## Developer notes
 - The author runs Foundry v13/v14 in a Ukrainian locale; other modules: `a5e-mancer`, `enhancedcombathud-a5e`, `epic-rolls-ua`, `lockpick-minigame`, `vtools`.

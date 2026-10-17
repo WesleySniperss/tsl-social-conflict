@@ -16,7 +16,7 @@ class TSLHudButton {
     try {
       VTools.register({
         name:    "tsl-social-conflict",
-        title:   "Social",
+        title:   _t("Social"),
         icon:    "fas fa-people-arrows",
         onClick: () => TSLSceneVisualizer.toggle(),
       });

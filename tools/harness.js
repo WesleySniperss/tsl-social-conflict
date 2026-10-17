@@ -201,7 +201,7 @@ const EXPORTS = ["SocialArchetypeManager", "TSLTalk", "TSLStringStore", "TSLBond
   "TECHNIQUES", "TECH_JOBS", "JOB_ORDER", "LEVER_BONUS",
   "TSLEmotions", "EMOTIONS", "EMOTION_ORDER", "SCARS",
   "READ_QUESTIONS", "READ_ORDER", "ARCHETYPE_TELLS", "ARCHETYPE_REACTIONS", "BOND_TYPES", "PROFILE_POINTS",
-  "SKILL_LABELS", "STRING_CAP", "migrateToV3"];
+  "SKILL_LABELS", "STRING_CAP", "migrateToV3", "TSL_I18N", "TSLi18n", "TSL_UK", "TALK_GRADES", "JOB_GRADES"];
 let api;
 try {
   api = new Function(combined + "\nreturn { " + EXPORTS.map((e) => `${e}: typeof ${e} !== "undefined" ? ${e} : undefined`).join(", ") + " };")();
@@ -265,7 +265,9 @@ if (require.main === module) (async () => {
       && TE.filter((t) => t.job === "read" && !t.approach).length === 1);
     ok(`every technique has a line, a rule and skills; every approach says what winning costs`,
       TE.every((t) => t.line && t.rule && t.skills.length && t.skills.every((k) => R.SKILL_LABELS[k])) && R.APPROACH_ORDER.every((ap) => R.APPROACHES[ap].cost));
-    ok(`six read questions, including the price`, R.READ_ORDER.join() === "desire,fear,key,wall,price,pressed");
+    ok(`eight read questions — the price, the mask and the witnesses among them`, R.READ_ORDER.join() === "desire,fear,key,wall,price,pressed,mask,audience");
+    ok(`every nature takes an audience its own way (+2 bend, −2 harden, 0) and says why — some bend, some harden`,
+      A.every((a) => [2, -2, 0].includes(a.audience) && a.audienceWhy) && A.some((a) => a.audience > 0) && A.some((a) => a.audience < 0));
     ok(`bonds feed approaches: friend → Heart, rival → Pressure, ally → Reason, stranger → none`,
       SAM.bondApproach("friend") === "heart" && SAM.bondApproach("rival") === "pressure" && SAM.bondApproach("ally") === "reason" && SAM.bondApproach("stranger") === null);
   }
@@ -383,6 +385,59 @@ if (require.main === module) (async () => {
     const m = npc("gM", "martyr");                        // yields — but a lie caught ends it anyway
     await roll(p, m, { technique: "deceive", size: "costly" }, [3]);
     ok(`Deceive caught: a String on you, and the door closes — even on a yielding nature`, SS.countOn("gM", "gP") === 1 && /catches the lie/.test(lastCard()) && /door is closed/.test(lastCard()));
+  }
+
+  // ═══ Before witnesses ═══════════════════════════════════════════════════════
+  {
+    const TE = R.TSLEmotions;
+    const p = pc("wP"), d = npc("wD", "duelist"), t = npc("wT", "tyrant");   // Duelist bends +2, Tyrant hardens −2; Reason is plain to both
+    const keys = (o) => Object.keys(o).sort().join();
+    const pd = T.preview(p, d, { technique: "bargain", witnesses: true }), pt = T.preview(p, t, { technique: "bargain", witnesses: true });
+    ok(`before witnesses the preview never consults the nature: a bending and a hardening one look alike`,
+      pd.witnesses && pt.witnesses && keys(pd) === keys(pt) && pd.mod === pt.mod && !("audience" in pd));
+    ok(`a Read has no witnesses`, T.preview(p, d, { technique: "read", witnesses: true }).witnesses === false);
+    const r1 = await roll(p, d, { technique: "bargain", size: "costly", witnesses: true }, [5], ["pay"]);
+    ok(`the room tips the roll: 5 + 7 = 12, +2 before witnesses — the Duelist bends, 14 is a hit`, r1.audience === 2 && r1.total === 14 && r1.grade === "success");
+    ok(`…a yes before witnesses binds them: a String on them, and the party now knows how they take an audience`,
+      SS.countOn("wP", "wD") === 1 && /Everyone saw them give it/.test(lastCard()) && /they bend/.test(lastCard()) && SAM.getKnown(d).audience);
+    ok(`…a String with no bond before makes them Strangers — so it shows in Bonds`, BS.find("wP", "wD")?.type === "stranger" && BS.find("wD", "wP")?.type === "stranger");
+    const q = pc("wQ");
+    const r2 = await roll(q, t, { technique: "bargain", size: "costly", witnesses: true }, [8]);
+    ok(`the Tyrant hardens (−2): 15 becomes 13 — a no before witnesses: their Frightened, and you lose face (Insecure)`,
+      r2.audience === -2 && r2.total === 13 && r2.grade === "failure" && TE.has(q, "frightened") && TE.has(q, "insecure") && /loses face/.test(lastCard()));
+    const r3 = await roll(pc("wR"), t, { technique: "bargain", size: "costly" }, [8], ["pay"]);
+    ok(`the same words in private: no audience, a hit`, r3.audience === 0 && r3.grade === "success" && SS.countOn("wR", "wT") === 0);
+  }
+
+  // ═══ Masks ══════════════════════════════════════════════════════════════════
+  {
+    const p = pc("mP");
+    const sch = npc("mS", "machiavellian"), her = npc("mH", "hermit"), bare = npc("mB", "broker");
+    await SAM.setActorData(sch, { maskId: "caretaker" });     // a Schemer playing the Caretaker
+    await SAM.setActorData(her, { maskId: "hermit" });        // a Hermit showing their own face
+    ok(`the face they show: a mask, an open face, or nothing`, SAM.getShown(sch)?.id === "caretaker" && SAM.getMask(sch)?.id === "caretaker"
+      && SAM.getShown(her)?.id === "hermit" && SAM.getMask(her) === null && SAM.getShown(bare) === null && SAM.getMask(bare) === null);
+    ok(`“Is that their true face?” is asked only of someone who shows one`, T.openQuestions(sch).includes("mask") && !T.openQuestions(bare).includes("mask"));
+    await roll(p, sch, { technique: "read" }, [14], ["o6"]);
+    ok(`a Read through the mask: they only play the Caretaker — known, but not yet who they are`,
+      SAM.getActorData(sch).known?.mask && !SAM.isRevealed(sch) && /It(?:'|&#39;)s a mask/.test(lastCard()));
+    await roll(p, her, { technique: "read" }, [14], ["o6"]);
+    ok(`an open face, confirmed by a Read, names them on the spot`, SAM.isRevealed(her) && /No mask/.test(lastCard()) && /Figured out/.test(lastCard()));
+    await SAM.setKnown(sch, { key: true });
+    await roll(pc("mQ"), sch, { technique: "bargain", size: "costly" }, [5, 3]);
+    ok(`once their key and wall are known, they're named — and the mask falls`, SAM.isRevealed(sch) && /The mask falls: they only played the Caretaker/.test(lastCard()));
+  }
+
+  // ═══ A strong Read keeps a String ═══════════════════════════════════════════
+  {
+    const p = pc("sP"), b = npc("sB", "broker");
+    const r = await roll(p, b, { technique: "read" }, [17], ["o0", "o6"]);
+    ok(`a strong Read: one answer, and a String instead of the second — you saw where it hurts`,
+      r.grade === "strong" && r.readString && r.questions.length === 1 && SAM.getKnown(b).desire && SS.countOn("sP", "sB") === 1 && /saw where it hurts/.test(lastCard()));
+    makeActor("sX"); makeActor("sY");
+    await BS.add("sX", "sY", { type: "stranger", attitude: 1 });
+    const w = await BS.shift("sX", "sY", "warm");
+    ok(`a Stranger won over by the Heart becomes a Friend ●`, w?.turned && bond("sX", "sY") === "friend1" && bond("sY", "sX") === "friend1");
   }
 
   // ═══ Emotions & scars ═══════════════════════════════════════════════════════
@@ -599,10 +654,18 @@ if (require.main === module) (async () => {
     const techs = (talk.match(/data-tech="/g) ?? []).length;
     ok(`Talk (player): the person, ${techs} techniques with what each looks like, sizes with their DCs, the lever, the String, the roll line`, !bad(talk)
       && techs === 7 && /do it — or else/.test(talk) && /data-tech="read"/.test(talk) && /data-size="against"/.test(talk) && /DC 10/.test(talk)
-      && /Their Desire/.test(talk) && /1 String on them/.test(talk) && /vs DC 14/.test(talk) && /Appeal — ask/.test(talk) && /Nature unread/.test(talk) && !/Schemer/.test(talk));
+      && /Their Desire/.test(talk) && /1 String on them/.test(talk) && /vs DC 14/.test(talk) && /Roll — Appeal/.test(talk) && /Nature unread/.test(talk) && !/Schemer/.test(talk));
     ok(`no target list — the map, or your target`, !/<select class="tsl-t-target"/.test(talk) && /data-t-pick/.test(talk) && /Someone else/.test(talk));
+    ok(`an ask offers who's watching — in private or before witnesses`, /data-wit="0"/.test(talk) && /data-wit="1"/.test(talk));
+    const pub = await render(P, "talk", { _tTarget: "uiN", _tTech: "appeal", _tWitnesses: true });
+    ok(`…before witnesses is marked, and the math is unchanged (the room shows in the result)`, !bad(pub) && /tsl-wit-btn on" data-wit="1"/.test(pub)
+      && (pub.match(/tsl-math-part/g) ?? []).length === (talk.match(/tsl-math-part/g) ?? []).length);
     const read = await render(P, "talk", { _tTarget: "uiN", _tTech: "read" });
-    ok(`Talk → Read: no sizes, Insight, "read"`, !bad(read) && !/data-size=/.test(read) && /Read them — read/.test(read) && /Insight \+4/.test(read));
+    ok(`Talk → Read: no sizes, no witnesses, Insight, "read"`, !bad(read) && !/data-size=/.test(read) && !/data-wit=/.test(read) && /Roll — Read them/.test(read) && /Insight \+4/.test(read));
+    await SAM.setActorData(N, { maskId: "caretaker" });
+    const masked = await render(P, "talk", { _tTarget: "uiN" });
+    ok(`a player sees the face they show — “seems: Caretaker” — and how they seem, not who they are`, !bad(masked)
+      && /seems: Caretaker/.test(masked) && /How they seem/.test(masked) && !/Schemer/.test(masked) && /data-tooltip="[^"]*Is that their true face/.test(masked));
     const none = await render(P, "talk", {});
     ok(`Talk with nobody targeted asks whom you're talking to — and offers the map`, !bad(none) && /Who are you talking to/.test(none) && /Pick on the map/.test(none));
     game.user.targets = new Set([tok(N)]);
@@ -631,7 +694,9 @@ if (require.main === module) (async () => {
     ok(`Codex: every page renders for a player (no GM page) — ${words} words`, codexOk);
     game.user.isGM = true;
     const gmTalk = await render(P, "talk", { _tTarget: "uiN", _tTech: "demand" });
-    ok(`the GM sees the truth (the nature tagged hidden)`, !bad(gmTalk) && /Schemer/.test(gmTalk) && /hidden/.test(gmTalk));
+    ok(`the GM sees the truth (the nature tagged hidden) — and the mask they wear`, !bad(gmTalk) && /Schemer/.test(gmTalk) && /hidden/.test(gmTalk) && /tsl-x-mask/.test(gmTalk) && /Caretaker/.test(gmTalk));
+    const gmProfile2 = await render(N, "profile");
+    ok(`the GM sets the mask in Profile → Nature`, !bad(gmProfile2) && /name="maskId"/.test(gmProfile2) && /value="caretaker" selected/.test(gmProfile2) && /a mask over who they really are/.test(gmProfile2));
     const sheet = await render(N, "talk");
     ok(`an NPC's own Talk tab is the GM's cheat sheet — with the lies they believe`, !bad(sheet) && /Playing them/.test(sheet) && /Yes, but/.test(sheet) && /leaves the speaker <b>Insecure<\/b>/.test(sheet)
       && /Help with a hook/.test(sheet) && /data-lie-out="lie1"/.test(sheet) && /Lyra lied to them/.test(sheet));
@@ -642,7 +707,60 @@ if (require.main === module) (async () => {
     const viz = new R.TSLSceneVisualizer({ mode: "scene" });
     let vh = "";
     try { vh = viz._renderHTML(); } catch (err) { vh = "ERR:" + err.stack; }
-    ok(`the Scene renders the cast, their bonds and what they feel`, !bad(vh) && /tsl-viz-node/.test(vh) && /Rival/.test(vh) && /tsl-viz-emos/.test(vh));
+    ok(`the Scene renders the cast, their bonds, what they feel — and the face they show`, !bad(vh) && /tsl-viz-node/.test(vh) && /Rival/.test(vh) && /tsl-viz-emos/.test(vh) && /seems: Caretaker/.test(vh));
+
+    // ═══ Ukrainian ═══
+    const I = R.TSLi18n, L = R.TSL_I18N, UK = R.TSL_UK;
+    game.i18n.lang = "uk";
+    ok(`“Auto” follows Foundry's language; English and Ukrainian can be forced`, I.resolve("auto") === "uk" && I.resolve("en") === "en" && I.resolve("uk") === "uk");
+    game.i18n.lang = "en";
+    ok(`…an English Foundry gets English`, I.resolve("auto") === "en");
+    // Every literal _t("…") in the scripts, and every reaction line, has its Ukrainian.
+    const lit = new Set();
+    for (const rel of manifest.scripts.filter((r) => !r.endsWith("i18n.js"))) {
+      const code = fs.readFileSync(path.join(ROOT, rel), "utf8");
+      for (const m of code.matchAll(/_t\(\s*"((?:[^"\\]|\\.)*)"/g)) lit.add(JSON.parse(`"${m[1]}"`));
+    }
+    const noUk = [...lit, ...Object.values(R.ARCHETYPE_REACTIONS).flat()].filter((k) => typeof UK[k] !== "string");
+    ok(`the Ukrainian dictionary covers every line on screen (${lit.size} interface lines, 180 reactions)${noUk.length ? ` — missing: "${noUk[0]}"` : ""}`, noUk.length === 0);
+    const ph = (x) => [...String(x).matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort().join();
+    const badPh = Object.entries(UK).find(([en, uk]) => ph(en) !== ph(uk));
+    ok(`…and keeps every {placeholder}${badPh ? ` (not in: "${badPh[0]}")` : ""}`, !badPh);
+    I.setLanguage("uk");
+    L.missing = new Set();
+    const ukNames = R.SOCIAL_ARCHETYPES.map((a) => a.label.toLowerCase());
+    const ukLeak = Object.entries(R.ARCHETYPE_REACTIONS).flatMap(([, pool]) => pool.map((l) => UK[l] ?? "")).find((l) => ukNames.some((x) => l.toLowerCase().includes(x)));
+    ok(`Ukrainian: the natures, techniques and emotions speak it (${R.TECHNIQUES.appeal.label}, ${R.SOCIAL_ARCHETYPES[0].label}, ${R.EMOTIONS.frightened.label}) — and no reaction names a nature${ukLeak ? ` (leak: "${ukLeak}")` : ""}`,
+      R.TECHNIQUES.appeal.label === "Прохання" && R.SOCIAL_ARCHETYPES[0].label === "Тиран" && R.EMOTIONS.frightened.label === "Переляк" && !ukLeak);
+    const ukViews = [
+      await render(P, "talk", { _tTarget: "uiN", _tTech: "appeal", _tWitnesses: true }),
+      await render(P, "talk", { _tTarget: "uiN", _tTech: "read" }),
+      await render(P, "talk", { _tTarget: "uiN", _tResult: { technique: "bargain", grade: "success", total: 16, dc: 14, rel: "plain", paid: false, witnesses: true, audience: -2 } }),
+      await render(P, "profile"), await render(P, "bonds", { _expandedBonds: new Set([BS.find("uiP", "uiN").id]) }),
+      await render(N, "profile"), await render(N, "talk"),
+    ];
+    for (const c of ["start", "ap", "read", "emo", "natures", "bonds", "gm"]) ukViews.push(await render(P, "codex", { _codexCat: c }));
+    try { ukViews.push(new R.TSLSceneVisualizer({ mode: "scene" })._renderHTML()); } catch (err) { ukViews.push("ERR:" + err.stack); }
+    const cardsBefore = globalThis.__cards.length;
+    const ukP = pc("ukP"), ukN = npc("ukN", "duelist");
+    await roll(ukP, ukN, { technique: "bargain", size: "costly", witnesses: true }, [5], ["pay"]);
+    await roll(ukP, ukN, { technique: "appeal", size: "costly" }, [3, 2]);
+    await roll(ukP, ukN, { technique: "read" }, [17], ["o0", "o0"]);
+    await SAM.setKnown(ukN, { fear: true });
+    await roll(ukP, ukN, { technique: "blackmail", size: "costly" }, [2, 19]);
+    await roll(ukP, ukN, { technique: "deceive", size: "small" }, [18]);
+    await T.exposeLie(ukN, T.lies(ukN)[0]?.id);
+    await R.TSLEmotions.clear(ukP, R.TSLEmotions.of(ukP)[0]?.id ?? "angry", "act");
+    const ukCards = globalThis.__cards.slice(cardsBefore).map((m) => m.content).join("\n");
+    const ukAll = ukViews.join("\n");
+    const untranslated = [...L.missing];
+    ok(`Ukrainian: every window and Codex page, every card renders — nothing left in English${untranslated.length ? ` (e.g. "${untranslated[0]}")` : ""}`,
+      !bad(ukAll) && !bad(ukCards) && untranslated.length === 0 && /Кинути — Прохання/.test(ukAll) && /При свідках/.test(ukAll) && /Кожне слово — хід/.test(ukAll)
+      && /Струн/.test(ukCards) && /При свідках/.test(ukCards));
+    L.missing = null;
+    I.setLanguage("en");
+    ok(`…and back to English, the data texts too`, R.TECHNIQUES.appeal.label === "Appeal" && R.SOCIAL_ARCHETYPES[0].label === "Tyrant" && R.EMOTIONS.frightened.label === "Frightened"
+      && R.SOCIAL_ARCHETYPES[0].price.text.startsWith("Ask it as a favour"));
     canvas.tokens.placeables = [];
   }
 

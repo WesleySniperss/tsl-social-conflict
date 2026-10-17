@@ -82,6 +82,8 @@ class TSLStringStore {
   /**
    * Add `count` entries pre-labelled with the target actor's name, up to the
    * cap. Returns how many were actually added (0 when already holding 3).
+   * A hold is a relationship too: with no bond between them yet, they become
+   * Strangers — so the String shows in Bonds, where it is pulled or spent.
    */
   static async add(actorId, targetActorId, count = 1) {
     const targetActor = game.actors.get(targetActorId);
@@ -90,6 +92,8 @@ class TSLStringStore {
     for (let i = 0; i < count; i++) {
       if (await TSLStringStore.addEntry(actorId, label, targetActorId)) added++;
     }
+    if (added && targetActor && typeof TSLBondStore !== "undefined" && !TSLBondStore.find(actorId, targetActorId))
+      await TSLBondStore.add(actorId, targetActorId, { type: "stranger", attitude: 1 });
     return added;
   }
 
@@ -120,15 +124,15 @@ class TSLStringStore {
   static async pull(holder, target, mode = "strike") {
     if (!holder || !target) return false;
     if (!(await TSLStringStore.spend(holder.id, target.id))) {
-      ui.notifications?.warn?.("No Strings held on them.");
+      ui.notifications?.warn?.(_t("No Strings held on them."));
       return false;
     }
     const guard  = mode === "guard";
-    const label  = `String on ${target.name}`;
+    const label  = _t("String on {name}", { name: target.name });
     const changes = guard ? TSLStringStore._changes({ ac: 5 }, label)
                           : TSLStringStore._changes({ attack: 5, check: 5, save: 5 }, label);
     await holder.createEmbeddedDocuments("ActiveEffect", [{
-      name: guard ? `${label} — +5 AC` : `${label} — +5`,
+      name: guard ? _t("{label} — +5 AC", { label }) : `${label} — +5`,
       img: "icons/svg/net.svg",
       origin: `module.${STRING_FLAG}`,
       disabled: false,
@@ -137,8 +141,8 @@ class TSLStringStore {
       // HUD palette, so nobody toggles it by hand.
       statuses: ["tsl-string-pull"],
       description: guard
-        ? `+5 AC against ${target.name} — you know how they move. Ends after their next roll, or when your next turn starts.`
-        : `+5 to your next attack roll, ability check or saving throw — aimed at ${target.name}. Ends after your next roll.`,
+        ? _t("+5 AC against {name} — you know how they move. Ends after their next roll, or when your next turn starts.", { name: target.name })
+        : _t("+5 to your next attack roll, ability check or saving throw — aimed at {name}. Ends after your next roll.", { name: target.name }),
       flags: { [STRING_FLAG]: { stringPull: { mode: guard ? "guard" : "strike", targetId: target.id } } },
     }]);
     const left = TSLStringStore.countOn(holder.id, target.id);
@@ -146,10 +150,10 @@ class TSLStringStore {
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: holder }),
       content: `<div class="tsl-x-card tsl-x--good">
-        <div class="tsl-x-head"><i class="fas fa-masks-theater"></i><span class="tsl-x-title">A String is pulled</span></div>
+        <div class="tsl-x-head"><i class="fas fa-masks-theater"></i><span class="tsl-x-title">${_t("A String is pulled")}</span></div>
         <div class="tsl-x-who">${esc(holder.name)} → ${esc(target.name)}</div>
-        <div class="tsl-x-outcome">${guard ? "+5 AC against their next attack" : "+5 to the next attack, check or save against them"}</div>
-        <ul class="tsl-x-after"><li class="tsl-x-after-item">It's on the sheet now and ends by itself once used. ${left} String${left === 1 ? "" : "s"} left on them.</li></ul>
+        <div class="tsl-x-outcome">${guard ? _t("+5 AC against their next attack") : _t("+5 to the next attack, check or save against them")}</div>
+        <ul class="tsl-x-after"><li class="tsl-x-after-item">${_t("It's on the sheet now and ends by itself once used.")} ${_t("Strings left on them: {n}.", { n: left })}</li></ul>
       </div>`,
     });
     return true;
