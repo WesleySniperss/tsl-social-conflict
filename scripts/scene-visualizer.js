@@ -105,15 +105,19 @@ class TSLSceneVisualizer extends _TSLVizBase {
     on("updateActor", (actor, chg) => {
       if (foundry.utils.hasProperty(chg, `flags.${scope}`)) this._rerender();
     });
-    // States & Wounds are ActiveEffects.
+    // Emotions and scars are ActiveEffects — only ours move the map, not every
+    // condition and concentration check of a fight.
     const effectTouch = (effect) => {
-      if (effect?.parent?.documentName === "Actor") this._rerender();
+      if (effect?.parent?.documentName !== "Actor") return;
+      if (effect.flags?.[scope] || [...(effect.statuses ?? [])].some(s => String(s).startsWith("tsl-"))) this._rerender();
     };
     on("createActiveEffect", effectTouch);
     on("deleteActiveEffect", effectTouch);
     on("updateActiveEffect", effectTouch);
     // Scene population changes (only matter to the scene window, but harmless).
     on("canvasReady", () => this._rerender());
+    // The GM declares the scene public or private.
+    on("updateScene", (scene, chg) => { if (foundry.utils.hasProperty(chg ?? {}, `flags.${scope}`)) this._rerender(); });
     on("createToken", () => this._rerender());
     on("deleteToken", () => this._rerender());
     on("updateToken", (_doc, chg) => { if ("hidden" in chg) this._rerender(); });
@@ -255,10 +259,19 @@ class TSLSceneVisualizer extends _TSLVizBase {
       : (game.user.isGM
           ? `<button class="tsl-viz-mode" data-open-mode="world" data-tooltip="${_t("Open the full web — every relationship in the world")}"><i class="fas fa-globe"></i> ${_t("All bonds")}</button>`
           : "");
+    // A public scene (a court, a feast, Elysium): every ask here starts before
+    // witnesses. The GM sets it here; players see that it is.
+    const pub = !world && TSLTalk.publicScene();
+    const publicBtn = world ? "" : game.user.isGM
+      ? `<button class="tsl-viz-mode tsl-viz-public ${pub ? "on" : ""}" data-public data-tooltip="${foundry.utils.escapeHTML(pub
+          ? _t("The whole scene is before witnesses — a court, a feast, a crowd: every ask and gambit here starts before witnesses. Click to make it private.")
+          : _t("The scene is private. Click to put every ask and gambit here before witnesses — a court, a feast, a crowd."))}"><i class="fas ${pub ? "fa-users" : "fa-user-lock"}"></i> ${pub ? _t("Before witnesses") : _t("In private")}</button>`
+      : pub ? `<span class="tsl-viz-public on" data-tooltip="${foundry.utils.escapeHTML(_t("This scene is before witnesses — a court, a feast, a crowd."))}"><i class="fas fa-users"></i> ${_t("Before witnesses")}</span>` : "";
     const head = (subLabel) => `
       <div class="tsl-viz-head">
         <span class="tsl-viz-title"><i class="fas ${world ? "fa-globe" : "fa-people-arrows"}"></i> ${world ? _t("Web of Bonds") : _t("The Social Scene")}</span>
         <span class="tsl-viz-sub">${subLabel}</span>
+        ${publicBtn}
         ${modeBtn}
         <span class="tsl-viz-zoom" data-tooltip="${_t("Zoom the MAP (or scroll-wheel over it). Drag a portrait to rearrange.")}">
           <button class="tsl-viz-zoom-btn" data-zoom="out">−</button>
@@ -304,9 +317,22 @@ class TSLSceneVisualizer extends _TSLVizBase {
         data-tooltip="${tip}"><span class="tsl-viz-edge-type">${esc(e.label)}</span><span class="tsl-viz-edge-dots">${dots}</span></div>`;
     }).join("");
 
+    // ── Holds: who has Strings on whom in this view. The GM sees every hold;
+    //    a player, those of their own characters. ──
+    const inView = new Set(nodes.map(n => n.id));
+    const holdsOf = (id) => {
+      if (!game.user.isGM && !game.actors.get(id)?.isOwner) return null;
+      const by = new Map();
+      for (const e of TSLStringStore.getList(id)) if (inView.has(e.targetActorId)) by.set(e.targetActorId, (by.get(e.targetActorId) ?? 0) + 1);
+      return by.size ? by : null;
+    };
+
     // ── Nodes ──
     const nodeHtml = nodes.map(nd => {
       const p = this._nodePos[nd.id];
+      const holds = holdsOf(nd.id);
+      const holdsHtml = !holds ? "" : `<div class="tsl-viz-holds" data-tooltip="${esc(_t("Holds Strings on: {list}", {
+        list: [...holds].map(([t, n]) => `${game.actors.get(t)?.name ?? "?"} ${"●".repeat(n)}`).join(", ") }))}"><i class="fas fa-masks-theater"></i> ${[...holds.values()].reduce((a, b) => a + b, 0)}</div>`;
       const named = nd.named
         ? `<div class="tsl-viz-named" style="--c:${SOCIAL_TRIADS[nd.named.triad]?.color ?? "#9b6ee8"}" data-tooltip="${esc(_t("Figured out: {nature} — {description}", { nature: nd.named.label, description: nd.named.description }))}">${esc(nd.named.label)}</div>`
         : nd.seems
@@ -321,6 +347,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
         <img class="tsl-viz-portrait" src="${nd.img}" alt="">
         <div class="tsl-viz-name">${esc(nd.name)}</div>
         ${named}
+        ${holdsHtml}
         ${nd.emotions.length ? `<div class="tsl-viz-emos">${nd.emotions.map(id => `<img src="${EMOTIONS[id].img}" alt="" data-tooltip="${esc(`${EMOTIONS[id].label} — ${EMOTIONS[id].spoilsText}`)}">`).join("")}</div>` : ""}
       </div>`;
     }).join("");
@@ -360,6 +387,12 @@ class TSLSceneVisualizer extends _TSLVizBase {
     const el = html[0] ?? html;
 
     el.querySelector(".tsl-viz-refresh")?.addEventListener("click", () => this.render(true));
+
+    // The GM: this scene is public / private.
+    el.querySelector("[data-public]")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      TSLTalk.setPublicScene(!TSLTalk.publicScene());
+    });
 
     // Jump to the other window (scene ↔ world).
     el.querySelector(".tsl-viz-mode")?.addEventListener("click", (e) => {
@@ -477,7 +510,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
 
   /**
    * Animate a technique that just resolved, on BOTH windows that are open.
-   * { srcId, tgtId, technique, approach, job, grade, paid, rel, ended, granted }
+   * { srcId, tgtId, technique, approach, job, grade, paid, rel, ended, granted, witnesses }
    * — `grade` strong | success | failure | botch; `paid` whether a "yes,
    * but" was paid; `ended` when a proud one ended the talk; `granted` when
    * they did what was asked.
@@ -490,7 +523,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
     }
   }
 
-  _playPulse({ srcId, tgtId, technique = null, approach, job = null, grade, paid = null, rel = null, ended = false, granted = false } = {}) {
+  _playPulse({ srcId, tgtId, technique = null, approach, job = null, grade, paid = null, rel = null, ended = false, granted = false, witnesses = false } = {}) {
     const root = this.element?.[0];
     const stage = root?.querySelector(".tsl-viz-canvas");   // the scaled coord space
     const svg   = root?.querySelector(".tsl-viz-svg");
@@ -528,7 +561,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
     }
     if (tgt) {
       const ring = document.createElement("div");
-      ring.className = `tsl-viz-ring tsl-viz-ring--${kind}`;
+      ring.className = `tsl-viz-ring tsl-viz-ring--${kind}${witnesses ? " tsl-viz-ring--public" : ""}`;
       ring.style.left = `${tgt.x}px`;
       ring.style.top  = `${tgt.y}px`;
       stage.appendChild(ring);
@@ -543,8 +576,10 @@ class TSLSceneVisualizer extends _TSLVizBase {
         : grade === "success" ? (technique === "demand" ? _t("gives in") : paid ? _t("yes, for a price") : _t("a price refused"))
         : _t("no");
       const float = document.createElement("div");
-      float.className = `tsl-viz-float tsl-viz-float--${kind}`;
+      float.className = `tsl-viz-float tsl-viz-float--${kind}${witnesses ? " tsl-viz-float--public" : ""}`;
       float.textContent = label;
+      // Before witnesses: the crowd saw it.
+      if (witnesses) { const icon = document.createElement("i"); icon.className = "fas fa-users"; float.prepend(icon, " "); }
       float.style.left = `${tgt.x}px`;
       float.style.top  = `${tgt.y}px`;
       stage.appendChild(float);

@@ -48,7 +48,7 @@ What they say:
 | **Miss** | a miss | They push back their own way, and it hurts: you take their nature's **emotion** (anything but a Read). A proud nature, refused something big, closes the door for the scene. |
 | **Bad miss** | 5 under, or a 1 | As a miss, and they take a String on you as well. |
 
-**In private, or before witnesses.** Before an ask or a gambit, say who is watching. Before witnesses a yes binds them (a String on them: everyone saw it), and a no shames you (you lose face: Insecure). And the room tips the roll: some natures bend before an audience (+2), most harden (−2). Like the key and the wall, that shows only in the result, or in a Read.
+**In private, or before witnesses.** Before an ask or a gambit, say who is watching. Before witnesses a yes to something that costs them binds them (a String on them: everyone saw it), and a no shames you (you lose face: Insecure). For a whole court, the GM makes the scene public from the Social Scene's header, and every ask there starts before witnesses. And the room tips the roll: some natures bend before an audience (+2), most harden (−2). Like the key and the wall, that shows only in the result, or in a Read.
 
 After a miss you may burn a String on them for +5. Your roll adds:
 - the skill that fits your words;
@@ -124,7 +124,7 @@ The party keeps every answer. Once it knows the key and the wall, the nature is 
   - used as leverage for an ask against their interests, or for Blackmail;
   - **Pulled** in a fight. Strike gives +5 to your next attack, check or save against them. Guard gives +5 AC against their next attack. Either one is a real effect on your sheet that ends itself.
 
-  A String is a debt, a weakness seen, or a line crossed in front of others. You gain one on them when they give more than they meant to (a strong hit on something big), when they give before witnesses, when a strong Read sees where it hurts, and when they open up to you in play (the GM hands it over). They gain one on you when you win by Pressure or Blackmail, when your heart is refused, when your threat or lie is caught, when you pay a price that is a debt, and on a bad miss. At most one changes hands each way per roll. A String on someone you have no bond with makes you Strangers, so it shows in Bonds, ready to pull.
+  A String is a debt, a weakness seen, or a line crossed in front of others. You gain one on them when they give more than they meant to (a strong hit on something big), when they give something that costs them before witnesses, when a strong Read sees where it hurts, and when they open up to you in play (the GM hands it over). They gain one on you when you win by Pressure or Blackmail, when your heart is refused, when your threat or lie is caught, when you pay a price that is a debt, and on a bad miss. At most one changes hands each way per roll. A String on someone you have no bond with makes you Strangers, so it shows in Bonds, ready to pull.
 - **Bonds** are one shared relationship per pair, mirrored on both actors: a type (friend, lover, rival, enemy, sworn, confidant…) and a strength ●–●●●.
   - A bond gives +1 per ● on techniques of the approach it runs: Heart for love and family, Pressure for rivals and enemies, Reason for allies, oaths and trust.
   - Heart wins warm bonds (a stranger becomes a Friend).
@@ -137,9 +137,9 @@ The party keeps every answer. Once it knows the key and the wall, the nature is 
 - **Chronicle**: right-click a token, then the address-book button. It has four tabs:
   - *Profile*: an NPC's nature, the mask they show, dossier and Agenda for the GM, and what the party has learned for players; a player character's Leanings, emotions and scars;
   - *Bonds*;
-  - **Talk**: who you're talking to (your target on the map) and the face they show, the seven techniques, in private or before witnesses, your emotions and theirs, the roll. On an NPC's own sheet this tab is the GM's cheat sheet: key, wall, price, pushback, the lies they believe, and buttons to ask them as any character on the scene;
+  - **Talk**: who you're talking to (your target on the map) and the face they show, the Strings each of you holds on the other, the seven techniques, in private or before witnesses, your emotions and theirs, the roll. On an NPC's own sheet this tab is the GM's cheat sheet: key, wall, price, pushback, the lies they believe, and buttons to ask them as any character on the scene;
   - *Codex*: the in-game manual.
-- **Social Scene**: the **Social** button on the VTools toolbar. It is a live relationship map for everyone: portraits, bonds as lines, emotions, named natures and the faces NPCs show, and every roll animated as it happens. *This scene* is for the table; *All bonds* is for the GM.
+- **Social Scene**: the **Social** button on the VTools toolbar. It is a live relationship map for everyone: portraits, bonds as lines, emotions, named natures and the faces NPCs show, who holds Strings on whom (the GM sees all; a player, their own), and every roll animated as it happens. The GM can make the scene public here. *This scene* is for the table; *All bonds* is for the GM.
 
 ## Settings
 

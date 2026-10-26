@@ -44,7 +44,7 @@ class TSLSocket {
         if (typeof TSLSceneVisualizer !== "undefined") TSLSceneVisualizer.pulse(data);
         break;
       case "GM_ACTION":
-        if (game.user.isGM) TSLGMActions.handle(data);
+        if (game.user.isGM) TSLGMActions.handle(data, senderId);
         break;
       default:
         console.warn(`TSL | Unknown socket message type: ${type}`);
@@ -60,13 +60,32 @@ class TSLSocket {
 class TSLGMActions {
   static request(action, args = {}) {
     if (game.user.isGM) return TSLGMActions.handle({ action, args });
+    if (!game.users?.activeGM) {
+      ui.notifications?.warn?.(_t("A GM must be connected for that — nothing was spent."));
+      return false;
+    }
     TSLSocket.emit("GM_ACTION", { action, args });
+    return true;
   }
 
-  static async handle({ action, args }) {
+  /** The character a player's action speaks for — they must own it. */
+  static _actorOf(action, args) {
+    return action === "talkResolve" ? args?.srcId : action === "stringHurt" ? args?.holderId : null;
+  }
+
+  static async handle({ action, args }, senderId = null) {
     if (!game.user.isGM) return;
     // With two GM clients connected, only the designated active GM executes.
     if (game.users.activeGM && !game.users.activeGM.isSelf) return;
+    // A player acts only through a character they own.
+    const sender = senderId ? game.users.get(senderId) : null;
+    if (senderId && !sender?.isGM) {
+      const actor = game.actors.get(TSLGMActions._actorOf(action, args));
+      if (!sender || !actor?.testUserPermission?.(sender, "OWNER")) {
+        console.warn(`TSL | Refused "${action}" from ${sender?.name ?? senderId}: not their character.`);
+        return;
+      }
+    }
     try {
       switch (action) {
         case "talkResolve":

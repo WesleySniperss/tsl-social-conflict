@@ -62,6 +62,10 @@ const ilse  = cast("ilse", "Sister Ilse", url(`${PUB}/icons/svg/mystery-man.svg`
 const tok = (a) => ({ id: "t-" + a.id, actor: a, name: a.name, visible: true, document: { hidden: false, actorId: a.id }, texture: { src: a.img } });
 globalThis.canvas.tokens.placeables = [tok(lyra), tok(mira), tok(roell), tok(duke), tok(ilse)];
 game.users.filter = () => [{ id: "gm1", isGM: true }];
+// The river gate is a public place: the GM made the scene public (asks start before witnesses).
+const sceneFlags = { public: true };
+globalThis.canvas.scene.getFlag = (_s, k) => sceneFlags[k];
+globalThis.canvas.scene.setFlag = async (_s, k, v) => { sceneFlags[k] = v; };
 
 async function setup() {
   await SAM.setActorData(lyra, { triad: { power: 1, attention: 2, order: 1 }, notes: "Third daughter of a ruined house. Talks her way in, then out." });
@@ -173,6 +177,7 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
     _tResult: { technique: "appeal", grade: "success", total: 18, dc: 15, rel: "key", paid: true, witnesses: true, audience: -2 } }, "player"), 560, 1000);
   page("chronicle-talk-result-read", await chron(mira, "talk", { _tTarget: "duke",
     _tResult: { technique: "read", grade: "strong", total: 21, dc: 15, rel: "plain", questions: ["fear"], readString: true } }, "player"), 560, 1000);
+  page("chronicle-talk-holds", await chron(lyra, "talk", { _tTarget: "roell" }, "player"), 560, 760);
   page("chronicle-talk-notarget", await chron(lyra, "talk", {}, "player"), 560, 400);
   page("chronicle-talk-gm", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "bargain" }), 560, 1250);
   page("chronicle-talk-npc-gm", await chron(ilse, "talk"), 560, 1000);

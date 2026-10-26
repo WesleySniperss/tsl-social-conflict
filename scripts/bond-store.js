@@ -137,6 +137,22 @@ class TSLBondStore {
   }
 
   /**
+   * GM: an actor is gone — drop every bond and String anyone had toward it,
+   * so no "(missing actor)" rows linger. Returns how many entries went.
+   */
+  static async forget(goneId) {
+    if (!game.user.isGM || !goneId) return 0;
+    let n = 0;
+    for (const a of (game.actors?.contents ?? [])) {
+      const bonds = TSLBondStore.getList(a.id), keep = bonds.filter(b => b.targetActorId !== goneId);
+      if (keep.length !== bonds.length) { n += bonds.length - keep.length; await TSLBondStore._saveList(a.id, keep); }
+      const strings = a.getFlag?.(BOND_FLAG, "stringList") ?? [], kept = strings.filter(e => e.targetActorId !== goneId);
+      if (kept.length !== strings.length) { n += strings.length - kept.length; await a.setFlag(BOND_FLAG, "stringList", kept); }
+    }
+    return n;
+  }
+
+  /**
    * How a technique moves what one side feels for the other (`fromId`'s bond toward `toId`).
    *   warm  — the Heart won them over, or they crossed a line for you: +1 ● (a
    *           hostile bond eases −1 instead). No bond yet (or a Stranger): they

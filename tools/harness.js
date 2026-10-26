@@ -138,9 +138,14 @@ globalThis.ui = { notifications: { info() {}, warn() {}, error() {} } };
 globalThis.canvas = { tokens: { placeables: [], get: () => null }, stage: {}, app: {}, grid: {}, dimensions: {}, scene: { id: "scene1" } };
 
 const onceHooks = {};
+const hookFns = {};
+let hookSeq = 0;
 globalThis.Hooks = {
-  on: () => 1, once: (n, fn) => { (onceHooks[n] ??= []).push(fn); return 1; },
-  off: () => {}, callAll: () => {}, call: () => {},
+  on: (n, fn) => { (hookFns[n] ??= new Map()).set(++hookSeq, fn); return hookSeq; },
+  once: (n, fn) => { (onceHooks[n] ??= []).push(fn); return 1; },
+  off: (n, id) => { hookFns[n]?.delete(id); },
+  callAll: (n, ...a) => { for (const fn of [...(hookFns[n]?.values() ?? [])]) fn(...a); return true; },
+  call: () => true,
   _fire: (n, ...a) => { for (const fn of onceHooks[n] ?? []) try { fn(...a); } catch (e) {} },
 };
 globalThis.CONFIG = { statusEffects: [], A5E: { ROLL_MODE: { NORMAL: 0, ADVANTAGE: 1, DISADVANTAGE: -1 } } };
@@ -407,6 +412,13 @@ if (require.main === module) (async () => {
       r2.audience === -2 && r2.total === 13 && r2.grade === "failure" && TE.has(q, "frightened") && TE.has(q, "insecure") && /loses face/.test(lastCard()));
     const r3 = await roll(pc("wR"), t, { technique: "bargain", size: "costly" }, [8], ["pay"]);
     ok(`the same words in private: no audience, a hit`, r3.audience === 0 && r3.grade === "success" && SS.countOn("wR", "wT") === 0);
+    const sent = [], emit = game.socket.emit;
+    game.socket.emit = (_n, msg) => sent.push(msg);
+    const r4 = await roll(pc("wS"), d, { technique: "bargain", size: "small", witnesses: true }, [9], ["pay"]);
+    game.socket.emit = emit;
+    ok(`a small favour before witnesses binds nobody — no String (no farming); the Scene is told it was public`,
+      (r4.grade === "success" || r4.grade === "strong") && SS.countOn("wS", "wD") === 0 && !/Everyone saw/.test(lastCard())
+      && sent.some((m) => m.type === "SOCIAL_PULSE" && m.data.witnesses === true));
   }
 
   // ═══ Masks ══════════════════════════════════════════════════════════════════
@@ -574,6 +586,78 @@ if (require.main === module) (async () => {
     ok(`with no GM connected a player's roll is refused — nothing rolled, no String spent`, lost === null && SS.countOn("lP", "lN") === 1);
   }
 
+  // ═══ The relay refuses what isn't yours ═════════════════════════════════════
+  {
+    const p = pc("xP"), q = pc("xQ"), n = npc("xN", "broker");
+    const mallory = { id: "uMal", name: "Mallory", isGM: false };
+    const users = game.users.get;
+    game.users.get = (id) => (id === "uMal" ? mallory : users(id));
+    q.testUserPermission = (user) => user?.id !== "uMal";      // Mallory doesn't own xQ
+    const before = globalThis.__cards.length;
+    await R.TSLGMActions.handle({ action: "talkResolve", args: { srcId: "xQ", npcId: "xN", technique: "demand", job: "ask", size: "costly", grade: "strong", total: 30, dc: 14, dice: [20], natural: 20, rel: "plain", parts: [] } }, "uMal");
+    await SS.add("xQ", "xN", 1);
+    await R.TSLGMActions.handle({ action: "stringHurt", args: { holderId: "xQ", targetId: "xN", emotion: "angry" } }, "uMal");
+    ok(`a player can't act through someone else's character: no card, no String moved, no emotion`,
+      globalThis.__cards.length === before && SS.countOn("xQ", "xN") === 1 && !R.TSLEmotions.has(n, "angry"));
+    await R.TSLGMActions.handle({ action: "stringHurt", args: { holderId: "xP", targetId: "xN", emotion: "angry" } }, "uP-owner");
+    game.users.get = users;
+    const gm = game.users.activeGM, sentNoGm = [], emit = game.socket.emit;
+    game.users.activeGM = null; game.user.isGM = false;
+    game.socket.emit = (_n, m) => sentNoGm.push(m);
+    const res = R.TSLGMActions.request("stringHurt", { holderId: "xP", targetId: "xN", emotion: "angry" });
+    game.socket.emit = emit; game.user.isGM = true; game.users.activeGM = gm;
+    ok(`with no GM connected a Hurt is refused out loud — nothing sent, nothing spent`, res === false && sentNoGm.length === 0);
+  }
+
+  // ═══ The Chronicle refreshes only for what it shows ═════════════════════════
+  {
+    const p = pc("cP"), n = npc("cN", "hermit"), other = npc("cO", "broker");
+    const app = new R.SocialFencingApp(p);
+    let renders = 0;
+    app.rendered = true; app.render = () => { renders++; };
+    app._face("cN"); app._tab = "profile";
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    Hooks.callAll("updateActor", p, { system: { attributes: { hp: { value: 3 } } } });
+    Hooks.callAll("updateActor", other, { flags: { "tsl-social-conflict": { x: 1 } } });
+    await wait(90);
+    ok(`a hit point lost, or someone else's chronicle — no re-render`, renders === 0);
+    Hooks.callAll("updateActor", n, { flags: { "tsl-social-conflict": { socialFencing: {} } } });
+    Hooks.callAll("updateActor", p, { flags: { "tsl-social-conflict": { stringList: [] } } });
+    Hooks.callAll("createActiveEffect", { parent: n });
+    await wait(90);
+    ok(`a roll's three updates (knowledge, Strings, an emotion on them) become one render`, renders === 1);
+    const field = { matches: () => true };
+    globalThis.document = { activeElement: field };
+    app.element = [{ contains: (x) => x === field }];
+    Hooks.callAll("updateActor", n, { flags: { "tsl-social-conflict": { notes: "x" } } });
+    await wait(90);
+    const held = renders === 1 && app._stale === true;
+    delete globalThis.document; app.element = null; app._stale = false;
+    ok(`while someone types in this window, the refresh waits (a half-written note survives)`, held);
+    await app.close();
+    app.rendered = true;    // were the hooks really let go?
+    Hooks.callAll("updateActor", p, { flags: { "tsl-social-conflict": { a: 1 } } });
+    await wait(90);
+    ok(`a closed Chronicle stops listening`, renders === 1);
+  }
+
+  // ═══ A deleted actor leaves nothing behind ═════════════════════════════════
+  {
+    const p = pc("dP"), q = pc("dQ"), gone = npc("dGone", "tyrant");
+    await BS.add("dP", "dGone", { type: "rival", attitude: 2 });
+    await SS.add("dP", "dGone", 2); await SS.add("dQ", "dGone", 1); await SS.add("dQ", "dP", 1);
+    const app = new R.SocialFencingApp(p), other = new R.SocialFencingApp(q);
+    app.rendered = true; other.rendered = true; other.render = () => {};
+    other._face("dGone");
+    delete actorStore.dGone;
+    Hooks.callAll("deleteActor", gone);
+    const n = await BS.forget("dGone");
+    ok(`a deleted NPC takes its bonds and Strings with it (${n} entries: a bond, a Stranger, three Strings) — the rest stay`,
+      n === 5 && !BS.find("dP", "dGone") && !BS.find("dQ", "dGone") && SS.countOn("dP", "dGone") === 0 && SS.countOn("dQ", "dGone") === 0 && SS.countOn("dQ", "dP") === 1);
+    ok(`…and the Talk that faced them forgets them`, other._tTarget === null);
+    await other.close(); await app.close();
+  }
+
   // ═══ v3 migration ═══════════════════════════════════════════════════════════
   {
     const a = makeActor("migA");
@@ -655,6 +739,7 @@ if (require.main === module) (async () => {
     ok(`Talk (player): the person, ${techs} techniques with what each looks like, sizes with their DCs, the lever, the String, the roll line`, !bad(talk)
       && techs === 7 && /do it — or else/.test(talk) && /data-tech="read"/.test(talk) && /data-size="against"/.test(talk) && /DC 10/.test(talk)
       && /Their Desire/.test(talk) && /1 String on them/.test(talk) && /vs DC 14/.test(talk) && /Roll — Appeal/.test(talk) && /Nature unread/.test(talk) && !/Schemer/.test(talk));
+    ok(`Talk shows the holds between you — "You hold ●"`, /tsl-hold--mine/.test(talk) && /You hold <b>●<\/b>/.test(talk) && !/tsl-hold--theirs/.test(talk));
     ok(`no target list — the map, or your target`, !/<select class="tsl-t-target"/.test(talk) && /data-t-pick/.test(talk) && /Someone else/.test(talk));
     ok(`an ask offers who's watching — in private or before witnesses`, /data-wit="0"/.test(talk) && /data-wit="1"/.test(talk));
     const pub = await render(P, "talk", { _tTarget: "uiN", _tTech: "appeal", _tWitnesses: true });
@@ -708,6 +793,30 @@ if (require.main === module) (async () => {
     let vh = "";
     try { vh = viz._renderHTML(); } catch (err) { vh = "ERR:" + err.stack; }
     ok(`the Scene renders the cast, their bonds, what they feel — and the face they show`, !bad(vh) && /tsl-viz-node/.test(vh) && /Rival/.test(vh) && /tsl-viz-emos/.test(vh) && /seems: Caretaker/.test(vh));
+    ok(`…and who holds Strings on whom (the GM sees every hold)`, /tsl-viz-holds/.test(vh) && /Holds Strings on: Captain ●/.test(vh));
+    N.isOwner = false; game.user.isGM = false;
+    await SS.add("uiN", "uiP", 1);
+    const vp = new R.TSLSceneVisualizer({ mode: "scene" })._renderHTML();
+    game.user.isGM = true; N.isOwner = true;
+    ok(`…a player sees only their own characters' holds`, /Holds Strings on: Captain/.test(vp) && !/Holds Strings on: Lyra/.test(vp));
+
+    // ═══ A public scene ═══
+    const sceneFlags = {};
+    canvas.scene.getFlag = (sc, k) => sceneFlags[k];
+    canvas.scene.setFlag = async (sc, k, v) => { sceneFlags[k] = v; };
+    await T.setPublicScene(true);
+    const court = await render(P, "talk", { _tTarget: "uiN", _tTech: "appeal" });
+    const own = await render(P, "talk", { _tTarget: "uiN", _tTech: "appeal", _tWitnesses: false });
+    const gmViz = new R.TSLSceneVisualizer({ mode: "scene" })._renderHTML();
+    game.user.isGM = false;
+    const plViz = new R.TSLSceneVisualizer({ mode: "scene" })._renderHTML();
+    game.user.isGM = true;
+    ok(`the GM declares the scene public: every ask starts before witnesses (marked "the scene"); a speaker can still go private`,
+      T.publicScene() && /tsl-wit-btn on" data-wit="1"/.test(court) && /(the scene)/.test(court) && /tsl-wit-btn on" data-wit="0"/.test(own));
+    ok(`…the GM switches it on the Social Scene; players see that it's public`, /data-public/.test(gmViz) && /tsl-viz-public on/.test(gmViz)
+      && !/data-public/.test(plViz) && /tsl-viz-public on/.test(plViz));
+    await T.setPublicScene(false);
+    delete canvas.scene.getFlag; delete canvas.scene.setFlag;
 
     // ═══ Ukrainian ═══
     const I = R.TSLi18n, L = R.TSL_I18N, UK = R.TSL_UK;

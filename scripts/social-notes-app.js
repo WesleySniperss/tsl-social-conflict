@@ -80,28 +80,65 @@ class SocialFencingApp extends _SocialAppBase {
     this._tSkill     = null;
     this._tHelper    = null;
     this._tLever     = null;     // "desire" | "fear"
-    this._tWitnesses = false;    // in private, or before witnesses
+    this._tWitnesses = null;     // in private (false), before witnesses (true) — null: as the scene is
     this._tResult    = null;     // the last roll, shown where Roll was clicked
 
-    // Re-render when this character changes — or the NPC they're talking to
-    // (what the party knows lives on the NPC).
-    this._flagHook = Hooks.on("updateActor", (a) => {
-      if (a.id === this._actor.id || a.id === this._tTarget) this.render(false);
-    });
-    // Target an NPC's token on the map (T) and this character is talking to them.
-    this._targetHook = Hooks.on("targetToken", (user, token, targeted) => {
-      if (user?.id !== game.user.id || !targeted || !SocialArchetypeManager.isPC(this._actor)) return;
-      const a = token?.actor ? (game.actors.get(token.actor.id) ?? token.actor) : null;
-      if (!a || !TSLTalk.isNpc(a) || a.id === this._tTarget) return;
-      this._face(a.id);
-      if (this.rendered) this.render(false);
-    });
+    // Refresh when what this window shows changes: this character's chronicle,
+    // the NPC they face (what the party knows lives on the NPC), the emotions
+    // either one carries — not on every hit point lost in a fight. The numbers
+    // in Talk (skills, DC) follow the system data only while Talk is open.
+    const watched = (id) => !!id && (id === this._actor.id || id === this._tTarget);
+    const onEffect = (fx) => { if (watched(fx?.parent?.id)) this._refresh(); };
+    this._hooks = [
+      ["updateActor", (a, change = {}) => {
+        if (!watched(a?.id)) return;
+        if (foundry.utils.hasProperty(change, "flags.tsl-social-conflict") || "name" in change || "img" in change
+          || (this._tab === "talk" && "system" in change)) this._refresh();
+      }],
+      ["createActiveEffect", onEffect], ["updateActiveEffect", onEffect], ["deleteActiveEffect", onEffect],
+      // The GM declares the scene public or private; another scene comes up.
+      ["updateScene", (scene, change = {}) => {
+        if (scene?.id === globalThis.canvas?.scene?.id && foundry.utils.hasProperty(change, "flags.tsl-social-conflict")) this._refresh();
+      }],
+      ["canvasReady", () => this._refresh()],
+      // Their actor is deleted: this window closes; the one they faced — Talk forgets them.
+      ["deleteActor", (a) => {
+        if (a?.id === this._actor.id) this.close();
+        else if (a?.id && a.id === this._tTarget) { this._tTarget = null; this._refresh(); }
+      }],
+      // Target an NPC's token on the map (T) and this character is talking to them.
+      ["targetToken", (user, token, targeted) => {
+        if (user?.id !== game.user.id || !targeted || !SocialArchetypeManager.isPC(this._actor)) return;
+        const a = token?.actor ? (game.actors.get(token.actor.id) ?? token.actor) : null;
+        if (!a || !TSLTalk.isNpc(a) || a.id === this._tTarget) return;
+        this._face(a.id);
+        this._refresh();
+      }],
+    ].map(([name, fn]) => [name, Hooks.on(name, fn)]);
+  }
+
+  /**
+   * Re-render soon. A roll lands as several updates at once (knowledge,
+   * Strings, bonds, emotions) — they become one render. While someone types
+   * in a field of this window, it waits for them to leave it: a re-render
+   * would wipe the half-written text.
+   */
+  _refresh() {
+    if (!this.rendered) return;
+    const root = this.element?.[0] ?? this.element;
+    const typing = globalThis.document?.activeElement;
+    if (root?.contains?.(typing) && typing.matches?.("textarea, input[type='text']")) { this._stale = true; return; }
+    clearTimeout(this._refreshTimer);
+    this._refreshTimer = setTimeout(() => { this._refreshTimer = null; if (this.rendered) this.render(false); }, 60);
   }
 
   /** Face someone new: a fresh talk (no technique, no lever, private). */
   _face(id) {
-    this._tTarget = id; this._tTech = null; this._tLever = null; this._tResult = null; this._tWitnesses = false;
+    this._tTarget = id; this._tTech = null; this._tLever = null; this._tResult = null; this._tWitnesses = null;
   }
+
+  /** Who's watching now: the speaker's pick, or else what the GM set for the scene. */
+  _witnessesNow() { return this._tWitnesses ?? TSLTalk.publicScene(); }
 
   static get defaultOptions() {
     return foundry.utils.mergeObject(super.defaultOptions, {
@@ -437,7 +474,7 @@ class SocialFencingApp extends _SocialAppBase {
     const mine = this._emotionRow(this._actor, { label: _t("You"), canClear: ctx.canEdit, scars: true });
     return `
       ${mine ? `<section class="tsl-sec tsl-you">${mine}</section>` : ""}
-      ${tgt ? this._personPanel(tgt, ctx, pick) : `<section class="tsl-sec tsl-t-who">
+      ${tgt ? this._personPanel(tgt, { ...ctx, speaker: this._actor }, pick) : `<section class="tsl-sec tsl-t-who">
         <p class="tsl-note">${_t("<b>Who are you talking to?</b> Target their token on the map — hover it and press <b>T</b> — or pick it:")}</p>
         ${pick}
       </section>`}
@@ -510,6 +547,13 @@ class SocialFencingApp extends _SocialAppBase {
       return `<span class="tsl-fact ${k ? "" : "secret"}" data-tooltip="${esc(tip)}"><b>${short}</b> ${val}</span>`;
     }).join("");
 
+    // The holds between the speaker and them — Strings either way (Talk only).
+    const sp = ctx.speaker;
+    const mine = sp ? TSLStringStore.countOn(sp.id, npc.id) : 0, theirs = sp ? TSLStringStore.countOn(npc.id, sp.id) : 0;
+    const holds = !(mine || theirs) ? "" : `<div class="tsl-holds">${mine ? `<span class="tsl-hold tsl-hold--mine" data-tooltip="${esc(_t("Strings you hold on them — burn one for +5 after a miss, Pull it in a fight, or Hurt them with it."))}">
+        <i class="fas fa-masks-theater"></i> ${_t("You hold")} <b>${"●".repeat(mine)}</b></span>` : ""}${theirs ? `<span class="tsl-hold tsl-hold--theirs" data-tooltip="${esc(_t("Strings they hold on you — the GM can spend one to Hurt you, or Pull it against you in a fight."))}">
+        <i class="fas fa-masks-theater"></i> ${_t("They hold")} <b>${"●".repeat(theirs)}</b></span>` : ""}</div>`;
+
     // How they seem — the face they show, as a card (players, until it's seen through).
     const seems = !isGM && shown && !named && !(known.mask && mask)
       ? `<details class="tsl-x-card-open"><summary>${_t("How they seem")}</summary><p class="tsl-note">${_t("What they show the world — it may be a mask.")}</p>${this._archetypeCard(shown)}</details>` : "";
@@ -521,6 +565,7 @@ class SocialFencingApp extends _SocialAppBase {
         ${pick}
       </div>
       <div class="tsl-facts">${facts}</div>
+      ${holds}
       ${this._emotionRow(npc, { label: _t("Feeling"), canClear: isGM })}
       ${arch && named && !isGM ? `<details class="tsl-x-card-open"><summary>${_t("Their nature")}</summary>${this._archetypeCard(arch)}</details>` : seems}
     </section>`;
@@ -576,7 +621,7 @@ class SocialFencingApp extends _SocialAppBase {
 
     let body = `<p class="tsl-note tsl-t-caption">${_t("Say your line — then pick what it really is: <b>ask</b> for something, go <b>all in</b>, or <b>read</b> them first.")}</p>`;
     if (this._tTech) {
-      const pv = TSLTalk.preview(src, npc, { technique: this._tTech, size: this._tSize, skill: this._tSkill, helperId: this._tHelper, lever: this._tLever, witnesses: this._tWitnesses });
+      const pv = TSLTalk.preview(src, npc, { technique: this._tTech, size: this._tSize, skill: this._tSkill, helperId: this._tHelper, lever: this._tLever, witnesses: this._witnessesNow() });
       const tech = TECHNIQUES[pv.technique];
       const sizes = !pv.sized ? "" : `<div class="tsl-sizes">${ASK_ORDER.map(id => {
         const a = ASK_SIZES[id];
@@ -584,12 +629,13 @@ class SocialFencingApp extends _SocialAppBase {
           data-tooltip="${esc(`${a.label} — ${a.hint}.`)}"><b>${esc(a.short)}</b><span>${_t("DC {dc}", { dc: TSLTalk.dcFor(npc, id).dc })}</span></button>`;
       }).join("")}</div>`;
       // Who's watching: known only as far as the party has read how they take an audience.
-      const aud = known.audience && arch ? ` <i class="tsl-wit-known">(${tslAudienceText(arch.audience ?? 0, { short: true })})</i>` : "";
+      const aud = (known.audience && arch ? ` <i class="tsl-wit-known">(${tslAudienceText(arch.audience ?? 0, { short: true })})</i>` : "")
+        + (this._tWitnesses === null && pv.witnesses ? ` <i class="tsl-wit-known" data-tooltip="${esc(_t("This scene is before witnesses — a court, a feast, a crowd."))}">(${_t("the scene")})</i>` : "");
       const witness = !pv.sized ? "" : `<div class="tsl-wit">
         <button type="button" class="tsl-wit-btn ${pv.witnesses ? "" : "on"}" data-wit="0"
           data-tooltip="${esc(_t("Just you, them, and whoever helps. Nothing more rides on it."))}"><i class="fas fa-user-lock"></i> ${_t("In private")}</button>
         <button type="button" class="tsl-wit-btn ${pv.witnesses ? "on" : ""}" data-wit="1"
-          data-tooltip="${esc(_t("Before witnesses — a court, a crowd, their own people. A yes binds them: everyone saw it — a String on them. A no shames you: you lose face — Insecure. And some natures bend before an audience while others harden: you'll see which in the result, or read it first."))}"><i class="fas fa-users"></i> ${_t("Before witnesses")}${aud}</button>
+          data-tooltip="${esc(_t("Before witnesses — a court, a crowd, their own people. A yes to something that costs them binds them: everyone saw it — a String on them. A no shames you: you lose face — Insecure. And some natures bend before an audience while others harden: you'll see which in the result, or read it first."))}"><i class="fas fa-users"></i> ${_t("Before witnesses")}${aud}</button>
       </div>`;
       const caption = `<b>${esc(tech.label)}</b> — ${esc(tech.line)}. ${esc(tech.rule)}${pv.sized ? ` <i>${esc(ASK_SIZES[pv.size].label)}: ${esc(ASK_SIZES[pv.size].hint)}.</i>` : ""}`;
       const skillOpts = [...tech.skills, ...SKILL_ORDER.filter(k => !tech.skills.includes(k))].map(k => {
@@ -750,7 +796,7 @@ class SocialFencingApp extends _SocialAppBase {
         <p class="tsl-cx-small">${_t("An ask against them needs leverage: their Desire or Fear, a String on them, or a deep bond (●●) that runs your way. Going all in brings its own.")}</p>
         <h3>${_t("In private, or before witnesses")}</h3>
         <p>${_t("Before an ask or a gambit, say who is watching. Before witnesses, everything weighs more:")}</p>
-        ${li(_t("<b>A yes binds them</b> — everyone saw them give it: a String on them."),
+        ${li(_t("<b>A yes binds them</b> — for anything that costs them, everyone saw them give it: a String on them."),
              _t("<b>A no shames you</b> — you lose face: you're Insecure."),
              _t("<b>The room tips the roll</b> — some natures bend before an audience (+2: an Idol performs generosity, a Duelist must answer a challenge), others harden (−2: a Tyrant never bends where their people can see). Like the key and the wall, it shows in the result — or read it first."))}
         <h3>${_t("Your roll")}</h3>
@@ -820,7 +866,7 @@ class SocialFencingApp extends _SocialAppBase {
              _t("Holding one is <b>leverage</b> — for an ask against their interests, or for Blackmail."))}
         <h3>${_t("How you get a hold on them")}</h3>
         ${li(_t("<b>They give more than they meant to</b> — a strong hit on an ask or a gambit for something big."),
-             _t("<b>They give before witnesses</b> — any yes in front of others: they can't take it back."),
+             _t("<b>They give before witnesses</b> — a yes to something that costs them, in front of others: they can't take it back."),
              _t("<b>You see where it hurts</b> — a strong Read: keep a String instead of a second answer."),
              _t("<b>They open up to you</b> — a confession, a secret, a moment of weakness in play: the GM hands you one (Bonds → +)."))}
         <h3>${_t("How they get one on you")}</h3>
@@ -853,7 +899,7 @@ class SocialFencingApp extends _SocialAppBase {
              _t("<b>Reward the heart:</b> when an NPC opens up to a character — a confession, a secret, a weakness shown — give that character a String on them (Bonds → +). The same works the other way."))}
         <h3>${_t("The court")}</h3>
         ${li(_t("<b>Give them a face.</b> In an NPC's Profile, set the <b>Mask</b>: their own nature for an open face, another for a mask, nothing for someone unreadable. The party sees it in Talk and on the Scene as “seems: …”."),
-             _t("<b>Say who's watching.</b> A hall, a feast, a crowd, their own people — the player sets “before witnesses”; hold them to it. A word in a back room is private."),
+             _t("<b>Say who's watching.</b> A hall, a feast, a crowd, their own people — the player sets “before witnesses”; hold them to it. For a whole court, make the scene public (the Social Scene's header): every ask there starts before witnesses. A word in a back room is private."),
              _t("<b>Play the room.</b> A Tyrant never bends where their people can see; an Idol performs generosity for an audience. The card's “before witnesses” line says how each takes it."),
              _t("<b>Every favour is a debt.</b> Strings are the court's currency: let NPCs collect them, trade on them, and call them in when it hurts most."))}
         <h3>${_t("Content")}</h3>
@@ -869,7 +915,7 @@ class SocialFencingApp extends _SocialAppBase {
              _t("<b>All in</b> — a gamble that works on anything, and leaves a mark: <b>Blackmail</b> (their Fear), <b>Seduce</b> (their Desire), <b>Deceive</b> (a lie)."),
              _t("<b>Read them</b> — learn something for the whole party: what they want, what they fear, what opens them, what closes them, their price — and whether the face they show is a mask."))}
         <h3>${_t("In private, or before witnesses")}</h3>
-        <p>${_t("Say who is watching. <b>Before witnesses</b> a yes binds them — a String on them — and a no shames you: Insecure. Some natures bend before an audience; others harden.")}</p>
+        <p>${_t("Say who is watching. <b>Before witnesses</b> a yes to anything that costs them binds them — a String on them — and a no shames you: Insecure. Some natures bend before an audience; others harden.")}</p>
         <h3>${_t("What winning costs")}</h3>
         <ul>${APPROACH_ORDER.map(id => `<li><b>${esc(APPROACHES[id].label)}</b> — ${esc(APPROACHES[id].cost)}</li>`).join("")}</ul>
         <h3>${_t("What they say")}</h3>
@@ -892,6 +938,8 @@ class SocialFencingApp extends _SocialAppBase {
 
   _bindListeners(el) {
     if (!el) return;
+    // A refresh held back while typing runs once the field is left.
+    el.addEventListener("focusout", () => { if (this._stale) { this._stale = false; setTimeout(() => this._refresh(), 0); } });
     const on = (sel, ev, fn) => el.querySelectorAll(sel).forEach(n => n.addEventListener(ev, (e) => fn(e, n)));
     const canEdit = game.user.isGM || this._actor.isOwner;
 
@@ -931,7 +979,7 @@ class SocialFencingApp extends _SocialAppBase {
       const npc = game.actors.get(this._tTarget);
       if (!npc || !this._tTech) return;
       n.disabled = true;
-      const p = await TSLTalk.roll(this._actor, npc, { technique: this._tTech, size: this._tSize, skill: this._tSkill, helperId: this._tHelper, lever: this._tLever, witnesses: this._tWitnesses });
+      const p = await TSLTalk.roll(this._actor, npc, { technique: this._tTech, size: this._tSize, skill: this._tSkill, helperId: this._tHelper, lever: this._tLever, witnesses: this._witnessesNow() });
       if (p) {
         this._tResult = { technique: p.technique, grade: p.grade, total: p.total, dc: p.dc, rel: p.rel, paid: p.paid,
           questions: p.questions, readString: p.readString, witnesses: p.witnesses, audience: p.audience };
@@ -1169,8 +1217,8 @@ class SocialFencingApp extends _SocialAppBase {
 
   async close(options = {}) {
     this._stopPick();
-    Hooks.off("updateActor", this._flagHook);
-    Hooks.off("targetToken", this._targetHook);
+    for (const [name, id] of this._hooks ?? []) Hooks.off(name, id);
+    clearTimeout(this._refreshTimer);
     SocialFencingDialog._instances.delete(this._actor.id);
     return super.close(options);
   }

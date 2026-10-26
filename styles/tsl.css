@@ -398,10 +398,10 @@
   color: #f0dfc8; font-family: "EB Garamond", "Signika", serif; padding: 0; overflow: hidden;
 }
 .tsl-viz-root { display: flex; flex-direction: column; height: 100%; padding: 8px 10px 10px; box-sizing: border-box; overflow: hidden; }
-.tsl-viz-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex: 0 0 auto; flex-wrap: nowrap; }
-.tsl-viz-title { font-family: "Cinzel", serif; font-size: 15px; color: #f0dfc8; letter-spacing: 0.5px; white-space: nowrap; }
+.tsl-viz-head { display: flex; align-items: center; gap: 4px 6px; margin-bottom: 6px; flex: 0 0 auto; flex-wrap: wrap; }   /* the buttons wrap before the counts are cut */
+.tsl-viz-title { font-family: var(--tsl-title, "Cinzel", serif); font-size: 15px; color: #f0dfc8; letter-spacing: 0.5px; white-space: nowrap; }
 .tsl-viz-title i { color: #e8557a; margin-right: 4px; }
-.tsl-viz-sub { font-size: 12px; color: #a89078; flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tsl-viz-sub { font-size: 12px; color: #a89078; flex: 1 1 150px; min-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tsl-viz .tsl-viz-mode, .tsl-viz .tsl-viz-refresh, .tsl-viz .tsl-viz-zoom-btn {
   width: auto; height: 26px; min-height: 0; margin: 0; padding: 0 8px; line-height: 1; flex: 0 0 auto;
   display: inline-flex; align-items: center; justify-content: center; gap: 5px;
@@ -649,3 +649,20 @@
   border-top: 1px solid rgba(224, 180, 94, 0.35); border-bottom: 1px solid rgba(224, 180, 94, 0.35);
   background: linear-gradient(90deg, transparent, rgba(224, 180, 94, 0.08), transparent);
 }
+
+/* the holds between the speaker and them (Talk); who holds whom (the Scene) */
+.tsl-holds { display: flex; flex-wrap: wrap; gap: 6px; }
+.tsl-hold { display: inline-flex; align-items: baseline; gap: 5px; font-size: 12px; padding: 1px 8px; border-radius: 10px; border: 1px solid; background: rgba(0, 0, 0, 0.22); }
+.tsl-hold b { font-weight: 400; letter-spacing: 1px; }
+.tsl-hold--mine { color: var(--tsl-sway); border-color: rgba(224, 180, 94, 0.45); }
+.tsl-hold--theirs { color: #e0786e; border-color: rgba(208, 87, 77, 0.5); }
+.tsl-viz-holds { margin-top: 2px; font-size: 10px; line-height: 1.4; color: var(--tsl-sway); background: rgba(0, 0, 0, 0.65); border: 1px solid rgba(224, 180, 94, 0.5); border-radius: 8px; padding: 0 6px; white-space: nowrap; }
+.tsl-viz-holds i { font-size: 0.9em; }
+.tsl-viz-ring--public { width: 84px; height: 84px; border-style: double; border-width: 5px; }
+.tsl-viz-float--public i { font-size: 0.85em; opacity: 0.9; }
+
+/* the GM's public / private switch for the scene (and the players' sign of it) */
+.tsl-viz .tsl-viz-public { color: var(--tsl-dim); }
+.tsl-viz .tsl-viz-public.on { color: var(--tsl-sway); border-color: rgba(224, 180, 94, 0.6); background: rgba(224, 180, 94, 0.12); }
+span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; border: 1px solid; white-space: nowrap; }
+.tsl-x-tag--public { color: var(--tsl-sway); border: 1px solid rgba(224, 180, 94, 0.5); background: rgba(224, 180, 94, 0.1); margin-left: 4px; }

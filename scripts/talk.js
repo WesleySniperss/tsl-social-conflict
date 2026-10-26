@@ -32,8 +32,8 @@
  *           (emotions.js): every miss but a Read costs one.
  *   AUDIENCE — what witnesses do to an ask: some natures bend before an
  *           audience (+2), some harden (−2). Applied after the roll, like the
- *           key and the wall. Before witnesses a yes binds them (a String on
- *           them), and a no shames you (Insecure).
+ *           key and the wall. Before witnesses a yes to something that costs
+ *           them binds them (a String on them), and a no shames you (Insecure).
  *   MASK  — the nature they show (Nature / Demeanor): what the party sees
  *           until it reads through it, or names who they really are.
  *
@@ -224,6 +224,16 @@ class TSLTalk {
   }
 
   static isNpc(actor) { return !!actor && !SocialArchetypeManager.isPC(actor); }
+
+  /**
+   * The GM declared this scene public — a court, a feast, Elysium: every ask
+   * and gambit here starts before witnesses (a speaker can still go private).
+   */
+  static publicScene(scene = globalThis.canvas?.scene) { return !!scene?.getFlag?.(TALK_SCOPE, "public"); }
+
+  static async setPublicScene(on, scene = globalThis.canvas?.scene) {
+    if (game.user.isGM && scene) await scene.setFlag(TALK_SCOPE, "public", !!on);
+  }
 
   /** The truth: is this approach their key, their wall, or plain ground? */
   static relation(npc, approach) {
@@ -711,8 +721,9 @@ class TSLTalk {
       }
     }
 
-    // A yes before witnesses binds them: everyone saw them give it.
-    if (granted && witnesses && !stringOnThem) stringOnThem = _t("Everyone saw them give it");
+    // A yes before witnesses binds them: everyone saw them give it — when it
+    // cost them something (a small favour in public binds nobody: no farming).
+    if (granted && witnesses && big && !stringOnThem) stringOnThem = _t("Everyone saw them give it");
     if (stringOnThem) {
       const n = await TSLStringStore.add(src.id, npc.id, 1);
       if (n) note(_t("{why} — {you} takes a <b>String</b> on them.", { why: stringOnThem, you }), "good");
@@ -765,7 +776,7 @@ class TSLTalk {
       content: TSLTalk._card({ p, tech, src, npc, rel, lines, reaction }),
       rolls,
     });
-    TSLTalk._pulse({ srcId: src.id, tgtId: npc.id, technique: tech.id, approach: ap, job, grade: p.grade, paid: p.paid, rel, ended, granted });
+    TSLTalk._pulse({ srcId: src.id, tgtId: npc.id, technique: tech.id, approach: ap, job, grade: p.grade, paid: p.paid, rel, ended, granted, witnesses });
   }
 
   static _bondLine(a, b, s) {
@@ -785,7 +796,7 @@ class TSLTalk {
     const esc = foundry.utils.escapeHTML;
     const ap = APPROACHES[tech.approach];
     const sized = tech.job === "ask" || tech.job === "gambit";
-    const title = `${ap ? `${ap.label} · ` : ""}${tech.label}${sized ? ` · ${ASK_SIZES[p.size]?.short ?? ""}` : ""}${p.witnesses ? ` · ${_t("Before witnesses")}` : ""}`;
+    const title = `${ap ? `${ap.label} · ` : ""}${tech.label}${sized ? ` · ${ASK_SIZES[p.size]?.short ?? ""}` : ""}`;
     const tag = rel === "key" ? `<span class="tsl-x-tag tsl-x-tag--key"><i class="fas fa-key"></i> ${_t("Key")}</span>`
       : rel === "wall" ? `<span class="tsl-x-tag tsl-x-tag--wall"><i class="fas fa-door-closed"></i> ${_t("Wall")}</span>` : "";
     let kept = false;
@@ -804,7 +815,7 @@ class TSLTalk {
       + (p.audience ? pill(p.audience, _t("before witnesses")) : "")
       + (p.stringSpent ? pill(STRING_SPEND_BONUS, _t("String")) : "");
     return `<div class="tsl-x-card tsl-x--${p.grade}">
-      <div class="tsl-x-head"><i class="fas ${ap?.icon ?? TECH_JOBS[tech.job]?.icon ?? "fa-comments"}"></i><span class="tsl-x-title">${esc(title)}</span>${tag}</div>
+      <div class="tsl-x-head"><i class="fas ${ap?.icon ?? TECH_JOBS[tech.job]?.icon ?? "fa-comments"}"></i><span class="tsl-x-title">${esc(title)}</span>${tag}${p.witnesses ? `<span class="tsl-x-tag tsl-x-tag--public" data-tooltip="${esc(_t("Before witnesses"))}"><i class="fas fa-users"></i></span>` : ""}</div>
       <div class="tsl-x-who">${esc(src.name)} → ${esc(npc.name)}</div>
       <div class="tsl-x-roll">${diceHTML}
         <span class="tsl-x-mod">${p.systemRoll ? _t("system check") : `${(base?.value ?? 0) >= 0 ? "+" : "−"}${Math.abs(base?.value ?? 0)} ${esc(SKILL_LABELS[p.skill] ?? p.skill)}`}</span>

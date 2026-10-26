@@ -154,6 +154,11 @@ Hooks.once("ready", () => {
   catch (err) { console.error("TSL | String pull hooks failed:", err); }
   try { SocialHUD.register(); }
   catch (err) { console.error("TSL | SocialHUD failed:", err); }
+  // An actor deleted from the world takes its bonds and Strings with it (the active GM tidies up).
+  Hooks.on("deleteActor", (actor) => {
+    if (!game.user.isGM || (game.users.activeGM && !game.users.activeGM.isSelf)) return;
+    TSLBondStore.forget(actor.id).catch(err => console.warn("TSL | bond cleanup failed:", err));
+  });
 
   console.log("TSL | Ready");
 });
