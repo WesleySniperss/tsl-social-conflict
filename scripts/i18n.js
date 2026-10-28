@@ -61,13 +61,13 @@ class TSLi18n {
     const trMap = (map) => tr(map, [...new Set([...Object.keys(map).filter(k => typeof map[k] === "string"), ...Object.keys(map.__en ?? {})])]);
     const vals = (o) => (o ? Object.values(o) : []);
 
-    if (typeof APPROACHES !== "undefined") vals(APPROACHES).forEach(a => tr(a, ["label", "gist", "examples", "cost"]));
+    if (typeof APPROACHES !== "undefined") vals(APPROACHES).forEach(a => tr(a, ["label", "gist", "short", "examples", "cost"]));
     if (typeof SOCIAL_TRIADS !== "undefined") vals(SOCIAL_TRIADS).forEach(t => tr(t, ["label", "horney", "hint"]));
     if (typeof SOCIAL_ARCHETYPES !== "undefined") for (const a of SOCIAL_ARCHETYPES) {
       tr(a, ["label", "keyText", "wallText", "press", "pressedWhy", "audienceWhy", "description", "psych", "craves", "dreads"]);
       tr(a.price, ["text"]);
     }
-    if (typeof TECHNIQUES !== "undefined") vals(TECHNIQUES).forEach(t => tr(t, ["label", "line", "rule"]));
+    if (typeof TECHNIQUES !== "undefined") vals(TECHNIQUES).forEach(t => tr(t, ["label", "line", "win", "miss", "rule"]));
     if (typeof TECH_JOBS !== "undefined") vals(TECH_JOBS).forEach(j => tr(j, ["label", "hint"]));
     if (typeof ASK_SIZES !== "undefined") vals(ASK_SIZES).forEach(s => tr(s, ["label", "short", "hint"]));
     if (typeof READ_QUESTIONS !== "undefined") vals(READ_QUESTIONS).forEach(q => tr(q, ["label", "short"]));

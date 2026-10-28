@@ -85,29 +85,46 @@ const JOB_ORDER = ["ask", "gambit", "read"];
 
 /**
  * The seven techniques: three asks and three gambits (one per approach), and
- * the Read. `line` — what it looks like in a scene (shown under its name);
- * `rule` — what it does.
+ * the Read. `line` — what it looks like in a scene; `win` / `miss` — what
+ * happens either way, in plain words (shown before the roll); `rule` — the
+ * whole of it. `skills` — the ONE skill it rolls: the D&D skill it naturally
+ * is (Demand is Intimidation, an Appeal is Persuasion…). No choosing, no
+ * "best of": a party plays to its strengths — the one who frightens presses.
  */
 const TECHNIQUES = {
-  demand:    { approach: "pressure", job: "ask",    label: "Demand",    skills: ["itm", "per", "ath", "dec"],
+  demand:    { approach: "pressure", job: "ask",    label: "Demand",    skills: ["itm"],
     line: "do it — or else",
+    win: "they give in — no price, but they remember who made them: the bond sours, and they take a String on you",
+    miss: "they push back their own way — you take their emotion (−2 until you act it out)",
     rule: "Hit: they give in — no price, but they remember it: the bond sours, and they take a String on you." },
-  appeal:    { approach: "heart",    job: "ask",    label: "Appeal",    skills: ["per", "prf", "ins"],
+  appeal:    { approach: "heart",    job: "ask",    label: "Appeal",    skills: ["per"],
     line: "ask from the heart",
+    win: "they do it — for their price on a plain hit — and the bond warms",
+    miss: "you take their emotion, and they take a String on you: you showed your heart",
     rule: "Hit: they do it, and the bond warms — a plain hit for their price. Miss: you showed your heart — a String on you." },
-  bargain:   { approach: "reason",   job: "ask",    label: "Bargain",   skills: ["per", "inv", "ins", "his"],
+  bargain:   { approach: "reason",   job: "ask",    label: "Bargain",   skills: ["per"],
     line: "make it worth their while",
+    win: "a deal — on your terms on a strong hit, for their price on a plain one",
+    miss: "you take their emotion; nothing else lingers",
     rule: "Hit: a deal — on your terms on a strong hit, for their price on a plain one. Nothing lingers." },
-  blackmail: { approach: "pressure", job: "gambit", label: "Blackmail", skills: ["itm", "dec", "inv"], needs: "fear",
+  blackmail: { approach: "pressure", job: "gambit", label: "Blackmail", skills: ["itm"], needs: "fear",
     line: "their Fear, or your hold on them",
+    win: "they do it, Frightened of you — your enemy now, and they'll pay you back (a String on you)",
+    miss: "they call your bluff — enemies all the same: their emotion and a String on you",
     rule: "Needs their Fear or a String on them. Hit: they do it, Frightened of you — your enemy now, and they'll pay you back (a String on you). Miss: they call your bluff — enemies all the same, and a String on you." },
-  seduce:    { approach: "heart",    job: "gambit", label: "Seduce",    skills: ["per", "prf", "dec"], needs: "desire",
+  seduce:    { approach: "heart",    job: "gambit", label: "Seduce",    skills: ["per"], needs: "desire",
     line: "their Desire, or what's between you",
+    win: "they do it for you — the bond deepens",
+    miss: "heartbreak — the bond cools, you're Hopeless, and a String on you",
     rule: "Needs their Desire or a bond of ●●. Hit: they do it for you — the bond deepens. Miss: heartbreak — the bond cools, a String on you, and you're Hopeless." },
   deceive:   { approach: "reason",   job: "gambit", label: "Deceive",   skills: ["dec"],
     line: "a lie that works — until it doesn't",
+    win: "they believe it and act on it — the lie stays on record until the GM brings it out",
+    miss: "caught — their emotion, a String on you, and the door closes",
     rule: "Hit: they believe it and act — the lie stays on record until the GM brings it out. Miss: caught — a String on you, and the door closes." },
-  read:      { approach: null,       job: "read",   label: "Read them", skills: ["ins", "inv", "his"],
+  read:      { approach: null,       job: "read",   label: "Read them", skills: ["ins"],
+    win: "one answer about them for the whole party — on a strong hit, a second answer or a String on them",
+    miss: "they notice, and won't let you read them again this scene — no emotion; on a bad miss they read you instead (a String on you)",
     line: "watch, listen, ask the one right question",
     rule: "Hit: one answer about them for the whole party. Strong hit: a second answer — or a String on them instead (you saw where it hurts). Miss: they notice — but it costs no emotion. Bad miss: they read you instead (a String on you)." },
 };
@@ -154,10 +171,14 @@ class TSLTalk {
     try { return game.settings.get(TALK_SCOPE, key) ?? fallback; } catch { return fallback; }
   }
 
-  /** Roll through the SYSTEM's own skill dialog (A5E) when the setting is on. */
-  static usesSystemDialog(actor) {
-    return !!TSLTalk._setting("useSystemRollDialog", true) && typeof actor?.rollSkillCheck === "function";
-  }
+  /**
+   * The system rolls the check itself where it can (a5e: its expertise dice
+   * and effects count) — without its dialog, unless the table wants it (the
+   * dialog asks for an ability, advantage, extra dice: questions the technique
+   * already answered).
+   */
+  static usesSystemRoll(actor) { return typeof actor?.rollSkillCheck === "function"; }
+  static showsSystemDialog() { return !!TSLTalk._setting("systemRollDialog", false); }
 
   // ── Numbers ───────────────────────────────────────────────────────────────
 
@@ -235,7 +256,42 @@ class TSLTalk {
     if (game.user.isGM && scene) await scene.setFlag(TALK_SCOPE, "public", !!on);
   }
 
-  /** The truth: is this approach their key, their wall, or plain ground? */
+  /**
+   * How this person is KNOWN to take an approach — "key" (advantage), "wall"
+   * (disadvantage), "plain" (a normal roll, for sure) or "unknown". Null for a
+   * Read (no approach). Only what the party has learned; never the truth.
+   */
+  static knownRelation(npc, approach) {
+    if (!APPROACHES[approach]) return null;
+    const arch = SocialArchetypeManager.getArchetype(npc);
+    const k = SocialArchetypeManager.getKnown(npc);
+    if (arch && k.key && arch.key === approach) return "key";
+    if (arch && k.wall && arch.wall === approach) return "wall";
+    return k.key && k.wall ? "plain" : "unknown";
+  }
+
+  /** The chance of a hit with d20 + mod against the DC: a 20 always hits, a 1 never does; advantage keeps the better of two dice. */
+  static hitChance(mod, dc, mode = "normal") {
+    let n = 0;
+    for (let f = 1; f <= 20; f++) if (f === 20 || (f !== 1 && f + mod >= dc)) n++;
+    const p = n / 20;
+    return mode === "adv" ? 1 - (1 - p) ** 2 : mode === "dis" ? p * p : p;
+  }
+
+  /**
+   * Your odds with a technique, from what the party knows: the visible math,
+   * advantage on their known key, disadvantage on their known wall, and the
+   * room once the party knows how they take witnesses. { pv, rel, mode, p }.
+   */
+  static chance(src, npc, opts = {}) {
+    const pv = TSLTalk.preview(src, npc, opts);
+    const rel = TSLTalk.knownRelation(npc, pv.approach);
+    const mode = rel === "key" ? "adv" : rel === "wall" ? "dis" : "normal";
+    const audience = pv.witnesses && SocialArchetypeManager.getKnown(npc).audience ? SocialArchetypeManager.audienceOf(npc) : 0;
+    return { pv, rel, mode, p: TSLTalk.hitChance(pv.mod + audience, pv.dc, mode) };
+  }
+
+  /** The truth: is this approach their key, their wall, or neither (a normal roll)? */
   static relation(npc, approach) {
     const arch = SocialArchetypeManager.getArchetype(npc);
     if (!arch || !APPROACHES[approach]) return "plain";
@@ -384,9 +440,9 @@ class TSLTalk {
 
     // 1) The d20 — through the system's own skill dialog when set, else ours.
     let total, dice, natural, systemRoll = false, rollData = null;
-    if (TSLTalk.usesSystemDialog(src)) {
+    if (TSLTalk.usesSystemRoll(src)) {
       const extra = pv.mod - pv.parts[0].value;   // the system adds the skill itself
-      const msg = await src.rollSkillCheck(pv.skill, { situationalMods: extra ? `${extra >= 0 ? "+" : ""}${extra}` : "" });
+      const msg = await src.rollSkillCheck(pv.skill, { skipRollDialog: !TSLTalk.showsSystemDialog(), situationalMods: extra ? `${extra >= 0 ? "+" : ""}${extra}` : "" });
       const r = msg?.rolls?.[0];
       if (!r) return null;                        // cancelled — nothing spent
       systemRoll = true;
@@ -612,10 +668,10 @@ class TSLTalk {
     // The die showed their nature — now the party knows it.
     if (rel === "key") {
       if (!known.key) knownPatch.key = true;
-      note(_t("{icon} <b>{approach}</b> opens them — the better of two dice.", { icon: `<i class="fas fa-key"></i>`, approach: APPROACHES[ap].label }), "good");
+      note(_t("{icon} <b>{approach}</b> is their key — advantage, the better of two dice.", { icon: `<i class="fas fa-key"></i>`, approach: APPROACHES[ap].label }), "good");
     } else if (rel === "wall") {
       if (!known.wall) knownPatch.wall = true;
-      note(_t("{icon} <b>{approach}</b> closes them — the worse of two dice.", { icon: `<i class="fas fa-door-closed"></i>`, approach: APPROACHES[ap].label }), "bad");
+      note(_t("{icon} <b>{approach}</b> is their wall — disadvantage, the worse of two dice.", { icon: `<i class="fas fa-door-closed"></i>`, approach: APPROACHES[ap].label }), "bad");
     }
     // And so did the room.
     if (witnesses && arch) {

@@ -8,7 +8,7 @@ The module speaks **English and Ukrainian** (a per-user setting).
 
 ## Seven techniques
 
-No turns, no tracks, no declared goal. **Target** the NPC you're talking to on the map (hover their token, press **T**), say your line, pick the **technique** it really is, and roll once against a **visible DC = 10 + their proficiency + the better of WIS/INT**. The roll goes through the system's own skill dialog.
+No turns, no tracks, no declared goal. **Target** the NPC you're talking to — someone on the map with your character (hover their token, press **T**) — say your line, pick the **technique** it really is, and roll once against a **visible DC = 10 + their proficiency + the better of WIS/INT**. Each technique rolls the D&D skill it naturally is (Demand and Blackmail — Intimidation; Appeal, Bargain and Seduce — Persuasion; Deceive — Deception; Read them — Insight), through the system's own check (a5e: expertise dice and effects count). Talk shows your odds on every technique, from what the party knows.
 
 | | Pressure | Heart | Reason |
 |---|---|---|---|
@@ -51,7 +51,7 @@ What they say:
 **In private, or before witnesses.** Before an ask or a gambit, say who is watching. Before witnesses a yes to something that costs them binds them (a String on them: everyone saw it), and a no shames you (you lose face: Insecure). For a whole court, the GM makes the scene public from the Social Scene's header, and every ask there starts before witnesses. And the room tips the roll: some natures bend before an audience (+2), most harden (−2). Like the key and the wall, that shows only in the result, or in a Read.
 
 After a miss you may burn a String on them for +5. Your roll adds:
-- the skill that fits your words;
+- the technique's skill;
 - +1 per Leanings dot in that approach;
 - +● for a bond that runs that way;
 - +2 for their known Desire or Fear;
@@ -93,8 +93,8 @@ The natures follow Karen Horney's three ways of coping with people:
 - moving **away** from them — Order: Zealot, Hermit, Broker.
 
 Each nature is grounded in a real character type. Each has:
-- a **key** approach: on both of its techniques (the ask and the gambit) you roll a second d20 and keep the better;
-- a **wall** approach: a second d20, keep the worse;
+- a **key** approach: on both of its techniques (the ask and the gambit) you roll with **advantage**;
+- a **wall** approach: **disadvantage** (the third approach is a normal roll);
 - its own **price** for a "yes, but";
 - its own pushback on a no, and the emotion it leaves on you when you miss;
 - whether it keeps listening after refusing something big;
@@ -144,7 +144,7 @@ The party keeps every answer. Once it knows the key and the wall, the nature is 
 ## Settings
 
 - **Language / Мова** (each user's own): Auto follows Foundry's language; or English, or Ukrainian. It switches at once. Chat cards are written in the language of whoever creates them (the GM's client resolves rolls).
-- A global social-difficulty dial, and whether rolls use the system's own skill dialog.
+- A global social-difficulty dial, and whether the system's roll dialog opens first (off by default: the technique already knows its skill).
 
 Updating to 3.3 adds two script files: **restart the world** (not just F5) after updating.
 

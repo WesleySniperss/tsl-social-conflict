@@ -666,3 +666,64 @@
 .tsl-viz .tsl-viz-public.on { color: var(--tsl-sway); border-color: rgba(224, 180, 94, 0.6); background: rgba(224, 180, 94, 0.12); }
 span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; border: 1px solid; white-space: nowrap; }
 .tsl-x-tag--public { color: var(--tsl-sway); border: 1px solid rgba(224, 180, 94, 0.5); background: rgba(224, 180, 94, 0.1); margin-left: 4px; }
+
+/* ── Talk, v3.5: a conversation you can read at a glance ──────────────────── */
+
+/* what the party knows — in words */
+.tsl-know-wrap { display: flex; flex-direction: column; gap: 4px; }
+.tsl-know-head { font-family: var(--tsl-title); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--tsl-muted); }
+.tsl-know { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 3px 10px; font-size: 13px; line-height: 1.35; }
+.tsl-know > span:nth-child(odd) { color: var(--tsl-muted); font-size: 12px; white-space: nowrap; cursor: help; }
+.tsl-know b { color: #fff; font-weight: 600; }
+.tsl-know-secret { opacity: 0.55; }
+.tsl-know-more { font-size: 12.5px; color: var(--tsl-dim); }
+.tsl-know-more span[data-tooltip] { border-bottom: 1px dotted var(--tsl-dim); cursor: help; }
+.tsl-emo-eff { font-size: 11px; color: var(--tsl-soft); }
+
+/* three ways to come at them */
+.tsl-how { font-size: 13px; }
+.tsl-aps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.tsl-ap {
+  display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 7px 6px 6px;
+  border-radius: 8px; border: 1px solid var(--tsl-border); border-top: 3px solid var(--c);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 10%, transparent), rgba(0, 0, 0, 0.18) 60%);
+}
+.tsl-ap-head { font-family: var(--tsl-title); font-size: 14px; color: #fff; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: help; }
+.tsl-ap-head i { color: var(--c); font-size: 0.9em; }
+.tsl-ap-ex { font-size: 11.5px; color: var(--tsl-dim); text-align: center; line-height: 1.2; }
+.tsl-ap-rel { font-size: 11.5px; text-align: center; line-height: 1.25; min-height: 2.5em; }   /* inline: the icon stays with its words */
+.tsl-ap-rel i { font-size: 0.9em; margin-right: 4px; }
+.tsl-ap--key .tsl-ap-rel { color: var(--tsl-good); }
+.tsl-ap--wall .tsl-ap-rel { color: #f0a59d; }
+.tsl-ap--plain .tsl-ap-rel { color: var(--tsl-soft); }
+.tsl-ap--unknown .tsl-ap-rel { color: var(--tsl-dim); font-style: italic; }
+.tsl-ap-or { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tsl-dim); text-align: center; cursor: help; }
+.tsl-fencing .tsl-ap .tsl-tech-btn { min-height: 46px; }
+.tsl-fencing .tsl-tech-btn em { font-style: normal; font-weight: 700; color: var(--tsl-text); }
+.tsl-fencing .tsl-tech-btn--gambit { border-style: dashed; }
+.tsl-fencing .tsl-tech-btn--read { flex-direction: row; justify-content: space-between; gap: 10px; min-height: 38px; padding: 4px 12px; }
+.tsl-fencing .tsl-tech-btn--read b { white-space: nowrap; }
+.tsl-fencing .tsl-tech-btn--read span { text-align: right; }
+
+/* the technique picked: what happens either way, then the roll */
+.tsl-pick {
+  display: flex; flex-direction: column; gap: 6px; padding: 9px 10px; border-radius: 9px;
+  border: 1px solid color-mix(in srgb, var(--c) 50%, transparent);
+  background: color-mix(in srgb, var(--c) 7%, rgba(0, 0, 0, 0.28));
+  animation: tsl-pop 0.18s ease-out;
+}
+.tsl-pick-title { font-size: 13.5px; color: var(--tsl-soft); }
+.tsl-pick-title b { font-family: var(--tsl-title); font-weight: 400; font-size: 15px; color: #fff; }
+.tsl-pick-out { font-size: 13px; color: var(--tsl-soft); line-height: 1.35; }
+.tsl-pick-out > span { font-weight: 700; margin-right: 2px; }
+.tsl-pick-out--win > span { color: var(--tsl-good); }
+.tsl-pick-out--miss > span { color: #f0a59d; }
+.tsl-q { font-size: 12px; color: var(--tsl-muted); margin: 2px 0 -2px; }
+.tsl-pick-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.tsl-help { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--tsl-muted); }
+.tsl-fencing .tsl-help select { width: auto; min-width: 120px; height: 26px; }
+.tsl-roll-odds { margin-left: 4px; padding: 0 8px; border-radius: 10px; background: rgba(0, 0, 0, 0.35); font-family: var(--tsl-body); font-size: 13px; letter-spacing: 0; }
+.tsl-pick .tsl-x-math { font-size: 12px; padding: 5px 8px; }
+.tsl-math-mode { flex: 1 1 100%; font-size: 12px; color: var(--tsl-good); }
+.tsl-math-mode--dis { color: #f0a59d; }
+.tsl-next { flex: 1 1 100%; font-size: 12.5px; color: var(--tsl-text); }

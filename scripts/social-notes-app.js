@@ -196,6 +196,13 @@ class SocialFencingApp extends _SocialAppBase {
     return null;
   }
 
+  /** This actor's token on the map in view — or null (a player sees only the tokens they can see). */
+  _tokenOf(actorId) {
+    if (!actorId) return null;
+    return (canvas.tokens?.placeables ?? []).find(t => (t.actor?.id ?? t.document?.actorId) === actorId
+      && (game.user.isGM || (!t.document?.hidden && t.visible !== false))) ?? null;
+  }
+
   /** Player characters on the scene (helpers). */
   _scenePcs(exceptId = null) {
     const map = new Map();
@@ -464,32 +471,43 @@ class SocialFencingApp extends _SocialAppBase {
       if (!ctx.isGM) return `<p class="tsl-note tsl-empty">${_t("Talk from your own character's Chronicle.")}</p>`;
       return this._askAsRow() + this._cheatSheet(this._actor);
     }
-    if (this._tTarget && !game.actors.get(this._tTarget)) this._tTarget = null;
+    const esc = foundry.utils.escapeHTML;
+    const me = this._actor;
+    // You talk to whoever is here — on this map, with you.
+    if (!this._tokenOf(me.id)) {
+      this._tTarget = null;
+      return `<section class="tsl-sec tsl-t-who">
+        <p class="tsl-note">${_t("<b>{name} isn't on this map.</b> You talk to whoever is here with you — put {name}'s token on the scene, then pick who to talk to.", { name: esc(me.name) })}</p>
+      </section>`;
+    }
+    if (this._tTarget && !this._tokenOf(this._tTarget)) this._tTarget = null;
     // Nobody picked yet: the NPC this user targets on the map will do.
     if (!this._tTarget) this._tTarget = this._targeted({ npcOnly: true })?.id ?? null;
     const tgt = this._tTarget ? game.actors.get(this._tTarget) : null;
     const picking = this._picking && this._pickMode === "target";
-    const pick = `<button type="button" class="tsl-btn tsl-t-pick ${picking ? "picking" : ""}" data-t-pick data-tooltip="${foundry.utils.escapeHTML(_t("Click an NPC's token on the map — or target it (T). Esc cancels."))}">
+    const pick = `<button type="button" class="tsl-btn tsl-t-pick ${picking ? "picking" : ""}" data-t-pick data-tooltip="${esc(_t("Click an NPC's token on the map — or target it (T). Esc cancels."))}">
         <i class="fas fa-crosshairs"></i> ${picking ? _t("Click their token…") : tgt ? _t("Someone else") : _t("Pick on the map")}</button>`;
-    const mine = this._emotionRow(this._actor, { label: _t("You"), canClear: ctx.canEdit, scars: true });
+    const mine = this._emotionRow(me, { label: _t("You"), canClear: ctx.canEdit, scars: true, effects: "mine" });
     return `
       ${mine ? `<section class="tsl-sec tsl-you">${mine}</section>` : ""}
-      ${tgt ? this._personPanel(tgt, { ...ctx, speaker: this._actor }, pick) : `<section class="tsl-sec tsl-t-who">
+      ${tgt ? this._personPanel(tgt, { ...ctx, speaker: me }, pick) : `<section class="tsl-sec tsl-t-who">
         <p class="tsl-note">${_t("<b>Who are you talking to?</b> Target their token on the map — hover it and press <b>T</b> — or pick it:")}</p>
         ${pick}
       </section>`}
-      ${tgt ? this._askPanel(this._actor, tgt, ctx) : ""}`;
+      ${tgt ? this._askPanel(me, tgt, ctx) : ""}`;
   }
 
   /**
    * On an NPC's own Talk tab: the asking happens in the SPEAKER's Chronicle —
-   * one click opens it, already talking to this NPC.
+   * one click opens it, already talking to this NPC. Only the characters on
+   * this map, and only if the NPC is here too.
    */
   _askAsRow() {
     const esc = foundry.utils.escapeHTML;
+    const me = esc(this._actor.name);
+    if (!this._tokenOf(this._actor.id)) return `<p class="tsl-note tsl-t-where"><i class="fas fa-circle-info"></i> ${_t("{name} isn't on this map — put their token on the scene, and the characters here can talk to them.", { name: me })}</p>`;
     const pcs = this._scenePcs();
     if (!pcs.length) return `<p class="tsl-note tsl-t-where"><i class="fas fa-circle-info"></i> ${_t("Asking happens in the speaker's Chronicle — put a player character's token on this scene, then ask from it.")}</p>`;
-    const me = esc(this._actor.name);
     return `<section class="tsl-sec tsl-t-where tsl-t-askas">
       <span class="tsl-t-askas-label"><i class="fas fa-circle-info"></i> ${_t("Ask or read {name} as:", { name: me })}</span>
       <div class="tsl-t-askas-row">${pcs.map(a => `<button type="button" class="tsl-btn" data-t-as="${a.id}" data-tooltip="${esc(_t("Open {pc}'s Chronicle — Talk, already facing {npc}", { pc: a.name, npc: this._actor.name }))}">
@@ -497,7 +515,7 @@ class SocialFencingApp extends _SocialAppBase {
     </section>`;
   }
 
-  /** Who they are, as far as the party knows (the GM sees the truth, marked). */
+  /** Who they are, and what the party knows of them — in words (the GM sees the truth, marked). */
   _personPanel(npc, ctx, pick = "") {
     const esc  = foundry.utils.escapeHTML;
     const isGM = ctx.isGM;
@@ -523,29 +541,17 @@ class SocialFencingApp extends _SocialAppBase {
       nature = `<span class="tsl-x-nature tsl-x-nature--unread">${_t("Nature unread")}</span>`;
     }
 
-    const facts = READ_ORDER.filter(q => q !== "mask" || shown || isGM).map(q => {
-      const k = known[q];
-      const label = READ_QUESTIONS[q].label, short = esc(READ_QUESTIONS[q].short);
-      if (!k && !isGM) return `<span class="tsl-fact unknown" data-tooltip="${esc(_t("{question} — read them to find out.", { question: label }))}"><b>${short}</b> ?</span>`;
-      let val, more = "";
-      if (q === "key" || q === "wall") {
-        const ap = arch ? APPROACHES[arch[q]] : null;
-        val = ap ? `<i class="fas ${ap.icon}" style="color:${ap.color}"></i> ${esc(ap.label)}` : _t("none");
-      } else if (q === "pressed") {
-        const st = SocialArchetypeManager.getStance(npc);
-        val = st === "firm" ? _t("ends it") : st === "yield" ? _t("keeps listening") : _t("either");
-      } else if (q === "mask") {
-        val = !shown ? _t("shows nothing") : mask ? `<i class="fas fa-mask"></i> ${_t("a mask")}` : _t("true face");
-        more = TSLTalk.answerFor(npc, q);
-      } else if (q === "audience") {
-        val = tslAudienceText(arch?.audience ?? 0, { short: true });
-        more = TSLTalk.answerFor(npc, q);
-      } else {
-        val = esc(TSLTalk.answerFor(npc, q));
-      }
-      const tip = `${label}${k ? "" : ` — ${_t("hidden from the party")}`}${more ? `<br><i>${more}</i>` : ""}`;
-      return `<span class="tsl-fact ${k ? "" : "secret"}" data-tooltip="${esc(tip)}"><b>${short}</b> ${val}</span>`;
+    // What the party knows, in words — and, in one line, what it doesn't know yet.
+    const asked = READ_ORDER.filter(q => q !== "mask" || shown || isGM);
+    const rows = asked.filter(q => known[q] || isGM).map(q => {
+      const secret = !known[q] ? "tsl-know-secret" : "";
+      return `<span class="${secret}" data-tooltip="${esc(READ_QUESTIONS[q].label)}">${esc(READ_QUESTIONS[q].short)}</span><span class="${secret}">${this._factText(npc, q)}${secret
+        ? ` <i class="tsl-hidden-tag">${_t("the party doesn't know")}</i>` : ""}</span>`;
     }).join("");
+    const unknown = isGM ? [] : asked.filter(q => !known[q]);
+    const more = !unknown.length ? "" : `<div class="tsl-know-more">${_t("Not known yet:")} ${unknown.map(q =>
+      `<span data-tooltip="${esc(READ_QUESTIONS[q].label)}">${esc(READ_QUESTIONS[q].short.toLowerCase())}</span>`).join(", ")}. ${_t("Read them to find out.")}</div>`;
+    const know = rows || more ? `<div class="tsl-know-wrap">${rows ? `<div class="tsl-know-head">${_t("What the party knows")}</div><div class="tsl-know">${rows}</div>` : ""}${more}</div>` : "";
 
     // The holds between the speaker and them — Strings either way (Talk only).
     const sp = ctx.speaker;
@@ -564,15 +570,38 @@ class SocialFencingApp extends _SocialAppBase {
         <span class="tsl-x-phase" data-tooltip="${esc(_t("Their DC: 10 + proficiency + the better of WIS/INT. A small ask is 4 easier, one against their interests 4 harder."))}">${_t("DC {dc}", { dc: TSLTalk.dcFor(npc).dc })}</span>
         ${pick}
       </div>
-      <div class="tsl-facts">${facts}</div>
+      ${know}
       ${holds}
-      ${this._emotionRow(npc, { label: _t("Feeling"), canClear: isGM })}
+      ${this._emotionRow(npc, { label: _t("Feeling"), canClear: isGM, effects: "theirs" })}
       ${arch && named && !isGM ? `<details class="tsl-x-card-open"><summary>${_t("Their nature")}</summary>${this._archetypeCard(arch)}</details>` : seems}
     </section>`;
   }
 
-  /** What someone feels — and the scars they carry — as tags. × lets an emotion go (its owner or the GM). */
-  _emotionRow(actor, { label = _t("Feeling"), canClear = false, scars = false } = {}) {
+  /** One thing the party may know about them, in words. */
+  _factText(npc, q) {
+    const esc = foundry.utils.escapeHTML;
+    const arch = SocialArchetypeManager.getArchetype(npc);
+    switch (q) {
+      case "key": case "wall": {
+        const ap = arch ? APPROACHES[arch[q]] : null;
+        if (!ap) return _t("none");
+        return `<i class="fas ${ap.icon}" style="color:${ap.color}"></i> <b>${esc(ap.label)}</b> — ${q === "key" ? _t("you roll with advantage") : _t("you roll with disadvantage")}`;
+      }
+      case "mask": {
+        const shown = SocialArchetypeManager.getShown(npc), mask = SocialArchetypeManager.getMask(npc);
+        return !shown ? _t("shows nothing") : mask ? `<i class="fas fa-mask"></i> ${esc(_t("{mask} — a mask", { mask: mask.label }))}` : _t("true face");
+      }
+      case "audience": return arch ? `${tslAudienceText(arch.audience ?? 0)} — ${esc(arch.audienceWhy ?? "")}` : _t("no change");
+      default: return esc(TSLTalk.answerFor(npc, q));
+    }
+  }
+
+  /**
+   * What someone feels — and the scars they carry — as tags. `effects`: "mine"
+   * shows what each costs the one who feels it, "theirs" what it opens for
+   * others. × lets an emotion go (its owner or the GM).
+   */
+  _emotionRow(actor, { label = _t("Feeling"), canClear = false, scars = false, effects = null } = {}) {
     const esc = foundry.utils.escapeHTML;
     const emos = TSLEmotions.of(actor);
     const sc = scars ? TSLEmotions.scars(actor) : [];
@@ -581,68 +610,93 @@ class SocialFencingApp extends _SocialAppBase {
       const d = EMOTIONS[e.id];
       const by = game.actors.get(e.by)?.name;
       const toward = e.toward ? game.actors.get(e.toward)?.name : null;
+      const s = d.spoils ?? {};
+      const eff = effects === "mine"
+        ? (s.approach ? _t("−2 {approach}", { approach: APPROACHES[s.approach]?.label ?? "" }) : s.jobs ? _t("−2 asks & all in")
+          : toward ? _t("−2 against {name}", { name: toward }) : _t("−2 against the one you wronged"))
+        : effects === "theirs" ? _t("+2 {approach}", { approach: APPROACHES[d.opens]?.label ?? "" }) : "";
       const tip = `<b>${d.label}</b>${by ? ` — ${_t("from {name}", { name: by })}` : ""}<br>${_t("On them:")} ${d.spoilsText}${toward ? ` (${_t("toward {name}", { name: toward })})` : ""}.<br>${_t("For others:")} ${d.opensText}.<br><i>${_t("Let it go:")} ${d.clear}</i>`;
-      return `<span class="tsl-emo" style="--c:${d.color}" data-tooltip="${esc(tip)}"><img src="${d.img}" alt=""> ${esc(d.label)}${toward ? ` → ${esc(toward)}` : ""}${canClear
+      return `<span class="tsl-emo" style="--c:${d.color}" data-tooltip="${esc(tip)}"><img src="${d.img}" alt=""> ${esc(d.label)}${toward && effects !== "mine" ? ` → ${esc(toward)}` : ""}${eff
+        ? ` <small class="tsl-emo-eff">${esc(eff)}</small>` : ""}${canClear
         ? `<button type="button" class="tsl-emo-x" data-emo-clear="${actor.id}" data-emo="${e.id}" aria-label="${esc(_t("Let it go"))}" data-tooltip="${esc(_t("Let it go — act it out, or a friend's comfort"))}">×</button>` : ""}</span>`;
     }).join("");
     const scarTags = sc.map(id => `<span class="tsl-scar" data-tooltip="${esc(`<b>${_t("Scar — {scar}", { scar: SCARS[id].label })}</b><br>${SCARS[id].text}`)}"><img src="icons/svg/blood.svg" alt=""> ${esc(SCARS[id].label)}</span>`).join("");
     return `<div class="tsl-emos"><span class="tsl-row-label">${label}</span>${tags}${scarTags}</div>`;
   }
 
-  /** The seven techniques — ask, or go all in (one per approach), or read them — and, once one is picked, its roll. */
+  /**
+   * How you come at them. The three approaches side by side — each with how
+   * this person is known to take it (their key: advantage; their wall:
+   * disadvantage), its ask and its all-in gamble, with your odds — and reading
+   * them. Then the technique picked: what happens either way, what you ask
+   * for, who's watching, the roll.
+   */
   _askPanel(src, npc, ctx) {
     const esc = foundry.utils.escapeHTML;
     const known = SocialArchetypeManager.getKnown(npc);
-    const arch = SocialArchetypeManager.getArchetype(npc);
     if (this._tTech && !TECHNIQUES[this._tTech]) this._tTech = null;
     const strings = TSLStringStore.countOn(src.id, npc.id);
     const tie = TSLBondStore.find(src.id, npc.id) ? TSLBondStore.getStrength(src.id, npc.id) : 0;
     const READ_COLOR = "#d9b46a";
-
-    const mark = (id) => {
-      if (!arch) return "";
-      if (known.key && arch.key === id) return ` <i class="fas fa-key tsl-mark--key" data-tooltip="${esc(_t("Their key — the better of two dice"))}"></i>`;
-      if (known.wall && arch.wall === id) return ` <i class="fas fa-door-closed tsl-mark--wall" data-tooltip="${esc(_t("Their wall — the worse of two dice"))}"></i>`;
-      return "";
-    };
-    const heads = APPROACH_ORDER.map(id => {
-      const ap = APPROACHES[id];
-      return `<span class="tsl-tech-ap" style="--c:${ap.color}" data-tooltip="${esc(`<b>${ap.label}</b> — ${ap.gist} ${ap.examples}.<br>${ap.cost}`)}"><i class="fas ${ap.icon}"></i> ${esc(ap.label)}${mark(id)}</span>`;
-    }).join("");
-    const btn = (tech, color) => {
-      const locked = (tech.id === "blackmail" && !known.fear && !strings) || (tech.id === "seduce" && !known.desire && tie < 2);
-      return `<button type="button" class="tsl-tech-btn ${this._tTech === tech.id ? "on" : ""} ${locked ? "locked" : ""}" data-tech="${tech.id}" style="--c:${color}"
+    const witnesses = this._witnessesNow();
+    const odds = (id) => TSLTalk.chance(src, npc, { technique: id, size: this._tSize, helperId: this._tHelper,
+      lever: id === this._tTech ? this._tLever : null, witnesses });
+    const pct = (c) => `${Math.round(c.p * 100)}%`;
+    const lockOf = (id) => id === "blackmail" && !known.fear && !strings ? _t("needs their Fear or a String on them")
+      : id === "seduce" && !known.desire && tie < 2 ? _t("needs their Desire or a bond ●●") : null;
+    const btn = (tech, cls = "") => {
+      const lock = lockOf(tech.id), c = odds(tech.id);
+      return `<button type="button" class="tsl-tech-btn ${cls} ${this._tTech === tech.id ? "on" : ""} ${lock ? "locked" : ""}" data-tech="${tech.id}"
         data-tooltip="${esc(`<b>${tech.label}</b> — ${tech.line}.<br>${tech.rule}`)}">
-        <b>${locked ? `<i class="fas fa-lock"></i> ` : ""}${esc(tech.label)}</b><span>${esc(tech.line)}</span></button>`;
+        <b>${lock ? `<i class="fas fa-lock"></i> ` : ""}${esc(tech.label)}</b>
+        <span>${lock ? esc(lock) : `${esc(SKILL_LABELS[c.pv.skill] ?? "")} · <em>${pct(c)}</em>`}</span></button>`;
     };
-    const rows = ["ask", "gambit"].map(job =>
-      `<span class="tsl-tech-job" data-tooltip="${esc(TECH_JOBS[job].hint)}"><i class="fas ${TECH_JOBS[job].icon}"></i> ${esc(TECH_JOBS[job].label)}</span>`
-      + APPROACH_ORDER.map(apId => btn(TECHNIQUES[techniqueFor(apId, job)], APPROACHES[apId].color)).join("")).join("");
-
-    let body = `<p class="tsl-note tsl-t-caption">${_t("Say your line — then pick what it really is: <b>ask</b> for something, go <b>all in</b>, or <b>read</b> them first.")}</p>`;
-    if (this._tTech) {
-      const pv = TSLTalk.preview(src, npc, { technique: this._tTech, size: this._tSize, skill: this._tSkill, helperId: this._tHelper, lever: this._tLever, witnesses: this._witnessesNow() });
-      const tech = TECHNIQUES[pv.technique];
-      const sizes = !pv.sized ? "" : `<div class="tsl-sizes">${ASK_ORDER.map(id => {
-        const a = ASK_SIZES[id];
-        return `<button type="button" class="tsl-size ${pv.size === id ? "on" : ""}" data-size="${id}"
-          data-tooltip="${esc(`${a.label} — ${a.hint}.`)}"><b>${esc(a.short)}</b><span>${_t("DC {dc}", { dc: TSLTalk.dcFor(npc, id).dc })}</span></button>`;
-      }).join("")}</div>`;
-      // Who's watching: known only as far as the party has read how they take an audience.
-      const aud = (known.audience && arch ? ` <i class="tsl-wit-known">(${tslAudienceText(arch.audience ?? 0, { short: true })})</i>` : "")
-        + (this._tWitnesses === null && pv.witnesses ? ` <i class="tsl-wit-known" data-tooltip="${esc(_t("This scene is before witnesses — a court, a feast, a crowd."))}">(${_t("the scene")})</i>` : "");
-      const witness = !pv.sized ? "" : `<div class="tsl-wit">
-        <button type="button" class="tsl-wit-btn ${pv.witnesses ? "" : "on"}" data-wit="0"
-          data-tooltip="${esc(_t("Just you, them, and whoever helps. Nothing more rides on it."))}"><i class="fas fa-user-lock"></i> ${_t("In private")}</button>
-        <button type="button" class="tsl-wit-btn ${pv.witnesses ? "on" : ""}" data-wit="1"
-          data-tooltip="${esc(_t("Before witnesses — a court, a crowd, their own people. A yes to something that costs them binds them: everyone saw it — a String on them. A no shames you: you lose face — Insecure. And some natures bend before an audience while others harden: you'll see which in the result, or read it first."))}"><i class="fas fa-users"></i> ${_t("Before witnesses")}${aud}</button>
+    const how = {
+      key: `<i class="fas fa-key"></i> ${_t("their key — advantage")}`,
+      wall: `<i class="fas fa-door-closed"></i> ${_t("their wall — disadvantage")}`,
+      plain: _t("a normal roll"),
+      unknown: `<i class="fas fa-question"></i> ${_t("how they take it — not known yet")}`,
+    };
+    const cols = APPROACH_ORDER.map(apId => {
+      const ap = APPROACHES[apId], rel = TSLTalk.knownRelation(npc, apId);
+      return `<div class="tsl-ap tsl-ap--${rel}" style="--c:${ap.color}">
+        <div class="tsl-ap-head" data-tooltip="${esc(`<b>${ap.label}</b> — ${ap.gist} ${ap.examples}.<br>${ap.cost}`)}"><i class="fas ${ap.icon}"></i> ${esc(ap.label)}</div>
+        <div class="tsl-ap-ex">${esc(ap.short)}</div>
+        <div class="tsl-ap-rel">${how[rel]}</div>
+        ${btn(TECHNIQUES[techniqueFor(apId, "ask")])}
+        <div class="tsl-ap-or" data-tooltip="${esc(TECH_JOBS.gambit.hint)}">${_t("or all in")}</div>
+        ${btn(TECHNIQUES[techniqueFor(apId, "gambit")], "tsl-tech-btn--gambit")}
       </div>`;
-      const caption = `<b>${esc(tech.label)}</b> — ${esc(tech.line)}. ${esc(tech.rule)}${pv.sized ? ` <i>${esc(ASK_SIZES[pv.size].label)}: ${esc(ASK_SIZES[pv.size].hint)}.</i>` : ""}`;
-      const skillOpts = [...tech.skills, ...SKILL_ORDER.filter(k => !tech.skills.includes(k))].map(k => {
-        const v = TSLTalk.skillMod(src, k);
-        return `<option value="${k}" ${k === pv.skill ? "selected" : ""}>${esc(SKILL_LABELS[k])} ${v >= 0 ? "+" : ""}${v}${tech.skills.includes(k) ? "" : " ·"}</option>`;
-      }).join("");
+    }).join("");
+    const rd = odds("read");
+    const readBtn = `<button type="button" class="tsl-tech-btn tsl-tech-btn--read ${this._tTech === "read" ? "on" : ""}" data-tech="read" style="--c:${READ_COLOR}"
+      data-tooltip="${esc(`<b>${TECHNIQUES.read.label}</b> — ${TECHNIQUES.read.line}.<br>${TECHNIQUES.read.rule}`)}">
+      <b><i class="fas fa-eye"></i> ${esc(TECHNIQUES.read.label)}</b>
+      <span>${_t("learn something about them, for the whole party")} · ${esc(SKILL_LABELS[rd.pv.skill] ?? "")} · <em>${pct(rd)}</em></span></button>`;
+
+    let picked = "";
+    if (this._tTech) {
+      const c = odds(this._tTech), pv = c.pv, tech = TECHNIQUES[pv.technique];
+      const color = pv.approach ? APPROACHES[pv.approach].color : READ_COLOR;
+      const sizes = !pv.sized ? "" : `<div class="tsl-q">${_t("What are you asking for?")}</div>
+        <div class="tsl-sizes">${ASK_ORDER.map(id => {
+          const a = ASK_SIZES[id];
+          return `<button type="button" class="tsl-size ${pv.size === id ? "on" : ""}" data-size="${id}"
+            data-tooltip="${esc(`${a.label} — ${a.hint}.`)}"><b>${esc(a.label)}</b><span>${_t("DC {dc}", { dc: TSLTalk.dcFor(npc, id).dc })}</span></button>`;
+        }).join("")}</div>`;
+      // Who's watching: known only as far as the party has read how they take an audience.
+      const aud = (known.audience ? ` <i class="tsl-wit-known">(${tslAudienceText(SocialArchetypeManager.audienceOf(npc), { short: true })})</i>` : "")
+        + (this._tWitnesses === null && pv.witnesses ? ` <i class="tsl-wit-known" data-tooltip="${esc(_t("This scene is before witnesses — a court, a feast, a crowd."))}">(${_t("the scene")})</i>` : "");
+      const witness = !pv.sized ? "" : `<div class="tsl-q">${_t("Who's watching?")}</div>
+        <div class="tsl-wit">
+          <button type="button" class="tsl-wit-btn ${pv.witnesses ? "" : "on"}" data-wit="0"
+            data-tooltip="${esc(_t("Just you, them, and whoever helps. Nothing more rides on it."))}"><i class="fas fa-user-lock"></i> ${_t("In private")}</button>
+          <button type="button" class="tsl-wit-btn ${pv.witnesses ? "on" : ""}" data-wit="1"
+            data-tooltip="${esc(_t("Before witnesses — a court, a crowd, their own people. A yes to something that costs them binds them: everyone saw it — a String on them. A no shames you: you lose face — Insecure. And some natures bend before an audience while others harden: you'll see which in the result, or read it first."))}"><i class="fas fa-users"></i> ${_t("Before witnesses")}${aud}</button>
+        </div>`;
       const helpers = this._scenePcs(src.id).map(a => `<option value="${a.id}" ${a.id === pv.helperId ? "selected" : ""}>${esc(a.name)}</option>`).join("");
+      const help = `<label class="tsl-help" data-tooltip="${esc(_t("A friend backs your words: +{n}.", { n: HELP_BONUS }))}">${_t("Help")}
+        <select class="tsl-t-help"><option value="">${_t("nobody")}</option>${helpers}</select></label>`;
       const levers = pv.job !== "ask" ? "" : ["desire", "fear"].filter(l => pv.leverOk[l]).map(l => {
         const what = l === "desire" ? _t("their Desire") : _t("their Fear");
         const tip = `${_t("Play on {what}: “{answer}” — +{n}, and it counts as leverage.", { what, answer: TSLTalk.answerFor(npc, l), n: LEVER_BONUS })}${l === "fear" ? ` ${_t("A threat cuts both ways: if the ask fails, they take a String on you.")}` : ""}`;
@@ -653,33 +707,35 @@ class SocialFencingApp extends _SocialAppBase {
         <i class="fas fa-masks-theater"></i> ${pv.strings === 1 ? _t("1 String on them") : _t("{n} Strings on them", { n: pv.strings })}</span>` : "";
       const math = pv.parts.map(p => `<span class="tsl-math-part ${p.value < 0 ? "tsl-math-part--neg" : ""}">${p.value >= 0 ? "+" : "−"}${Math.abs(p.value)} ${esc(p.label)}</span>`).join("");
       const dcMods = pv.dcMods.map(m => ` ${m.value >= 0 ? "+" : "−"}${Math.abs(m.value)} ${esc(m.label)}`).join("");
-      body = `
-        <p class="tsl-note tsl-t-caption">${caption}</p>
+      const mode = c.mode === "adv" ? _t("with advantage — their key") : c.mode === "dis" ? _t("with disadvantage — their wall") : "";
+      picked = `<div class="tsl-pick" style="--c:${color}">
+        <div class="tsl-pick-title"><b>${esc(tech.label)}</b>${tech.line ? ` — ${esc(tech.line)}` : ""}</div>
+        <div class="tsl-pick-out tsl-pick-out--win"><span>${_t("If it works:")}</span> ${esc(tech.win)}.</div>
+        <div class="tsl-pick-out tsl-pick-out--miss"><span>${_t("If not:")}</span> ${esc(tech.miss)}.</div>
         ${sizes}
         ${witness}
-        <div class="tsl-x-opts">
-          <label>${_t("Skill")} <select class="tsl-t-skill">${skillOpts}</select></label>
-          <label>${_t("Help")} <select class="tsl-t-help"><option value="">${_t("nobody")}</option>${helpers}</select></label>
-        </div>
-        ${levers || held ? `<div class="tsl-x-levers">${levers}${held}</div>` : ""}
+        <div class="tsl-pick-row">${help}${levers}${held}</div>
+        ${pv.blocked ? `<div class="tsl-x-blocked">${esc(pv.blocked)}</div>` : ""}
+        <button type="button" class="tsl-roll" data-t-roll ${pv.blocked ? "disabled" : ""} style="--c:${color}">
+          <i class="fas fa-dice-d20"></i> ${_t("Roll — {technique}", { technique: esc(tech.label) })} <span class="tsl-roll-odds">${pct(c)}</span></button>
         <div class="tsl-x-math">
           <span class="tsl-math-die">d20</span>${math}
           <span class="tsl-math-vs" data-tooltip="${esc(_t("10 + their proficiency + the better of WIS / INT = {base}", { base: pv.dcBase }) + dcMods)}">${_t("vs DC {dc}", { dc: pv.dc })}</span>
+          ${mode ? `<span class="tsl-math-mode ${c.mode === "dis" ? "tsl-math-mode--dis" : ""}">${mode}</span>` : ""}
         </div>
-        ${pv.blocked ? `<div class="tsl-x-blocked">${esc(pv.blocked)}</div>` : ""}
-        <button type="button" class="tsl-roll" data-t-roll ${pv.blocked ? "disabled" : ""} style="--c:${pv.approach ? APPROACHES[pv.approach].color : READ_COLOR}">
-          <i class="fas fa-dice-d20"></i> ${_t("Roll — {technique}", { technique: esc(tech.label) })}</button>`;
+      </div>`;
     }
 
     return `<section class="tsl-sec tsl-x-speak">
-      <div class="tsl-tech"><span></span>${heads}${rows}</div>
-      <div class="tsl-tech-read"><span class="tsl-tech-job" data-tooltip="${esc(TECH_JOBS.read.hint)}"><i class="fas fa-eye"></i> ${esc(TECH_JOBS.read.label)}</span>${btn(TECHNIQUES.read, READ_COLOR)}</div>
-      ${body}
+      <p class="tsl-note tsl-how">${_t("<b>Say your line out loud</b> — then pick what it really is. Not sure how they'll take it? Read them first.")}</p>
+      <div class="tsl-aps">${cols}</div>
+      ${readBtn}
+      ${picked}
       ${this._resultHTML()}
     </section>`;
   }
 
-  /** The last roll, right where Roll was clicked. */
+  /** The last roll, right where Roll was clicked — and what to do next. */
   _resultHTML() {
     const r = this._tResult;
     if (!r) return "";
@@ -687,18 +743,24 @@ class SocialFencingApp extends _SocialAppBase {
     const tech = TECHNIQUES[r.technique];
     const hit = r.grade === "strong" || r.grade === "success";
     const bits = [];
-    if (r.rel === "key") bits.push(_t("their key — the better die"));
-    if (r.rel === "wall") bits.push(_t("their wall — the worse die"));
+    if (r.rel === "key") bits.push(_t("their key — advantage"));
+    if (r.rel === "wall") bits.push(_t("their wall — disadvantage"));
     if (r.witnesses) bits.push(r.audience ? `${_t("before witnesses")} — ${tslAudienceText(r.audience)}` : _t("before witnesses"));
-    if (tech?.job === "ask" && r.grade === "success" && TSLTalk.hasPrice(r.technique)) bits.push(r.paid ? _t("you paid their price") : _t("you walked away from their price"));
+    const priced = tech?.job === "ask" && r.grade === "success" && TSLTalk.hasPrice(r.technique);
+    if (priced) bits.push(r.paid ? _t("you paid their price") : _t("you walked away from their price"));
     if (tech?.job === "read" && r.questions?.length) bits.push(_t("learned: {what}", { what: r.questions.map(q => READ_QUESTIONS[q]?.short).join(", ") }));
     if (tech?.job === "read" && r.readString) bits.push(_t("kept a String on them"));
+    const next = tech?.job === "read"
+      ? (hit ? _t("The party knows more now — see “What the party knows” above.") : _t("They noticed. Try another way — or ask without knowing."))
+      : hit ? (priced && !r.paid ? _t("You walked away from the deal — they keep what you asked for.") : _t("They gave it. What it cost — in the chat card."))
+      : _t("They refused — and it left a mark (see the chat card). Try another approach, read them, or come back with leverage.");
     const cls = hit ? (r.grade === "strong" ? "crit" : "success") : r.grade === "botch" ? "botch" : "failure";
     return `<div class="tsl-result tsl-result--${cls}">
       <span class="tsl-result-total">${r.total}</span>
       <span class="tsl-result-vs">${_t("vs {dc}", { dc: r.dc })}</span>
       <span class="tsl-result-label">${esc(`${tech ? `${tech.label}: ` : ""}${TSLTalk.gradeLabel(r.technique, r.grade)}`)}</span>
       ${bits.length ? `<span class="tsl-result-bits">${esc(bits.join(" · "))}</span>` : ""}
+      <span class="tsl-next">${esc(next)}</span>
       <button type="button" class="tsl-result-x" data-t-clear-result aria-label="${esc(_t("Dismiss"))}">×</button>
     </div>`;
   }
@@ -769,7 +831,7 @@ class SocialFencingApp extends _SocialAppBase {
     switch (cat) {
       case "ap": return `
         <h3>${_t("Seven techniques")}</h3>
-        <p>${_t("Say your line, then pick what it really is. Any skill that fits your words can roll.")}</p>
+        <p>${_t("Say your line, then pick what it really is. Each technique rolls the D&D skill it naturally is.")}</p>
         ${APPROACH_ORDER.map(id => {
           const ap = APPROACHES[id];
           return `<div class="tsl-cx-card" style="--c:${ap.color}">
@@ -788,9 +850,9 @@ class SocialFencingApp extends _SocialAppBase {
         ${li(_t("<b>Ask</b> — Demand, Appeal or Bargain: the way you come at them decides what winning costs. Sized by what it costs them; something against their interests needs leverage."),
              _t("<b>All in</b> — Blackmail, Seduce or Deceive: any size, no price — but each leaves a mark that lasts (an enemy, a bond, a lie on record)."))}
         <h3>${_t("Key and wall")}</h3>
-        ${li(`<b><i class="fas fa-key"></i> ${_t("Key")}</b> — ${_t("the approach that opens them: you roll a second d20 and keep the better.")}`,
-             `<b><i class="fas fa-door-closed"></i> ${_t("Wall")}</b> — ${_t("the approach they close against: a second d20, keep the worse.")}`,
-             _t("The third is plain ground. Both show only in the result — the second die is how you find out. A Read has no approach."))}
+        ${li(`<b><i class="fas fa-key"></i> ${_t("Key")}</b> — ${_t("the approach that opens them: you roll with <b>advantage</b> — a second d20, keep the better.")}`,
+             `<b><i class="fas fa-door-closed"></i> ${_t("Wall")}</b> — ${_t("the approach they close against: <b>disadvantage</b> — a second d20, keep the worse.")}`,
+             _t("The third approach is a normal roll. Before the roll you don't know which is which — the second die tells you, or a Read does. A Read has no approach."))}
         <h3>${_t("How big is the ask?")}</h3>
         <ul>${ASK_ORDER.map(id => `<li><b>${esc(ASK_SIZES[id].label)}</b> — ${esc(ASK_SIZES[id].hint)}. ${_t("DC {shift}", { shift: `${ASK_SIZES[id].dc > 0 ? "+" : ASK_SIZES[id].dc < 0 ? "−" : "±"}${Math.abs(ASK_SIZES[id].dc)}` })}.</li>`).join("")}</ul>
         <p class="tsl-cx-small">${_t("An ask against them needs leverage: their Desire or Fear, a String on them, or a deep bond (●●) that runs your way. Going all in brings its own.")}</p>
@@ -800,11 +862,11 @@ class SocialFencingApp extends _SocialAppBase {
              _t("<b>A no shames you</b> — you lose face: you're Insecure."),
              _t("<b>The room tips the roll</b> — some natures bend before an audience (+2: an Idol performs generosity, a Duelist must answer a challenge), others harden (−2: a Tyrant never bends where their people can see). Like the key and the wall, it shows in the result — or read it first."))}
         <h3>${_t("Your roll")}</h3>
-        <p>${_t("d20 + the skill that fits + <b>Leanings</b> (+1 per dot in that approach) + <b>bond</b> (+● if it runs that way) + <b>their Desire or Fear</b> (+{lever}, once you know it) + <b>help</b> (+{help}) ± <b>emotions</b>, against <b>DC = 10 + their proficiency + the better of WIS/INT</b>, shifted by the size of an ask.", { lever: LEVER_BONUS, help: HELP_BONUS })}</p>`;
+        <p>${_t("d20 + <b>the technique's skill</b> + <b>Leanings</b> (+1 per dot in that approach) + <b>bond</b> (+● if it runs that way) + <b>their Desire or Fear</b> (+{lever}, once you know it) + <b>help</b> (+{help}) ± <b>emotions</b>, against <b>DC = 10 + their proficiency + the better of WIS/INT</b>, shifted by the size of an ask.", { lever: LEVER_BONUS, help: HELP_BONUS })}</p>`;
 
       case "read": return `
         <h3>${_t("Reading people")}</h3>
-        <p>${_t("<b>Read them</b>: watch, listen, ask the one right question — Insight, or any skill that fits how you go about it. A hit answers one question:")}</p>
+        <p>${_t("<b>Read them</b>: watch, listen, ask the one right question — an Insight check. A hit answers one question:")}</p>
         <ol class="tsl-cx-qs">${READ_ORDER.map(q => `<li>${esc(READ_QUESTIONS[q].label)}</li>`).join("")}</ol>
         ${li(_t("<b>A strong hit</b> answers a second question — or, instead, keep what you saw: <b>a String on them</b>. You saw where it hurts."),
              _t("What you learn goes into the party's dossier on them — for good."),
@@ -907,25 +969,32 @@ class SocialFencingApp extends _SocialAppBase {
 
       default: return `
         <p class="tsl-cx-motto">${_t("Every word is a move. Every favour is a debt. Everyone wears a mask — and someone is always watching.")}</p>
-        <h3>${_t("The talk")}</h3>
-        <p>${_t("You want something from someone who doesn't want to give it, and it matters. You say your line — and pick the <b>technique</b> it really is. One roll; the person decides how it lands.")}</p>
+        <h3>${_t("What it's for")}</h3>
+        <p>${_t("You want something from someone who doesn't want to give it — and it matters. Not one Persuasion check: the <b>person</b> decides how your words land. Everyone has a hidden nature that opens to one approach and closes against another. The whole game is to <b>understand the person</b>.")}</p>
+        <h3>${_t("How to play — three steps")}</h3>
+        <ol class="tsl-cx-steps">
+          <li>${_t("<b>Say your line</b> out loud, in character — to someone on the map with you.")}</li>
+          <li>${_t("<b>Pick what it really is</b> in Talk: press them (<b>Pressure</b>), go through their feelings (<b>Heart</b>), or make it worth their while (<b>Reason</b>) — as an ask, or all in. Not sure how they'll take it? <b>Read them</b> first.")}</li>
+          <li>${_t("<b>Roll.</b> The card in the chat says what they do — and what it costs you.")}</li>
+        </ol>
         <p class="tsl-t-where"><i class="fas fa-circle-info"></i> ${_t("<b>Where:</b> right-click your character's token → the {icon} button → <b>Talk</b>. Target who you're talking to on the map (hover their token, press <b>T</b>) — or <b>Pick on the map</b>.", { icon: `<i class="fas fa-address-book"></i>` })}</p>
         ${grid}
-        ${li(_t("<b>Ask</b> — get what you want now: <b>Demand</b> (do it, or else), <b>Appeal</b> (from the heart), <b>Bargain</b> (a deal). Sized by what it costs them: small (DC −4), costly, or against them (DC +4, needs leverage)."),
-             _t("<b>All in</b> — a gamble that works on anything, and leaves a mark: <b>Blackmail</b> (their Fear), <b>Seduce</b> (their Desire), <b>Deceive</b> (a lie)."),
-             _t("<b>Read them</b> — learn something for the whole party: what they want, what they fear, what opens them, what closes them, their price — and whether the face they show is a mask."))}
-        <h3>${_t("In private, or before witnesses")}</h3>
-        <p>${_t("Say who is watching. <b>Before witnesses</b> a yes to anything that costs them binds them — a String on them — and a no shames you: Insecure. Some natures bend before an audience; others harden.")}</p>
-        <h3>${_t("What winning costs")}</h3>
-        <ul>${APPROACH_ORDER.map(id => `<li><b>${esc(APPROACHES[id].label)}</b> — ${esc(APPROACHES[id].cost)}</li>`).join("")}</ul>
+        <h3>${_t("Why the approach matters")}</h3>
+        <p>${_t("Each person has a <b>key</b> — the approach that works on them: you roll with <b>advantage</b>. And a <b>wall</b> — the one they close against: <b>disadvantage</b>. The third is a normal roll. You don't know which is which until you try — or read them. Talk shows your odds on every technique, from what the party knows.")}</p>
+        <h3>${_t("Which skill")}</h3>
+        <p>${_t("Each technique rolls the D&D skill it naturally is: Demand and Blackmail — Intimidation; Appeal, Bargain and Seduce — Persuasion; Deceive — Deception; Read them — Insight. Play to the party's strengths: let the one who frightens do the pressing.")}</p>
         <h3>${_t("What they say")}</h3>
         ${li(_t("<b>Strong hit</b> (5 over, or a 20) — it works. An ask or gambit for something big also hands you a String on them."),
              _t("<b>Hit</b> — it works; an Appeal or a Bargain gets “yes, but”: their nature names the price — pay it, or walk away."),
              _t("<b>Miss</b> — they push back their own way, and it hurts: you take their nature's <b>emotion</b> (−2 somewhere until you act it out) — anything but a Read. A proud one, refused something big, closes the door for the scene."),
              _t("<b>Bad miss</b> (5 under, or a 1) — and a String on you as well."))}
         <p>${_t("After a miss you may burn a String on them for +{n}.", { n: STRING_SPEND_BONUS })}</p>
-        <h3>${_t("The person")}</h3>
-        <p>${_t("Every NPC has a hidden nature. Its <b>key</b> approach gives you the better of two dice; its <b>wall</b> the worse. Its <b>price</b>, its <b>pushback</b>, what it does <b>after a no</b> and <b>before witnesses</b> are its own. Many wear a <b>mask</b> — another nature, shown to the world. Read them to find out — or learn the hard way.")}</p>`;
+        <h3>${_t("What winning costs")}</h3>
+        <ul>${APPROACH_ORDER.map(id => `<li><b>${esc(APPROACHES[id].label)}</b> — ${esc(APPROACHES[id].cost)}</li>`).join("")}</ul>
+        <h3>${_t("In private, or before witnesses")}</h3>
+        <p>${_t("Say who is watching. <b>Before witnesses</b> a yes to anything that costs them binds them — a String on them — and a no shames you: Insecure. Some natures bend before an audience; others harden.")}</p>
+        <h3>${_t("An example")}</h3>
+        <p>${_t("Captain Roell won't open the gate. Lyra reads the captain first — Insight: the key is Heart. “Captain, I'd never ask you to break your orders — only to be who your soldiers believe you are.” An Appeal, with advantage: a hit. “Yes — but ask it as a favour. On your knee, before my people.” Lyra kneels. The gate opens — and Roell remembers who knelt.")}</p>`;
     }
   }
 
@@ -972,7 +1041,6 @@ class SocialFencingApp extends _SocialAppBase {
     });
     on("[data-size]", "click", (_e, n) => { this._tSize = n.dataset.size; this.render(false); });
     on("[data-wit]", "click", (_e, n) => { this._tWitnesses = n.dataset.wit === "1"; this.render(false); });
-    on(".tsl-t-skill", "change", (e) => { this._tSkill = e.target.value; this.render(false); });
     on(".tsl-t-help", "change", (e) => { this._tHelper = e.target.value || null; this.render(false); });
     on("[data-lever]", "click", (_e, n) => { this._tLever = this._tLever === n.dataset.lever ? null : n.dataset.lever; this.render(false); });
     on("[data-t-roll]", "click", async (_e, n) => {

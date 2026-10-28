@@ -50,9 +50,10 @@ tools/preview.js        static renders + headless-Chrome screenshots of every su
   - **ask** (demand/appeal/bargain) — sized `ASK_SIZES` small −4 / costly 0 / against +4 ("against" needs a lever, a String or a bond ●●+ that matches);
   - **gambit** (blackmail/seduce/deceive), the "All in" row — any size, its own leverage, no price;
   - **read** — `approach: null` (no Leanings, no bond, no key/wall die, no witnesses): 1 question; a strong hit — a 2nd question OR a String on them ("you saw where it hurts", payload `readString`); a miss costs no emotion. 8 questions: desire, fear, key, wall, price, pressed, mask (only if they show a face — `TSLTalk.openQuestions`), audience.
-  - Each technique has a `line` (shown under its name in Talk: what it looks like in a scene) and a `rule`.
+  - Each technique has a `line` (what it looks like in a scene), `win` / `miss` (what happens either way, plain words, shown before the roll), a `rule`, and ONE skill — the D&D one (demand/blackmail itm, appeal/bargain/seduce per, deceive dec, read ins). No skill picker, no "best of" (the user, 2026-10-28: "чому вибирається стата?").
 - **No openings** since v3.2 (a dead `flags.openings` may linger on old NPCs; nothing reads it). Preparation is an **emotion** on the target (+2 for the approach that plays on it).
-- **The talk target** is a token on the map: the Chronicle's `targetToken` hook follows this user's Foundry targeting (T), and `_targeted()` picks it up on render; "Pick on the map" uses the capture listener. No list.
+- **The talk target** is a token on the map **with the speaker**: Talk needs the speaker's token on the map in view (`_tokenOf`), drops a target that isn't there, and the NPC's "Ask them as" row needs the NPC on the map (the user, 2026-10-28: "лише ті, що є на карті з тобою"). The `targetToken` hook follows this user's Foundry targeting (T); "Pick on the map" uses the capture listener. No list.
+- **Talk explains itself** (v3.5 layout): what the party knows in words + "Not known yet: …"; three approach columns with how the person is KNOWN to take each (`TSLTalk.knownRelation`: key → advantage, wall → disadvantage, plain → a normal roll, unknown) and the odds on every technique (`TSLTalk.chance` / `hitChance`: party knowledge only, never the truth); the picked technique shows "If it works / If not", "What are you asking for?", "Who's watching?", the roll with its odds; the result says what to do next. Never call the third approach "plain ground" in the UI — it's a normal roll.
 - **Costs by approach** (applied in resolve):
   - Pressure wins → no price, bond `shift sour` (none/stranger → Rival ●);
   - Heart wins → `shift warm` (none → Friend ●); Heart misses → a String on the speaker;
@@ -83,7 +84,7 @@ tools/preview.js        static renders + headless-Chrome screenshots of every su
 - `exchange` / `encounter` / `willpower` / `woundTrack` — dead; `migrateToV3` unsets them.
 
 ## Settings
-`language` (client; auto | en | uk — auto follows `game.i18n.lang`; registered first in init, switches live), `useSystemRollDialog` (default true), `socialDcBonus` (0), hidden `dataVersion` (migrations).
+`language` (client; auto | en | uk — auto follows `game.i18n.lang`; registered first in init, switches live), `systemRollDialog` (default false: a5e rolls its own check with `skipRollDialog`; the old `useSystemRollDialog` is no longer read), `socialDcBonus` (0), hidden `dataVersion` (migrations).
 
 ## Hard-won platform lessons (still true)
 - **`"socket": true` in module.json** is what makes Foundry relay `module.<id>` socket events. Without it every player → GM message is silently dropped. Changing it, or adding a new script file to the manifest, needs a **world restart**, not F5.

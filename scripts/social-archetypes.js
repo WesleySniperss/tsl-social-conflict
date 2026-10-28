@@ -31,6 +31,7 @@ const APPROACHES = {
   pressure: {
     id: "pressure", label: "Pressure", icon: "fa-hand-fist", color: "#e8557a", leaning: "power",
     gist: "Come at them hard.",
+    short: "threats, a challenge, shame",
     examples: "a challenge, a threat, shame, coldness, provocation, shaking their certainty, a higher law",
     cost: "They give in without a price — but they remember it: the bond sours, and they take a String on you.",
     skills: ["itm", "dec", "prf", "per", "ath"],
@@ -38,6 +39,7 @@ const APPROACHES = {
   heart: {
     id: "heart", label: "Heart", icon: "fa-heart", color: "#9b6ee8", leaning: "attention",
     gist: "Go through what they feel.",
+    short: "charm, pity, guilt",
     examples: "admiration, charm, pity, guilt, jealousy, your own vulnerability",
     cost: "When it works, the bond warms; a miss exposes you — a String on you.",
     skills: ["per", "prf", "ins", "dec"],
@@ -45,6 +47,7 @@ const APPROACHES = {
   reason: {
     id: "reason", label: "Reason", icon: "fa-scale-balanced", color: "#55b8e8", leaning: "order",
     gist: "Go through facts and interest.",
+    short: "a deal, an argument, proof",
     examples: "an argument, proof, a deal, one precise question, a puzzle",
     cost: "Clean: a deal — \"yes, but\" names their price, and nothing lingers.",
     skills: ["per", "inv", "ins", "his", "dec"],
