@@ -25,13 +25,14 @@ Hooks.once("init", () => {
   try { pick = game.settings.get(TSL_SCOPE, "language"); } catch { /* first run */ }
   TSLi18n.setLanguage(pick);
 
-  // A new key on purpose (the old "useSystemRollDialog" defaulted to on): the
-  // system still rolls the check (a5e: expertise dice, effects) — its dialog
-  // only opens when the table asks for it.
+  // The system's own check window is the roll (the user's choice): the module
+  // fills in the maneuver's skill and its bonus; the window is where the
+  // ability, extra dice or a situational modifier change. (The old key
+  // "useSystemRollDialog" is no longer read.)
   game.settings.register(TSL_SCOPE, "systemRollDialog", {
-    name: _t("Show the system's roll dialog"),
-    hint: _t("Off: the check is rolled at once — each technique knows its skill, and the module adds its bonuses (a5e still counts expertise dice and effects). On: the system's own dialog opens first (a5e: you may change the ability, add advantage or extra dice)."),
-    scope: "world", config: true, type: Boolean, default: false,
+    name: _t("Roll in the system's window"),
+    hint: _t("On (the default): every maneuver opens the system's own check window, already set to its skill and bonus — change the ability or add dice there if the scene calls for it. Off: the check is rolled at once, the same way."),
+    scope: "world", config: true, type: Boolean, default: true,
   });
 
   game.settings.register(TSL_SCOPE, "socialDcBonus", {

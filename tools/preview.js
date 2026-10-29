@@ -68,7 +68,7 @@ globalThis.canvas.scene.getFlag = (_s, k) => sceneFlags[k];
 globalThis.canvas.scene.setFlag = async (_s, k, v) => { sceneFlags[k] = v; };
 
 async function setup() {
-  await SAM.setActorData(lyra, { triad: { power: 1, attention: 2, order: 1 }, notes: "Third daughter of a ruined house. Talks her way in, then out." });
+  await SAM.setActorData(lyra, { notes: "Third daughter of a ruined house. Talks her way in, then out." });
   await SAM.setArchetype(roell, "tyrant");
   await SAM.setArchetype(duke, "machiavellian");
   await SAM.setArchetype(ilse, "dogmatic");
@@ -178,9 +178,10 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
   page("chronicle-talk-result-read", await chron(mira, "talk", { _tTarget: "duke",
     _tResult: { technique: "read", grade: "strong", total: 21, dc: 15, rel: "plain", questions: ["fear"], readString: true } }, "player"), 560, 1000);
   page("chronicle-talk-holds", await chron(lyra, "talk", { _tTarget: "roell" }, "player"), 560, 760);
+  page("chronicle-talk-asking", await chron(lyra, "talk", { _tTarget: "roell", _tMode: "ask" }, "player"), 560, 900);
   page("chronicle-talk-notarget", await chron(lyra, "talk", {}, "player"), 560, 400);
   page("chronicle-talk-gm", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "bargain" }), 560, 1250);
-  page("chronicle-talk-npc-gm", await chron(ilse, "talk"), 560, 1000);
+  page("chronicle-talk-npc-gm", await chron(ilse, "talk"), 560, 1500);
   for (const cat of ["start", "ap", "read", "emo", "natures", "bonds", "gm"]) {
     page(`chronicle-codex-${cat}`, await chron(lyra, "codex", { _codexCat: cat }), 560, 1500);
   }

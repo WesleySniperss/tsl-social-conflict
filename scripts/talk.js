@@ -1,18 +1,22 @@
 /**
  * tsl-social-conflict | talk.js
  *
- * v3 — TECHNIQUES (design: docs/v3-design.md).
+ * v3 — the roll (design: docs/v3-design.md).
  *
- * Social play is a conversation, not a duel: nobody declares a goal, there are
- * no turns and no tracks. When a character wants something from an NPC who
- * doesn't want to give it, they say the line and pick what it really is —
- * one of seven TECHNIQUES — and roll once against a visible DC:
- *   ASK    — get what you want now, sized by what it costs THEM; the way you
- *            come at them (Pressure · Heart · Reason) decides what winning
- *            costs: Demand · Appeal · Bargain.
- *   ALL IN — a gambit on leverage, with consequences that last: Blackmail ·
- *            Seduce · Deceive.
- *   READ   — learn something about them for the whole party.
+ * A conversation is PLAYED, not clicked: the players talk in character, the
+ * GM answers as the NPC — and plays their hidden nature, so the table can read
+ * it from how they take what is said. What the talk reveals, and the emotions
+ * it leaves, the GM marks with no roll (TSLEmotions.mark, the known facts).
+ * The module rolls only when the GM calls for it — usually once, when the ask
+ * is made; at most two or three times a conversation — and that roll counts
+ * everything the talk established. Nobody declares a goal; no turns, no tracks.
+ *
+ * Seven MANEUVERS — what the words really were. Each is a pair of D&D skills:
+ * the better one rolls, through the system's own check; the other backs it
+ * (+2 if you're trained in it).
+ *   ASK    — Demand · Appeal · Bargain, sized by what it costs THEM;
+ *   ALL IN — Blackmail · Seduce · Deceive, on leverage;
+ *   READ   — when the talk doesn't show it: one straight answer.
  *
  * What winning costs depends on the approach:
  *   Pressure — they give in without a price, but remember it: the bond sours,
@@ -75,58 +79,60 @@ const ASK_SIZES = {
 };
 const ASK_ORDER = ["small", "costly", "against"];
 
-/** What a technique does. */
+/** What a maneuver does: the ask, the all-in gamble, or a read. */
 const TECH_JOBS = {
-  ask:    { id: "ask",    label: "Ask",    icon: "fa-hand-holding", hint: "Get what you want, now. How you come at them decides what winning costs." },
+  read:   { id: "read",   label: "Read",   icon: "fa-eye",          hint: "When the talk doesn't show it — what they hide, the face they wear: one straight answer, for the whole party." },
+  ask:    { id: "ask",    label: "Ask",    icon: "fa-hand-holding", hint: "You've made your case: will they do it? Sized by what it costs them; the way your words came at them decides what winning costs." },
   gambit: { id: "gambit", label: "All in", icon: "fa-dice",         hint: "A gamble on leverage — it works on anything, and the consequences last." },
-  read:   { id: "read",   label: "Read",   icon: "fa-eye",          hint: "Learn something about them — for the whole party." },
 };
-const JOB_ORDER = ["ask", "gambit", "read"];
+const JOB_ORDER = ["read", "ask", "gambit"];
+
+/** A maneuver's second skill backs the roll: +2 when you're trained in it. */
+const SUPPORT_BONUS = 2;
 
 /**
- * The seven techniques: three asks and three gambits (one per approach), and
- * the Read. `line` — what it looks like in a scene; `win` / `miss` — what
- * happens either way, in plain words (shown before the roll); `rule` — the
- * whole of it. `skills` — the ONE skill it rolls: the D&D skill it naturally
- * is (Demand is Intimidation, an Appeal is Persuasion…). No choosing, no
- * "best of": a party plays to its strengths — the one who frightens presses.
+ * The seven maneuvers: the Read; an Ask and an All-in for each approach.
+ * `skills` — the PAIR of D&D skills it is: the better one rolls (through the
+ * system's own check), the other backs it (+2 if trained). `line` — what it
+ * looks like in a scene; `win` / `miss` — what happens either way, in plain
+ * words; `rule` — the whole of it.
  */
 const TECHNIQUES = {
-  demand:    { approach: "pressure", job: "ask",    label: "Demand",    skills: ["itm"],
+  read:      { approach: null,       job: "read",   label: "Read them", skills: ["ins", "inv"],
+    line: "watch them — or dig into who they are",
+    win: "one answer about them for the whole party — on a strong hit, a second answer or a String on them",
+    miss: "they notice, and won't let you read them again this scene — no emotion; on a bad miss they read you instead (a String on you)",
+    rule: "Hit: one answer about them for the whole party. Strong hit: a second answer — or a String on them instead (you saw where it hurts). Miss: they notice — but it costs no emotion. Bad miss: they read you instead (a String on you)." },
+  demand:    { approach: "pressure", job: "ask",    label: "Demand",    skills: ["itm", "ath"],
     line: "do it — or else",
     win: "they give in — no price, but they remember who made them: the bond sours, and they take a String on you",
     miss: "they push back their own way — you take their emotion (−2 until you act it out)",
     rule: "Hit: they give in — no price, but they remember it: the bond sours, and they take a String on you." },
-  appeal:    { approach: "heart",    job: "ask",    label: "Appeal",    skills: ["per"],
+  appeal:    { approach: "heart",    job: "ask",    label: "Appeal",    skills: ["per", "prf"],
     line: "ask from the heart",
     win: "they do it — for their price on a plain hit — and the bond warms",
     miss: "you take their emotion, and they take a String on you: you showed your heart",
     rule: "Hit: they do it, and the bond warms — a plain hit for their price. Miss: you showed your heart — a String on you." },
-  bargain:   { approach: "reason",   job: "ask",    label: "Bargain",   skills: ["per"],
+  bargain:   { approach: "reason",   job: "ask",    label: "Bargain",   skills: ["per", "inv"],
     line: "make it worth their while",
     win: "a deal — on your terms on a strong hit, for their price on a plain one",
     miss: "you take their emotion; nothing else lingers",
     rule: "Hit: a deal — on your terms on a strong hit, for their price on a plain one. Nothing lingers." },
-  blackmail: { approach: "pressure", job: "gambit", label: "Blackmail", skills: ["itm"], needs: "fear",
+  blackmail: { approach: "pressure", job: "gambit", label: "Blackmail", skills: ["itm", "inv"], needs: "fear",
     line: "their Fear, or your hold on them",
     win: "they do it, Frightened of you — your enemy now, and they'll pay you back (a String on you)",
     miss: "they call your bluff — enemies all the same: their emotion and a String on you",
     rule: "Needs their Fear or a String on them. Hit: they do it, Frightened of you — your enemy now, and they'll pay you back (a String on you). Miss: they call your bluff — enemies all the same, and a String on you." },
-  seduce:    { approach: "heart",    job: "gambit", label: "Seduce",    skills: ["per"], needs: "desire",
+  seduce:    { approach: "heart",    job: "gambit", label: "Seduce",    skills: ["per", "prf"], needs: "desire",
     line: "their Desire, or what's between you",
     win: "they do it for you — the bond deepens",
     miss: "heartbreak — the bond cools, you're Hopeless, and a String on you",
     rule: "Needs their Desire or a bond of ●●. Hit: they do it for you — the bond deepens. Miss: heartbreak — the bond cools, a String on you, and you're Hopeless." },
-  deceive:   { approach: "reason",   job: "gambit", label: "Deceive",   skills: ["dec"],
+  deceive:   { approach: "reason",   job: "gambit", label: "Deceive",   skills: ["dec", "prf"],
     line: "a lie that works — until it doesn't",
     win: "they believe it and act on it — the lie stays on record until the GM brings it out",
     miss: "caught — their emotion, a String on you, and the door closes",
     rule: "Hit: they believe it and act — the lie stays on record until the GM brings it out. Miss: caught — a String on you, and the door closes." },
-  read:      { approach: null,       job: "read",   label: "Read them", skills: ["ins"],
-    win: "one answer about them for the whole party — on a strong hit, a second answer or a String on them",
-    miss: "they notice, and won't let you read them again this scene — no emotion; on a bad miss they read you instead (a String on you)",
-    line: "watch, listen, ask the one right question",
-    rule: "Hit: one answer about them for the whole party. Strong hit: a second answer — or a String on them instead (you saw where it hurts). Miss: they notice — but it costs no emotion. Bad miss: they read you instead (a String on you)." },
 };
 for (const [id, t] of Object.entries(TECHNIQUES)) t.id = id;
 const TECHNIQUE_ORDER = Object.keys(TECHNIQUES);
@@ -173,12 +179,18 @@ class TSLTalk {
 
   /**
    * The system rolls the check itself where it can (a5e: its expertise dice
-   * and effects count) — without its dialog, unless the table wants it (the
-   * dialog asks for an ability, advantage, extra dice: questions the technique
-   * already answered).
+   * and effects count), in its own window by default — already set to the
+   * maneuver's skill and bonus; the ability or extra dice change there.
    */
   static usesSystemRoll(actor) { return typeof actor?.rollSkillCheck === "function"; }
-  static showsSystemDialog() { return !!TSLTalk._setting("systemRollDialog", false); }
+  static showsSystemDialog() { return !!TSLTalk._setting("systemRollDialog", true); }
+
+  /** Trained in a skill? (a5e: `proficient`; dnd5e: the proficiency multiplier.) */
+  static proficient(actor, key) {
+    const e = actor?.system?.skills?.[key];
+    if (!e) return false;
+    return Number(e.proficient ?? e.prof ?? e.value ?? 0) >= 1;
+  }
 
   // ── Numbers ───────────────────────────────────────────────────────────────
 
@@ -363,7 +375,7 @@ class TSLTalk {
 
   /**
    * Everything the speaker sees before rolling, built only from what is
-   * VISIBLE (skills, Leanings, bonds, help, levers, emotions, the DC). It
+   * VISIBLE (skills, bonds, help, levers, emotions, the DC). It
    * never consults the key, the wall or how they take witnesses — those show
    * in the result.
    */
@@ -388,9 +400,11 @@ class TSLTalk {
     if (job === "gambit") lever = tech.needs && known[tech.needs] ? tech.needs : null;
     else lever = lever && leverOk[lever] ? lever : null;
 
+    // The maneuver's other skill backs the roll: +2 when you're trained in it.
+    const support = tech.skills.find(k => k !== skill) ?? null;
+    const backed = !!support && TSLTalk.proficient(src, support);
     const parts = [{ label: SKILL_LABELS[skill] ?? skill, value: TSLTalk.skillMod(src, skill), base: true }];
-    const lean = ap ? SocialArchetypeManager.leaningDots(src, ap) : 0;
-    if (lean) parts.push({ label: _t("{approach} leaning", { approach: APPROACHES[ap].label }), value: lean });
+    if (backed) parts.push({ label: _t("{skill} backs it", { skill: SKILL_LABELS[support] ?? support }), value: SUPPORT_BONUS });
     if (bond) parts.push({ label: _t("bond — {type}", { type: SocialArchetypeManager.getBondType(TSLBondStore.find(src.id, npc.id)?.type).label }), value: bond });
     if (lever) parts.push({ label: lever === "desire" ? _t("their Desire") : _t("their Fear"), value: LEVER_BONUS });
     const helper = helperId ? game.actors.get(helperId) : null;
@@ -410,7 +424,7 @@ class TSLTalk {
       blocked = _t("Seduce needs their Desire — or a bond of ●● between you.");
 
     return {
-      technique, job, approach: ap, isRead: job === "read", sized, size, skill, parts, mod, witnesses: sized && !!witnesses,
+      technique, job, approach: ap, isRead: job === "read", sized, size, skill, support, backed, parts, mod, witnesses: sized && !!witnesses,
       helperId: helper && helper.id !== src.id ? helper.id : null,
       lever, leverOk, strings, known, points,
       dc: dcInfo.dc, dcBase: dcInfo.base, dcMods: dcInfo.mods, blocked,

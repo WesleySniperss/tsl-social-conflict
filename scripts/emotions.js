@@ -12,6 +12,7 @@
  * Each is let go by acting it out in character, or by a friend's comfort.
  *
  * Where they come from:
+ *   • the talk itself: when the words land, the GM marks it — no roll (mark);
  *   • a miss (anything but a Read): the NPC hits back with its nature's emotion;
  *   • a String spent on someone ("Hurt") — both ways, the GM's NPCs too;
  *   • gambits: Blackmail frightens them, a broken heart leaves you Hopeless,
@@ -164,6 +165,43 @@ class TSLEmotions {
       </div>`,
     });
     return true;
+  }
+
+  /** Take it off without a word — the GM's own correction (no chat line). */
+  static async unset(actor, id) {
+    const hit = TSLEmotions.of(actor).find(e => e.id === id);
+    if (hit) await actor.deleteEmbeddedDocuments("ActiveEffect", [hit.effectId]);
+    return !!hit;
+  }
+
+  /**
+   * The talk itself landed: the GM marks what it left on them — no roll.
+   * Guilty is owed to someone (`toward`). Marking what they already feel takes
+   * it back (a correction); Guilty toward someone else moves it. One chat line
+   * when it lands, so the table sees what it opens. GM client.
+   * Returns "added" | "removed" | null.
+   */
+  static async mark(actor, id, { toward = null } = {}) {
+    const e = EMOTIONS[id];
+    if (!game.user.isGM || !actor || !e) return null;
+    if (id === "guilty" && !toward) return null;
+    const had = TSLEmotions.of(actor).find(x => x.id === id);
+    if (had) {
+      await TSLEmotions.unset(actor, id);
+      if (id !== "guilty" || had.toward === toward) return "removed";
+    }
+    await TSLEmotions.add(actor, id, { by: toward, toward: id === "guilty" ? toward : null });
+    const esc = foundry.utils.escapeHTML;
+    const to = id === "guilty" ? game.actors.get(toward)?.name : null;
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor }),
+      content: `<div class="tsl-x-card tsl-x--success tsl-x-card--slim">
+        <div class="tsl-x-head"><i class="fas fa-comments"></i><span class="tsl-x-title">${_t("The words landed")}</span></div>
+        <div class="tsl-x-who">${_t("{img} {who} is <b>{emotion}</b> — {opens}.", { img: `<img class="tsl-emo-ico" src="${e.img}" alt="">`,
+          who: esc(actor.name), emotion: esc(to ? `${e.label} → ${to}` : e.label), opens: esc(e.opensText) })}</div>
+      </div>`,
+    });
+    return "added";
   }
 
   /** The GM wipes a scar (a story turn earned it). */

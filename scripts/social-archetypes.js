@@ -22,14 +22,13 @@ console.log("TSL | Loading social-archetypes.js...");
 const SOCIAL_FENCING_SCOPE = "tsl-social-conflict";
 
 /**
- * The three APPROACHES. Every technique comes at a person one of these ways.
- * `leaning` — the Leanings dot (a player character's triad dot) that adds +1
- * per dot to it. `skills` — the skills that usually fit; any skill may, if
- * the words fit. `cost` — what winning this way costs (talk.js applies it).
+ * The three APPROACHES. Every maneuver but the Read comes at a person one of
+ * these ways. `school` — the bond school that feeds it (+● for a bond of
+ * that kind). `cost` — what winning this way costs (talk.js applies it).
  */
 const APPROACHES = {
   pressure: {
-    id: "pressure", label: "Pressure", icon: "fa-hand-fist", color: "#e8557a", leaning: "power",
+    id: "pressure", label: "Pressure", icon: "fa-hand-fist", color: "#e8557a", school: "power",
     gist: "Come at them hard.",
     short: "threats, a challenge, shame",
     examples: "a challenge, a threat, shame, coldness, provocation, shaking their certainty, a higher law",
@@ -37,7 +36,7 @@ const APPROACHES = {
     skills: ["itm", "dec", "prf", "per", "ath"],
   },
   heart: {
-    id: "heart", label: "Heart", icon: "fa-heart", color: "#9b6ee8", leaning: "attention",
+    id: "heart", label: "Heart", icon: "fa-heart", color: "#9b6ee8", school: "attention",
     gist: "Go through what they feel.",
     short: "charm, pity, guilt",
     examples: "admiration, charm, pity, guilt, jealousy, your own vulnerability",
@@ -45,7 +44,7 @@ const APPROACHES = {
     skills: ["per", "prf", "ins", "dec"],
   },
   reason: {
-    id: "reason", label: "Reason", icon: "fa-scale-balanced", color: "#55b8e8", leaning: "order",
+    id: "reason", label: "Reason", icon: "fa-scale-balanced", color: "#55b8e8", school: "order",
     gist: "Go through facts and interest.",
     short: "a deal, an argument, proof",
     examples: "an argument, proof, a deal, one precise question, a puzzle",
@@ -996,9 +995,6 @@ const BOND_TYPES = [
 // Legacy bond ids → their replacement (Indebted → Sworn, Creditor → Liege).
 const BOND_TYPE_ALIASES = { indebted: "sworn", creditor: "liege" };
 
-/** Leanings: the dots a player character spreads across the three approaches. */
-const TRIAD_POINT_POOL = 4;
-
 /** What the party may have learned about someone — the Read questions. */
 const KNOWN_FACTS = ["desire", "fear", "key", "wall", "price", "pressed", "mask", "audience"];
 
@@ -1088,11 +1084,6 @@ class SocialArchetypeManager {
       intent: data.intent || "",
       notes: data.notes || "",
       stance: data.stance || null,
-      triad: {
-        power:     data.triad?.power     ?? 0,
-        attention: data.triad?.attention ?? 0,
-        order:     data.triad?.order     ?? 0,
-      },
       points: Object.fromEntries(PROFILE_POINTS.map(p => [p.id, data.points?.[p.id] ?? ""])),
     };
   }
@@ -1103,13 +1094,6 @@ class SocialArchetypeManager {
    */
   static isPC(actor) {
     return !!actor && (actor.type === "character" || !!actor.hasPlayerOwner);
-  }
-
-  /** A player character's Leanings dots for an approach (NPCs have none). */
-  static leaningDots(actor, approachId) {
-    if (!SocialArchetypeManager.isPC(actor)) return 0;
-    const triad = APPROACHES[approachId]?.leaning;
-    return triad ? (SocialArchetypeManager.getCharacterNotes(actor).triad[triad] ?? 0) : 0;
   }
 
   static getArchetypeOptions() {
@@ -1129,7 +1113,7 @@ class SocialArchetypeManager {
   /** The approach a bond type feeds (+● against that person), or null. */
   static bondApproach(typeId) {
     const school = SocialArchetypeManager.getBondType(typeId).school;
-    return APPROACH_ORDER.find(a => APPROACHES[a].leaning === school) ?? null;
+    return APPROACH_ORDER.find(a => APPROACHES[a].school === school) ?? null;
   }
 
   /** A veiled line of how this nature visibly gives way (the key landing). */

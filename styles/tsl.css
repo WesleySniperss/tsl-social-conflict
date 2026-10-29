@@ -572,7 +572,7 @@
 .tsl-lie i { color: var(--tsl-muted); margin-right: 4px; }
 
 .tsl-cx-grid {
-  display: grid; grid-template-columns: 64px repeat(3, minmax(0, 1fr)); gap: 3px 6px; margin: 6px 0 8px;
+  display: grid; grid-template-columns: 92px repeat(3, minmax(0, 1fr)); gap: 3px 6px; margin: 6px 0 8px;
   padding: 8px 10px; border-radius: 8px; background: rgba(0, 0, 0, 0.22); border: 1px solid var(--tsl-border);
   font-size: 12.5px; text-align: center;
 }
@@ -701,9 +701,7 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 .tsl-fencing .tsl-ap .tsl-tech-btn { min-height: 46px; }
 .tsl-fencing .tsl-tech-btn em { font-style: normal; font-weight: 700; color: var(--tsl-text); }
 .tsl-fencing .tsl-tech-btn--gambit { border-style: dashed; }
-.tsl-fencing .tsl-tech-btn--read { flex-direction: row; justify-content: space-between; gap: 10px; min-height: 38px; padding: 4px 12px; }
-.tsl-fencing .tsl-tech-btn--read b { white-space: nowrap; }
-.tsl-fencing .tsl-tech-btn--read span { text-align: right; }
+
 
 /* the technique picked: what happens either way, then the roll */
 .tsl-pick {
@@ -727,3 +725,82 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 .tsl-math-mode { flex: 1 1 100%; font-size: 12px; color: var(--tsl-good); }
 .tsl-math-mode--dis { color: #f0a59d; }
 .tsl-next { flex: 1 1 100%; font-size: 12.5px; color: var(--tsl-text); }
+
+/* ── Talk, v3.6: the talk is played — the roll when the GM calls for it ───── */
+/* what you're doing: asking, or reading them */
+.tsl-modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.tsl-fencing .tsl-mode-btn {
+  width: 100%; height: auto; min-height: 50px; margin: 0; padding: 6px 10px; box-shadow: none; cursor: pointer;
+  display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 9px; row-gap: 1px; align-items: center; text-align: left;
+  background: rgba(0, 0, 0, 0.25); color: var(--tsl-soft); border: 1px solid var(--tsl-border2); border-radius: 8px; line-height: 1.2;
+}
+.tsl-fencing .tsl-mode-btn i { grid-row: 1 / span 2; font-size: 17px; color: var(--tsl-sway); }
+.tsl-fencing .tsl-mode-btn b { font-family: var(--tsl-title); font-weight: 400; font-size: 14px; color: #fff; white-space: nowrap; }
+.tsl-fencing .tsl-mode-btn span { font-family: var(--tsl-body); font-size: 11.5px; color: var(--tsl-dim); white-space: normal; }
+.tsl-fencing .tsl-mode-btn:hover { border-color: rgba(224, 180, 94, 0.6); }
+.tsl-fencing .tsl-mode-btn.on { background: rgba(224, 180, 94, 0.14); border-color: var(--tsl-sway); box-shadow: 0 0 9px rgba(224, 180, 94, 0.28); }
+.tsl-fencing .tsl-mode-btn.on span { color: var(--tsl-soft); }
+/* how your words came at them — the approach, as a question about the scene */
+.tsl-fencing .tsl-ap-btn {
+  width: 100%; height: auto; margin: 0; box-shadow: none; cursor: pointer; line-height: 1.2;
+  display: flex; flex-direction: column; align-items: stretch; text-align: center; color: var(--tsl-soft); font-family: var(--tsl-body);
+}
+.tsl-fencing .tsl-ap-btn:hover { border-color: var(--c); }
+.tsl-fencing .tsl-ap-btn.on {
+  border-color: var(--c); box-shadow: 0 0 9px color-mix(in srgb, var(--c) 40%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 30%, transparent), rgba(0, 0, 0, 0.2) 85%);
+}
+.tsl-ap-btn .tsl-ap-head { cursor: pointer; }
+.tsl-aps .tsl-ap { padding: 6px 6px 5px; }
+.tsl-aps .tsl-ap-rel { min-height: 0; }
+/* plainly, or all in */
+.tsl-mvq { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.tsl-fencing .tsl-mvq .tsl-tech-btn { min-height: 48px; align-items: stretch; justify-content: center; padding: 5px 9px; }
+.tsl-fencing .tsl-tech-btn .tsl-mv-top {
+  display: flex; align-items: baseline; gap: 7px; width: 100%;
+  font-family: var(--tsl-title); font-size: 13.5px; letter-spacing: 0.03em; color: inherit; white-space: nowrap;
+}
+.tsl-fencing .tsl-tech-btn .tsl-mv-top b { overflow: hidden; text-overflow: ellipsis; }
+.tsl-fencing .tsl-tech-btn .tsl-mv-top em { font-family: var(--tsl-title); font-style: normal; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tsl-dim); }
+.tsl-fencing .tsl-tech-btn .tsl-mv-skills { text-align: left; font-size: 11px; line-height: 1.25; color: var(--tsl-dim); }
+.tsl-fencing .tsl-tech-btn .tsl-mv-skills b { color: var(--tsl-soft); font-weight: 600; font-family: var(--tsl-body); }
+.tsl-fencing .tsl-tech-btn .tsl-mv-skills i { color: var(--tsl-good); font-size: 9px; }
+.tsl-pick-skills { font-size: 12px; color: var(--tsl-dim); }
+.tsl-pick-title .tsl-pick-skills b { font-family: var(--tsl-body); font-size: 12px; color: var(--tsl-soft); font-weight: 600; }
+.tsl-pick-skills i { color: var(--tsl-good); font-size: 9px; }
+/* the GM's live screen: how they take each approach; what the talk did */
+.tsl-takes { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
+.tsl-take {
+  display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 8px; align-items: baseline;
+  padding: 4px 8px; border-radius: 6px; border-left: 3px solid var(--c); background: rgba(0, 0, 0, 0.2); font-size: 13px; line-height: 1.35;
+}
+.tsl-take-ap { display: flex; flex-direction: column; font-family: var(--tsl-title); color: #fff; }
+.tsl-take-ap i { color: var(--c); font-size: 0.9em; }
+.tsl-take-ap small { font-family: var(--tsl-body); font-size: 11px; color: var(--tsl-dim); }
+.tsl-take-ap small i { color: inherit; }
+.tsl-take--key .tsl-take-ap small { color: var(--tsl-good); }
+.tsl-take--wall .tsl-take-ap small { color: #f0a59d; }
+.tsl-feels { display: flex; flex-wrap: wrap; gap: 5px; }
+.tsl-fencing .tsl-feel {
+  width: auto; height: 26px; margin: 0; padding: 0 9px 0 6px; box-shadow: none; cursor: pointer; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 5px; border-radius: 13px; font-size: 12.5px; line-height: 1;
+  background: rgba(0, 0, 0, 0.25); color: var(--tsl-soft); border: 1px dashed color-mix(in srgb, var(--c) 60%, transparent);
+}
+.tsl-fencing .tsl-feel img { width: 15px; height: 15px; border: none; opacity: 0.85; }
+.tsl-fencing .tsl-feel:hover { color: #fff; border-color: var(--c); }
+.tsl-fencing .tsl-feel.on { color: #fff; border-style: solid; border-color: var(--c); background: color-mix(in srgb, var(--c) 24%, rgba(0, 0, 0, 0.4)); }
+
+/* your maneuvers, best first (the PC profile) */
+.tsl-mine { display: flex; flex-direction: column; gap: 3px; }
+.tsl-mine-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: baseline; gap: 10px;
+  padding: 3px 8px; border-radius: 6px; border-left: 3px solid color-mix(in srgb, var(--c) 70%, transparent);
+  background: rgba(0, 0, 0, 0.18); font-size: 13px;
+}
+.tsl-mine-row--best { background: color-mix(in srgb, var(--c) 14%, rgba(0, 0, 0, 0.2)); }
+.tsl-mine-name { font-family: var(--tsl-title); color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tsl-mine-name i { color: var(--c); font-size: 0.85em; margin-right: 3px; }
+.tsl-mine-skills { font-size: 11.5px; color: var(--tsl-dim); white-space: nowrap; }
+.tsl-mine-skills i { color: var(--tsl-good); font-size: 9px; }
+.tsl-mine-bonus { font-weight: 700; color: var(--tsl-text); min-width: 2.2em; text-align: right; }
+.tsl-cx-grid small { display: block; font-size: 10.5px; color: var(--tsl-dim); }
