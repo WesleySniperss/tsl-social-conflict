@@ -571,7 +571,9 @@ class TSLSceneVisualizer extends _TSLVizBase {
     // Float the result over the target — long enough to actually READ it.
     if (tgt) {
       const label = job === "read" || approach === "read" ? (hit ? _t("read") : _t("noticed"))
+        : technique === "deceive" ? (hit ? _t("they believe it") : _t("caught"))
         : job === "gambit" ? (hit ? _t("it works") : _t("it blows up"))
+        : technique === "bargain" ? (grade === "strong" || (grade === "success" && paid) ? _t("a deal") : _t("no deal"))
         : grade === "strong" ? _t("yes")
         : grade === "success" ? (technique === "demand" ? _t("gives in") : paid ? _t("yes, for a price") : _t("a price refused"))
         : _t("no");

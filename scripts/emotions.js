@@ -215,25 +215,25 @@ class TSLEmotions {
    * Emotions' and scars' share of a roll: the speaker's own (a penalty, a
    * scar's twist) and the target's (a bonus for playing on what they feel).
    */
-  static rollParts(src, tgt, technique) {
+  static rollParts(src, tgt, technique, approach = approachOf(technique)) {
     const tech = TECHNIQUES[technique];
     const parts = [];
     if (!tech || !src) return parts;
     for (const e of TSLEmotions.of(src)) {
       const s = EMOTIONS[e.id].spoils;
-      const spoiled = s.approach ? s.approach === tech.approach
+      const spoiled = s.approach ? s.approach === approach
         : s.jobs ? s.jobs.includes(tech.job)
         : s.toward ? (!e.toward || e.toward === tgt?.id) : false;
       if (spoiled) parts.push({ label: _t("you're {emotion}", { emotion: EMOTIONS[e.id].label }), value: -EMOTION_PENALTY });
     }
-    const fits = (r) => r.approach ? r.approach === tech.approach : r.job === tech.job;
+    const fits = (r) => r.approach ? r.approach === approach : r.job === tech.job;
     for (const id of TSLEmotions.scars(src)) {
       const sc = SCARS[id];
       if (fits(sc.plus)) parts.push({ label: _t("scar — {scar}", { scar: sc.label }), value: 1 });
       if (fits(sc.minus)) parts.push({ label: _t("scar — {scar}", { scar: sc.label }), value: -1 });
     }
     for (const e of TSLEmotions.of(tgt)) {
-      if (EMOTIONS[e.id].opens !== tech.approach) continue;
+      if (EMOTIONS[e.id].opens !== approach) continue;
       if (e.id === "guilty" && e.toward && e.toward !== src.id) continue;
       parts.push({ label: _t("they're {emotion}", { emotion: EMOTIONS[e.id].label }), value: EMOTION_BONUS });
     }

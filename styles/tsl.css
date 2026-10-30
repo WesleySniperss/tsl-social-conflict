@@ -570,6 +570,10 @@
 .tsl-fencing .tsl-btn--tiny { height: 22px; padding: 0 8px; font-size: 10.5px; margin-left: auto; }
 .tsl-lie { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--tsl-soft); }
 .tsl-lie i { color: var(--tsl-muted); margin-right: 4px; }
+.tsl-lie .tsl-btn--tiny + .tsl-btn--tiny { margin-left: 0; }
+.tsl-word { font-size: 12.5px; line-height: 1.35; color: var(--tsl-sway); cursor: help; }
+.tsl-word i { font-size: 0.9em; margin-right: 3px; }
+.tsl-word--lie { color: #a9b4c0; }
 
 .tsl-cx-grid {
   display: grid; grid-template-columns: 92px repeat(3, minmax(0, 1fr)); gap: 3px 6px; margin: 6px 0 8px;
@@ -624,8 +628,8 @@
 /* who's watching: in private / before witnesses */
 .tsl-wit { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .tsl-fencing .tsl-wit-btn {
-  width: 100%; height: 30px; margin: 0; padding: 0 6px; box-shadow: none; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; overflow: hidden;
+  width: 100%; height: auto; min-height: 30px; margin: 0; padding: 3px 6px; box-shadow: none; cursor: pointer; line-height: 1.2;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 2px 6px;
   background: rgba(0, 0, 0, 0.25); color: var(--tsl-soft); border: 1px solid var(--tsl-border2); border-radius: 7px;
   font-family: var(--tsl-title); font-size: 11.5px; letter-spacing: 0.04em;
 }
@@ -727,16 +731,16 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 .tsl-next { flex: 1 1 100%; font-size: 12.5px; color: var(--tsl-text); }
 
 /* ── Talk, v3.6: the talk is played — the roll when the GM calls for it ───── */
-/* what you're doing: asking, or reading them */
-.tsl-modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+/* what you're doing: asking, lying, or reading them */
+.tsl-modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .tsl-fencing .tsl-mode-btn {
-  width: 100%; height: auto; min-height: 50px; margin: 0; padding: 6px 10px; box-shadow: none; cursor: pointer;
-  display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 9px; row-gap: 1px; align-items: center; text-align: left;
+  width: 100%; height: auto; min-height: 50px; margin: 0; padding: 6px 8px; box-shadow: none; cursor: pointer;
+  display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 7px; row-gap: 2px; align-items: center; align-content: start; text-align: left;
   background: rgba(0, 0, 0, 0.25); color: var(--tsl-soft); border: 1px solid var(--tsl-border2); border-radius: 8px; line-height: 1.2;
 }
-.tsl-fencing .tsl-mode-btn i { grid-row: 1 / span 2; font-size: 17px; color: var(--tsl-sway); }
+.tsl-fencing .tsl-mode-btn i { font-size: 14px; color: var(--tsl-sway); }
 .tsl-fencing .tsl-mode-btn b { font-family: var(--tsl-title); font-weight: 400; font-size: 14px; color: #fff; white-space: nowrap; }
-.tsl-fencing .tsl-mode-btn span { font-family: var(--tsl-body); font-size: 11.5px; color: var(--tsl-dim); white-space: normal; }
+.tsl-fencing .tsl-mode-btn span { grid-column: 1 / -1; font-family: var(--tsl-body); font-size: 11.5px; color: var(--tsl-dim); white-space: normal; }
 .tsl-fencing .tsl-mode-btn:hover { border-color: rgba(224, 180, 94, 0.6); }
 .tsl-fencing .tsl-mode-btn.on { background: rgba(224, 180, 94, 0.14); border-color: var(--tsl-sway); box-shadow: 0 0 9px rgba(224, 180, 94, 0.28); }
 .tsl-fencing .tsl-mode-btn.on span { color: var(--tsl-soft); }
@@ -753,9 +757,9 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 .tsl-ap-btn .tsl-ap-head { cursor: pointer; }
 .tsl-aps .tsl-ap { padding: 6px 6px 5px; }
 .tsl-aps .tsl-ap-rel { min-height: 0; }
-/* plainly, or all in */
-.tsl-mvq { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-.tsl-fencing .tsl-mvq .tsl-tech-btn { min-height: 48px; align-items: stretch; justify-content: center; padding: 5px 9px; }
+/* plainly, all in — or a lie (Reason has no all-in: two or three, sharing the width) */
+.tsl-mvq { display: flex; gap: 6px; align-items: stretch; }
+.tsl-fencing .tsl-mvq .tsl-tech-btn { flex: 1 1 0; width: auto; min-width: 0; min-height: 48px; align-items: stretch; justify-content: flex-start; padding: 5px 8px; }
 .tsl-fencing .tsl-tech-btn .tsl-mv-top {
   display: flex; align-items: baseline; gap: 7px; width: 100%;
   font-family: var(--tsl-title); font-size: 13.5px; letter-spacing: 0.03em; color: inherit; white-space: nowrap;
@@ -804,3 +808,4 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 .tsl-mine-skills i { color: var(--tsl-good); font-size: 9px; }
 .tsl-mine-bonus { font-weight: 700; color: var(--tsl-text); min-width: 2.2em; text-align: right; }
 .tsl-cx-grid small { display: block; font-size: 10.5px; color: var(--tsl-dim); }
+.tsl-cx-grid > span.tsl-cx-none { color: var(--tsl-dim); }

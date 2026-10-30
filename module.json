@@ -1,8 +1,8 @@
 {
   "id": "tsl-social-conflict",
   "title": "TSL: Social Conflict",
-  "description": "Social scenes for D&D 5e and Level Up (a5e): talk to an NPC in character, live — and when the GM calls for a roll, say what your words really were: Demand, Appeal or Bargain to ask; Blackmail, Seduce or Deceive to go all in; or read them. Every maneuver is a pair of D&D skills, rolled in the system's own check window; what the talk reveals and the emotions it leaves, the GM marks with no roll. Every NPC has a hidden psychological nature that decides how it lands: the approach that opens them, the one they close against, the price they name, the emotion they leave on you when you miss. Masks that hide who they are, witnesses who make every yes binding and every no a disgrace, five emotions from Thirsty Sword Lesbians on everyone, scars that stay, Strings and bonds that carry into the campaign. In English and Ukrainian. Inspired by Thirsty Sword Lesbians (Powered by Lesbians).",
-  "version": "3.6.0",
+  "description": "Social scenes for D&D 5e and Level Up (a5e): talk to an NPC in character, live — and when the GM calls for a roll, say what your words really were: Demand, Appeal or a Deal to ask; Blackmail or Seduce to go all in; Deceive, a lie told any way; or read them. Every maneuver is a pair of D&D skills, rolled in the system's own check window; what the talk reveals and the emotions it leaves, the GM marks with no roll. Every NPC has a hidden psychological nature that decides how it lands: the approach that opens them, the one they close against, the price they name, the emotion they leave on you when you miss. Masks that hide who they are, witnesses who make every yes binding and every no a disgrace, five emotions from Thirsty Sword Lesbians on everyone, scars that stay, Strings and bonds that carry into the campaign. In English and Ukrainian. Inspired by Thirsty Sword Lesbians (Powered by Lesbians).",
+  "version": "3.7.0",
   "compatibility": {
     "minimum": "13",
     "verified": "14",

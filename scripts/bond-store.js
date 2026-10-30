@@ -164,6 +164,8 @@ class TSLBondStore {
    *           Rival ●. No bond (or a Stranger) becomes a Rival ●.
    *   enemy — blackmail: whatever it was, they're your Enemy now (●●, or one
    *           hotter if they already hated you).
+   *   ally  — a word kept: no bond (or a Stranger) becomes an Ally ●; a bond
+   *           that's there moves as with warm.
    * Returns { type, strength, delta, hostile, turned, created } after the
    * change, or null when nothing moved.
    */
@@ -185,6 +187,10 @@ class TSLBondStore {
       await set({ type: "enemy", attitude: strength });
       return { type: "enemy", strength, delta: 1, hostile: true, turned: !!bond && type.id !== "enemy", created: !bond };
     }
+    if (how === "ally" && (!bond || type.id === "stranger")) {
+      await set({ type: "ally", attitude: 1 });
+      return { type: "ally", strength: 1, delta: 1, hostile: false, turned: !!bond, created: !bond };
+    }
     if (how === "sour" && (!bond || type.id === "stranger" || (!hostile && cur <= 1))) {
       await set({ type: "rival", attitude: 1 });
       return { type: "rival", strength: 1, delta: -1, hostile: true, turned: !!bond, created: !bond };
@@ -194,8 +200,8 @@ class TSLBondStore {
       await set({ type: "friend", attitude: 1 });
       return { type: "friend", strength: 1, delta: 1, hostile: false, turned: !!bond, created: !bond };
     }
-    // warm: +1 (hostile eases); cool / sour: −1 (hostile hardens).
-    const delta = (how === "warm" ? 1 : -1) * (hostile ? -1 : 1);
+    // warm, ally: +1 (hostile eases); cool / sour: −1 (hostile hardens).
+    const delta = (how === "warm" || how === "ally" ? 1 : -1) * (hostile ? -1 : 1);
     const strength = clamp(cur + delta);
     if (strength === cur) return null;
     await set({ attitude: strength });

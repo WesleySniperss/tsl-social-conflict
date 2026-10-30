@@ -265,8 +265,10 @@ if (require.main === module) (async () => {
     const leak = [...tells.flat(), ...reacts.flat()].find((l) => labels.some((x) => l.toLowerCase().includes(x)));
     ok(`every pool line is veiled — no line names a nature${leak ? ` (leak: "${leak}")` : ""}`, !leak);
     const TE = Object.values(R.TECHNIQUES);
-    ok(`seven maneuvers: every approach asks once and goes all in once — and one Read; each a pair of different skills`, TE.length === 7
-      && R.APPROACH_ORDER.every((ap) => ["ask", "gambit"].every((job) => TE.filter((t) => t.approach === ap && t.job === job).length === 1))
+    ok(`seven maneuvers: every approach asks once; Pressure and Heart go all in; a lie belongs to no approach; one Read; each a pair of different skills`, TE.length === 7
+      && R.APPROACH_ORDER.every((ap) => TE.filter((t) => t.approach === ap && t.job === "ask").length === 1)
+      && TE.filter((t) => t.approach && t.job === "gambit").map((t) => t.id).join() === "blackmail,seduce"
+      && R.TECHNIQUES.deceive.anyWay && !R.TECHNIQUES.deceive.approach
       && TE.filter((t) => t.job === "read" && !t.approach).length === 1
       && TE.every((t) => t.skills.length === 2 && t.skills[0] !== t.skills[1]) && R.JOB_ORDER.join() === "read,ask,gambit");
     ok(`every technique has a line, a rule and skills; every approach says what winning costs`,
@@ -404,13 +406,67 @@ if (require.main === module) (async () => {
     await roll(p, i, { technique: "seduce", size: "costly" }, [2, 3]);
     ok(`Seduce fails: heartbreak — a String on you; a proud one closes the door`, SS.countOn("gI", "gP") === 1 && /heartbreak/.test(lastCard()) && /door is closed/.test(lastCard()));
     const s = npc("gS", "machiavellian");                 // Schemer: wall Reason
-    await roll(p, s, { technique: "deceive", size: "costly" }, [18, 16]);
+    await roll(p, s, { technique: "deceive", approach: "reason", size: "costly" }, [18, 16]);
     ok(`Deceive lands (even into their wall): they believe it — the lie is on record`, T.lies(s).length === 1 && /The lie holds/.test(lastCard()) && SS.countOn("gP", "gS") === 1);
     await T.exposeLie(s, T.lies(s)[0].id);
     ok(`the GM brings the lie out: an Enemy, and two Strings on the liar`, T.lies(s).length === 0 && SS.countOn("gS", "gP") === 2 && bond("gS", "gP") === "enemy2" && /The lie comes out/.test(lastCard()));
     const m = npc("gM", "martyr");                        // yields — but a lie caught ends it anyway
     await roll(p, m, { technique: "deceive", size: "costly" }, [3]);
     ok(`Deceive caught: a String on you, and the door closes — even on a yielding nature`, SS.countOn("gM", "gP") === 1 && /catches the lie/.test(lastCard()) && /door is closed/.test(lastCard()));
+    // A lie is told some way — and their key and wall count for that way.
+    const lk = npc("gLk", "machiavellian"), lw = npc("gLw", "machiavellian");  // Schemer: key Heart, wall Reason
+    const sob = await roll(pc("gQ1"), lk, { technique: "deceive", approach: "heart", size: "small" }, [4, 17]);
+    ok(`a lie told through their key (a sob story to a Schemer): advantage — and the party learns the key; the card says how it was told`,
+      sob.rel === "key" && sob.natural === 17 && SAM.getKnown(lk).key && /Heart · Deceive/.test(lastCard()));
+    const forged = await roll(pc("gQ2"), lw, { technique: "deceive", approach: "reason", size: "small" }, [17, 4]);
+    ok(`the same lie through their wall (forged proof): disadvantage`, forged.rel === "wall" && forged.natural === 4 && SAM.getKnown(lw).wall);
+    const lb = npc("gLb", "hermit"), lq = pc("gQ3");
+    await BS.add("gQ3", "gLb", { type: "friend", attitude: 2 });
+    await R.TSLEmotions.add(lb, "frightened");
+    const lieParts = (way) => T.preview(lq, lb, { technique: "deceive", approach: way }).parts.map((x) => x.label).join();
+    ok(`the bond and what they feel count for the way it was told: a friend's lie through Heart +●, a bluff at the Frightened +2`,
+      /bond/.test(lieParts("heart")) && !/bond/.test(lieParts("pressure")) && /Frightened/.test(lieParts("pressure")) && !/Frightened/.test(lieParts("heart")));
+    ok(`a lie told no particular way is a normal roll, against the same DC`, T.preview(lq, lb, { technique: "deceive" }).approach === null && T.relation(lb, null) === "plain");
+    ok(`a maneuver with its own approach ignores what the form says`, T.preview(lq, lb, { technique: "demand", approach: "heart" }).approach === "pressure");
+    const lt = npc("gLt", "hermit");                      // Hermit: Heart is a normal roll, and they harden before witnesses
+    await roll(pc("gQ4"), lt, { technique: "deceive", approach: "heart", size: "costly" }, [20]);
+    ok(`the card speaks of a lie, not a deal: they believe it, a big lie — swallowed whole, a String on them`,
+      /They believe it/.test(lastCard()) && /Heart · Deceive · Big lie/.test(lastCard()) && /They swallowed it whole/.test(lastCard()) && SS.countOn("gQ4", "gLt") === 1);
+    await roll(pc("gQ5"), npc("gLu", "hermit"), { technique: "deceive", approach: "heart", size: "costly", witnesses: true }, [6]);
+    ok(`caught before witnesses: you lose face — for being caught, not for being refused`, /Caught/.test(lastCard()) && /Caught before witnesses/.test(lastCard()) && !/Refused before witnesses/.test(lastCard()));
+    await roll(pc("gQ6"), npc("gLv", "duelist"), { technique: "deceive", approach: "reason", size: "costly", witnesses: true }, [8]);
+    ok(`believed before witnesses: everyone saw them believe it — a String on them`, /Everyone saw them believe it/.test(lastCard()) && SS.countOn("gQ6", "gLv") === 1);
+  }
+
+  // ═══ A Deal: you give your word ══════════════════════════════════════════════
+  {
+    const p = pc("dP"), b = npc("dB", "broker");              // Broker: key Reason
+    const strong = await roll(p, b, { technique: "bargain", size: "costly" }, [18, 2]);
+    ok(`a Deal on your terms: they do it, and you give your word — on record, a String on you, the bond still waiting`,
+      strong.grade === "strong" && T.deals(b).length === 1 && T.deals(b)[0].byId === "dP" && !T.deals(b)[0].price && SS.countOn("dB", "dP") === 1
+      && /On your terms/.test(lastCard()) && /agrees — on your terms/.test(lastCard()) && /You gave your word/.test(lastCard()) && BS.find("dB", "dP")?.type === "stranger");
+    await T.settleDeal(b, T.deals(b)[0].id, true);
+    ok(`word kept: the String goes, and you're Allies — which feeds your next Reason`, T.deals(b).length === 0 && SS.countOn("dB", "dP") === 0 && BS.find("dB", "dP")?.type === "ally"
+      && BS.find("dP", "dB")?.type === "ally" && /The word is kept/.test(lastCard()) && T.preview(p, b, { technique: "bargain" }).parts.some((x) => /bond/.test(x.label) && x.value === 1));
+    const t = npc("dT", "tyrant"), q = pc("dQ");              // the Tyrant takes Reason as a normal roll
+    const plain = await roll(q, t, { technique: "bargain", size: "costly" }, [8], ["pay"]);
+    ok(`a Deal on their terms: their price, paid, is your word`, plain.grade === "success" && plain.paid === true && T.deals(t)[0]?.price === true && SS.countOn("dT", "dQ") === 1
+      && /On their terms/.test(lastCard()) && /on your knee/.test(lastCard()));
+    const m = npc("dM", "martyr");                            // their price is a debt in itself — still one String
+    await roll(pc("dR"), m, { technique: "bargain", size: "costly" }, [8], ["pay"]);
+    ok(`one String for one word, even when the price is a debt in itself`, SS.countOn("dM", "dR") === 1 && T.deals(m).length === 1);
+    game.user.isGM = false;
+    await T.settleDeal(t, T.deals(t)[0].id, false);
+    game.user.isGM = true;
+    ok(`only the GM marks how a deal ended`, T.deals(t).length === 1);
+    await T.settleDeal(t, T.deals(t)[0].id, false);
+    ok(`word broken: Enemies — and they keep the String`, T.deals(t).length === 0 && SS.countOn("dT", "dQ") === 1 && BS.find("dT", "dQ")?.type === "enemy" && /The word is broken/.test(lastCard()) && /keeps the String/.test(lastCard()));
+    const w = npc("dW", "tyrant");
+    await roll(pc("dU"), w, { technique: "bargain", size: "costly" }, [8], ["walk"]);
+    ok(`walk away from their terms: no deal, no word, no String`, T.deals(w).length === 0 && SS.countOn("dW", "dU") === 0);
+    const x = npc("dX", "tyrant");
+    await roll(pc("dV"), x, { technique: "bargain", size: "costly" }, [3]);
+    ok(`a miss: no deal — their emotion, nothing on record`, /No deal/.test(lastCard()) && T.deals(x).length === 0 && R.TSLEmotions.has(game.actors.get("dV"), "frightened"));
   }
 
   // ═══ What the talk did — the GM marks it, no roll ═════════════════════════════
@@ -800,7 +856,7 @@ if (require.main === module) (async () => {
     const talk = await render(P, "talk", { _tTarget: "uiN", _tTech: "appeal", _tSize: "costly" });
     const techs = (talk.match(/data-tech="/g) ?? []).length;
     ok(`Talk (player): the person; plainly or all in (${techs} maneuvers of that approach), with what each looks like; sizes with their DCs, the lever, the String, the roll line`, !bad(talk)
-      && techs === 2 && /data-tech="appeal"/.test(talk) && /data-tech="seduce"/.test(talk) && /ask from the heart/.test(talk) && /data-size="against"/.test(talk) && /DC 10/.test(talk)
+      && techs === 2 && /data-tech="appeal"/.test(talk) && /data-tech="seduce"/.test(talk) && /ask from the heart/.test(talk) && /What are you asking for\?/.test(talk) && /data-size="against"/.test(talk) && /DC 10/.test(talk)
       && /Their Desire/.test(talk) && /1 String on them/.test(talk) && /vs DC 14/.test(talk) && /Roll — Appeal/.test(talk) && /Nature unread/.test(talk) && !/Schemer/.test(talk));
     ok(`Talk shows the holds between you — "You hold ●"`, /tsl-hold--mine/.test(talk) && /You hold <b>●<\/b>/.test(talk) && !/tsl-hold--theirs/.test(talk));
     ok(`no target list — the map, or your target`, !/<select class="tsl-t-target"/.test(talk) && /data-t-pick/.test(talk) && /Someone else/.test(talk));
@@ -811,18 +867,28 @@ if (require.main === module) (async () => {
     const read = await render(P, "talk", { _tTarget: "uiN", _tTech: "read" });
     ok(`Talk → I read them: no sizes, no witnesses, no approach, Insight, "read"`, !bad(read) && !/data-size=/.test(read) && !/data-wit=/.test(read) && !/data-t-ap=/.test(read)
       && /tsl-mode-btn on" data-t-mode="read"/.test(read) && /Roll — Read them/.test(read) && /\+4 Insight/.test(read));
-    ok(`Talk is the roll, not the conversation: talk in character; when the GM calls for it — I ask or I read them; how your words came at them (three ways, how they take each); odds only on the roll`,
-      /Talk in character/.test(talk) && /tsl-mode-btn on" data-t-mode="ask"/.test(talk) && /data-t-mode="read"/.test(talk)
+    ok(`Talk is the roll, not the conversation: talk in character; when the GM calls for it — I ask, I lie or I read them; how your words came at them (three ways, how they take each); odds only on the roll`,
+      /Talk in character/.test(talk) && /tsl-mode-btn on" data-t-mode="ask"/.test(talk) && /data-t-mode="lie"/.test(talk) && /data-t-mode="read"/.test(talk)
       && (talk.match(/data-t-ap="/g) ?? []).length === 3 && / on" data-t-ap="heart"/.test(talk) && /how they take it — not known yet/.test(talk)
       && /How did your words come at them\?/.test(talk) && /Plainly — or all in\?/.test(talk) && /<b>Persuasion<\/b> \+ Performance/.test(talk)
       && /If it works:/.test(talk) && /If not:/.test(talk) && !/<em>\d+%<\/em>/.test(talk) && /tsl-roll-odds">\d+%/.test(talk)
       && !/tsl-t-skill/.test(talk) && !/data-tech="frighten"|tsl-step/.test(talk) && /What the party knows/.test(talk) && /Not known yet:/.test(talk));
+    const dealing = await render(P, "talk", { _tTarget: "uiN", _tTech: "bargain" });
+    ok(`Reason has no all-in, so no second question — right to the Deal`, !bad(dealing) && !/data-tech="/.test(dealing) && !/or all in\?/.test(dealing) && / on" data-t-ap="reason"/.test(dealing));
+    const willLie = await render(P, "talk", { _tTarget: "uiN", _tMode: "lie" });
+    ok(`"I lie" is its own button: first how you tell it — the three ways, in the lie's own words, with how they're known to take each`, !bad(willLie) && /tsl-mode-btn on" data-t-mode="lie"/.test(willLie)
+      && /How do you tell the lie\?/.test(willLie) && (willLie.match(/data-t-ap="/g) ?? []).length === 3 && /a threat you can(?:'|&#0?39;)t back up/.test(willLie) && /feelings you don(?:'|&#0?39;)t have/.test(willLie) && /proof that isn(?:'|&#0?39;)t/.test(willLie)
+      && /how they take it — not known yet/.test(willLie) && !/threats, a challenge, shame/.test(willLie) && !/data-t-roll/.test(willLie));
+    const lying = await render(P, "talk", { _tTarget: "uiN", _tTech: "deceive", _tApproach: "pressure" });
+    ok(`…then its own form: how big the lie is, not "what are you asking for" — and what it risks`, !bad(lying) && / on" data-t-ap="pressure"/.test(lying) && !/data-tech="/.test(lying)
+      && /How big is the lie\?/.test(lying) && /A small lie/.test(lying) && /A bold lie/.test(lying) && !/What are you asking for/.test(lying) && /Roll — Deceive/.test(lying) && /<b>Deception<\/b>|\+\d+ Deception/.test(lying) && /If not:/.test(lying));
+    ok(`…a Deal says plainly what it is before the roll: your word, a String until you deliver, Allies or Enemies`, /Roll — Deal/.test(dealing) && /you give your word/.test(dealing) && /Allies/.test(dealing) && /Enemies/.test(dealing));
     const asking = await render(P, "talk", { _tTarget: "uiN", _tMode: "ask" });
     ok(`…"I ask" first asks how your words came at them — nothing to roll until that's said`, !bad(asking) && (asking.match(/data-t-ap="/g) ?? []).length === 3 && !/data-tech=/.test(asking) && !/data-t-roll/.test(asking));
     await SAM.setActorData(N, { maskId: "caretaker" });
     const masked = await render(P, "talk", { _tTarget: "uiN" });
-    ok(`facing them with no roll called: only what you know, and the two things you might do — nothing to click through`, !bad(masked)
-      && /data-t-mode="ask"/.test(masked) && /data-t-mode="read"/.test(masked) && !/data-t-ap=/.test(masked) && !/data-tech=/.test(masked) && !/data-t-roll/.test(masked));
+    ok(`facing them with no roll called: only what you know, and the three things you might do — nothing to click through`, !bad(masked)
+      && /data-t-mode="ask"/.test(masked) && /data-t-mode="lie"/.test(masked) && /data-t-mode="read"/.test(masked) && !/data-t-ap=/.test(masked) && !/data-tech=/.test(masked) && !/data-t-roll/.test(masked));
     ok(`a player sees the face they show — “seems: Caretaker” — and how they seem, not who they are`, !bad(masked)
       && /seems: Caretaker/.test(masked) && /How they seem/.test(masked) && !/Schemer/.test(masked) && /data-tooltip="[^"]*Is that their true face/.test(masked));
     const none = await render(P, "talk", {});
@@ -864,6 +930,18 @@ if (require.main === module) (async () => {
     ok(`…and what the talk did, marked there with no roll: what came out, the emotions the words left (Guilty — toward each character here)`, /From the talk/.test(sheet)
       && /data-known="desire"/.test(sheet) && /data-gm-feel="frightened"/.test(sheet) && /tsl-feel on" data-gm-feel="insecure"/.test(sheet) && /data-gm-feel="guilty" data-toward="uiP"/.test(sheet));
     ok(`…and it offers to ask them as each character on the scene`, /data-t-as="uiP"/.test(sheet) && /data-t-as="uiQ"/.test(sheet) && !/data-t-as="uiN"/.test(sheet));
+    await N.setFlag("tsl-social-conflict", "deals", [{ id: "d1", byId: "uiP", price: true, at: 0 }, { id: "d2", byId: "uiQ", price: false, at: 0 }]);
+    const sheetWord = await render(N, "talk");
+    ok(`the word given shows on the GM's screen — their price, or their own terms — with Kept and Broken`, !bad(sheetWord) && /Word given/.test(sheetWord) && /data-deal-kept="d1"/.test(sheetWord) && /data-deal-broken="d2"/.test(sheetWord)
+      && /gave their word: /.test(sheetWord) && /on their own terms/.test(sheetWord));
+    game.user.isGM = false;
+    const owes = await render(P, "talk", { _tTarget: "uiN" });
+    game.user.isGM = true;
+    ok(`…and the one who gave it sees what they owe — only their own`, !bad(owes) && /You gave them your word: /.test(owes) && !/on your terms\./.test(owes) && !/data-deal-kept/.test(owes));
+    game.user.isGM = false;
+    const friend = await render(Q, "talk", { _tTarget: "uiN" });
+    game.user.isGM = true;
+    ok(`a lie shows only to the one who told it — with no way to bring it out`, /They believe your lie/.test(owes) && !/data-lie-out/.test(owes) && !bad(friend) && !/They believe your lie/.test(friend));
     const opened = R.SocialFencingDialog.open(P, { tab: "talk", target: "uiN" });
     ok(`one click opens that character's Talk, already facing the NPC`, opened?._tab === "talk" && opened?._tTarget === "uiN");
     R.SocialFencingDialog._instances.clear();
@@ -934,6 +1012,8 @@ if (require.main === module) (async () => {
       await render(P, "talk", { _tTarget: "uiN", _tTech: "appeal", _tWitnesses: true }),
       await render(P, "talk", { _tTarget: "uiN", _tTech: "read" }),
       await render(P, "talk", { _tTarget: "uiN", _tMode: "ask" }),
+      await render(P, "talk", { _tTarget: "uiN", _tMode: "lie" }),
+      await render(P, "talk", { _tTarget: "uiN", _tTech: "deceive", _tApproach: "reason" }),
       await render(P, "talk", { _tTarget: "uiN", _tResult: { technique: "bargain", grade: "success", total: 16, dc: 14, rel: "plain", paid: false, witnesses: true, audience: -2 } }),
       await render(P, "profile"), await render(P, "bonds", { _expandedBonds: new Set([BS.find("uiP", "uiN").id]) }),
       await render(N, "profile"), await render(N, "talk"),

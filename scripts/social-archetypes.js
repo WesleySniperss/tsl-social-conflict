@@ -48,7 +48,7 @@ const APPROACHES = {
     gist: "Go through facts and interest.",
     short: "a deal, an argument, proof",
     examples: "an argument, proof, a deal, one precise question, a puzzle",
-    cost: "Clean: a deal — \"yes, but\" names their price, and nothing lingers.",
+    cost: "You give your word: they do it, and you owe them until you deliver — a String on you. Keep it and you're Allies; break it and you're Enemies.",
     skills: ["per", "inv", "ins", "his", "dec"],
   },
 };

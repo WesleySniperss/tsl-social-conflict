@@ -143,7 +143,7 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
     await r(lyra, roell, { technique: "bargain", size: "costly", witnesses: true }, [9], ["pay"]); // before his men: he hardens (−2), yet gives — everyone saw it
     await r(mira, duke, { technique: "read" }, [17], ["o1", "o0"]);                          // a strong Read: his Fear and his Desire
     await r(lyra, duke, { technique: "blackmail", size: "against" }, [11]);                  // his Fear: an enemy, Frightened
-    await r(lyra, duke, { technique: "deceive", size: "costly" }, [17, 9]);                  // a lie into his wall — it holds
+    await r(lyra, duke, { technique: "deceive", approach: "reason", size: "costly" }, [17, 9]);                  // a lie into his wall — it holds
     await r(mira, duke, { technique: "seduce", size: "small" }, [5, 2]);                     // his Desire
     await T.exposeLie(duke, T.lies(duke)[0]?.id);                                            // the lie comes out
     await SS.add("lyra", "duke", 1);
@@ -178,10 +178,14 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
   page("chronicle-talk-result-read", await chron(mira, "talk", { _tTarget: "duke",
     _tResult: { technique: "read", grade: "strong", total: 21, dc: 15, rel: "plain", questions: ["fear"], readString: true } }, "player"), 560, 1000);
   page("chronicle-talk-holds", await chron(lyra, "talk", { _tTarget: "roell" }, "player"), 560, 760);
+  page("chronicle-talk-lying", await chron(lyra, "talk", { _tTarget: "roell", _tMode: "lie" }, "player"), 560, 900);
+  page("chronicle-talk-lie", await chron(lyra, "talk", { _tTarget: "roell", _tTech: "deceive", _tApproach: "heart" }, "player"), 560, 1250);
+  page("chronicle-talk-deal", await chron(lyra, "talk", { _tTarget: "roell", _tTech: "bargain" }, "player"), 560, 1250);
   page("chronicle-talk-asking", await chron(lyra, "talk", { _tTarget: "roell", _tMode: "ask" }, "player"), 560, 900);
   page("chronicle-talk-notarget", await chron(lyra, "talk", {}, "player"), 560, 400);
   page("chronicle-talk-gm", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "bargain" }), 560, 1250);
   page("chronicle-talk-npc-gm", await chron(ilse, "talk"), 560, 1500);
+  page("chronicle-talk-npc-word", await chron(roell, "talk"), 560, 1500);
   for (const cat of ["start", "ap", "read", "emo", "natures", "bonds", "gm"]) {
     page(`chronicle-codex-${cat}`, await chron(lyra, "codex", { _codexCat: cat }), 560, 1500);
   }

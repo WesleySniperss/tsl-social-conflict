@@ -12,7 +12,7 @@ You want something from someone who doesn't want to give it. No turns, no tracks
 
 1. **Talk.** The GM plays their hidden nature: one approach opens them, another closes them — the NPC's own Talk tab says how they take each one. Watch how they take what you say: that's how you read them.
 2. **What the talk does, stays — no roll.** When something comes out (what they want, what they fear, their price), the GM marks it and the party knows it for good. When your words land — a threat that frightens, a reproach that shames, a truth with no way out — the GM marks the emotion it leaves on them: +2 to the approach that plays on it, until they act it out.
-3. **The roll — when the GM calls for it.** Usually once, when you ask; at most two or three times a conversation. Talk asks what happened — how your words came at them, plainly or all in, what you asked for, who saw it, what you played on, who backed you — and counts all of it.
+3. **The roll — when the GM calls for it.** Usually once, when you ask or lie; at most two or three times a conversation. Talk asks what you're doing — *I ask*, *I lie* or *I read them* — and what happened: how your words came at them, plainly or all in, what you asked for, who saw it, what you played on, who backed you — and counts all of it.
 
 Each ask is its own yes or no. What carries over is what you learn about them, the emotions you leave, the Strings and bonds.
 
@@ -22,8 +22,9 @@ When the GM calls for the roll, say what your words really were, and roll once a
 
 | | Pressure | Heart | Reason |
 |---|---|---|---|
-| **Ask** — plainly | **Demand** — Intimidation + Athletics | **Appeal** — Persuasion + Performance | **Bargain** — Persuasion + Investigation |
-| **All in** — leverage | **Blackmail** — Intimidation + Investigation | **Seduce** — Persuasion + Performance | **Deceive** — Deception + Performance |
+| **Ask** — plainly | **Demand** — Intimidation + Athletics | **Appeal** — Persuasion + Performance | **Deal** — Persuasion + Investigation |
+| **All in** — leverage | **Blackmail** — Intimidation + Investigation | **Seduce** — Persuasion + Performance | *none: a deal already stakes your word* |
+| **A lie** — told any way | **Deceive** — Deception + Performance: a threat you can't back up, feelings you don't have, proof that isn't | | |
 | **Read them** — when the talk won't tell | Insight + Investigation, *no approach* | | |
 
 - **Asks** are sized by what they cost *them*:
@@ -38,7 +39,7 @@ When the GM calls for the roll, say what your words really were, and roll once a
 - **All in** works at any size and names no price, but it leaves a lasting mark:
   - **Blackmail** plays on their Fear: they do it, and they're your enemy now.
   - **Seduce** plays on their Desire or your bond: they do it for you.
-  - **Deceive** works until the GM brings the lie out — then they turn on you.
+- **A lie isn't an approach — it's told in one.** Press *I lie* and say how you told it, and how big it is (a small lie is 4 easier, a bold one 4 harder): their key and wall, your bond and their emotions all count for the way you told it. A sob story to someone who opens to Heart rolls with advantage; forged proof to someone who closes against Reason, with disadvantage. **Deceive** works until the GM brings the lie out — then they turn on you.
 - **Read them** answers one question for the whole party. A strong hit answers a second, or keeps a String on them instead (you saw where it hurts). A missed Read never costs you an emotion.
 
 What winning costs depends on the approach:
@@ -47,14 +48,14 @@ What winning costs depends on the approach:
 |---|---|---|
 | **Pressure** | They give in without a price, but remember it: the bond sours, and they take a String on you. | Nothing extra. |
 | **Heart** | The bond warms. | You exposed yourself: they take a String on you. |
-| **Reason** | A clean deal; "yes, but" names their price. | Nothing extra. |
+| **Reason** | You give your word: they do it, and they hold a String on you until you deliver. Keep it and you're Allies; break it and you're Enemies. The GM marks which. | Nothing extra. |
 
 What they say:
 
 | Result | When | What happens |
 |---|---|---|
 | **Strong hit** | 5 over, or a 20 | It works. An ask or gambit for something big also hands you a String on them. |
-| **Hit** | a hit | It works. An Appeal or a Bargain gets "yes, but": their nature names the price; you pay, or you walk away. |
+| **Hit** | a hit | It works. An Appeal or a Deal gets "yes, but": their nature names the price; you pay, or you walk away. |
 | **Miss** | a miss | They push back their own way, and it hurts: you take their nature's **emotion** (anything but a Read). A proud nature, refused something big, closes the door for the scene. |
 | **Bad miss** | 5 under, or a 1 | As a miss, and they take a String on you as well. |
 
@@ -105,7 +106,7 @@ The natures follow Karen Horney's three ways of coping with people:
 - moving **away** from them — Order: Zealot, Hermit, Broker.
 
 Each nature is grounded in a real character type. Each has:
-- a **key** approach: on both of its maneuvers (the ask and the gambit) you roll with **advantage** — and in the talk, the GM plays them opening up to it;
+- a **key** approach: on its maneuvers (the ask, the gambit, a lie told that way) you roll with **advantage** — and in the talk, the GM plays them opening up to it;
 - a **wall** approach: **disadvantage** (the third approach is a normal roll);
 - its own **price** for a "yes, but";
 - its own pushback on a no, and the emotion it leaves on you when you miss;
@@ -136,12 +137,13 @@ The party keeps every answer. Once it knows the key and the wall, the nature is 
   - used as leverage for an ask against their interests, or for Blackmail;
   - **Pulled** in a fight. Strike gives +5 to your next attack, check or save against them. Guard gives +5 AC against their next attack. Either one is a real effect on your sheet that ends itself.
 
-  A String is a debt, a weakness seen, or a line crossed in front of others. You gain one on them when they give more than they meant to (a strong hit on something big), when they give something that costs them before witnesses, when a strong Read sees where it hurts, and when they open up to you in play (the GM hands it over). They gain one on you when you win by Pressure or Blackmail, when your heart is refused, when your threat or lie is caught, when you pay a price that is a debt, and on a bad miss. At most one changes hands each way per roll. A String on someone you have no bond with makes you Strangers, so it shows in Bonds, ready to pull.
+  A String is a debt, a weakness seen, or a line crossed in front of others. You gain one on them when they give more than they meant to (a strong hit on something big), when they give something that costs them before witnesses, when a strong Read sees where it hurts, and when they open up to you in play (the GM hands it over). They gain one on you when you win by Pressure or Blackmail, when you give your word in a Deal (until you deliver), when your heart is refused, when your threat or lie is caught, when you pay a price that is a debt, and on a bad miss. At most one changes hands each way per roll. A String on someone you have no bond with makes you Strangers, so it shows in Bonds, ready to pull.
 - **Bonds** are one shared relationship per pair, mirrored on both actors: a type (friend, lover, rival, enemy, sworn, confidant…) and a strength ●–●●●.
   - A bond gives +1 per ● on maneuvers of the approach it runs: Heart for love and family, Pressure for rivals and enemies, Reason for allies, oaths and trust.
   - Heart wins warm bonds (a stranger becomes a Friend).
   - Pressure wins sour them (a stranger becomes a Rival).
-  - Blackmail and exposed lies make Enemies.
+  - A word kept in a Deal makes Allies (a stranger becomes an Ally).
+  - Blackmail, exposed lies and a broken word make Enemies.
   - Slammed doors and broken hearts cool bonds.
 
 ## Windows
@@ -149,7 +151,7 @@ The party keeps every answer. Once it knows the key and the wall, the nature is 
 - **Chronicle**: right-click a token, then the address-book button. It has four tabs:
   - *Profile*: an NPC's nature, the mask they show, dossier and Agenda for the GM, and what the party has learned for players; a player character's maneuvers (what each one rolls for them, from their sheet, best first), emotions and scars;
   - *Bonds*;
-  - **Talk**: who you're talking to (your target on the map) and the face they show, the Strings each of you holds on the other, your emotions and theirs; and, when the GM calls for a roll, *I ask* or *I read them* — how your words came at them, plainly or all in, in private or before witnesses — with your odds on the roll button. On an NPC's own sheet this tab is the GM's live screen: how they take each approach (what to act out), price, pushback, the mask to play; what the talk revealed and the emotions it left (marked here, no roll); the lies they believe; and buttons to ask them as any character on the scene;
+  - **Talk**: who you're talking to (your target on the map) and the face they show, the Strings each of you holds on the other, your emotions and theirs; and, when the GM calls for a roll, *I ask*, *I lie* or *I read them* — how your words came at them, plainly or all in, in private or before witnesses — with your odds on the roll button. On an NPC's own sheet this tab is the GM's live screen: how they take each approach (what to act out), price, pushback, the mask to play; what the talk revealed and the emotions it left (marked here, no roll); the word given to them (Kept or Broken); the lies they believe; and buttons to ask them as any character on the scene;
   - *Codex*: the in-game manual.
 - **Social Scene**: the **Social** button on the VTools toolbar. It is a live relationship map for everyone: portraits, bonds as lines, emotions, named natures and the faces NPCs show, who holds Strings on whom (the GM sees all; a player, their own), and every roll animated as it happens. The GM can make the scene public here. *This scene* is for the table; *All bonds* is for the GM.
 
