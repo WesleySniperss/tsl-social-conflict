@@ -178,6 +178,8 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
   page("chronicle-talk-result-read", await chron(mira, "talk", { _tTarget: "duke",
     _tResult: { technique: "read", grade: "strong", total: 21, dc: 15, rel: "plain", questions: ["fear"], readString: true } }, "player"), 560, 1000);
   page("chronicle-talk-holds", await chron(lyra, "talk", { _tTarget: "roell" }, "player"), 560, 760);
+  page("chronicle-talk-argue", await chron(mira, "talk", { _tTarget: "duke", _tTech: "argument" }, "player"), 560, 1250);
+  page("chronicle-talk-press", await chron(lyra, "talk", { _tTarget: "roell", _tTech: "demand" }, "player"), 560, 1250);
   page("chronicle-talk-lying", await chron(lyra, "talk", { _tTarget: "roell", _tMode: "lie" }, "player"), 560, 900);
   page("chronicle-talk-lie", await chron(lyra, "talk", { _tTarget: "roell", _tTech: "deceive", _tApproach: "heart" }, "player"), 560, 1250);
   page("chronicle-talk-deal", await chron(lyra, "talk", { _tTarget: "roell", _tTech: "bargain" }, "player"), 560, 1250);

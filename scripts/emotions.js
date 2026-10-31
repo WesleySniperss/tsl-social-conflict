@@ -175,10 +175,11 @@ class TSLEmotions {
   }
 
   /**
-   * The talk itself landed: the GM marks what it left on them — no roll.
-   * Guilty is owed to someone (`toward`). Marking what they already feel takes
-   * it back (a correction); Guilty toward someone else moves it. One chat line
-   * when it lands, so the table sees what it opens. GM client.
+   * The talk itself landed: the GM marks what it left on someone — an NPC, or
+   * a character their words hit. No roll. Guilty is owed to someone (`toward`).
+   * Marking what they already feel takes it back (a correction, so never a
+   * scar); Guilty toward someone else moves it. One chat line when it lands, so
+   * the table sees what it opens — or, on a character, what it costs. GM client.
    * Returns "added" | "removed" | null.
    */
   static async mark(actor, id, { toward = null } = {}) {
@@ -198,7 +199,7 @@ class TSLEmotions {
       content: `<div class="tsl-x-card tsl-x--success tsl-x-card--slim">
         <div class="tsl-x-head"><i class="fas fa-comments"></i><span class="tsl-x-title">${_t("The words landed")}</span></div>
         <div class="tsl-x-who">${_t("{img} {who} is <b>{emotion}</b> — {opens}.", { img: `<img class="tsl-emo-ico" src="${e.img}" alt="">`,
-          who: esc(actor.name), emotion: esc(to ? `${e.label} → ${to}` : e.label), opens: esc(e.opensText) })}</div>
+          who: esc(actor.name), emotion: esc(to ? `${e.label} → ${to}` : e.label), opens: esc(SocialArchetypeManager.isPC(actor) ? e.spoilsText : e.opensText) })}</div>
       </div>`,
     });
     return "added";

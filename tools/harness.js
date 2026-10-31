@@ -265,9 +265,8 @@ if (require.main === module) (async () => {
     const leak = [...tells.flat(), ...reacts.flat()].find((l) => labels.some((x) => l.toLowerCase().includes(x)));
     ok(`every pool line is veiled — no line names a nature${leak ? ` (leak: "${leak}")` : ""}`, !leak);
     const TE = Object.values(R.TECHNIQUES);
-    ok(`seven maneuvers: every approach asks once; Pressure and Heart go all in; a lie belongs to no approach; one Read; each a pair of different skills`, TE.length === 7
-      && R.APPROACH_ORDER.every((ap) => TE.filter((t) => t.approach === ap && t.job === "ask").length === 1)
-      && TE.filter((t) => t.approach && t.job === "gambit").map((t) => t.id).join() === "blackmail,seduce"
+    ok(`eight maneuvers: every approach asks once and goes all in once; a lie belongs to no approach; one Read; each a pair of different skills`, TE.length === 8
+      && R.APPROACH_ORDER.every((ap) => ["ask", "gambit"].every((job) => TE.filter((t) => t.approach === ap && t.job === job).length === 1))
       && R.TECHNIQUES.deceive.anyWay && !R.TECHNIQUES.deceive.approach
       && TE.filter((t) => t.job === "read" && !t.approach).length === 1
       && TE.every((t) => t.skills.length === 2 && t.skills[0] !== t.skills[1]) && R.JOB_ORDER.join() === "read,ask,gambit");
@@ -301,15 +300,15 @@ if (require.main === module) (async () => {
     ok(`preview: +7 Persuasion +2 bond +2 Desire +2 help = ${pv.mod} — no stats of the module's own`, pv.mod === 13 && pv.parts.length === 4 && !pv.parts.some((x) => /leaning/i.test(x.label)));
     p.system.skills.prf = { total: 4, proficient: 1 };
     const pb = T.preview(p, n, { technique: "appeal" });
-    ok(`a maneuver's second skill backs the roll: trained in Performance — Appeal gets +2`, pb.backed && pb.support === "prf" && pb.parts.some((x) => /Performance backs it/.test(x.label) && x.value === 2));
+    ok(`a maneuver's second skill backs the roll: trained in Performance — Appeal gets your proficiency (+3 here)`, pb.backed && pb.support === "prf" && pb.parts.some((x) => /Performance backs it/.test(x.label) && x.value === 3));
     p.system.skills.prf = { total: 4 };
     ok(`a lever you don't know yet isn't offered`, T.preview(p, n, { technique: "appeal", lever: "fear" }).lever === null);
     ok(`levers are for asks: a Read never takes one`, T.preview(p, n, { technique: "read", lever: "desire" }).lever === null);
     const keys = (o) => Object.keys(o).sort().join();
     ok(`the preview never consults the nature: key and wall look alike`,
       keys(T.preview(p, n, { technique: "appeal" })) === keys(T.preview(p, n, { technique: "demand" })) && !("rel" in pv));
-    ok(`each maneuver is a pair of D&D skills — Read Insight + Investigation, Demand Intimidation + Athletics, Appeal Persuasion + Performance, Bargain Persuasion + Investigation…`,
-      ["read:ins,inv", "demand:itm,ath", "appeal:per,prf", "bargain:per,inv", "blackmail:itm,inv", "seduce:per,prf", "deceive:dec,prf"]
+    ok(`each maneuver is a pair of D&D skills — Read Insight + Investigation, Demand Intimidation + Athletics, Appeal Persuasion + Performance, Argument Persuasion + History, Deal Persuasion + Insight…`,
+      ["read:ins,inv", "demand:itm,ath", "appeal:per,prf", "argument:per,his", "blackmail:itm,inv", "seduce:per,prf", "bargain:per,ins", "deceive:dec,prf"]
         .every((x) => { const [t, k] = x.split(":"); return R.TECHNIQUES[t].skills.join() === k; }));
     const brute = makeActor("numBrute", { cha: -1 }, { skills: { itm: { total: -1 }, ath: { total: 6, proficient: 1 }, ins: { total: 1 } } });
     ok(`the better of the two rolls: the face Demands with Intimidation (+3), the brute with Athletics (+6)`,
@@ -328,7 +327,7 @@ if (require.main === module) (async () => {
       relBefore === "unknown" && r1 === "key,unknown,unknown" && r2 === "wall,plain" && ch.mode === "adv" && T.knownRelation(kn, null) === null);
     ok(`a Read has no size and no approach: the base DC`, T.preview(p, n, { technique: "read" }).dc === 14 && T.preview(p, n, { technique: "read" }).size === null
       && T.preview(p, n, { technique: "read" }).approach === null && !T.preview(p, n, { technique: "read" }).parts.some((x) => /leaning|bond/.test(x.label)));
-    ok(`no openings: an ask against them still needs leverage`, /needs leverage/.test(T.preview(pc("numQ"), npc("numM", "broker"), { technique: "bargain", size: "against" }).blocked ?? ""));
+    ok(`no openings: an ask against them still needs leverage`, /needs leverage/.test(T.preview(pc("numQ"), npc("numM", "broker"), { technique: "argument", size: "against" }).blocked ?? ""));
     ok(`only NPCs are asked`, !!T.preview(n, p, { technique: "appeal" }).blocked);
   }
 
@@ -351,17 +350,17 @@ if (require.main === module) (async () => {
     const b = npc("aB", "broker");
     await roll(q, b, { technique: "demand", size: "costly" }, [8]);
     ok(`a yielding nature keeps listening — but the miss still hurts: their emotion, no String`, !/door is closed/.test(lastCard()) && SS.countOn("aB", "aQ") === 0 && R.TSLEmotions.has(q, "hopeless"));
-    await roll(q, b, { technique: "bargain", size: "small" }, [15, 2]);
+    await roll(q, b, { technique: "argument", size: "small" }, [15, 2]);
     ok(`a strong yes to a small ask: no String (favours can't be farmed)`, SS.countOn("aQ", "aB") === 0);
     const t = npc("aT", "tyrant");
-    await roll(q, t, { technique: "bargain", size: "small" }, [1]);
+    await roll(q, t, { technique: "argument", size: "small" }, [1]);
     ok(`a bad miss (a natural 1): a String on you; a small ask slams no door`, SS.countOn("aT", "aQ") === 1 && !/door is closed/.test(lastCard()));
     const h = npc("aH", "hermit");
     await SAM.setKnown(h, { fear: true });
     await roll(q, h, { technique: "demand", size: "against", lever: "fear" }, [3, 2]);
     ok(`a threat that misses cuts both ways: a String on you`, SS.countOn("aH", "aQ") === 1);
     await SS.add("aQ", "aH", 1);
-    const r = await roll(q, h, { technique: "bargain", size: "costly" }, [4, 3], ["burn", "pay"]);
+    const r = await roll(q, h, { technique: "argument", size: "costly" }, [4, 3], ["burn", "pay"]);
     ok(`a near miss: burn a String for +5 and it lands (${r.total} vs ${r.dc})`, r.stringSpent && (r.grade === "success" || r.grade === "strong") && SS.countOn("aQ", "aH") === 0);
     ok(`the cap: at most ${R.STRING_CAP} Strings on one person`, (await SS.add("aQ", "aH", 5)) === R.STRING_CAP);
   }
@@ -466,7 +465,96 @@ if (require.main === module) (async () => {
     ok(`walk away from their terms: no deal, no word, no String`, T.deals(w).length === 0 && SS.countOn("dW", "dU") === 0);
     const x = npc("dX", "tyrant");
     await roll(pc("dV"), x, { technique: "bargain", size: "costly" }, [3]);
-    ok(`a miss: no deal — their emotion, nothing on record`, /No deal/.test(lastCard()) && T.deals(x).length === 0 && R.TSLEmotions.has(game.actors.get("dV"), "frightened"));
+    ok(`a miss: no deal — their emotion, nothing on record`, /No deal/.test(lastCard()) && /turns the deal down/.test(lastCard()) && T.deals(x).length === 0 && R.TSLEmotions.has(game.actors.get("dV"), "frightened"));
+    const u = npc("dY", "tyrant"), up = pc("dZ");
+    const against = T.preview(up, u, { technique: "argument", size: "against" }), staked = T.preview(up, u, { technique: "bargain", size: "against" });
+    ok(`a Deal is Reason's all-in: something against their interests needs leverage to argue — not to stake your word`, /needs leverage/.test(against.blocked ?? "") && !staked.blocked && staked.job === "gambit");
+    const priceless = staked.mod;
+    await SAM.setKnown(u, { price: true });
+    ok(`…and it plays on their Price, once you know it: +2`, T.preview(up, u, { technique: "bargain" }).mod === priceless + 2 && T.preview(up, u, { technique: "bargain" }).parts.some((x) => /their Price/.test(x.label)));
+  }
+
+  // ═══ An Argument: they see it your way ═══════════════════════════════════════
+  {
+    const p = pc("eaP"), t = npc("eaT", "tyrant");            // the Tyrant takes Reason as a normal roll
+    const hit = await roll(p, t, { technique: "argument", size: "costly" }, [8], ["pay"]);
+    ok(`an Argument lands: no word given, no String on you — their price paid, and you're Allies`, hit.grade === "success" && T.deals(t).length === 0 && SS.countOn("eaT", "eaP") === 0 && BS.find("eaT", "eaP")?.type === "ally"
+      && /for a price/.test(lastCard()));
+    const b = npc("eaB", "broker");
+    await roll(pc("eaQ"), b, { technique: "argument", size: "small" }, [15, 2]);
+    ok(`a strong one needs no price`, BS.find("eaB", "eaQ")?.type === "ally" && /does it/.test(lastCard()));
+    const m = npc("eaM", "tyrant");
+    await roll(pc("eaR"), m, { technique: "argument", size: "small" }, [2]);
+    ok(`a miss: they out-argue you — only their emotion`, SS.countOn("eaM", "eaR") === 0 && !BS.find("eaM", "eaR") && R.TSLEmotions.has(game.actors.get("eaR"), "frightened"));
+  }
+
+  // ═══ How they feel about you counts ══════════════════════════════════════════
+  {
+    const p = pc("hoP"), foe = npc("hoF", "hermit"), pal = npc("hoG", "hermit");
+    await BS.add("hoP", "hoF", { type: "enemy", attitude: 2 });
+    await BS.add("hoP", "hoG", { type: "friend", attitude: 2 });
+    const bondOf = (npcA, tech) => T.preview(p, npcA, { technique: tech, approach: tech === "deceive" ? "heart" : null }).parts.find((x) => /bond/.test(x.label))?.value ?? 0;
+    ok(`an Enemy won't hear you out: −● on anything but Pressure (Appeal ${bondOf(foe, "appeal")}, Argument ${bondOf(foe, "argument")}, a lie through Heart ${bondOf(foe, "deceive")}) — and +● on Pressure (${bondOf(foe, "demand")})`,
+      bondOf(foe, "appeal") === -2 && bondOf(foe, "argument") === -2 && bondOf(foe, "deceive") === -2 && bondOf(foe, "demand") === 2);
+    ok(`a Read asks nothing of them: no bond in it`, bondOf(foe, "read") === 0);
+    ok(`a Friend still helps only what built the bond: +● on Heart, nothing against Pressure or Reason`, bondOf(pal, "appeal") === 2 && bondOf(pal, "demand") === 0 && bondOf(pal, "argument") === 0);
+    const c = npc("hoC", "hermit");
+    await roll(p, c, { technique: "demand", size: "small" }, [12, 9]);
+    ok(`so a Demand costs you later: a Rival now, and an Appeal is harder (${T.preview(p, c, { technique: "appeal" }).mod} from ${T.preview(p, npc("hoD", "hermit"), { technique: "appeal" }).mod})`,
+      BS.find("hoC", "hoP")?.type === "rival" && T.preview(p, c, { technique: "appeal" }).mod < T.preview(p, npc("hoE", "hermit"), { technique: "appeal" }).mod);
+  }
+
+  // ═══ Their wall: no backing ══════════════════════════════════════════════════
+  {
+    const p = pc("wbP");
+    p.system.skills.prf = { total: 4, proficient: 1 };
+    const r = await roll(p, npc("wbD", "duelist"), { technique: "appeal", size: "small" }, [15, 15]);   // Duelist: wall Heart
+    ok(`into their wall the second skill doesn't back you: 15 + 7 + 3 − 3 = ${r.total}, and the card says so`, r.rel === "wall" && r.wallLost === 3 && r.total === 22 && /Performance doesn(?:'|&#0?39;)t help/.test(lastCard()));
+    const k = await roll(p, npc("wbT", "tyrant"), { technique: "appeal", size: "small" }, [15, 15], ["pay"]);   // Tyrant: key Heart
+    ok(`…on their key it does`, k.rel === "key" && !k.wallLost && k.total === 25);
+  }
+
+  // ═══ Balance across the levels: the targets ═════════════════════════════════
+  {
+    settingsMap.set("tsl-social-conflict.socialDcBonus", 0);
+    const tiers = [[1, 2, 3, 2], [5, 3, 4, 2], [9, 4, 5, 3], [13, 5, 5, 4], [17, 6, 5, 5]];
+    const seen = [];
+    let wallOk = true, gapOk = true, keyOk = true, oneOk = true, knowOk = true;
+    for (const [lvl, pb, cha, stat] of tiers) {
+      const who = (id, per, prf) => makeActor(id, { cha }, { prof: pb, skills: { per: { total: per, proficient: 1 }, prf: { total: cha, proficient: prf ? 1 : 0 } } });
+      const both = who(`baB${lvl}`, cha + pb, true), one = who(`baO${lvl}`, cha + pb, false), weak = who(`baW${lvl}`, 1 + pb, false);
+      const them = (arch) => { const a = makeActor(`ba${arch}${lvl}`, { wis: stat }, { npc: true, prof: pb }); a.flags["tsl-social-conflict"] = { socialFencing: { archetypeId: arch, known: { key: true, wall: true, desire: true } } }; return a; };
+      const keyN = them("tyrant"), wallN = them("duelist"), plainN = them("hermit");
+      const pct = (a, n, lever) => T.chance(a, n, { technique: "appeal", lever }).p * 100;
+      const w = pct(both, wallN), pl = pct(both, plainN), o = pct(one, plainN), oKey = pct(one, keyN), wk = pct(weak, keyN, "desire");
+      seen.push(`L${lvl} ${Math.round(w)}/${Math.round(pl)}/${Math.round(o)}/${Math.round(wk)}`);
+      if (w > 50) wallOk = false;
+      if (pl - w < 30) gapOk = false;
+      if (oKey - o < 20) keyOk = false;
+      if (o < 50 || o > 70) oneOk = false;
+      if (Math.round(wk) < Math.round(pl) - 15) knowOk = false;   // whole points, as the odds are shown
+    }
+    ok(`balance, levels 1–17 (wall / plain with both skills / plain with one / a weak one with key and lever): ${seen.join(", ")}`, true);
+    ok(`…no one rolls above 50% into a wall, however trained`, wallOk);
+    ok(`…the nature always decides: wall to plain is at least 30 points, plain to key at least 20 for a one-skill face`, gapOk && keyOk);
+    ok(`…a one-skill face stays at 50–70% at every level: the DC keeps up`, oneOk);
+    ok(`…knowing the person stays within 15 points of the best-trained face going in blind`, knowOk);
+  }
+
+  // ═══ “Are they telling the truth?” ═══════════════════════════════════════════
+  {
+    const p = pc("trP"), n = npc("trN", "hermit");
+    ok(`a Read can always ask if they're telling the truth — it's about this moment, not the person`, T.openQuestions(n).at(-1) === "truth" && !R.READ_ORDER.includes("truth"));
+    const options = T.openQuestions(n).length;
+    await roll(p, n, { technique: "read" }, [14], [`o${options - 1}`]);
+    ok(`…the GM answers straight; nothing goes on record, and it can be asked again`, /Are they telling the truth\?/.test(lastCard()) && /The GM answers straight/.test(lastCard())
+      && !SAM.getKnown(n).truth && T.openQuestions(n).includes("truth"));
+    await SAM.setActorData(n, { intent: "Sell the map twice" });
+    await roll(p, n, { technique: "read" }, [14], [`o${T.openQuestions(n).length - 2}`]);
+    ok(`…and so can "what are they after right now?" — their Agenda, if the GM wrote one`, /What are they after right now\?/.test(lastCard()) && /Sell the map twice/.test(lastCard()) && !SAM.getKnown(n).intent && T.openQuestions(n).includes("intent"));
+    await SAM.setActorData(n, { intent: "" });
+    await roll(p, n, { technique: "read" }, [14], [`o${T.openQuestions(n).length - 2}`]);
+    ok(`…with none written, the GM says`, /The GM tells you what they(?:'|&#0?39;)re after/.test(lastCard()));
   }
 
   // ═══ What the talk did — the GM marks it, no roll ═════════════════════════════
@@ -500,24 +588,26 @@ if (require.main === module) (async () => {
     const TE = R.TSLEmotions;
     const p = pc("wP"), d = npc("wD", "duelist"), t = npc("wT", "tyrant");   // Duelist bends +2, Tyrant hardens −2; Reason is plain to both
     const keys = (o) => Object.keys(o).sort().join();
-    const pd = T.preview(p, d, { technique: "bargain", witnesses: true }), pt = T.preview(p, t, { technique: "bargain", witnesses: true });
+    const pd = T.preview(p, d, { technique: "argument", witnesses: true }), pt = T.preview(p, t, { technique: "argument", witnesses: true });
     ok(`before witnesses the preview never consults the nature: a bending and a hardening one look alike`,
       pd.witnesses && pt.witnesses && keys(pd) === keys(pt) && pd.mod === pt.mod && !("audience" in pd));
     ok(`a Read has no witnesses`, T.preview(p, d, { technique: "read", witnesses: true }).witnesses === false);
-    const r1 = await roll(p, d, { technique: "bargain", size: "costly", witnesses: true }, [5], ["pay"]);
+    const r1 = await roll(p, d, { technique: "argument", size: "costly", witnesses: true }, [5], ["pay"]);
     ok(`the room tips the roll: 5 + 7 = 12, +2 before witnesses — the Duelist bends, 14 is a hit`, r1.audience === 2 && r1.total === 14 && r1.grade === "success");
     ok(`…a yes before witnesses binds them: a String on them, and the party now knows how they take an audience`,
       SS.countOn("wP", "wD") === 1 && /Everyone saw them give it/.test(lastCard()) && /they bend/.test(lastCard()) && SAM.getKnown(d).audience);
-    ok(`…a String with no bond before makes them Strangers — so it shows in Bonds`, BS.find("wP", "wD")?.type === "stranger" && BS.find("wD", "wP")?.type === "stranger");
+    pc("wX"); npc("wY", "duelist");
+    await SS.add("wX", "wY", 1);
+    ok(`…a String with no bond before makes them Strangers — so it shows in Bonds`, BS.find("wX", "wY")?.type === "stranger" && BS.find("wY", "wX")?.type === "stranger");
     const q = pc("wQ");
-    const r2 = await roll(q, t, { technique: "bargain", size: "costly", witnesses: true }, [8]);
+    const r2 = await roll(q, t, { technique: "argument", size: "costly", witnesses: true }, [8]);
     ok(`the Tyrant hardens (−2): 15 becomes 13 — a no before witnesses: their Frightened, and you lose face (Insecure)`,
       r2.audience === -2 && r2.total === 13 && r2.grade === "failure" && TE.has(q, "frightened") && TE.has(q, "insecure") && /loses face/.test(lastCard()));
-    const r3 = await roll(pc("wR"), t, { technique: "bargain", size: "costly" }, [8], ["pay"]);
+    const r3 = await roll(pc("wR"), t, { technique: "argument", size: "costly" }, [8], ["pay"]);
     ok(`the same words in private: no audience, a hit`, r3.audience === 0 && r3.grade === "success" && SS.countOn("wR", "wT") === 0);
     const sent = [], emit = game.socket.emit;
     game.socket.emit = (_n, msg) => sent.push(msg);
-    const r4 = await roll(pc("wS"), d, { technique: "bargain", size: "small", witnesses: true }, [9], ["pay"]);
+    const r4 = await roll(pc("wS"), d, { technique: "argument", size: "small", witnesses: true }, [9], ["pay"]);
     game.socket.emit = emit;
     ok(`a small favour before witnesses binds nobody — no String (no farming); the Scene is told it was public`,
       (r4.grade === "success" || r4.grade === "strong") && SS.countOn("wS", "wD") === 0 && !/Everyone saw/.test(lastCard())
@@ -539,14 +629,14 @@ if (require.main === module) (async () => {
     await roll(p, her, { technique: "read" }, [14], ["o6"]);
     ok(`an open face, confirmed by a Read, names them on the spot`, SAM.isRevealed(her) && /No mask/.test(lastCard()) && /Figured out/.test(lastCard()));
     await SAM.setKnown(sch, { key: true });
-    await roll(pc("mQ"), sch, { technique: "bargain", size: "costly" }, [5, 3]);
+    await roll(pc("mQ"), sch, { technique: "argument", size: "costly" }, [5, 3]);
     ok(`once their key and wall are known, they're named — and the mask falls`, SAM.isRevealed(sch) && /The mask falls: they only played the Caretaker/.test(lastCard()));
   }
 
   // ═══ A strong Read keeps a String ═══════════════════════════════════════════
   {
     const p = pc("sP"), b = npc("sB", "broker");
-    const r = await roll(p, b, { technique: "read" }, [17], ["o0", "o6"]);
+    const r = await roll(p, b, { technique: "read" }, [17], ["o0", "o8"]);
     ok(`a strong Read: one answer, and a String instead of the second — you saw where it hurts`,
       r.grade === "strong" && r.readString && r.questions.length === 1 && SAM.getKnown(b).desire && SS.countOn("sP", "sB") === 1 && /saw where it hurts/.test(lastCard()));
     makeActor("sX"); makeActor("sY");
@@ -591,7 +681,7 @@ if (require.main === module) (async () => {
     const s1 = pc("eS"), t1 = npc("eT", "tyrant");                          // wall Pressure; hurts: Frightened
     await roll(s1, t1, { technique: "demand", size: "costly" }, [14, 3]);
     ok(`a missed Demand into the Tyrant's wall: their pushback leaves you Frightened`, TE.has(s1, "frightened") && /is <b>Frightened<\/b>/.test(lastCard()) && /An order in front of witnesses/.test(lastCard()));
-    await roll(s1, t1, { technique: "bargain", size: "small" }, [2]);
+    await roll(s1, t1, { technique: "argument", size: "small" }, [2]);
     ok(`miss again while still Frightened: a scar — Flinch`, TE.scars(s1).includes("flinch") && /leaves a scar/.test(lastCard()));
     const s2 = pc("eU"), h = npc("eH", "hermit");
     await roll(s2, h, { technique: "read" }, [3]);
@@ -696,7 +786,7 @@ if (require.main === module) (async () => {
     game.users.activeGM = null;
     game.user.isGM = false;
     await SS.add("lP", "lN", 1);
-    const lost = await roll(p, n, { technique: "bargain", size: "costly" }, [3], ["burn"]);
+    const lost = await roll(p, n, { technique: "argument", size: "costly" }, [3], ["burn"]);
     game.user.isGM = true;
     game.users.activeGM = gm;
     ok(`with no GM connected a player's roll is refused — nothing rolled, no String spent`, lost === null && SS.countOn("lP", "lN") === 1);
@@ -796,7 +886,7 @@ if (require.main === module) (async () => {
   {
     const plain = () => makeActor("dtP", { cha: 0, wis: 1 }, { prof: 2, skills: { per: { total: 2 }, ins: { total: 3 }, itm: { total: 3 }, dec: { total: 1 }, prf: { total: 1 }, inv: { total: 2 }, his: { total: 0 } } });
     // How often a costly ask lands against an average NPC (DC 14) — the Caretaker:
-    // key Heart (Appeal), plain Pressure (Demand), wall Reason (Bargain).
+    // key Heart (Appeal), plain Pressure (Demand), wall Reason (Argument).
     const rate = async ({ who = "face", technique, nature = "caretaker", lever = null, N = 400 }) => {
       let yes = 0;
       for (let i = 0; i < N; i++) {
@@ -812,8 +902,8 @@ if (require.main === module) (async () => {
     };
     const quiet = console.log;
     console.log = () => {};
-    // Persuasion all through: the Caretaker's key is Heart (Appeal), their wall Reason (Bargain); to the Duelist, Reason is a normal roll.
-    const key = await rate({ technique: "appeal" }), flat = await rate({ technique: "bargain", nature: "duelist", N: 1000 }), wall = await rate({ technique: "bargain" });
+    // Persuasion all through: the Caretaker's key is Heart (Appeal), their wall Reason (Argument); to the Duelist, Reason is a normal roll.
+    const key = await rate({ technique: "appeal" }), flat = await rate({ technique: "argument", nature: "duelist", N: 1000 }), wall = await rate({ technique: "argument" });
     const plainKeyLever = await rate({ who: "plain", technique: "appeal", lever: "desire" });
     console.log = quiet;
     ok(`the person decides: face +7 — key ${key}%, plain ${flat}%, wall ${wall}%`, key - flat >= 15 && flat - wall >= 15);
@@ -843,7 +933,7 @@ if (require.main === module) (async () => {
     game.user.isGM = false;
     const pcProfile = await render(P, "profile");
     ok(`PC profile (player): their maneuvers from the sheet, best first — no stats of the module's own, no nature`, !bad(pcProfile) && /Your maneuvers/.test(pcProfile)
-      && (pcProfile.match(/class="tsl-mine-row/g) ?? []).length === 7 && !/data-lean=/.test(pcProfile) && !/archetypeId/.test(pcProfile));
+      && (pcProfile.match(/class="tsl-mine-row/g) ?? []).length === 8 && !/data-lean=/.test(pcProfile) && !/archetypeId/.test(pcProfile));
     const npcSeen = await render(N, "profile");
     ok(`an NPC's profile, seen by a player: only what the party learned — no dossier, no nature`, !bad(npcSeen)
       && /Leverage/.test(npcSeen) && !/Being outplayed/.test(npcSeen) && !/Never kneel/.test(npcSeen) && !/Schemer/.test(npcSeen) && !/Keep the gate shut/.test(npcSeen));
@@ -867,28 +957,42 @@ if (require.main === module) (async () => {
     const read = await render(P, "talk", { _tTarget: "uiN", _tTech: "read" });
     ok(`Talk → I read them: no sizes, no witnesses, no approach, Insight, "read"`, !bad(read) && !/data-size=/.test(read) && !/data-wit=/.test(read) && !/data-t-ap=/.test(read)
       && /tsl-mode-btn on" data-t-mode="read"/.test(read) && /Roll — Read them/.test(read) && /\+4 Insight/.test(read));
-    ok(`Talk is the roll, not the conversation: talk in character; when the GM calls for it — I ask, I lie or I read them; how your words came at them (three ways, how they take each); odds only on the roll`,
-      /Talk in character/.test(talk) && /tsl-mode-btn on" data-t-mode="ask"/.test(talk) && /data-t-mode="lie"/.test(talk) && /data-t-mode="read"/.test(talk)
-      && (talk.match(/data-t-ap="/g) ?? []).length === 3 && / on" data-t-ap="heart"/.test(talk) && /how they take it — not known yet/.test(talk)
+    ok(`Talk is the roll, not the conversation: talk in character; when the GM calls for it — the four social checks, by name: I persuade, I intimidate, I lie, I read them; odds only on the roll`,
+      /Talk in character/.test(talk) && /tsl-mode-btn on" data-t-mode="ask"/.test(talk) && /data-t-mode="press"/.test(talk) && /data-t-mode="lie"/.test(talk) && /data-t-mode="read"/.test(talk)
+      && /I persuade/.test(talk) && /I intimidate/.test(talk) && /I lie/.test(talk) && /I read them/.test(talk)
+      && /<em>Persuasion<\/em>/.test(talk) && /<em>Intimidation<\/em>/.test(talk) && /<em>Deception<\/em>/.test(talk) && /<em>Insight<\/em>/.test(talk)
+      && (talk.match(/data-t-mode="/g) ?? []).length === 4 && (talk.match(/data-t-ap="/g) ?? []).length === 2 && !/data-t-ap="pressure"/.test(talk) && / on" data-t-ap="heart"/.test(talk) && /how they take it — not known yet/.test(talk)
       && /How did your words come at them\?/.test(talk) && /Plainly — or all in\?/.test(talk) && /<b>Persuasion<\/b> \+ Performance/.test(talk)
       && /If it works:/.test(talk) && /If not:/.test(talk) && !/<em>\d+%<\/em>/.test(talk) && /tsl-roll-odds">\d+%/.test(talk)
       && !/tsl-t-skill/.test(talk) && !/data-tech="frighten"|tsl-step/.test(talk) && /What the party knows/.test(talk) && /Not known yet:/.test(talk));
     const dealing = await render(P, "talk", { _tTarget: "uiN", _tTech: "bargain" });
-    ok(`Reason has no all-in, so no second question — right to the Deal`, !bad(dealing) && !/data-tech="/.test(dealing) && !/or all in\?/.test(dealing) && / on" data-t-ap="reason"/.test(dealing));
+    ok(`Reason's all-in is the Deal, its plain ask an Argument — under "I persuade"`, !bad(dealing) && /tsl-mode-btn on" data-t-mode="ask"/.test(dealing) && / on" data-t-ap="reason"/.test(dealing)
+      && /data-tech="argument"/.test(dealing) && /data-tech="bargain"/.test(dealing) && /here(?:'|&#0?39;)s why/.test(dealing) && /Plainly — or all in\?/.test(dealing));
     const willLie = await render(P, "talk", { _tTarget: "uiN", _tMode: "lie" });
     ok(`"I lie" is its own button: first how you tell it — the three ways, in the lie's own words, with how they're known to take each`, !bad(willLie) && /tsl-mode-btn on" data-t-mode="lie"/.test(willLie)
       && /How do you tell the lie\?/.test(willLie) && (willLie.match(/data-t-ap="/g) ?? []).length === 3 && /a threat you can(?:'|&#0?39;)t back up/.test(willLie) && /feelings you don(?:'|&#0?39;)t have/.test(willLie) && /proof that isn(?:'|&#0?39;)t/.test(willLie)
       && /how they take it — not known yet/.test(willLie) && !/threats, a challenge, shame/.test(willLie) && !/data-t-roll/.test(willLie));
+    const pressing = await render(P, "talk", { _tTarget: "uiN", _tTech: "demand" });
+    ok(`"I intimidate" is its own button: one way to come at them, so nothing to pick — plainly or all in, in its own words, Intimidation on the roll`, !bad(pressing) && /tsl-mode-btn on" data-t-mode="press"/.test(pressing)
+      && !/data-t-ap="/.test(pressing) && /threats, a challenge, shame/.test(pressing) && /how they take it — not known yet/.test(pressing) && !/How did your words come at them/.test(pressing)
+      && /data-tech="demand"/.test(pressing) && /data-tech="blackmail"/.test(pressing) && /What do you demand\?/.test(pressing) && /Something small/.test(pressing) && !/What are you asking for/.test(pressing)
+      && /<b>Intimidation<\/b> \+ Athletics/.test(pressing) && /Roll — Demand/.test(pressing));
+    const bm = await render(P, "talk", { _tTarget: "uiN", _tTech: "blackmail" });
+    ok(`…Blackmail is its all-in, under the same button`, !bad(bm) && /tsl-mode-btn on" data-t-mode="press"/.test(bm) && /Roll — Blackmail/.test(bm));
+    const modeOf = (extra) => Object.assign(new R.SocialFencingApp(P), extra)._modeNow();
+    ok(`the maneuver says which button it's under: Appeal, Argument, Seduce, Deal — I persuade; Demand, Blackmail — I intimidate; Deceive — I lie; Read — I read them`,
+      ["appeal", "argument", "seduce", "bargain"].every((t) => modeOf({ _tTech: t }) === "ask") && ["demand", "blackmail"].every((t) => modeOf({ _tTech: t }) === "press")
+      && modeOf({ _tTech: "deceive" }) === "lie" && modeOf({ _tTech: "read" }) === "read" && modeOf({ _tTech: null, _tMode: "lie" }) === "lie" && modeOf({ _tTech: null, _tMode: null }) === null);
     const lying = await render(P, "talk", { _tTarget: "uiN", _tTech: "deceive", _tApproach: "pressure" });
     ok(`…then its own form: how big the lie is, not "what are you asking for" — and what it risks`, !bad(lying) && / on" data-t-ap="pressure"/.test(lying) && !/data-tech="/.test(lying)
       && /How big is the lie\?/.test(lying) && /A small lie/.test(lying) && /A bold lie/.test(lying) && !/What are you asking for/.test(lying) && /Roll — Deceive/.test(lying) && /<b>Deception<\/b>|\+\d+ Deception/.test(lying) && /If not:/.test(lying));
     ok(`…a Deal says plainly what it is before the roll: your word, a String until you deliver, Allies or Enemies`, /Roll — Deal/.test(dealing) && /you give your word/.test(dealing) && /Allies/.test(dealing) && /Enemies/.test(dealing));
     const asking = await render(P, "talk", { _tTarget: "uiN", _tMode: "ask" });
-    ok(`…"I ask" first asks how your words came at them — nothing to roll until that's said`, !bad(asking) && (asking.match(/data-t-ap="/g) ?? []).length === 3 && !/data-tech=/.test(asking) && !/data-t-roll/.test(asking));
+    ok(`…"I ask" first asks how your words came at them — through the heart, or reason; nothing to roll until that's said`, !bad(asking) && /data-t-ap="heart"/.test(asking) && /data-t-ap="reason"/.test(asking) && (asking.match(/data-t-ap="/g) ?? []).length === 2 && !/data-tech=/.test(asking) && !/data-t-roll/.test(asking));
     await SAM.setActorData(N, { maskId: "caretaker" });
     const masked = await render(P, "talk", { _tTarget: "uiN" });
-    ok(`facing them with no roll called: only what you know, and the three things you might do — nothing to click through`, !bad(masked)
-      && /data-t-mode="ask"/.test(masked) && /data-t-mode="lie"/.test(masked) && /data-t-mode="read"/.test(masked) && !/data-t-ap=/.test(masked) && !/data-tech=/.test(masked) && !/data-t-roll/.test(masked));
+    ok(`facing them with no roll called: only what you know, and the four things you might do — nothing to click through`, !bad(masked)
+      && (masked.match(/data-t-mode="/g) ?? []).length === 4 && !/data-t-ap=/.test(masked) && !/data-tech=/.test(masked) && !/data-t-roll/.test(masked));
     ok(`a player sees the face they show — “seems: Caretaker” — and how they seem, not who they are`, !bad(masked)
       && /seems: Caretaker/.test(masked) && /How they seem/.test(masked) && !/Schemer/.test(masked) && /data-tooltip="[^"]*Is that their true face/.test(masked));
     const none = await render(P, "talk", {});
@@ -913,7 +1017,7 @@ if (require.main === module) (async () => {
       const h = await render(P, "codex", { _codexCat: c });
       if (bad(h)) codexOk = false;
       if (c === "gm" && /Running it/.test(h)) codexOk = false;
-      if (c === "ap" && !/Seven maneuvers/.test(h)) codexOk = false;
+      if (c === "ap" && !/Eight maneuvers/.test(h)) codexOk = false;
       if (c === "start" && !(/A conversation is played/.test(h) && /One roll/.test(h))) codexOk = false;
       words += h.replace(/<[^>]+>/g, " ").split(/\s+/).filter((w) => /[a-z]/i.test(w)).length;
     }
@@ -930,6 +1034,15 @@ if (require.main === module) (async () => {
     ok(`…and what the talk did, marked there with no roll: what came out, the emotions the words left (Guilty — toward each character here)`, /From the talk/.test(sheet)
       && /data-known="desire"/.test(sheet) && /data-gm-feel="frightened"/.test(sheet) && /tsl-feel on" data-gm-feel="insecure"/.test(sheet) && /data-gm-feel="guilty" data-toward="uiP"/.test(sheet));
     ok(`…and it offers to ask them as each character on the scene`, /data-t-as="uiP"/.test(sheet) && /data-t-as="uiQ"/.test(sheet) && !/data-t-as="uiN"/.test(sheet));
+    ok(`…their Agenda and their Line are there too: what they're after, and where it stops`, /Agenda/.test(sheet) && /Keep the gate shut/.test(sheet) && /Their Line/.test(sheet) && /Never kneel/.test(sheet));
+    ok(`…and the GM can mark what their words left on each character here — Guilt toward them`, /Their words landed on:/.test(sheet) && /data-gm-feel="angry" data-on="uiP"/.test(sheet) && /data-gm-feel="guilty" data-on="uiQ" data-toward="uiN"/.test(sheet));
+    const marked = await R.TSLEmotions.mark(Q, "insecure");
+    ok(`…a mark lands on the character: a card says what it costs them, and Talk shows it`, marked === "added" && R.TSLEmotions.has(Q, "insecure") && /The words landed/.test(lastCard()) && /Insecure/.test(lastCard()) && /second-guess/.test(lastCard()));
+    await R.TSLEmotions.mark(Q, "insecure");
+    ok(`…and a click takes it back — no scar for a correction`, !R.TSLEmotions.has(Q, "insecure") && R.TSLEmotions.scars(Q).length === 0);
+    await R.TSLEmotions.mark(Q, "guilty", { toward: "uiN" });
+    ok(`…Guilty is toward the NPC: −2 against them, no one else`, R.TSLEmotions.of(Q).find((e) => e.id === "guilty")?.toward === "uiN");
+    await R.TSLEmotions.mark(Q, "guilty", { toward: "uiN" });
     await N.setFlag("tsl-social-conflict", "deals", [{ id: "d1", byId: "uiP", price: true, at: 0 }, { id: "d2", byId: "uiQ", price: false, at: 0 }]);
     const sheetWord = await render(N, "talk");
     ok(`the word given shows on the GM's screen — their price, or their own terms — with Kept and Broken`, !bad(sheetWord) && /Word given/.test(sheetWord) && /data-deal-kept="d1"/.test(sheetWord) && /data-deal-broken="d2"/.test(sheetWord)
@@ -1013,6 +1126,7 @@ if (require.main === module) (async () => {
       await render(P, "talk", { _tTarget: "uiN", _tTech: "read" }),
       await render(P, "talk", { _tTarget: "uiN", _tMode: "ask" }),
       await render(P, "talk", { _tTarget: "uiN", _tMode: "lie" }),
+      await render(P, "talk", { _tTarget: "uiN", _tTech: "demand" }),
       await render(P, "talk", { _tTarget: "uiN", _tTech: "deceive", _tApproach: "reason" }),
       await render(P, "talk", { _tTarget: "uiN", _tResult: { technique: "bargain", grade: "success", total: 16, dc: 14, rel: "plain", paid: false, witnesses: true, audience: -2 } }),
       await render(P, "profile"), await render(P, "bonds", { _expandedBonds: new Set([BS.find("uiP", "uiN").id]) }),

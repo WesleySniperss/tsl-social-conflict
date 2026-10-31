@@ -11,23 +11,24 @@
  * is made; at most two or three times a conversation — and that roll counts
  * everything the talk established. Nobody declares a goal; no turns, no tracks.
  *
- * Seven MANEUVERS — what the words really were. Each is a pair of D&D skills:
- * the better one rolls, through the system's own check; the other backs it
- * (+2 if you're trained in it).
- *   ASK    — Demand · Appeal · Deal, sized by what it costs THEM;
- *   ALL IN — Blackmail · Seduce, on leverage;
- *   A LIE  — Deceive. Not a way of coming at someone, but something you can
- *            tell any way — a threat, a plea, proof: it takes the approach it
- *            was told in, and their key and wall count for that;
- *   READ   — when the talk doesn't show it: one straight answer.
+ * Eight MANEUVERS, under the four social checks of D&D: what the words really
+ * were. Each is a pair of D&D skills: the better one rolls, through the
+ * system's own check; the other backs it (+ your proficiency if you're trained in it).
+ *   I PERSUADE   — an Appeal (Heart) or an Argument (Reason), sized by what it
+ *                  costs THEM; all in: Seduce, or a Deal;
+ *   I INTIMIDATE — a Demand (Pressure), sized the same; all in: Blackmail;
+ *   I LIE        — Deceive. Not a way of coming at someone, but something you
+ *                  can tell any way — a threat, a plea, proof: it takes the
+ *                  approach it was told in, and their key and wall count for that;
+ *   I READ THEM  — when the talk doesn't show it: one straight answer.
  *
  * What winning costs depends on the approach:
  *   Pressure — they give in without a price, but remember it: the bond sours,
  *              and they take a String on you.
  *   Heart    — the bond warms; but a miss exposes you: a String on you.
- *   Reason   — you give your word: they do it, and you owe them (a String on
- *              you) until you deliver. Kept — Allies; broken — Enemies. The
- *              GM marks which, on the NPC's Talk tab.
+ *   Reason   — they see it your way, and the bond firms (a stranger becomes an
+ *              Ally). A Deal stakes your word instead: a String on you until
+ *              you deliver; kept — Allies, broken — Enemies; the GM marks which.
  *
  * The NPC's hidden nature shapes every roll:
  *   KEY   — the approach that opens them: a second d20, keep the better.
@@ -92,15 +93,12 @@ const TECH_JOBS = {
 };
 const JOB_ORDER = ["read", "ask", "gambit"];
 
-/** A maneuver's second skill backs the roll: +2 when you're trained in it. */
-const SUPPORT_BONUS = 2;
-
 /**
- * The seven maneuvers: an Ask for each approach; an All-in for Pressure and
- * Heart (Reason has none: a deal already stakes your word); the lie, told any way
- * (`anyWay`: no approach of its own, it takes the one it was told in); the Read.
+ * The eight maneuvers: an Ask and an All-in for each approach; the lie, told
+ * any way (`anyWay`: no approach of its own, it takes the one it was told in);
+ * the Read.
  * `skills` — the PAIR of D&D skills it is: the better one rolls (through the
- * system's own check), the other backs it (+2 if trained). `line` — what it
+ * system's own check), the other backs it (+ proficiency if trained). `line` — what it
  * looks like in a scene; `win` / `miss` — what happens either way, in plain
  * words; `rule` — the whole of it.
  */
@@ -120,11 +118,11 @@ const TECHNIQUES = {
     win: "they do it — for their price on a plain hit — and the bond warms",
     miss: "you take their emotion, and they take a String on you: you showed your heart",
     rule: "Hit: they do it, and the bond warms — a plain hit for their price. Miss: you showed your heart — a String on you." },
-  bargain:   { approach: "reason",   job: "ask",    label: "Deal",      skills: ["per", "inv"],
-    line: "your word for theirs: a trade, a promise, proof you stand by",
-    win: "they do it, and you give your word: a String on you until you deliver. Keep it and you're Allies; break it and you're Enemies. On a plain hit, they name the terms",
-    miss: "no deal — you take their emotion",
-    rule: "Hit: they do it, and you give your word — a String on you until you deliver (a strong hit: your terms; a plain one: theirs). Keep it: the String goes, and you're Allies. Break it: you're Enemies, and they keep it." },
+  argument:  { approach: "reason",   job: "ask",    label: "Argument",  skills: ["per", "his"],
+    line: "here's why: the facts, the law, what's in it for them",
+    win: "they see it your way and do it — for their price on a plain hit — and the bond firms: a stranger becomes an Ally",
+    miss: "they out-argue you — you take their emotion",
+    rule: "Hit: they see it your way, and the bond firms (a stranger becomes an Ally) — a plain hit for their price. Miss: they out-argue you." },
   blackmail: { approach: "pressure", job: "gambit", label: "Blackmail", skills: ["itm", "inv"], needs: "fear",
     line: "their Fear, or your hold on them",
     win: "they do it, Frightened of you — your enemy now, and they'll pay you back (a String on you)",
@@ -135,6 +133,11 @@ const TECHNIQUES = {
     win: "they do it for you — the bond deepens",
     miss: "heartbreak — the bond cools, you're Hopeless, and a String on you",
     rule: "Needs their Desire or a bond of ●●. Hit: they do it for you — the bond deepens. Miss: heartbreak — the bond cools, a String on you, and you're Hopeless." },
+  bargain:   { approach: "reason",   job: "gambit", label: "Deal",      skills: ["per", "ins"], needs: "price",
+    line: "your word for theirs: a trade, a promise — their Price, if you know it",
+    win: "they do it, and you give your word: a String on you until you deliver. Keep it and you're Allies; break it and you're Enemies. On a plain hit, they name the terms",
+    miss: "no deal — you take their emotion",
+    rule: "Their Price, if you know it, adds +2. Hit: they do it, and you give your word — a String on you until you deliver (a strong hit: your terms; a plain one: theirs). Keep it: the String goes, and you're Allies. Break it: you're Enemies, and they keep it." },
   deceive:   { approach: null, anyWay: true, job: "gambit", label: "Deceive", skills: ["dec", "prf"], icon: "fa-mask", color: "#a9b4c0",
     line: "a lie that works — until it doesn't",
     win: "they believe it and act on it — the lie stays on record until the GM brings it out",
@@ -166,6 +169,10 @@ const READ_QUESTIONS = {
   mask:     { id: "mask",     label: "Is that their true face?",        short: "Mask" },
   audience: { id: "audience", label: "Before witnesses — do they bend or harden?", short: "Witnesses" },
 };
+/** Asked of the moment, not of the person: always open, and nothing to keep. */
+READ_QUESTIONS.intent = { id: "intent", label: "What are they after right now?", short: "What they're after" };
+READ_QUESTIONS.truth = { id: "truth", label: "Are they telling the truth?", short: "Truth" };
+const READ_MOMENT = ["intent", "truth"];
 const READ_ORDER = ["desire", "fear", "key", "wall", "price", "pressed", "mask", "audience"];
 
 /** The four grades of an ask, as the table reads them. */
@@ -313,7 +320,8 @@ class TSLTalk {
     const rel = TSLTalk.knownRelation(npc, pv.approach);
     const mode = rel === "key" ? "adv" : rel === "wall" ? "dis" : "normal";
     const audience = pv.witnesses && SocialArchetypeManager.getKnown(npc).audience ? SocialArchetypeManager.audienceOf(npc) : 0;
-    return { pv, rel, mode, p: TSLTalk.hitChance(pv.mod + audience, pv.dc, mode) };
+    const lost = rel === "wall" && pv.backed ? TSLTalk.profBonus(src) : 0;   // no backing against their wall
+    return { pv, rel, mode, p: TSLTalk.hitChance(pv.mod + audience - lost, pv.dc, mode) };
   }
 
   /** The truth: is this approach their key, their wall, or neither (a normal roll)? */
@@ -323,11 +331,16 @@ class TSLTalk {
     return arch.key === approach ? "key" : arch.wall === approach ? "wall" : "plain";
   }
 
-  /** Your bond toward them gives +● when your approach runs the way it does. */
+  /**
+   * Your bond toward them gives +● when your approach runs the way it does. A
+   * hostile one costs −● on anything else: they won't hear you out.
+   */
   static bondBonus(src, tgt, approach) {
     const bond = TSLBondStore.find(src?.id, tgt?.id);
-    if (!bond || SocialArchetypeManager.bondApproach(bond.type) !== approach) return 0;
-    return TSLBondStore.getStrength(src.id, tgt.id);
+    if (!bond || !approach) return 0;
+    const strength = TSLBondStore.getStrength(src.id, tgt.id);
+    if (SocialArchetypeManager.bondApproach(bond.type) === approach) return strength;
+    return SocialArchetypeManager.getBondType(bond.type).hostile ? -strength : 0;
   }
 
   /** What a nature asks in return for a "yes, but". */
@@ -336,8 +349,17 @@ class TSLTalk {
     return arch?.price ?? { text: _t("Something in return — the GM names it."), string: false };
   }
 
-  /** Only a heartfelt appeal or a deal ends in "yes, but" — a demand just gets its way. */
-  static hasPrice(technique) { return technique === "appeal" || technique === "bargain"; }
+  /** Only an appeal, an argument or a deal ends in "yes, but" — a demand just gets its way. */
+  static hasPrice(technique) { return technique === "appeal" || technique === "argument" || technique === "bargain"; }
+
+  /** How big it is, in the words of the maneuver: an ask, a demand or a lie — the same DC shifts. */
+  static sizeOf(technique, id) {
+    const a = ASK_SIZES[id];
+    if (!a) return null;
+    if (TECHNIQUES[technique]?.anyWay) return TSLTalk.lieSize(id);
+    if (TECHNIQUES[technique]?.approach !== "pressure") return a;
+    return { ...a, label: { small: _t("Something small"), costly: _t("Something costly"), against: a.label }[id] };
+  }
 
   /** A lie is sized like an ask (the same DC shifts), in its own words. */
   static lieSize(id) {
@@ -426,7 +448,7 @@ class TSLTalk {
         <ul class="tsl-x-after">${lines.map(l => `<li class="tsl-x-after-item tsl-x-after--${kept ? "good" : "bad"}">${l}</li>`).join("")}</ul>
       </div>`,
     });
-    TSLTalk._pulse({ srcId: npc.id, tgtId: who.id, technique: "bargain", approach: "reason", job: "ask", grade: kept ? "success" : "botch", paid: kept, rel: "plain", ended: false });
+    TSLTalk._pulse({ srcId: npc.id, tgtId: who.id, technique: "bargain", approach: "reason", job: "gambit", grade: kept ? "success" : "botch", paid: kept, rel: "plain", ended: false });
   }
 
   // ── The speaker's view, before the roll ───────────────────────────────────
@@ -458,13 +480,13 @@ class TSLTalk {
     if (job === "gambit") lever = tech.needs && known[tech.needs] ? tech.needs : null;
     else lever = lever && leverOk[lever] ? lever : null;
 
-    // The maneuver's other skill backs the roll: +2 when you're trained in it.
+    // The maneuver's other skill backs the roll: your proficiency, when you're trained in it — it grows with you.
     const support = tech.skills.find(k => k !== skill) ?? null;
     const backed = !!support && TSLTalk.proficient(src, support);
     const parts = [{ label: SKILL_LABELS[skill] ?? skill, value: TSLTalk.skillMod(src, skill), base: true }];
-    if (backed) parts.push({ label: _t("{skill} backs it", { skill: SKILL_LABELS[support] ?? support }), value: SUPPORT_BONUS });
+    if (backed) parts.push({ label: _t("{skill} backs it", { skill: SKILL_LABELS[support] ?? support }), value: TSLTalk.profBonus(src) });
     if (bond) parts.push({ label: _t("bond — {type}", { type: SocialArchetypeManager.getBondType(TSLBondStore.find(src.id, npc.id)?.type).label }), value: bond });
-    if (lever) parts.push({ label: lever === "desire" ? _t("their Desire") : _t("their Fear"), value: LEVER_BONUS });
+    if (lever) parts.push({ label: lever === "desire" ? _t("their Desire") : lever === "price" ? _t("their Price") : _t("their Fear"), value: LEVER_BONUS });
     const helper = helperId ? game.actors.get(helperId) : null;
     if (helper && helper.id !== src.id) parts.push({ label: _t("help — {name}", { name: helper.name }), value: HELP_BONUS });
     parts.push(...TSLEmotions.rollParts(src, npc, technique, ap));
@@ -543,6 +565,9 @@ class TSLTalk {
       const better = rel === "key" ? natureDie > natural : natureDie < natural;
       if (better) { total += natureDie - natural; natural = natureDie; }
     }
+    // Against their wall your second skill doesn't back you — known, like the die, only now.
+    const wallLost = rel === "wall" && pv.backed ? TSLTalk.profBonus(src) : 0;
+    total -= wallLost;
     // Before witnesses, some natures bend and some harden — also known only now.
     const audience = pv.witnesses ? SocialArchetypeManager.audienceOf(npc) : 0;
     total += audience;
@@ -564,7 +589,7 @@ class TSLTalk {
     let questions = [], paid = null, readString = false;
     if (pv.job === "read" && (grade === "strong" || grade === "success")) {
       ({ questions, string: readString } = await TSLTalk.promptQuestions(npc, grade === "strong" ? 2 : 1, { string: grade === "strong" }));
-    } else if (pv.job === "ask" && grade === "success" && TSLTalk.hasPrice(pv.technique)) {
+    } else if (grade === "success" && TSLTalk.hasPrice(pv.technique)) {
       paid = await TSLTalk.promptPrice(npc, TSLTalk.priceOf(npc), { deal: pv.technique === "bargain" });
     }
 
@@ -572,7 +597,7 @@ class TSLTalk {
       srcId: src.id, npcId: npc.id, technique: pv.technique, approach: pv.approach, job: pv.job,
       size: pv.size, skill: pv.skill, helperId: pv.helperId, lever: pv.lever, parts: pv.parts, mod: pv.mod,
       total, natural, dice, natureDie, rel, dc: pv.dc, grade, stringSpent, systemRoll, rollData,
-      questions, readString, paid, witnesses: pv.witnesses, audience,
+      questions, readString, paid, witnesses: pv.witnesses, audience, support: pv.support, wallLost,
     };
     // The GM applies it (directly when the GM rolled, through the relay for a player).
     await TSLGMActions.request("talkResolve", payload);
@@ -618,7 +643,7 @@ class TSLTalk {
   static openQuestions(npc) {
     const known = SocialArchetypeManager.getKnown(npc);
     const shows = !!SocialArchetypeManager.getShown(npc);
-    return READ_ORDER.filter(q => !known[q] && (q !== "mask" || shows));
+    return [...READ_ORDER.filter(q => !known[q] && (q !== "mask" || shows)), ...READ_MOMENT];
   }
 
   /**
@@ -668,6 +693,8 @@ class TSLTalk {
     const arch = SocialArchetypeManager.getArchetype(npc);
     const pts  = SocialArchetypeManager.getCharacterNotes(npc).points;
     switch (q) {
+      case "truth": return _t("The GM answers straight: what they just said is true — or it isn't.");
+      case "intent": return SocialArchetypeManager.getCharacterNotes(npc).intent || _t("The GM tells you what they're after.");
       case "desire": return pts.desire || arch?.craves || _t("Nothing they let show — the GM describes it.");
       case "fear":   return pts.fear   || arch?.dreads || _t("Nothing they let show — the GM describes it.");
       case "key":    return arch ? `${APPROACHES[arch.key].label} — ${arch.keyText}` : _t("Nothing in particular — no approach opens them more than another.");
@@ -759,7 +786,7 @@ class TSLTalk {
       case "read": {
         if (hit) {
           for (const q of (p.questions ?? []).filter(id => READ_QUESTIONS[id])) {
-            knownPatch[q] = true;
+            if (!READ_MOMENT.includes(q)) knownPatch[q] = true;
             note(`<i class="fas fa-eye"></i> <b>${READ_QUESTIONS[q].label}</b> ${esc(TSLTalk.answerFor(npc, q))}`, "good");
           }
           if (p.readString) stringOnThem = _t("You saw where it hurts");
@@ -773,7 +800,7 @@ class TSLTalk {
       case "ask": {
         if (p.grade === "strong") {
           granted = true;
-          note(tech.id === "bargain" ? _t("{who} agrees — on your terms.", { who }) : _t("{who} does it.", { who }), "good");
+          note(_t("{who} does it.", { who }), "good");
         } else if (p.grade === "success") {
           if (!TSLTalk.hasPrice(tech.id)) {
             granted = true;
@@ -781,10 +808,7 @@ class TSLTalk {
           } else {
             const price = TSLTalk.priceOf(npc);
             if (!known.price) knownPatch.price = true;
-            if (p.paid && tech.id === "bargain") {
-              granted = true;
-              note(_t("{who} agrees — on their terms: <i>{price}</i>", { who, price: esc(price.text) }), "good");
-            } else if (p.paid) {
+            if (p.paid) {
               granted = true;
               note(_t("{who} does it — for a price: <i>{price}</i>", { who, price: esc(price.text) }), "good");
               if (price.string) {
@@ -808,18 +832,18 @@ class TSLTalk {
             await shift("sour", _t("They gave in — and they will remember who made them."));
             stringOnYou = _t("They'll pay you back");
           } else if (ap === "heart") await shift("warm");
-          else if (ap === "reason") {
-            // A deal: your word goes on record, and they hold you to it until the GM says how it ended.
-            await npc.setFlag(TALK_SCOPE, "deals", [...TSLTalk.deals(npc), { id: foundry.utils.randomID(), byId: src.id, price: p.grade !== "strong", at: Date.now() }]);
-            note(`<i class="fas fa-handshake"></i> ${_t("Your word is on record — keep it, and you're Allies; break it, and you're Enemies.")}`, "");
-            stringOnYou = _t("You gave your word");
-          }
+          else if (ap === "reason") await shift("ally");
         }
         break;
       }
 
       case "gambit": {
-        if (hit) {
+        // A Deal on their terms: give your word, or walk away.
+        const onTheirTerms = tech.id === "bargain" && p.grade === "success";
+        if (onTheirTerms && !known.price) knownPatch.price = true;
+        if (onTheirTerms && !p.paid) {
+          note(_t("{who} named a price — <i>{price}</i> — and {you} walked away from the deal.", { who, you, price: esc(TSLTalk.priceOf(npc).text) }), "");
+        } else if (hit) {
           granted = true;
           if (p.grade === "strong" && big) stringOnThem = tech.id === "deceive" ? _t("They swallowed it whole") : _t("It cost them more than they show");
           if (tech.id === "blackmail") {
@@ -830,6 +854,12 @@ class TSLTalk {
           } else if (tech.id === "seduce") {
             note(_t("{who} does it — for you.", { who }), "good");
             await shift("warm");
+          } else if (tech.id === "bargain") {
+            note(onTheirTerms ? _t("{who} agrees — on their terms: <i>{price}</i>", { who, price: esc(TSLTalk.priceOf(npc).text) }) : _t("{who} agrees — on your terms.", { who }), "good");
+            // Your word goes on record, and they hold you to it until the GM says how it ended.
+            await npc.setFlag(TALK_SCOPE, "deals", [...TSLTalk.deals(npc), { id: foundry.utils.randomID(), byId: src.id, price: onTheirTerms, at: Date.now() }]);
+            note(`<i class="fas fa-handshake"></i> ${_t("Your word is on record — keep it, and you're Allies; break it, and you're Enemies.")}`, "");
+            stringOnYou = _t("You gave your word");
           } else {
             note(_t("{who} believes it — and acts on it.", { who }), "good");
             const lies = TSLTalk.lies(npc);
@@ -847,6 +877,8 @@ class TSLTalk {
             note(_t("{who} pulls away — heartbreak.", { who }), "bad");
             stringOnYou = _t("You showed your heart");
             await shift("cool");
+          } else if (tech.id === "bargain") {
+            note(_t("{who} turns the deal down.", { who }), "bad");
           } else {
             note(_t("{who} catches the lie.", { who }), "bad");
             stringOnYou = _t("Caught lying");
@@ -950,6 +982,7 @@ class TSLTalk {
     const base = (p.parts ?? []).find(x => x.base);
     const pill = (value, label) => `<span class="tsl-x-bonus ${value < 0 ? "tsl-x-bonus--neg" : ""}">${value >= 0 ? "+" : "−"}${Math.abs(value)} ${esc(label)}</span>`;
     const bonus = (p.parts ?? []).filter(x => !x.base).map(x => pill(x.value, x.label)).join("")
+      + (p.wallLost ? pill(-p.wallLost, _t("{skill} doesn't help: their wall", { skill: SKILL_LABELS[p.support] ?? p.support })) : "")
       + (p.audience ? pill(p.audience, _t("before witnesses")) : "")
       + (p.stringSpent ? pill(STRING_SPEND_BONUS, _t("String")) : "");
     return `<div class="tsl-x-card tsl-x--${p.grade}">
