@@ -70,8 +70,17 @@ class TSLGMActions {
 
   /** The character a player's action speaks for — they must own it. */
   static _actorOf(action, args) {
-    return action === "talkResolve" ? args?.srcId : action === "stringHurt" ? args?.holderId : null;
+    switch (action) {
+      case "talkResolve": return args?.srcId;
+      case "bondMirror":  return args?.actorId;
+      case "abilityOutcome": return args?.pcId;   // the answer to an NPC's move (the card checks it's theirs)
+      case "invokeSignature": return args?.actorId;
+      default: return null;
+    }
   }
+
+  /** What any player may ask for: it speaks for no one's character (a caption pinned to the shared map). */
+  static OPEN = new Set(["boardPatch"]);
 
   static async handle({ action, args }, senderId = null) {
     if (!game.user.isGM) return;
@@ -79,7 +88,7 @@ class TSLGMActions {
     if (game.users.activeGM && !game.users.activeGM.isSelf) return;
     // A player acts only through a character they own.
     const sender = senderId ? game.users.get(senderId) : null;
-    if (senderId && !sender?.isGM) {
+    if (senderId && !sender?.isGM && !TSLGMActions.OPEN.has(action)) {
       const actor = game.actors.get(TSLGMActions._actorOf(action, args));
       if (!sender || !actor?.testUserPermission?.(sender, "OWNER")) {
         console.warn(`TSL | Refused "${action}" from ${sender?.name ?? senderId}: not their character.`);
@@ -92,9 +101,21 @@ class TSLGMActions {
           // A technique — apply what follows (emotions, Strings, bonds, lies, knowledge), post its card.
           await TSLTalk.resolve(args);
           break;
-        case "stringHurt":
-          // A String spent to make someone feel something.
-          await TSLEmotions.hurt(args);
+        case "bondMirror":
+          // A player changed their side of a bond: the other side follows.
+          await TSLBondStore.applyMirror(args);
+          break;
+        case "boardPatch":
+          // A caption pinned to (or moved on, or taken off) the shared relationship map.
+          await TSLSceneVisualizer.applyBoardPatch(args);
+          break;
+        case "invokeSignature":
+          // A ●●● bond's signature, once per long rest.
+          await TSLBondPowers.invokeSignature(args);
+          break;
+        case "abilityOutcome":
+          // A character answers an NPC's pull on a String (or answers it with their own: Quits).
+          await TSLAbilities.outcome(args, senderId);
           break;
         default:
           console.warn(`TSL | Unknown GM action: ${action}`);

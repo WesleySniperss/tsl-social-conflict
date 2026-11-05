@@ -14,7 +14,7 @@
  * Where they come from:
  *   • the talk itself: when the words land, the GM marks it — no roll (mark);
  *   • a miss (anything but a Read): the NPC hits back with its nature's emotion;
- *   • a String spent on someone ("Hurt") — both ways, the GM's NPCs too;
+ *   • an NPC's move, refused (abilities.js);
  *   • gambits: Blackmail frightens them, a broken heart leaves you Hopeless,
  *     a lie brought out leaves them Angry.
  * A player character who takes an emotion they already carry takes its SCAR
@@ -239,29 +239,5 @@ class TSLEmotions {
       parts.push({ label: _t("they're {emotion}", { emotion: EMOTIONS[e.id].label }), value: EMOTION_BONUS });
     }
     return parts;
-  }
-
-  /**
-   * Spend a String on someone to make them feel something — the GM judges
-   * that the fiction fits. GM client (players reach it through the relay).
-   */
-  static async hurt({ holderId, targetId, emotion }) {
-    if (!game.user.isGM) return;
-    const holder = game.actors.get(holderId), target = game.actors.get(targetId);
-    const e = EMOTIONS[emotion];
-    if (!holder || !target || !e) return;
-    if (!await TSLStringStore.spend(holder.id, target.id)) return;
-    const r = await TSLEmotions.add(target, emotion, { by: holder.id, toward: emotion === "guilty" ? holder.id : null });
-    const esc = foundry.utils.escapeHTML;
-    const line = r?.added ? _t("{who} is <b>{emotion}</b> — {spoils}.", { who: esc(target.name), emotion: esc(e.label), spoils: esc(e.spoilsText) })
-      : r?.scar ? _t("{who} was already {emotion} — it leaves a scar: <b>{scar}</b> ({text})", { who: esc(target.name), emotion: esc(e.label), scar: esc(SCARS[r.scar].label), text: esc(SCARS[r.scar].text) })
-      : _t("{who} already feels it.", { who: esc(target.name) });
-    await ChatMessage.create({
-      speaker: ChatMessage.getSpeaker({ actor: holder }),
-      content: `<div class="tsl-x-card tsl-x--botch tsl-x-card--slim">
-        <div class="tsl-x-head"><i class="fas fa-masks-theater"></i><span class="tsl-x-title">${_t("{holder} pulls a String on {target}", { holder: esc(holder.name), target: esc(target.name) })}</span></div>
-        <ul class="tsl-x-after"><li class="tsl-x-after-item tsl-x-after--bad">${line}</li></ul>
-      </div>`,
-    });
   }
 }

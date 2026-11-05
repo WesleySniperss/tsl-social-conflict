@@ -147,8 +147,13 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
     await r(mira, duke, { technique: "seduce", size: "small" }, [5, 2]);                     // his Desire
     await T.exposeLie(duke, T.lies(duke)[0]?.id);                                            // the lie comes out
     await SS.add("lyra", "duke", 1);
-    await R.TSLEmotions.hurt({ holderId: "lyra", targetId: "duke", emotion: "insecure" });   // Lyra pulls a String: he's Insecure
     await R.TSLEmotions.clear(mira, "frightened", "lyra");                                    // Lyra comforts Mira
+    // The captain pulls his String on Lyra: a card that waits for her answer — and one already answered.
+    await SS.add("roell", "lyra", 1); await SS.add("lyra", "roell", 1);
+    const AB = R.TSLAbilities, ord = AB.find(roell, "order"), ex = AB.find(roell, "example");
+    cards.push({ speaker: { alias: "Captain Roell" }, content: AB._card(roell, lyra, ord) });
+    cards.push({ speaker: { alias: "Captain Roell" }, content: AB._card(roell, lyra, ex, [{ html: AB.fill(ex.outcomes[1].result, { pc: "Lyra Vane", npc: "Captain Roell", who: "Mira Ashgrove" }), tone: "bad" }, { html: "The String is spent.", tone: "" }]) });
+    await SS.remind(lyra, roell, { size: "costly" });
   }
   const li = (c) => `<li class="chat-message message flexcol"><header class="message-header flexrow"><h4 class="message-sender">${c.speaker?.alias ?? "Lyra Vane"}</h4><span class="message-metadata"><time class="message-timestamp">just now</time></span></header><div class="message-content">${c.content ?? ""}</div></li>`;
   for (let i = 0; i < cards.length; i += 4) {
@@ -168,7 +173,7 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
   page("chronicle-profile-npc", await chron(roell, "profile"), 560, 1250);
   page("chronicle-profile-npc-player", await chron(duke, "profile", {}, "player"), 560, 1000);
   page("chronicle-profile-pc", await chron(lyra, "profile", {}, "player"), 560, 620);
-  page("chronicle-bonds", await chron(lyra, "bonds", { _expandedBonds: new Set(BS.getList("lyra").slice(0, 1).map((b) => b.id)) }, "player"), 560, 700);
+  page("chronicle-bonds", await chron(lyra, "bonds", { _expandedBonds: new Set(BS.getList("lyra").map((b) => b.id)) }, "player"), 560, 1300);
   page("chronicle-talk-player", await chron(mira, "talk", { _tTarget: "ilse", _tTech: "appeal", _tSize: "costly", _tHelper: "lyra", _tLever: "desire", _tWitnesses: true }, "player"), 560, 1250);
   page("chronicle-talk-blackmail", await chron(mira, "talk", { _tTarget: "ilse", _tTech: "blackmail", _tSize: "against" }, "player"), 560, 1150);
   page("chronicle-talk-read", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "read" }, "player"), 560, 1050);
@@ -176,8 +181,10 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
   page("chronicle-talk-result", await chron(lyra, "talk", { _tTarget: "duke",
     _tResult: { technique: "appeal", grade: "success", total: 18, dc: 15, rel: "key", paid: true, witnesses: true, audience: -2 } }, "player"), 560, 1000);
   page("chronicle-talk-result-read", await chron(mira, "talk", { _tTarget: "duke",
-    _tResult: { technique: "read", grade: "strong", total: 21, dc: 15, rel: "plain", questions: ["fear"], readString: true } }, "player"), 560, 1000);
+    _tResult: { technique: "read", grade: "strong", total: 21, dc: 15, rel: "plain", questions: ["fear", "desire"] } }, "player"), 560, 1000);
   page("chronicle-talk-holds", await chron(lyra, "talk", { _tTarget: "roell" }, "player"), 560, 760);
+  await SS.add("lyra", "roell", 1); await SS.add("roell", "lyra", 1);
+  page("chronicle-talk-remind", await chron(lyra, "talk", { _tTarget: "roell", _tTech: "appeal", _tSize: "costly" }, "player"), 560, 1300);
   page("chronicle-talk-argue", await chron(mira, "talk", { _tTarget: "duke", _tTech: "argument" }, "player"), 560, 1250);
   page("chronicle-talk-press", await chron(lyra, "talk", { _tTarget: "roell", _tTech: "demand" }, "player"), 560, 1250);
   page("chronicle-talk-lying", await chron(lyra, "talk", { _tTarget: "roell", _tMode: "lie" }, "player"), 560, 900);
@@ -186,28 +193,38 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
   page("chronicle-talk-asking", await chron(lyra, "talk", { _tTarget: "roell", _tMode: "ask" }, "player"), 560, 900);
   page("chronicle-talk-notarget", await chron(lyra, "talk", {}, "player"), 560, 400);
   page("chronicle-talk-gm", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "bargain" }), 560, 1250);
-  page("chronicle-talk-npc-gm", await chron(ilse, "talk"), 560, 1500);
-  page("chronicle-talk-npc-word", await chron(roell, "talk"), 560, 1500);
+  page("chronicle-talk-npc-gm", await chron(ilse, "talk"), 560, 2400);
+  page("chronicle-talk-npc-word", await chron(roell, "talk"), 560, 2400);
   for (const cat of ["start", "ap", "read", "emo", "natures", "bonds", "gm"]) {
     page(`chronicle-codex-${cat}`, await chron(lyra, "codex", { _codexCat: cat }), 560, 1500);
   }
 
-  // ── The Social Scene ──
-  for (const mode of ["scene", "world"]) {
+  // ── The Social Scene: a board — captions, a pinned note, a selection ──
+  await SAM.setActorData(roell, { title: "Captain of the river gate" });
+  await BS.update("lyra", BS.find("lyra", "mira").id, { label: "since the flood" });
+  sceneFlags.board = { pos: [], notes: [{ id: "n1", x: 40, y: -250, text: "The river gate" }] };
+  const board = async (mode, sel = null) => {
     const app = new R.TSLSceneVisualizer({ mode });
+    await safe(() => app._renderHTML());
+    app._fit({ clientWidth: 878, clientHeight: 530, querySelector: () => null });   // what the window does once it's open
+    app._sel = sel;
     const inner = await safe(() => app._renderHTML());
-    page(`scene-${mode}`, windowHTML({ id: mode === "world" ? "tsl-relationship-visualizer" : "tsl-scene-visualizer", classes: ["tsl-viz"], title: mode === "world" ? "Web of Bonds" : "Social Scene", width: 620, height: 640, inner }), 660, 700);
-  }
+    return windowHTML({ id: mode === "world" ? "tsl-relationship-visualizer" : "tsl-scene-visualizer", classes: ["tsl-viz"], title: mode === "world" ? "Web of Bonds" : "Social Scene", width: 900, height: 700, inner });
+  };
+  page("scene-scene", await board("scene"), 940, 760);
+  page("scene-world", await board("world"), 940, 760);
+  page("scene-selected", await board("scene", { kind: "node", id: "roell" }), 940, 760);
+  page("scene-pair", await board("scene", { kind: "edge", id: ["lyra", "mira"].sort().join("|") }), 940, 760);
 
   // ── Dialogs (each prompt once, captured as built) ──
   {
     dialogs.length = 0;
     await T.promptPrice(duke, T.priceOf(duke));
     await T.promptPrice(roell, T.priceOf(roell));
-    await T.promptQuestions(ilse, 2, { string: true });
+    await T.promptQuestions(ilse, 2);
+    await R.TSLAbilities.promptMove(roell, lyra, R.TRIAD_MOVES.power, { total: 16, dc: 15, technique: "demand", grade: "success" });
     await T.promptStringBurn(lyra, roell, 12, 14, 1);
     await new R.SocialFencingApp(lyra)._promptPull(roell);
-    await new R.SocialFencingApp(lyra)._promptHurt(roell);
     await new R.SocialFencingApp(lyra)._promptLetGo(lyra, "angry");
     const dl = dialogs.map((d) => windowHTML({ id: "dlg", classes: d.opts?.classes ?? ["dialog"], title: d.title ?? "Dialog", width: d.opts?.width ?? 400,
       inner: `<div class="dialog-content">${d.content ?? ""}</div><div class="dialog-buttons">${Object.entries(d.buttons ?? {}).map(([k, b]) => `<button class="dialog-button ${k} ${k === d.default ? "default bright" : ""}">${b.icon ?? ""} ${b.label ?? k}</button>`).join("")}</div>` })).join("");

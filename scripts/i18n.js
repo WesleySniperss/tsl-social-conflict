@@ -77,7 +77,14 @@ class TSLi18n {
     if (typeof EMOTIONS !== "undefined") vals(EMOTIONS).forEach(e => tr(e, ["label", "spoilsText", "opensText", "clear"]));
     if (typeof SCARS !== "undefined") vals(SCARS).forEach(s => tr(s, ["label", "text"]));
     if (typeof PROFILE_POINTS !== "undefined") PROFILE_POINTS.forEach(p => tr(p, ["label", "hint", "placeholder"]));
-    if (typeof BOND_TYPES !== "undefined") BOND_TYPES.forEach(b => tr(b, ["label", "hint"]));
+    if (typeof BOND_TYPES !== "undefined") BOND_TYPES.forEach(b => { tr(b, ["label", "hint"]); tr(b.aura, ["label"]); });
+    if (typeof BOND_ABILITIES !== "undefined") vals(BOND_ABILITIES).forEach(a => tr(a, ["label", "text"]));
+    if (typeof BOND_SIGNATURES !== "undefined") vals(BOND_SIGNATURES).forEach(g => { tr(g, ["label", "text"]); (g.fx?.choose ?? []).forEach(c => tr(c, ["label"])); });
+    if (typeof TRIAD_MOVES !== "undefined") vals(TRIAD_MOVES).forEach(m => tr(m, ["name", "text"]));
+    if (typeof NPC_ABILITIES !== "undefined") for (const list of vals(NPC_ABILITIES)) for (const ab of list) {
+      tr(ab, ["name", "text"]);
+      (ab.outcomes ?? []).forEach(o => tr(o, ["label", "result"]));
+    }
   }
 
   /** Re-render whatever is open, so a change of language shows at once. */

@@ -46,6 +46,27 @@ Hooks.once("init", () => {
   game.settings.register(TSL_SCOPE, "dataVersion", {
     scope: "world", config: false, type: Number, default: 0,
   });
+
+  // The Web of Bonds' board: where the GM put everyone, and the captions pinned
+  // to it (hidden). A scene's own board lives on the scene (flag "board").
+  game.settings.register(TSL_SCOPE, "worldBoard", {
+    scope: "world", config: false, type: Object, default: {},
+  });
+
+  // How far a bond reaches in a fight (its aura). 0 turns auras off.
+  game.settings.register(TSL_SCOPE, "bondAuraRange", {
+    name: _t("Bond aura reach"),
+    hint: _t("In a fight, standing this close to someone you have a bond with gives that bond's aura (feet). 0 turns bond auras off."),
+    scope: "world", config: true, type: Number, default: 15,
+    range: { min: 0, max: 60, step: 5 },
+    onChange: () => { try { TSLBondAuras.refresh(); } catch { /* not ready */ } },
+  });
+
+  // An NPC's pull on a String is a chat card that waits for the answer: wire its buttons.
+  Hooks.on("renderChatMessageHTML", (message, html) => {
+    try { TSLAbilities.bindCard(message, html); }
+    catch (err) { console.warn("TSL | ability card:", err); }
+  });
 });
 
 Hooks.once("vtools.ready", () => {
@@ -156,6 +177,9 @@ Hooks.once("ready", () => {
   // A pulled String is a real effect — end it once it has done its job.
   try { TSLStringStore.registerPullHooks(); }
   catch (err) { console.error("TSL | String pull hooks failed:", err); }
+  // A bond reaches into a fight (its aura); its ●●● signature lasts one roll and comes back with a long rest.
+  try { TSLBondAuras.register(); TSLBondMoments.registerHooks(); TSLBondPowers.registerRestHooks(); }
+  catch (err) { console.error("TSL | bond powers failed:", err); }
   try { SocialHUD.register(); }
   catch (err) { console.error("TSL | SocialHUD failed:", err); }
   // An actor deleted from the world takes its bonds and Strings with it (the active GM tidies up).

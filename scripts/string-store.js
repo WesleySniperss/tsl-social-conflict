@@ -14,11 +14,12 @@ console.log("TSL | Loading string-store.js...");
 const STRING_FLAG = "tsl-social-conflict";
 
 /**
- * The most Strings one person can hold on ANOTHER (v1.81). A String is a +5
- * trump card on any roll against them — or +5 to your AC / a save against
- * them — so they must stay scarce: a few deep levers, not a stack.
+ * The most Strings one person can hold on ANOTHER: one (the user's call,
+ * 2026-11-02). A String is what you have on someone — won on a roll against
+ * them, lost on a miss — and it does one thing when spent, so it stays a
+ * state, not a stack: you have something on them, or you don't.
  */
-const STRING_CAP = 3;
+const STRING_CAP = 1;
 
 class TSLStringStore {
 
@@ -108,6 +109,68 @@ class TSLStringStore {
     list.splice(idx, 1);
     await TSLStringStore._saveList(actorId, list);
     return true;
+  }
+
+  // ── Spending a String in a talk, and investing it ───────────────────────────
+
+  /**
+   * "They agree": the holder reminds them what they have on them, instead of
+   * the roll the GM called for. Small or costly — they do it; something
+   * against their interests — the GM says what it would take (TSL: for an NPC,
+   * a String spent may mean they simply agree). No roll: nothing else moves.
+   */
+  static async remind(holder, target, { size = "costly", technique = null } = {}) {
+    if (!holder || !target) return false;
+    if (!(await TSLStringStore.spend(holder.id, target.id))) {
+      ui.notifications?.warn?.(_t("No Strings held on them."));
+      return false;
+    }
+    const esc = foundry.utils.escapeHTML;
+    const against = size === "against";
+    const data = { holder: esc(holder.name), target: esc(target.name) };
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: holder }),
+      content: `<div class="tsl-x-card tsl-x-card--slim tsl-x--${against ? "failure" : "strong"}">
+        <div class="tsl-x-head"><i class="fas fa-masks-theater"></i><span class="tsl-x-title">${_t("{holder} reminds {target} what they have on them", data)}</span></div>
+        <div class="tsl-x-outcome">${against ? _t("Against their interests: the GM says what it would take.") : _t("{target} agrees — no roll.", data)}</div>
+        <ul class="tsl-x-after"><li class="tsl-x-after-item">${_t("The String is spent.")}</li></ul>
+      </div>`,
+    });
+    if (!against && typeof TSLTalk !== "undefined") TSLTalk._pulse({ srcId: holder.id, tgtId: target.id, technique, approach: null, job: "ask", grade: "strong", granted: true });
+    return true;
+  }
+
+  /**
+   * Invest the String in the bond: +1 ● — a hostile bond eases −1 ● instead
+   * (making peace). With no bond yet (or a Stranger) the holder says what they
+   * become to each other (`typeId`). The other side follows — through the GM
+   * when the holder can't write it. Returns the bond's new state, or null.
+   */
+  static async invest(holder, target, typeId = null) {
+    if (!holder || !target || typeof TSLBondStore === "undefined") return null;
+    const bond = TSLBondStore.find(holder.id, target.id);
+    const type = bond ? SocialArchetypeManager.getBondType(bond.type) : null;
+    const cur = bond ? Math.min(3, Math.abs(bond.attitude ?? 0)) : 0;
+    const fresh = !bond || type.id === "stranger";
+    if (fresh && !(typeId && SocialArchetypeManager.getBondType(typeId)?.id === typeId && typeId !== "stranger")) return null;
+    if (!fresh && !type.hostile && cur >= 3) return null;
+    if (!TSLStringStore.countOn(holder.id, target.id)) return null;
+    await TSLStringStore.spend(holder.id, target.id);
+    const patch = fresh ? { type: typeId, attitude: 1 } : { attitude: type.hostile ? Math.max(0, cur - 1) : cur + 1 };
+    if (bond) await TSLBondStore.update(holder.id, bond.id, patch);
+    else await TSLBondStore.add(holder.id, target.id, patch);
+    const now = TSLBondStore.find(holder.id, target.id);
+    const t = SocialArchetypeManager.getBondType(now?.type);
+    const esc = foundry.utils.escapeHTML;
+    const dots = "●".repeat(Math.min(3, Math.abs(now?.attitude ?? 0))) || "○";
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: holder }),
+      content: `<div class="tsl-x-card tsl-x-card--slim tsl-x--success">
+        <div class="tsl-x-head"><i class="fas fa-link"></i><span class="tsl-x-title">${_t("{holder} invests a String in the bond with {target}", { holder: esc(holder.name), target: esc(target.name) })}</span></div>
+        <div class="tsl-x-outcome">${!fresh && type.hostile ? _t("Making peace: {type} eases to {dots}.", { type: esc(t.label), dots }) : _t("{type} — {dots}.", { type: esc(t.label), dots })}</div>
+      </div>`,
+    });
+    return now;
   }
 
   // ── Pulling a String — at the table AND in a fight (v2.0) ───────────────────

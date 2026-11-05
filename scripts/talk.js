@@ -22,13 +22,14 @@
  *                  approach it was told in, and their key and wall count for that;
  *   I READ THEM  — when the talk doesn't show it: one straight answer.
  *
- * What winning costs depends on the approach:
- *   Pressure — they give in without a price, but remember it: the bond sours,
- *              and they take a String on you.
- *   Heart    — the bond warms; but a miss exposes you: a String on you.
- *   Reason   — they see it your way, and the bond firms (a stranger becomes an
- *              Ally). A Deal stakes your word instead: a String on you until
- *              you deliver; kept — Allies, broken — Enemies; the GM marks which.
+ * The stake of every roll is a String: a strong win (5 over, or a 20) gives
+ * the speaker one on them; a bad miss (5 under, or a 1) gives them one on the
+ * speaker. Some wins cost one back whatever the grade:
+ *   Pressure — they give in without a price, but remember it: a String on you;
+ *   a Deal   — your word: they hold a String on you until you deliver;
+ *   a price that is a debt.
+ * A roll never touches the bond between them: who they are to each other is
+ * the GM's (or the player's, investing a String); a bond's type works per ●.
  *
  * The NPC's hidden nature shapes every roll:
  *   KEY   — the approach that opens them: a second d20, keep the better.
@@ -105,44 +106,44 @@ const JOB_ORDER = ["read", "ask", "gambit"];
 const TECHNIQUES = {
   read:      { approach: null,       job: "read",   label: "Read them", skills: ["ins", "inv"],
     line: "watch them — or dig into who they are",
-    win: "one answer about them for the whole party — on a strong hit, a second answer or a String on them",
-    miss: "they notice, and won't let you read them again this scene — no emotion; on a bad miss they read you instead (a String on you)",
-    rule: "Hit: one answer about them for the whole party. Strong hit: a second answer — or a String on them instead (you saw where it hurts). Miss: they notice — but it costs no emotion. Bad miss: they read you instead (a String on you)." },
+    win: "one answer about them for the whole party — two on a strong hit",
+    miss: "they notice, and won't let you read them again this scene — and that's all: reading someone is safe",
+    rule: "Hit: one answer about them for the whole party; a strong hit, two. Miss: they notice — no emotion, no String. A Read never moves Strings." },
   demand:    { approach: "pressure", job: "ask",    label: "Demand",    skills: ["itm", "ath"],
     line: "do it — or else",
-    win: "they give in — no price, but they remember who made them: the bond sours, and they take a String on you",
-    miss: "they push back their own way — you take their emotion (−2 until you act it out)",
-    rule: "Hit: they give in — no price, but they remember it: the bond sours, and they take a String on you." },
+    win: "they give in — no price; but they remember who made them: they take a String on you",
+    miss: "they push back their own way — their emotion on you",
+    rule: "Hit: they give in, no price — but they take a String on you. Miss: their emotion on you." },
   appeal:    { approach: "heart",    job: "ask",    label: "Appeal",    skills: ["per", "prf"],
     line: "ask from the heart",
-    win: "they do it — for their price on a plain hit — and the bond warms",
-    miss: "you take their emotion, and they take a String on you: you showed your heart",
-    rule: "Hit: they do it, and the bond warms — a plain hit for their price. Miss: you showed your heart — a String on you." },
+    win: "they do it — for their price on a plain hit",
+    miss: "their emotion on you: you showed your heart",
+    rule: "Hit: they do it — a plain hit for their price. Miss: you showed your heart — their emotion on you." },
   argument:  { approach: "reason",   job: "ask",    label: "Argument",  skills: ["per", "his"],
     line: "here's why: the facts, the law, what's in it for them",
-    win: "they see it your way and do it — for their price on a plain hit — and the bond firms: a stranger becomes an Ally",
-    miss: "they out-argue you — you take their emotion",
-    rule: "Hit: they see it your way, and the bond firms (a stranger becomes an Ally) — a plain hit for their price. Miss: they out-argue you." },
+    win: "they see it your way and do it — for their price on a plain hit",
+    miss: "they out-argue you — their emotion on you",
+    rule: "Hit: they see it your way — a plain hit for their price. Miss: they out-argue you — their emotion on you." },
   blackmail: { approach: "pressure", job: "gambit", label: "Blackmail", skills: ["itm", "inv"], needs: "fear",
     line: "their Fear, or your hold on them",
-    win: "they do it, Frightened of you — your enemy now, and they'll pay you back (a String on you)",
-    miss: "they call your bluff — enemies all the same: their emotion and a String on you",
-    rule: "Needs their Fear or a String on them. Hit: they do it, Frightened of you — your enemy now, and they'll pay you back (a String on you). Miss: they call your bluff — enemies all the same, and a String on you." },
+    win: "they do it, Frightened of you — and they'll pay you back: a String on you",
+    miss: "they call your bluff — their emotion on you",
+    rule: "Needs their Fear or a String on them. Hit: they do it, Frightened of you — and they take a String on you. Miss: they call your bluff — their emotion on you. Either way they may be your Enemy now: the GM says." },
   seduce:    { approach: "heart",    job: "gambit", label: "Seduce",    skills: ["per", "prf"], needs: "desire",
     line: "their Desire, or what's between you",
-    win: "they do it for you — the bond deepens",
-    miss: "heartbreak — the bond cools, you're Hopeless, and a String on you",
-    rule: "Needs their Desire or a bond of ●●. Hit: they do it for you — the bond deepens. Miss: heartbreak — the bond cools, a String on you, and you're Hopeless." },
+    win: "they do it for you",
+    miss: "heartbreak — you're Hopeless",
+    rule: "Needs their Desire or a bond of ●●. Hit: they do it for you. Miss: heartbreak — you're Hopeless." },
   bargain:   { approach: "reason",   job: "gambit", label: "Deal",      skills: ["per", "ins"], needs: "price",
     line: "your word for theirs: a trade, a promise — their Price, if you know it",
-    win: "they do it, and you give your word: a String on you until you deliver. Keep it and you're Allies; break it and you're Enemies. On a plain hit, they name the terms",
-    miss: "no deal — you take their emotion",
-    rule: "Their Price, if you know it, adds +2. Hit: they do it, and you give your word — a String on you until you deliver (a strong hit: your terms; a plain one: theirs). Keep it: the String goes, and you're Allies. Break it: you're Enemies, and they keep it." },
+    win: "they do it — and you give your word: they hold a String on you until you deliver. On a plain hit, they name the terms",
+    miss: "no deal — their emotion on you",
+    rule: "Their Price, if you know it, adds +2. Hit: they do it, and you give your word — they hold a String on you until you deliver (a strong hit: your terms; a plain one: theirs). Kept: their String goes — and if you were nothing to each other, you're Allies. Broken: they keep it, and yours on them burns. Miss: their emotion on you." },
   deceive:   { approach: null, anyWay: true, job: "gambit", label: "Deceive", skills: ["dec", "prf"], icon: "fa-mask", color: "#a9b4c0",
     line: "a lie that works — until it doesn't",
     win: "they believe it and act on it — the lie stays on record until the GM brings it out",
-    miss: "caught — their emotion, a String on you, and the door closes",
-    rule: "Hit: they believe it and act — the lie stays on record until the GM brings it out. Miss: caught — a String on you, and the door closes." },
+    miss: "caught — their emotion on you, and the door closes",
+    rule: "Hit: they believe it and act — the lie stays on record until the GM brings it out (then your String on them burns, and they take one on you). Miss: caught — their emotion, and the door closes." },
 };
 for (const [id, t] of Object.entries(TECHNIQUES)) t.id = id;
 const TECHNIQUE_ORDER = Object.keys(TECHNIQUES);
@@ -335,6 +336,27 @@ class TSLTalk {
    * Your bond toward them gives +● when your approach runs the way it does. A
    * hostile one costs −● on anything else: they won't hear you out.
    */
+  /**
+   * What the bond adds to a roll against them (`src`'s bond toward `tgt`), per
+   * ●: +1 on its approach; +1 when its edge skill rolls (not on top of the
+   * approach's); −1 when its cost skill rolls; a hostile one −1 on any other
+   * approach. Parts for the visible math; a Stranger adds nothing.
+   */
+  static bondParts(src, tgt, approach, skill) {
+    const bond = TSLBondStore.find(src?.id, tgt?.id);
+    const type = bond ? SocialArchetypeManager.getBondType(bond.type) : null;
+    const n = bond ? TSLBondStore.getStrength(src.id, tgt.id) : 0;
+    if (!type || type.id === "stranger" || !n) return [];
+    const out = [];
+    const runs = !!approach && SocialArchetypeManager.bondApproach(type.id) === approach;
+    if (runs) out.push({ label: _t("bond — {type}", { type: type.label }), value: n });
+    else if (approach && type.hostile) out.push({ label: _t("bond — {type}", { type: type.label }), value: -n });
+    if (!runs && type.edge && skill === type.edge) out.push({ label: _t("bond — {type} ({skill})", { type: type.label, skill: SKILL_LABELS[skill] }), value: n });
+    if (type.cost && skill === type.cost) out.push({ label: _t("bond — {type} ({skill})", { type: type.label, skill: SKILL_LABELS[skill] }), value: -n });
+    return out;
+  }
+
+  /** The bond's ● on this approach alone (+ its own, − a hostile one's elsewhere) — what counts as leverage. */
   static bondBonus(src, tgt, approach) {
     const bond = TSLBondStore.find(src?.id, tgt?.id);
     if (!bond || !approach) return 0;
@@ -388,7 +410,7 @@ class TSLTalk {
     return Array.isArray(l) ? l : [];
   }
 
-  /** The GM brings a lie out: they turn on the liar and take two Strings on them. */
+  /** The GM brings a lie out: the liar's hold burns, they take a String on the liar — and strangers become Enemies (a relationship is the GM's to change). */
   static async exposeLie(npc, lieId) {
     if (!game.user.isGM || !npc) return;
     const lies = TSLTalk.lies(npc);
@@ -399,11 +421,10 @@ class TSLTalk {
     if (!liar) return;
     const esc = foundry.utils.escapeHTML;
     const lines = [];
-    const n = await TSLStringStore.add(npc.id, liar.id, 2);
-    if (n > 1) lines.push(_t("They take two <b>Strings</b> on {liar}.", { liar: esc(liar.name) }));
-    else if (n) lines.push(_t("They take a <b>String</b> on {liar}.", { liar: esc(liar.name) }));
-    const s = await TSLBondStore.shift(npc.id, liar.id, "enemy");
-    if (s) lines.push(TSLTalk._bondLine(npc, liar, s));
+    if (await TSLStringStore.spend(liar.id, npc.id)) lines.push(_t("{liar}'s String on them burns.", { liar: esc(liar.name) }));
+    if (await TSLStringStore.add(npc.id, liar.id, 1)) lines.push(_t("They take a <b>String</b> on {liar}.", { liar: esc(liar.name) }));
+    const s = await TSLBondStore.begin(npc.id, liar.id, "enemy", 2);
+    lines.push(s ? TSLTalk._bondLine(npc, liar, s) : _t("What they are to each other now is the GM's call (Bonds)."));
     const a = await TSLEmotions.add(npc, "angry", { by: liar.id });
     if (a?.added) lines.push(_t("{who} is <b>Angry</b>.", { who: esc(npc.name) }));
     await ChatMessage.create({
@@ -425,7 +446,7 @@ class TSLTalk {
     return Array.isArray(d) ? d : [];
   }
 
-  /** The GM says how a deal ended. Kept: the String goes, and they're Allies. Broken: Enemies, and the NPC keeps the String. */
+  /** The GM says how a deal ended. Kept: their String goes (strangers become Allies). Broken: the NPC keeps theirs, the speaker's burns (strangers become Enemies). */
   static async settleDeal(npc, dealId, kept) {
     if (!game.user.isGM || !npc) return;
     const deals = TSLTalk.deals(npc);
@@ -436,10 +457,14 @@ class TSLTalk {
     if (!who) return;
     const esc = foundry.utils.escapeHTML;
     const lines = [];
-    if (!kept) lines.push(_t("{who} keeps the String — and will use it.", { who: esc(npc.name) }));
+    if (!kept) {
+      lines.push(_t("{who} keeps the String — and will use it.", { who: esc(npc.name) }));
+      if (await TSLStringStore.spend(who.id, npc.id)) lines.push(_t("{name}'s String on them burns.", { name: esc(who.name) }));
+    }
     else if (await TSLStringStore.spend(npc.id, who.id)) lines.push(_t("{who} lets the String go.", { who: esc(npc.name) }));
-    const s = await TSLBondStore.shift(npc.id, who.id, kept ? "ally" : "enemy");
+    const s = await TSLBondStore.begin(npc.id, who.id, kept ? "ally" : "enemy", kept ? 1 : 2);
     if (s) lines.push(TSLTalk._bondLine(npc, who, s));
+    else if (!kept) lines.push(_t("What they are to each other now is the GM's call (Bonds)."));
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: npc }),
       content: `<div class="tsl-x-card tsl-x--${kept ? "success" : "botch"}">
@@ -485,7 +510,7 @@ class TSLTalk {
     const backed = !!support && TSLTalk.proficient(src, support);
     const parts = [{ label: SKILL_LABELS[skill] ?? skill, value: TSLTalk.skillMod(src, skill), base: true }];
     if (backed) parts.push({ label: _t("{skill} backs it", { skill: SKILL_LABELS[support] ?? support }), value: TSLTalk.profBonus(src) });
-    if (bond) parts.push({ label: _t("bond — {type}", { type: SocialArchetypeManager.getBondType(TSLBondStore.find(src.id, npc.id)?.type).label }), value: bond });
+    parts.push(...TSLTalk.bondParts(src, npc, ap, skill));
     if (lever) parts.push({ label: lever === "desire" ? _t("their Desire") : lever === "price" ? _t("their Price") : _t("their Fear"), value: LEVER_BONUS });
     const helper = helperId ? game.actors.get(helperId) : null;
     if (helper && helper.id !== src.id) parts.push({ label: _t("help — {name}", { name: helper.name }), value: HELP_BONUS });
@@ -493,6 +518,11 @@ class TSLTalk {
     const mod = parts.reduce((sum, p) => sum + p.value, 0);
 
     const dcInfo = TSLTalk.dcFor(npc, size);
+    // Shut out (the Hermit's Silence): until a truth is brought them, every ask is 4 harder.
+    if (sized && typeof TSLAbilities !== "undefined" && TSLAbilities.silenced(npc, src.id)) {
+      dcInfo.mods.push({ label: _t("their silence"), value: 4 });
+      dcInfo.dc += 4;
+    }
 
     let blocked = null;
     if (!TSLTalk.isNpc(npc)) blocked = _t("You talk to NPCs — pick someone the GM plays.");
@@ -586,9 +616,9 @@ class TSLTalk {
 
     // 4) What the speaker decides: which questions (a read), or whether to
     //    pay their price (a "yes, but").
-    let questions = [], paid = null, readString = false;
+    let questions = [], paid = null;
     if (pv.job === "read" && (grade === "strong" || grade === "success")) {
-      ({ questions, string: readString } = await TSLTalk.promptQuestions(npc, grade === "strong" ? 2 : 1, { string: grade === "strong" }));
+      questions = await TSLTalk.promptQuestions(npc, grade === "strong" ? 2 : 1);
     } else if (grade === "success" && TSLTalk.hasPrice(pv.technique)) {
       paid = await TSLTalk.promptPrice(npc, TSLTalk.priceOf(npc), { deal: pv.technique === "bargain" });
     }
@@ -597,7 +627,7 @@ class TSLTalk {
       srcId: src.id, npcId: npc.id, technique: pv.technique, approach: pv.approach, job: pv.job,
       size: pv.size, skill: pv.skill, helperId: pv.helperId, lever: pv.lever, parts: pv.parts, mod: pv.mod,
       total, natural, dice, natureDie, rel, dc: pv.dc, grade, stringSpent, systemRoll, rollData,
-      questions, readString, paid, witnesses: pv.witnesses, audience, support: pv.support, wallLost,
+      questions, paid, witnesses: pv.witnesses, audience, support: pv.support, wallLost,
     };
     // The GM applies it (directly when the GM rolled, through the relay for a player).
     await TSLGMActions.request("talkResolve", payload);
@@ -646,24 +676,18 @@ class TSLTalk {
     return [...READ_ORDER.filter(q => !known[q] && (q !== "mask" || shows)), ...READ_MOMENT];
   }
 
-  /**
-   * A read: which questions (1, or 2 on a strong hit) among those still
-   * unanswered. With `string` (a strong hit) the last look may be kept as a
-   * hold instead — a String on them. Returns { questions, string }.
-   */
-  static async promptQuestions(npc, n, { string = false } = {}) {
+  /** A read: which questions (1, or 2 on a strong hit) among those still unanswered. */
+  static async promptQuestions(npc, n) {
     const picked = [];
     for (let i = 0; i < n; i++) {
       const options = TSLTalk.openQuestions(npc).filter(q => !picked.includes(q)).map(q => ({ q, label: READ_QUESTIONS[q].label }));
-      if (string && i === n - 1) options.push({ q: null, string: true, label: _t("Keep it instead — a String on them: you saw where it hurts") });
       if (!options.length) break;
       const title = n > 1 ? _t("Read {name} ({i} of {n})", { name: npc.name, i: i + 1, n }) : _t("Read {name}", { name: npc.name });
       const o = await TSLTalk._pickOne(title, _t("What do you look for?"), options);
       if (!o) break;
-      if (o.string) return { questions: picked, string: true };
       picked.push(o.q);
     }
-    return { questions: picked, string: false };
+    return picked;
   }
 
   /** "Yes, but": they name their price — pay it, or walk away from the deal. */
@@ -674,7 +698,7 @@ class TSLTalk {
         title: _t("{name} — yes, but…", { name: npc.name }),
         content: `<div class="tsl-dlg"><p>${deal ? _t("They'll agree — on their terms:") : _t("They'll do it — for a price:")}</p>
           <p class="tsl-dlg-price">${esc(price.text)}</p>
-          ${deal ? `<p class="notes">${_t("You give your word: they hold a String on you until you deliver. Keep it and you're Allies; break it and you're Enemies.")}</p>`
+          ${deal ? `<p class="notes">${_t("You give your word: they hold a String on you until you deliver. Keep it, and it goes; break it, and yours on them burns.")}</p>`
             : price.string ? `<p class="notes">${_t("Paying it hands them a String on you.")}</p>` : ""}</div>`,
         buttons: {
           pay:  { icon: '<i class="fas fa-handshake"></i>', label: deal ? _t("Give your word") : _t("Pay it"), callback: () => resolve(true) },
@@ -741,8 +765,30 @@ class TSLTalk {
     const knownPatch = {};
     const lines = [];
     const note = (html, tone = "") => lines.push({ html, tone });
-    const hit = p.grade === "strong" || p.grade === "success";
     const sized = job === "ask" || job === "gambit";
+
+    // Their hold on the speaker: the triad's move at the roll — the GM's call,
+    // after the dice. Emotion's and Order's bite only a win that stands; Order's
+    // only where no price was paid already.
+    let npcMove = null;
+    if (sized && arch && typeof TRIAD_MOVES !== "undefined" && TSLStringStore.countOn(npc.id, src.id) > 0) {
+      const move = TRIAD_MOVES[arch.triad];
+      const priced = p.grade === "success" && TSLTalk.hasPrice(tech.id);
+      const won = (p.grade === "strong" || p.grade === "success") && !(priced && !p.paid);
+      const fits = move && (move.on === "any" || (move.id === "my-terms" ? won && !priced : won));
+      if (fits && await TSLAbilities.promptMove(npc, src, move, p) && await TSLStringStore.spend(npc.id, src.id)) {
+        npcMove = move.id;
+        note(_t("{npc} pulls their String on {you}: <b>{move}</b>.", { npc: esc(npc.name), you: esc(src.name), move: esc(move.name) }), "bad");
+        if (move.id === "strike-back") {
+          const was = p.grade;
+          p.total -= 5;
+          p.grade = TSLTalk._grade(p.total, p.natural, p.dc);
+          // A strong yes cut to a plain one: they name their price now, and it's paid.
+          if (was === "strong" && p.grade === "success" && TSLTalk.hasPrice(tech.id)) p.paid = true;
+        }
+      }
+    }
+    const hit = p.grade === "strong" || p.grade === "success";
     const ask = sized ? ASK_SIZES[p.size] ?? ASK_SIZES.costly : null;
     const big = !!ask && ask.dc >= 0;   // costly or against
     const witnesses = sized && !!p.witnesses;
@@ -751,10 +797,6 @@ class TSLTalk {
     let ended = false, granted = false;
     let stringOnYou = null;   // why they take a String on the speaker — at most one per roll
     let stringOnThem = null;  // why the speaker takes one on them — at most one per roll
-    const shift = async (how, why = "") => {
-      const s = await TSLBondStore.shift(npc.id, src.id, how);
-      if (s) note(`${why}${why ? " " : ""}${TSLTalk._bondLine(npc, src, s)}`, "");
-    };
     const feel = async (actor, emo, opts = {}) => {
       const r = await TSLEmotions.add(actor, emo, opts);
       const name = esc(actor.name);
@@ -789,8 +831,7 @@ class TSLTalk {
             if (!READ_MOMENT.includes(q)) knownPatch[q] = true;
             note(`<i class="fas fa-eye"></i> <b>${READ_QUESTIONS[q].label}</b> ${esc(TSLTalk.answerFor(npc, q))}`, "good");
           }
-          if (p.readString) stringOnThem = _t("You saw where it hurts");
-          else if (!(p.questions ?? []).length) note(`<i class="fas fa-eye"></i> ${_t("They have nothing left to hide from you.")}`, "");
+          if (!(p.questions ?? []).length) note(`<i class="fas fa-eye"></i> ${_t("They have nothing left to hide from you.")}`, "");
         } else {
           note(_t("They notice you studying them — they won't let you read them again this scene."), "bad");
         }
@@ -811,10 +852,8 @@ class TSLTalk {
             if (p.paid) {
               granted = true;
               note(_t("{who} does it — for a price: <i>{price}</i>", { who, price: esc(price.text) }), "good");
-              if (price.string) {
-                const n = await TSLStringStore.add(npc.id, src.id, 1);
-                if (n) note(_t("Paid — {who} now holds a <b>String</b> on {you}.", { who, you }), "bad");
-              } else note(_t("{you} pays it.", { you }), "");
+              if (price.string) stringOnYou = _t("Paid — a debt to them");
+              else note(_t("{you} pays it.", { you }), "");
             } else {
               note(_t("{who} named a price — <i>{price}</i> — and {you} walked away from the deal.", { who, you, price: esc(price.text) }), "");
             }
@@ -825,40 +864,33 @@ class TSLTalk {
           if (ap === "heart") stringOnYou = _t("You showed your heart");
           else if (p.lever === "fear") stringOnYou = _t("A threat cuts both ways");
         }
-        if (granted) {
-          // Only something big costs them a String — small favours can't be farmed for leverage.
-          if (p.grade === "strong" && big) stringOnThem = _t("It cost them more than they show");
-          if (ap === "pressure") {
-            await shift("sour", _t("They gave in — and they will remember who made them."));
-            stringOnYou = _t("They'll pay you back");
-          } else if (ap === "heart") await shift("warm");
-          else if (ap === "reason") await shift("ally");
+        if (granted && ap === "pressure") {
+          note(_t("They gave in — and they will remember who made them."), "");
+          stringOnYou = _t("They'll pay you back");
         }
         break;
       }
 
       case "gambit": {
         // A Deal on their terms: give your word, or walk away.
-        const onTheirTerms = tech.id === "bargain" && p.grade === "success";
+        const onTheirTerms = tech.id === "bargain" && (p.grade === "success" || npcMove === "my-terms");
         if (onTheirTerms && !known.price) knownPatch.price = true;
-        if (onTheirTerms && !p.paid) {
+        if (onTheirTerms && !p.paid && npcMove !== "my-terms") {
           note(_t("{who} named a price — <i>{price}</i> — and {you} walked away from the deal.", { who, you, price: esc(TSLTalk.priceOf(npc).text) }), "");
         } else if (hit) {
           granted = true;
-          if (p.grade === "strong" && big) stringOnThem = tech.id === "deceive" ? _t("They swallowed it whole") : _t("It cost them more than they show");
           if (tech.id === "blackmail") {
             note(_t("{who} does it — with your hand at their throat.", { who }), "good");
-            await shift("enemy", _t("They'll never forgive it."));
+            note(_t("They'll never forgive it. If they're your Enemy now, the GM sets it in Bonds."), "bad");
             await feel(npc, "frightened", { by: src.id });
             stringOnYou = _t("They'll pay you back");
           } else if (tech.id === "seduce") {
             note(_t("{who} does it — for you.", { who }), "good");
-            await shift("warm");
           } else if (tech.id === "bargain") {
             note(onTheirTerms ? _t("{who} agrees — on their terms: <i>{price}</i>", { who, price: esc(TSLTalk.priceOf(npc).text) }) : _t("{who} agrees — on your terms.", { who }), "good");
             // Your word goes on record, and they hold you to it until the GM says how it ended.
             await npc.setFlag(TALK_SCOPE, "deals", [...TSLTalk.deals(npc), { id: foundry.utils.randomID(), byId: src.id, price: onTheirTerms, at: Date.now() }]);
-            note(`<i class="fas fa-handshake"></i> ${_t("Your word is on record — keep it, and you're Allies; break it, and you're Enemies.")}`, "");
+            note(`<i class="fas fa-handshake"></i> ${_t("Your word is on record — keep it, and their String on you goes; break it, and yours on them burns.")}`, "");
             stringOnYou = _t("You gave your word");
           } else {
             note(_t("{who} believes it — and acts on it.", { who }), "good");
@@ -872,11 +904,9 @@ class TSLTalk {
           if (tech.id === "blackmail") {
             note(_t("{who} calls your bluff.", { who }), "bad");
             stringOnYou = _t("They know you'd stoop to it");
-            await shift("enemy");
           } else if (tech.id === "seduce") {
             note(_t("{who} pulls away — heartbreak.", { who }), "bad");
             stringOnYou = _t("You showed your heart");
-            await shift("cool");
           } else if (tech.id === "bargain") {
             note(_t("{who} turns the deal down.", { who }), "bad");
           } else {
@@ -884,20 +914,25 @@ class TSLTalk {
             stringOnYou = _t("Caught lying");
             ended = true;
             note(_t("They're done talking — that door is closed for this scene."), "bad");
-            await shift("cool");
           }
         }
         break;
       }
     }
 
-    // A yes before witnesses binds them: everyone saw them give it — when it
-    // cost them something (a small favour in public binds nobody: no farming).
-    if (granted && witnesses && big && !stringOnThem) stringOnThem = tech.id === "deceive" ? _t("Everyone saw them believe it") : _t("Everyone saw them give it");
-    if (stringOnThem) {
-      const n = await TSLStringStore.add(src.id, npc.id, 1);
-      if (n) note(_t("{why} — {you} takes a <b>String</b> on them.", { why: stringOnThem, you }), "good");
+    // Pressure on someone close — a friend, your own, a lover — wins, and leaves you Guilty toward them.
+    const tie = TSLBondStore.find(src.id, npc.id);
+    if (granted && ap === "pressure" && SocialArchetypeManager.getBondType(tie?.type).guilt && TSLBondStore.getStrength(src.id, npc.id) > 0) {
+      note(_t("You pressed someone close to you."), "bad");
+      await feel(src, "guilty", { by: npc.id, toward: npc.id });
     }
+
+    // Their move at the roll, when the win stands: the price, or the emotion.
+    if (granted && npcMove === "my-terms" && tech.id !== "bargain") {
+      if (!known.price) knownPatch.price = true;
+      note(_t("On their terms — {who} names their price, and it's paid: <i>{price}</i>", { who, price: esc(TSLTalk.priceOf(npc).text) }), "bad");
+    }
+    if (granted && npcMove === "feel-it" && arch?.hurts) await feel(src, arch.hurts, { by: npc.id, toward: arch.hurts === "guilty" ? npc.id : null });
 
     // Any miss: the nature hits back; before witnesses you lose face too; a
     // bad one costs you a String; a proud one, refused something big, is done.
@@ -909,18 +944,34 @@ class TSLTalk {
         note(tech.id === "deceive" ? _t("Caught before witnesses — {you} loses face.", { you }) : _t("Refused before witnesses — {you} loses face.", { you }), "bad");
         await feel(src, "insecure", { by: npc.id });
       }
-      if (p.grade === "botch" && !stringOnYou) stringOnYou = job === "read" ? _t("They read you instead") : _t("It costs you");
+      if (p.grade === "botch" && !stringOnYou) stringOnYou = _t("It costs you");
       if (sized && big && firm && !ended) {
         ended = true;
         note(_t("They're done talking — that door is closed for this scene."), "bad");
         if (!known.pressed) knownPatch.pressed = true;
-        await shift("cool");
       }
+    }
+    // ── Strings: the stake of the roll, the same for both sides ──
+    // A strong win (5 over, or a 20) gives the speaker one on them; a bad miss
+    // (5 under, or a 1) gives them one on the speaker. A win's own cost — they
+    // remember a threat, they hold your word, a price that is a debt — hands
+    // them one on any win. A roll on which either side spent a String moves
+    // none: it was used. A Read moves none. One each way, one at a time.
+    const spentHere = !!p.stringSpent || !!npcMove;
+    if (!sized || spentHere) { stringOnThem = null; stringOnYou = null; }
+    else if (granted) { if (p.grade === "strong") stringOnThem = TSLTalk._winHold(tech.id); }
+    else if (!hit) stringOnYou = p.grade === "botch" ? (stringOnYou ?? _t("They have something on you now")) : null;
+    if (stringOnThem) {
+      const n = await TSLStringStore.add(src.id, npc.id, 1);
+      note(n ? _t("{why} — {you} takes a <b>String</b> on them.", { why: stringOnThem, you })
+        : _t("{why} — but {you} already holds a String on them: one at a time.", { why: stringOnThem, you }), n ? "good" : "");
     }
     if (stringOnYou) {
       const n = await TSLStringStore.add(npc.id, src.id, 1);
-      if (n) note(_t("{why}: they take a <b>String</b> on {you}.", { why: stringOnYou, you }), "bad");
+      note(n ? _t("{why}: they take a <b>String</b> on {you}.", { why: stringOnYou, you })
+        : _t("{why} — but they already hold a String on {you}: one at a time.", { why: stringOnYou, you }), n ? "bad" : "");
     }
+    if (sized && spentHere) note(_t("A String was spent on this roll — no String moves after it."), "");
     if (p.stringSpent) note(_t("{you} burned a String on them (+{bonus}).", { you, bonus: STRING_SPEND_BONUS }), "");
 
     // What the party learned — and once they know the key AND the wall, the
@@ -947,6 +998,20 @@ class TSLTalk {
       rolls,
     });
     TSLTalk._pulse({ srcId: src.id, tgtId: npc.id, technique: tech.id, approach: ap, job, grade: p.grade, paid: p.paid, rel, ended, granted, witnesses });
+  }
+
+  /** Why a win gives the speaker a String on them. */
+  static _winHold(id) {
+    switch (id) {
+      case "demand":    return _t("They gave in to you");
+      case "blackmail": return _t("You have them by the throat");
+      case "appeal":    return _t("They opened up to you");
+      case "seduce":    return _t("They let you in");
+      case "argument":  return _t("They took your word for it");
+      case "bargain":   return _t("The deal binds them too");
+      case "deceive":   return _t("They believe you");
+      default:          return _t("It cost them more than they show");
+    }
   }
 
   static _bondLine(a, b, s) {

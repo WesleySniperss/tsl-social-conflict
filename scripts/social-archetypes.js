@@ -32,7 +32,7 @@ const APPROACHES = {
     gist: "Come at them hard.",
     short: "threats, a challenge, shame",
     examples: "a challenge, a threat, shame, coldness, provocation, shaking their certainty, a higher law",
-    cost: "They give in without a price — but they remember it: the bond sours, and they take a String on you.",
+    cost: "They give in without a price — but they remember it: they take a String on you, even when you win.",
     skills: ["itm", "dec", "prf", "per", "ath"],
   },
   heart: {
@@ -40,7 +40,7 @@ const APPROACHES = {
     gist: "Go through what they feel.",
     short: "charm, pity, guilt",
     examples: "admiration, charm, pity, guilt, jealousy, your own vulnerability",
-    cost: "When it works, the bond warms; a miss exposes you — a String on you.",
+    cost: "Your heart is on the table: their emotion when it misses, and on a bad miss a String on you.",
     skills: ["per", "prf", "ins", "dec"],
   },
   reason: {
@@ -48,7 +48,7 @@ const APPROACHES = {
     gist: "Go through facts and interest.",
     short: "a deal, an argument, proof",
     examples: "an argument, proof, a deal, one precise question, a puzzle",
-    cost: "They see it your way, and the bond firms (a stranger becomes an Ally); \"yes, but\" names their price. A Deal stakes your word instead: you owe them until you deliver — a String on you.",
+    cost: "\"Yes, but\" names their price on a plain hit. A Deal stakes your word: they hold a String on you until you deliver.",
     skills: ["per", "inv", "ins", "his", "dec"],
   },
 };
@@ -936,7 +936,7 @@ const PROFILE_POINTS = [
     label: "Fear",
     icon: "fa-ghost",
     placeholder: "What do they dread losing or facing?",
-    hint: "What they dread. A LEVER: once the party knows it, an ask that presses it gets +2 — and counts as leverage. A threat cuts both ways: if the ask fails, they take a String on you.",
+    hint: "What they dread. A LEVER: once the party knows it, an ask that presses it gets +2 — and counts as leverage.",
   },
   {
     id: "mask",          // saved data keeps the id
@@ -955,42 +955,106 @@ const PROFILE_POINTS = [
 ];
 
 /**
- * Bond types. A bond is a TYPE + a STRENGTH (0–3 ●), one shared relationship
- * mirrored on both actors. `school` is the triad whose APPROACH the bond feeds
- * (power → Pressure, attention → Heart, order → Reason): your bond toward
- * someone gives +1 per ● when you press them that way. `mirror` — the type
- * the other side holds (mentor ↔ protégé, sworn ↔ liege); the rest are
- * symmetric. `hostile` — Rival and Enemy, whose strength is the heat of the
- * hostility (an ask moves them the other way).
+ * A bond is a TYPE — who they are to each other, set by the story (the GM, or
+ * the player who invests a String in a new bond) — and a STRENGTH 0–3 ●, its
+ * degree. A roll never renames it (the user, 2026-11-04: «є різні відносини і
+ * крапочки просто визначають їх ступінь»). Per ●, against that person:
+ *   school  — +1 on maneuvers of that approach;
+ *   edge    — +1 when this skill rolls (not on top of the approach's +1);
+ *   cost    — −1 when this skill rolls: what the relationship forbids;
+ *   hostile — −1 on any approach but its own: they won't hear you out;
+ *   guilt   — a Pressure win against them leaves you Guilty toward them;
+ *   aura    — in a fight, within reach of each other (bond-powers.js): each
+ *             lever ±1, ±2 at ●●● (several bonds sum; capped at ±2).
+ *   mirror  — the type the other side holds (mentor ↔ protégé, sworn ↔ liege);
+ *             the rest are the same on both sides.
+ * ●● opens the type's ability (BOND_ABILITIES); ●●● its signature
+ * (BOND_SIGNATURES), once per long rest. Restored from v1.52–v2.0.
  */
 const BOND_TYPES = [
   { id: "stranger",  label: "Stranger",  icon: "fa-circle-question",          school: null,
-    hint: "Barely acquainted. No bond effect yet." },
-  { id: "ally",      label: "Ally",      icon: "fa-handshake",                school: "order",
-    hint: "A shared cause. +1 per ● when you press them with Reason." },
-  { id: "friend",    label: "Friend",    icon: "fa-mug-hot",                  school: "attention",
-    hint: "Genuine warmth. +1 per ● when you press them with Heart." },
-  { id: "family",    label: "Family",    icon: "fa-house-chimney",            school: "attention",
-    hint: "Blood or chosen. +1 per ● when you press them with Heart." },
-  { id: "crush",     label: "Crush",     icon: "fa-heart-circle-exclamation", school: "attention",
-    hint: "Longing. +1 per ● when you press them with Heart." },
-  { id: "lover",     label: "Lover",     icon: "fa-heart",                    school: "attention",
-    hint: "Hearts entangled. +1 per ● when you press them with Heart." },
-  { id: "mentor",    label: "Mentor",    icon: "fa-graduation-cap",           school: "attention", mirror: "protege",
-    hint: "They shaped you. +1 per ● when you press them with Heart." },
-  { id: "protege",   label: "Protégé",   icon: "fa-seedling",                 school: "attention", mirror: "mentor",
-    hint: "You shaped them. +1 per ● when you press them with Heart." },
+    hint: "Barely acquainted. No bond effect yet — invest a String to make them someone to you." },
+  { id: "ally",      label: "Ally",      icon: "fa-handshake",                school: "order", edge: "per", cost: "dec",
+    aura: { label: "Side by side", attack: 1 },
+    hint: "A shared cause. Per ●: +1 with Reason, +1 Persuasion (they trust your word), −1 Deception (they see your games)." },
+  { id: "friend",    label: "Friend",    icon: "fa-mug-hot",                  school: "attention", edge: "per", cost: "itm", guilt: true,
+    aura: { label: "They have your back", save: 1 },
+    hint: "Genuine warmth. Per ●: +1 with Heart, +1 Persuasion, −1 Intimidation (your threats ring hollow). Pressure on a friend leaves you Guilty." },
+  { id: "family",    label: "Family",    icon: "fa-house-chimney",            school: "attention", edge: "ins", cost: "dec", guilt: true,
+    aura: { label: "Close ranks", attack: 1, save: 1 },
+    hint: "Blood or chosen. Per ●: +1 with Heart, +1 Insight (you know them), −1 Deception (they know when you lie). Pressure on your own leaves you Guilty." },
+  { id: "crush",     label: "Crush",     icon: "fa-heart-circle-exclamation", school: "attention", edge: "prf", cost: "ins",
+    aura: { label: "Showing off", init: 1 },
+    hint: "Longing. Per ●: +1 with Heart, +1 Performance (you shine for them), −1 Insight (you see what you want to see)." },
+  { id: "lover",     label: "Lover",     icon: "fa-heart",                    school: "attention", edge: "ins", cost: "itm", guilt: true,
+    aura: { label: "For each other", init: 1, ac: 1 },
+    hint: "Hearts entangled. Per ●: +1 with Heart, +1 Insight (you read them), −1 Intimidation (you cannot frighten them). Pressure on a lover leaves you Guilty." },
+  { id: "mentor",    label: "Mentor",    icon: "fa-graduation-cap",           school: "attention", edge: "ins", cost: "dec", mirror: "protege",
+    aura: { label: "Their teaching", spellDC: 1, maneuverDC: 1 },
+    hint: "They shaped you. Per ●: +1 with Heart, +1 Insight, −1 Deception (you cannot fool your teacher)." },
+  { id: "protege",   label: "Protégé",   icon: "fa-seedling",                 school: "attention", edge: "per", cost: "itm", guilt: true, mirror: "mentor",
+    aura: { label: "To make them proud", check: 1 },
+    hint: "You shaped them. Per ●: +1 with Heart, +1 Persuasion (they listen), −1 Intimidation (menacing your ward shames you). Pressure on them leaves you Guilty." },
   { id: "rival",     label: "Rival",     icon: "fa-khanda",                   school: "power", hostile: true,
-    hint: "A respected opponent. +1 per ● when you press them with Pressure. Strength is the heat of it." },
-  { id: "enemy",     label: "Enemy",     icon: "fa-skull",                    school: "power", hostile: true,
-    hint: "Open hostility. +1 per ● when you press them with Pressure. Strength is the heat of it." },
-  { id: "sworn",     label: "Sworn",     icon: "fa-hand-fist",                school: "order", mirror: "liege",
-    hint: "You gave them your word. +1 per ● when you press them with Reason." },
-  { id: "liege",     label: "Liege",     icon: "fa-chess-king",               school: "order", mirror: "sworn",
-    hint: "They swore to you. +1 per ● when you press them with Reason." },
-  { id: "confidant", label: "Confidant", icon: "fa-comment-dots",             school: "order",
-    hint: "They trust you with what they hide. +1 per ● when you press them with Reason." },
+    aura: { label: "Blood up", init: 1, attack: 1 },
+    hint: "A respected opponent. Per ●: +1 with Pressure, −1 on anything else (pride won't be talked down)." },
+  { id: "enemy",     label: "Enemy",     icon: "fa-skull",                    school: "power", hostile: true, cost: "ins",
+    aura: { label: "Tunnel vision", init: 1, attack: 1, save: -1 },
+    hint: "Open hostility. Per ●: +1 with Pressure, −1 on anything else, −1 Insight (they give you nothing to read)." },
+  { id: "sworn",     label: "Sworn",     icon: "fa-hand-fist",                school: "order", edge: "per", cost: "itm", guilt: true, mirror: "liege",
+    aura: { label: "Oathbound", save: 1, attack: -1 },
+    hint: "You gave them your word. Per ●: +1 with Reason, +1 Persuasion (you appeal to the oath), −1 Intimidation (you don't threaten the one you serve). Pressure on them leaves you Guilty." },
+  { id: "liege",     label: "Liege",     icon: "fa-chess-king",               school: "order", edge: "itm", cost: "dec", mirror: "sworn",
+    aura: { label: "The oath answers", init: 1 },
+    hint: "They swore to you. Per ●: +1 with Reason, +1 Intimidation (your word carries weight), −1 Deception (they watch you closely)." },
+  { id: "confidant", label: "Confidant", icon: "fa-comment-dots",             school: "order", edge: "ins", cost: "dec", guilt: true,
+    aura: { label: "Shared counsel", check: 1 },
+    hint: "They trust you with what they hide. Per ●: +1 with Reason, +1 Insight (you know their mind), −1 Deception (they'd catch your lie). Turning on them leaves you Guilty." },
 ];
+
+/** ●● — a bond's own kind of thing: passive or situational, the GM says when it applies. */
+const BOND_ABILITIES = {
+  ally:      { label: "In sync",          text: "You fight coordinated: once per turn you can take the Help action for your ally as a bonus action." },
+  friend:    { label: "Steady me",        text: "Once per scene, a friend's word lets one of you reroll a failed save against being frightened or charmed — or lets one of you let go of Frightened." },
+  family:    { label: "Blood answers",    text: "Once per scene, when family is downed or bloodied within your sight, you may move up to your speed toward them at once, even on another creature's turn." },
+  crush:     { label: "Transparent",      text: "Your crush always senses how you truly feel — you can't hide it from them. But once per scene, when you act to impress or shield them, that roll has advantage." },
+  lover:     { label: "Wordless",         text: "You always know when your lover lies to you, or is in danger — no roll. A glance carries a whole sentence between you." },
+  mentor:    { label: "Their voice",      text: "Once per scene, ask the GM what your mentor would counsel here — a true hint, in their words." },
+  protege:   { label: "They emulate you", text: "Once per scene, when your protégé watches you succeed at something, they have advantage the next time they try the same kind of thing." },
+  rival:     { label: "Measure of you",   text: "You've studied each other: advantage to read your rival's intentions or predict their move — and they can't feint or bluff you." },
+  enemy:     { label: "Forewarned",       text: "You're forever on edge for this enemy: advantage on initiative, they gain nothing from surprising you, and advantage on Insight and Perception about them." },
+  sworn:     { label: "The oath holds",   text: "You can't be turned on your liege: advantage on saves against charm or fear that would set you against them." },
+  liege:     { label: "By your leave",    text: "Once per scene, when you command your sworn, the roll has advantage — the bond does half the persuading." },
+  confidant: { label: "Unburden",         text: "Once per long rest, confiding in them lets one of your emotions go: you talk it through." },
+};
+
+/**
+ * ●●● — a fully realized bond's signature, once per long rest. `fx` goes on
+ * the sheets and ends after that one's next roll (bond-powers.js): `self`,
+ * `partner` ({ adv } or { bonus }), or a `choose` between them. Without
+ * `fx` it's the GM's to play.
+ */
+const BOND_SIGNATURES = {
+  ally:      { label: "Shoulder to shoulder", text: "You or your ally reroll one failed check or save made for your shared cause, while you stand together (the GM's call)." },
+  friend:    { label: "I've got you",         text: "A word at the right moment, from anywhere: when you or your friend fail a roll, it's rolled again (the GM's call)." },
+  family:    { label: "Blood shields blood",  text: "Take one hit or effect aimed at family — or they take it for you — halved (the GM's call)." },
+  crush:     { label: "For their eyes",       text: "In your crush's presence, on a roll made to impress or protect them: an ordinary success becomes a critical, or a failure a bare success (the GM's call)." },
+  lover:     { label: "Something to lose",    text: "When your lover falls or is in danger, act at once — an extra reaction (the GM's call) — and your next roll has advantage.",
+               fx: { self: { adv: true } } },
+  mentor:    { label: "The old lessons",      text: "The lesson comes back: your proficiency bonus again on your next roll.",
+               fx: { self: { bonus: "prof" } } },
+  protege:   { label: "Someone is watching",  text: "When your protégé can see you, one action inspires them: advantage on their next roll, and on yours.",
+               fx: { self: { adv: true }, partner: { adv: true } } },
+  rival:     { label: "Prove it",             text: "When you contest your rival directly, a d20 you've just rolled becomes a 15 (the GM's call)." },
+  enemy:     { label: "Personal",             text: "Against this enemy, one blow lands twice as hard: advantage on your next roll — and if it's a strike, its damage doubles (the GM's call).",
+               fx: { self: { adv: true } } },
+  sworn:     { label: "For the oath",         text: "Act to protect or fulfil your oath to your liege: that roll has advantage and +5.",
+               fx: { self: { adv: true, bonus: 5 } } },
+  liege:     { label: "By my word",           text: "Call your sworn to act for you: they have advantage on the deed — or you press them: +5 on your next roll.",
+               fx: { choose: [{ label: "They act — advantage", partner: { adv: true } }, { label: "I press them — +5", self: { bonus: 5 } }] } },
+  confidant: { label: "A word in the dark",   text: "Their counsel: advantage on the next roll where their knowledge bears — or a shared secret becomes a strike: +5 on your next roll.",
+               fx: { choose: [{ label: "Their counsel — advantage", self: { adv: true } }, { label: "A secret as a weapon — +5", self: { bonus: 5 } }] } },
+};
 
 // Legacy bond ids → their replacement (Indebted → Sworn, Creditor → Liege).
 const BOND_TYPE_ALIASES = { indebted: "sworn", creditor: "liege" };
@@ -1083,6 +1147,7 @@ class SocialArchetypeManager {
       maskId: data.maskId || null,
       intent: data.intent || "",
       notes: data.notes || "",
+      title: data.title || "",   // a few words under their name on the relationship map
       stance: data.stance || null,
       points: Object.fromEntries(PROFILE_POINTS.map(p => [p.id, data.points?.[p.id] ?? ""])),
     };
@@ -1108,6 +1173,16 @@ class SocialArchetypeManager {
   /** The type the OTHER side of the same relationship holds. */
   static getBondMirror(id) {
     return SocialArchetypeManager.getBondType(id).mirror ?? SocialArchetypeManager.getBondType(id).id;
+  }
+
+  /** ●● — the ability a bond type opens, or null (Stranger). */
+  static getBondAbility(typeId) {
+    return BOND_ABILITIES[SocialArchetypeManager.getBondType(typeId).id] ?? null;
+  }
+
+  /** ●●● — the signature a bond type grants once per long rest, or null (Stranger). */
+  static getBondSignature(typeId) {
+    return BOND_SIGNATURES[SocialArchetypeManager.getBondType(typeId).id] ?? null;
   }
 
   /** The approach a bond type feeds (+● against that person), or null. */
@@ -1138,7 +1213,7 @@ class SocialArchetypeManager {
     return {
       nature: { label: _t("By nature"),        tip: _t("Follows their archetype — each nature's card says what it does after refusing something big.") },
       yield:  { label: _t("Keeps listening"),  tip: _t("After refusing something big, they still hear you out — you can try again with something new.") },
-      firm:   { label: _t("Ends it"),          tip: _t("After refusing something big, they end the conversation — that door is closed for the scene, and the bond cools.") },
+      firm:   { label: _t("Ends it"),          tip: _t("After refusing something big, they end the conversation — that door is closed for the scene.") },
       ask:    { label: _t("Decide each time"), tip: _t("You decide in the moment (the card reminds you to).") },
     };
   }

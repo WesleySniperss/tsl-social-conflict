@@ -37,38 +37,38 @@ When the GM calls for the roll, say what your words really were, and roll once a
 
   An ask against them needs leverage: their Desire or Fear, a String on them, or a deep bond — or go all in.
 - **All in** works at any size, on its own leverage, but it leaves a lasting mark:
-  - **Blackmail** plays on their Fear: they do it, and they're your enemy now.
+  - **Blackmail** plays on their Fear: they do it, Frightened of you, and they'll pay you back.
   - **Seduce** plays on their Desire or your bond: they do it for you.
   - **A Deal** stakes your word (their Price, if you know it, adds +2): you owe them until you deliver.
 - **A lie isn't an approach — it's told in one.** Press *I lie* and say how you told it, and how big it is (a small lie is 4 easier, a bold one 4 harder): their key and wall, your bond and their emotions all count for the way you told it. A sob story to someone who opens to Heart rolls with advantage; forged proof to someone who closes against Reason, with disadvantage. **Deceive** works until the GM brings the lie out — then they turn on you.
-- **Read them** answers one question for the whole party. A strong hit answers a second, or keeps a String on them instead (you saw where it hurts). A missed Read never costs you an emotion.
+- **Read them** answers one question for the whole party; a strong hit, two. A Read never moves Strings, and a missed one never costs you an emotion.
 
-What winning costs depends on the approach:
+**Every roll is a stake.** Win an ask, an all-in or a lie by 5 or more (or roll a 20), and you take a **String** on them; miss by 5 or more (or roll a 1), and they take one on you. The same rule both ways, one String at a time each way. A roll never changes a bond. What winning also costs depends on the approach:
 
 | Approach | When it works | When it misses |
 |---|---|---|
-| **Pressure** | They give in without a price, but remember it: the bond sours, and they take a String on you. | Nothing extra. |
-| **Heart** | The bond warms. | You exposed yourself: they take a String on you. |
-| **Reason** | They see it your way, and the bond firms (a stranger becomes an Ally). A Deal stakes your word instead: they hold a String on you until you deliver; keep it and you're Allies, break it and you're Enemies. The GM marks which. | Nothing extra. |
+| **Pressure** | They give in without a price, but remember it: they take a String on you, even when you win. Pressing someone close to you leaves you Guilty. | Their emotion. |
+| **Heart** | Your heart is on the table: a plain hit costs their price. | You showed your heart: their emotion. |
+| **Reason** | They see it your way; a plain hit costs their price. A Deal stakes your word: they hold a String on you until you deliver. Keep it and their String goes; break it and yours on them burns. The GM marks which. | Their emotion. |
 
 What they say:
 
 | Result | When | What happens |
 |---|---|---|
-| **Strong hit** | 5 over, or a 20 | It works. An ask or gambit for something big also hands you a String on them. |
+| **Strong hit** | 5 over, or a 20 | It works, on your terms: no price. You take a String on them. |
 | **Hit** | a hit | It works. An Appeal, an Argument or a Deal gets "yes, but": their nature names the price; you pay, or you walk away. |
 | **Miss** | a miss | They push back their own way, and it hurts: you take their nature's **emotion** (anything but a Read). A proud nature, refused something big, closes the door for the scene. |
-| **Bad miss** | 5 under, or a 1 | As a miss, and they take a String on you as well. |
+| **Bad miss** | 5 under, or a 1 | As a miss, and they take a String on you. |
 
-**In private, or before witnesses.** Before an ask or a gambit, say who is watching. Before witnesses a yes to something that costs them binds them (a String on them: everyone saw it), and a no shames you (you lose face: Insecure). For a whole court, the GM makes the scene public from the Social Scene's header, and every ask there starts before witnesses. And the room tips the roll: some natures bend before an audience (+2), most harden (−2). Like the key and the wall, that shows only in the result, or in a Read.
+**In private, or before witnesses.** Before an ask or a gambit, say who is watching. Before witnesses a no shames you (you lose face: Insecure). For a whole court, the GM makes the scene public from the Social Scene's header, and every ask there starts before witnesses. And the room tips the roll: some natures bend before an audience (+2), most harden (−2). Like the key and the wall, that shows only in the result, or in a Read.
 
-After a miss you may burn a String on them for +5. Your roll adds:
+After a miss you may burn your String on them for +5 (that roll then moves no Strings). Your roll adds:
 - the better of the maneuver's two skills;
 - your proficiency bonus if you're trained in the other, so it grows with you;
 - +2 for an emotion they feel that plays into your approach (−2 for one of yours that spoils it);
-- +● for a bond that runs that way;
+- +● for a bond that runs that way, or whose skill rolls (−● for a skill it forbids, and a hostile one's −● on anything but Pressure);
 - +2 for their known Desire or Fear;
-- +2 when a friend helps.
+- +2 when another character really backed you up in this talk (they don't roll, and nothing lands on them).
 
 ## Emotions and scars
 
@@ -85,7 +85,7 @@ Five emotions, as in Thirsty Sword Lesbians. Anyone can carry them, a player cha
 A friend's comfort lets any of them go, too. Where emotions come from:
 - **the talk itself**: your words land, and the GM marks it from the NPC's own Talk tab — no roll (marking it again takes it back; Guilty is marked toward one character);
 - **a miss**: each nature hits back with its own emotion (the Tyrant frightens you, the Duelist makes you angry, the Martyr makes you guilty…);
-- **a String** spent on someone (Bonds → Hurt): players do it to NPCs, and the GM's NPCs do it to players;
+- **an NPC's move**, refused (below);
 - **gambits**: Blackmail leaves them Frightened; a broken heart leaves you Hopeless; a lie brought out leaves them Angry;
 - **a no before witnesses**: you lose face, and you're Insecure.
 
@@ -133,37 +133,67 @@ The party keeps every answer. Once it knows the key and the wall, the nature is 
 
 ## Strings and bonds
 
-- **Strings** are a hold on one person, at most 3 each. A String can be:
-  - spent for **+5** after a miss against them;
-  - spent to **Hurt** them: make them feel an emotion;
-  - used as leverage for an ask against their interests, or for Blackmail;
-  - **Pulled** in a fight. Strike gives +5 to your next attack, check or save against them. Guard gives +5 AC against their next attack. Either one is a real effect on your sheet that ends itself.
+A **String** is what you have on someone: a debt, a weakness seen, a line crossed in front of others. **One at a time**: you have something on them, or you don't.
 
-  A String is a debt, a weakness seen, or a line crossed in front of others. You gain one on them when they give more than they meant to (a strong hit on something big), when they give something that costs them before witnesses, when a strong Read sees where it hurts, and when they open up to you in play (the GM hands it over). They gain one on you when you win by Pressure or Blackmail, when you give your word in a Deal (until you deliver), when your heart is refused, when your threat or lie is caught, when you pay a price that is a debt, and on a bad miss. At most one changes hands each way per roll. A String on someone you have no bond with makes you Strangers, so it shows in Bonds, ready to pull.
-- **Bonds** are one shared relationship per pair, mirrored on both actors: a type (friend, lover, rival, enemy, sworn, confidant…) and a strength ●–●●●.
-  - A bond gives +1 per ● on maneuvers of the approach it runs: Heart for love and family, Pressure for rivals and enemies, Reason for allies, oaths and trust.
-  - Heart wins warm bonds (a stranger becomes a Friend).
-  - Pressure wins sour them (a stranger becomes a Rival).
-  - An Argument that lands, or a word kept in a Deal, makes Allies (a stranger becomes an Ally).
-  - A Rival or an Enemy won't hear you out: −1 per ● on anything but Pressure.
-  - Blackmail, exposed lies and a broken word make Enemies.
-  - Slammed doors and broken hearts cool bonds.
+- **How it moves.** The roll the GM calls is its stake: a strong win (5 over, or a 20) and you take one on them; a bad miss (5 under, or a 1) and they take one on you. A plain win or a plain miss moves none. Some wins cost one back: Pressure and Blackmail (they'll pay you back), a Deal (your word, until you deliver), a price that is a debt. A Read moves none, and neither does a roll on which a String was spent. The GM can also hand one over from the talk: a confession, a secret, a favour owed.
+- **Spending yours:**
+  - **they agree**, instead of the roll (Talk → *Remind them*): a small or costly ask is done; one against their interests, the GM says what it would take;
+  - **+5** after a miss against them;
+  - **invest** it in your bond (Bonds → *Invest*): +1 ●, or −1 ● on a hostile one (making peace); with no bond yet, you choose what you become to each other;
+  - **Pull** it in a fight: Strike gives +5 to your next attack, check or save against them; Guard gives +5 AC against their next attack. Either is a real effect on your sheet that ends itself;
+  - **Quits**: when they pull theirs on you, answer with yours, and both burn.
+  Holding one is leverage for an ask against their interests, or for Blackmail.
+- **Bonds** are one shared relationship per pair, kept on both sides: what a player marks on their character, the NPC shows too (the GM writes the other side). A bond has a **type**, which is who you are to each other (friend, lover, rival, enemy, sworn, confidant…), and a **strength** ●–●●●, which is how deep it runs. It also has a caption for the relationship map.
+  - **The type is the story's.** The GM sets it, or you do when you invest a String in a new bond. A roll never changes it. A word kept in a Deal makes strangers Allies; an exposed lie or a broken word makes them Enemies. Anything else, the GM changes when the story does.
+  - **The dots are its depth.** They grow only when you invest a String (or by the GM's hand); a player can lower them freely.
+  - **Per ●, against that person**, each type gives its own: +1 on the approach it runs (Heart for love and family, Pressure for rivals and enemies, Reason for allies, oaths and trust), +1 when its skill rolls (a Friend: Persuasion; Family: Insight), −1 when the skill it forbids rolls (you can't frighten a lover, or fool your teacher). A Rival or an Enemy won't hear you out: −1 per ● on anything but Pressure. Press someone close to you (a friend, family, a lover…) and you win, but Guilty toward them.
+  - **In a fight**, standing close (15 ft by default, a world setting; 0 turns it off) gives the bond's aura on your sheet by itself: Family closes ranks (+1 attack and saves), a Lover +1 AC and initiative, an Enemy +1 attack but −1 saves… Each lever is ±1, ±2 at ●●●; several bonds sum, capped at ±2.
+  - **At ●●** the type's own ability opens (Wordless: you always know when your lover lies; Forewarned: your enemy can't surprise you…).
+  - **At ●●●**, its signature, **once per long rest** (Bonds → *Call on it*): I've got you (a friend's failed roll, rolled again), Blood shields blood, For the oath (advantage and +5)… Those that are numbers go on the sheet until your next roll; the rest the GM plays. The GM can ready it early.
+
+## What an NPC does with a String
+
+Each NPC has three moves, and each costs the String they hold on that character.
+
+- **At your roll — their triad's.** After the dice the GM is asked whether to spend it. **Power** strikes back: −5. **Emotion** makes you feel it: you win, and carry their emotion. **Order** sets the terms: you win, and pay their price.
+- **In the talk, and beyond the scene — their nature's two.** The GM uses them from the NPC's Talk tab. A chat card asks the player for an answer (give in, and take Inspiration; or refuse, and pay for it), or the GM marks how a deadline ended. If you hold a String on them, you can answer with it: Quits.
+
+| Nature | In the talk | Beyond the scene |
+|---|---|---|
+| Tyrant | An order before witnesses | An example made: kneel by next session, or a friend pays |
+| Schemer | A hook: do the small favour (and they keep the String), or Insecure | I know all about you: a lie of yours comes out |
+| Duelist | A challenge: decline (Insecure), or accept and roll for the String | Cut you off: your next goal, at disadvantage |
+| Martyr | After everything I've done for you… | I can't do without you: come, or Guilt and a Rival |
+| Idol | The room is mine | The crowd turns: Insecure in their circle |
+| Caretaker | You'd be lost without me: any failed roll, rerolled — and you owe them again | Jealous care: a bond of yours cools |
+| Zealot | Your sin: penance, or Angry | The law demands: by next session, or Enemies |
+| Hermit | One question: answer truly, or Hopeless | Silence: every ask +4 DC until you bring a truth |
+| Broker | An old debt: pay, or Hopeless (and the debt stands) | A debt for sale: their String goes to someone else |
+
+A move is a tell: the players see its name, and under a mask an NPC still moves as who they really are. Inspired by Thirsty Sword Lesbians' GM moves for each playbook.
 
 ## Windows
 
 - **Chronicle**: right-click a token, then the address-book button. It has four tabs:
   - *Profile*: an NPC's nature, the mask they show, dossier and Agenda for the GM, and what the party has learned for players; a player character's maneuvers (what each one rolls for them, from their sheet, best first), emotions and scars;
-  - *Bonds*;
-  - **Talk**: who you're talking to (your target on the map) and the face they show, the Strings each of you holds on the other, your emotions and theirs; and, when the GM calls for a roll, *I persuade*, *I intimidate*, *I lie* or *I read them* — how your words came at them, plainly or all in, in private or before witnesses — with your odds on the roll button. On an NPC's own sheet this tab is the GM's live screen: how they take each approach (what to act out), price, pushback, the mask to play; their Agenda and their Line; what the talk revealed and the emotions it left, on them and on the characters here (marked here, no roll); the word given to them (Kept or Broken); the lies they believe; and buttons to ask them as any character on the scene;
+  - *Bonds*: each relationship with its type and dots, what it gives you against them, its aura in a fight, its ●● ability and its ●●● signature (*Call on it*), the String you hold (and theirs on you), Invest and Pull, and a caption for the map;
+  - **Talk**: who you're talking to (your target on the map) and the face they show, the Strings each of you holds on the other (*Remind them* spends yours instead of a roll), your emotions and theirs; and, when the GM calls for a roll, *I persuade*, *I intimidate*, *I lie* or *I read them* — how your words came at them, plainly or all in, in private or before witnesses — with your odds on the roll button. On an NPC's own sheet this tab is the GM's live screen: how they take each approach (what to act out), price, pushback, the mask to play; their Agenda and their Line; what the talk revealed and the emotions it left, on them and on the characters here (marked here, no roll); the word given to them (Kept or Broken); the lies they believe; their three moves, with a button to pull a String on whoever they hold one on; and buttons to ask them as any character on the scene;
   - *Codex*: the in-game manual.
-- **Social Scene**: the **Social** button on the VTools toolbar. It is a live relationship map for everyone: portraits, bonds as lines, emotions, named natures and the faces NPCs show, who holds Strings on whom (the GM sees all; a player, their own), and every roll animated as it happens. The GM can make the scene public here. *This scene* is for the table; *All bonds* is for the GM.
+- **Social Scene**: the **Social** button on the VTools toolbar. A relationship map for everyone:
+  - portraits with their names (and a caption under the name), bonds as lines (thicker = stronger, dashed = hostile) labelled with the bond and its caption, Strings as gold arrows from who holds one to whom, emotions, named natures and the faces NPCs show;
+  - drag a portrait or a caption to move it, drag the background to pan, the wheel zooms; a click shows who someone is and what ties them (the Chronicle opens from its button there);
+  - captions pinned to the board — a place, a faction, a rumour — for everyone;
+  - where the GM puts people, everyone sees; a player's drags arrange only their own view;
+  - every roll is animated as it happens, and the GM can make the scene public here.
+  *This scene* is for the table; *All bonds* is for the GM.
 
 ## Settings
 
 - **Language / Мова** (each user's own): Auto follows Foundry's language; or English, or Ukrainian. It switches at once. Chat cards are written in the language of whoever creates them (the GM's client resolves rolls).
 - A global social-difficulty dial, and whether to roll in the system's own check window (on by default: it opens already set to the maneuver's skill and bonus; off rolls at once, the same way).
+- **Bond aura reach**: how close (in feet) you stand to someone you have a bond with for its aura to count in a fight. 15 by default; 0 turns bond auras off.
 
-Updating to 3.3 adds two script files: **restart the world** (not just F5) after updating.
+Updating to 3.3 adds two script files, and 3.9 two more (`abilities.js`, `bond-powers.js`): **restart the world** (not just F5) after updating.
 
 Upgrading from 2.x: the first world load removes the old v2 states, wounds, scars and auras from sheets; v3's emotions and scars replace them. Bonds, Strings, dossiers and natures are kept.
 
