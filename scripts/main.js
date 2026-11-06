@@ -53,10 +53,10 @@ Hooks.once("init", () => {
     scope: "world", config: false, type: Object, default: {},
   });
 
-  // How far a bond reaches in a fight (its aura). 0 turns auras off.
+  // How far a bond reaches (its aura) — in a fight or not. 0 turns auras off.
   game.settings.register(TSL_SCOPE, "bondAuraRange", {
     name: _t("Bond aura reach"),
-    hint: _t("In a fight, standing this close to someone you have a bond with gives that bond's aura (feet). 0 turns bond auras off."),
+    hint: _t("Standing this close to someone you have a bond with — in a fight or not — gives that bond's aura (feet). 0 turns bond auras off."),
     scope: "world", config: true, type: Number, default: 15,
     range: { min: 0, max: 60, step: 5 },
     onChange: () => { try { TSLBondAuras.refresh(); } catch { /* not ready */ } },

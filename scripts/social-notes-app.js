@@ -248,29 +248,35 @@ class SocialFencingApp extends _SocialAppBase {
   }
 
   /**
-   * What weighs on this person right now — their emotions and scars — on every
-   * tab, so nobody has to go looking. Everyone who opens the Chronicle sees it;
-   * its owner and the GM let an emotion go (×); the GM opens the palette (+)
-   * and puts on or takes off any emotion or scar with one click.
+   * What weighs on this person right now — emotions, scars and the system's own
+   * conditions (D&D's) — on every tab, so nobody has to go looking. Everyone
+   * who opens the Chronicle sees it. Its owner and the GM change it: × takes one
+   * off; "Change" opens the palette, where every one of them is a switch.
    */
   _stateStrip(ctx) {
     const esc = foundry.utils.escapeHTML;
     const a = this._actor;
-    const isGM = game.user.isGM;
-    const tags = this._emotionTags(a, { canClear: ctx.canEdit, effects: ctx.isPC ? "mine" : "theirs", scars: true, scarX: isGM });
-    const open = isGM && this._stateOpen;
+    const can = TSLEmotions.canEdit(a);
+    const tags = this._emotionTags(a, { canClear: can, effects: ctx.isPC ? "mine" : "theirs", scars: true, scarX: can })
+      + TSLConditions.active(a).map(c => `<span class="tsl-cond-tag" data-tooltip="${esc(c.name)}"><img src="${c.img}" alt=""> ${esc(c.name)}${can
+        ? `<button type="button" class="tsl-emo-x" data-cond-off="${c.id}" aria-label="${esc(_t("Take it off"))}" data-tooltip="${esc(_t("Take it off"))}">×</button>` : ""}</span>`).join("");
+    const open = can && this._stateOpen;
     return `<div class="tsl-state ${open ? "open" : ""}">
       <div class="tsl-state-row">
         <span class="tsl-state-label" data-tooltip="${esc(_t("Emotions: −2 somewhere for whoever feels one, +2 for whoever plays on it, until it's let go (×). A scar stays for good."))}"><i class="fas fa-heart-pulse"></i> ${_t("Feels")}</span>
         <div class="tsl-state-tags">${tags || `<span class="tsl-state-none">${_t("nothing right now")}</span>`}</div>
-        ${isGM ? `<button type="button" class="tsl-state-add ${open ? "on" : ""}" data-state-open aria-label="${esc(_t("Emotions and scars"))}"
-          data-tooltip="${esc(open ? _t("Close") : _t("Put on or take off an emotion or a scar — no roll"))}"><i class="fas fa-${open ? "xmark" : "plus"}"></i></button>` : ""}
+        ${can ? `<button type="button" class="tsl-state-edit ${open ? "on" : ""}" data-state-open
+          data-tooltip="${esc(open ? _t("Close") : _t("Put on or take off an emotion, a scar or a condition — no roll"))}"><i class="fas fa-${open ? "xmark" : "pen"}"></i> ${open ? _t("Close") : _t("Change")}</button>` : ""}
       </div>
       ${open ? this._statePalette(a) : ""}
     </div>`;
   }
 
-  /** The GM's palette: every emotion and scar as a switch — on, off, one click. Guilt is owed to someone. */
+  /**
+   * The palette: every emotion, scar and condition as a switch — on or off, one
+   * click, no roll. The GM's on anyone; a player's on their own character.
+   * Guilt is owed to someone.
+   */
   _statePalette(a) {
     const esc = foundry.utils.escapeHTML;
     const feels = TSLEmotions.of(a), scars = TSLEmotions.scars(a);
@@ -281,18 +287,27 @@ class SocialFencingApp extends _SocialAppBase {
       `<option value="${p.id}" ${guilt?.toward === p.id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>` : "";
     const emo = EMOTION_ORDER.map(id => {
       const d = EMOTIONS[id], on = feels.some(f => f.id === id);
-      return `<button type="button" class="tsl-feel ${on ? "on" : ""}" data-state-emo="${id}" style="--c:${d.color}"
-        data-tooltip="${esc(`<b>${d.label}</b> — ${pc ? d.spoilsText : d.opensText}.<br>${on ? _t("Click to take it off.") : _t("Click to put it on.")}`)}"><img src="${d.img}" alt=""> ${esc(d.label)}</button>${id === "guilty" ? towardSel : ""}`;
+      const sw = `<button type="button" class="tsl-feel ${on ? "on" : ""}" data-state-emo="${id}" style="--c:${d.color}" aria-pressed="${on}"
+        data-tooltip="${esc(`<b>${d.label}</b> — ${pc ? d.spoilsText : d.opensText}.<br>${on ? _t("Click to take it off.") : _t("Click to put it on.")}`)}"><img src="${d.img}" alt=""> ${esc(d.label)}</button>`;
+      return id === "guilty" && towardSel ? `<span class="tsl-feel-pair">${sw}<span class="tsl-feel-to">${_t("toward")}</span>${towardSel}</span>` : sw;
     }).join("");
     const sc = Object.values(SCARS).map(s => {
       const on = scars.includes(s.id);
-      return `<button type="button" class="tsl-feel tsl-feel--scar ${on ? "on" : ""}" data-state-scar="${s.id}"
+      return `<button type="button" class="tsl-feel tsl-feel--scar ${on ? "on" : ""}" data-state-scar="${s.id}" aria-pressed="${on}"
         data-tooltip="${esc(`<b>${_t("Scar — {scar}", { scar: s.label })}</b> (${EMOTIONS[s.from].label})<br>${s.text}<br>${on ? _t("Click to take it off.") : _t("Click to put it on.")}`)}"><img src="icons/svg/blood.svg" alt=""> ${esc(s.label)}</button>`;
     }).join("");
+    const active = new Set(TSLConditions.active(a).map(c => c.id));
+    const conds = TSLConditions.list().map(c => `<button type="button" class="tsl-cond ${active.has(c.id) ? "on" : ""}" data-state-cond="${c.id}" aria-pressed="${active.has(c.id)}"
+        data-tooltip="${esc(`<b>${c.name}</b><br>${active.has(c.id) ? _t("Click to take it off.") : _t("Click to put it on.")}`)}"><img src="${c.img}" alt=""> ${esc(c.name)}</button>`).join("");
+    const group = (icon, title, hint, body) => `<div class="tsl-pal-group">
+        <div class="tsl-pal-head"><b><i class="fas ${icon}"></i> ${title}</b><span>${hint}</span></div>
+        <div class="tsl-feels">${body}</div>
+      </div>`;
     return `<div class="tsl-state-pal">
-      <div class="tsl-q">${_t("Emotions")}</div><div class="tsl-feels">${emo}</div>
-      ${pc ? `<div class="tsl-q">${_t("Scars")}</div><div class="tsl-feels">${sc}</div>` : ""}
-      <p class="tsl-note">${_t("Your call from the scene — no roll. Putting one on posts a line in the chat; taking one off doesn't.")}</p>
+      ${group("fa-heart-crack", _t("Emotions"), _t("−2 for whoever feels one, +2 for whoever plays on it — until it's let go"), emo)}
+      ${pc ? group("fa-droplet", _t("Scars"), _t("for good — the same emotion twice leaves one"), sc) : ""}
+      ${conds ? group("fa-person-falling", _t("Conditions"), _t("the system's own — the same as on the token"), conds) : ""}
+      <p class="tsl-note">${_t("Click to put one on or take it off — no roll. An emotion or a scar put on posts a line in the chat.")}</p>
     </div>`;
   }
 
@@ -307,10 +322,11 @@ class SocialFencingApp extends _SocialAppBase {
     return [...out.values()].sort((x, y) => pc(x) - pc(y) || (x.name ?? "").localeCompare(y.name ?? ""));
   }
 
-  /** The GM's switch: put an emotion or a scar on, or take it off. */
+  /** The switch: an emotion, a scar or a condition, on or off — the GM on anyone, a player on their own. */
   async _toggleState(kind, id, toward = null) {
-    if (!game.user.isGM) return;
     const a = this._actor;
+    if (!TSLEmotions.canEdit(a)) return;
+    if (kind === "cond") { await TSLConditions.toggle(a, id); return; }
     if (kind === "scar") {
       if (TSLEmotions.scars(a).includes(id)) await TSLEmotions.removeScar(a, id);
       else await TSLEmotions.addScar(a, id);
@@ -318,7 +334,7 @@ class SocialFencingApp extends _SocialAppBase {
     }
     if (id === "guilty" && !toward) toward = this._peopleOf(a)[0]?.id ?? null;
     if (id === "guilty" && !toward) { ui.notifications.warn(_t("Guilty is owed to someone — give them a bond, or put that person on the map.")); return; }
-    await TSLEmotions.mark(a, id, { toward, title: _t("The GM marks it") });
+    await TSLEmotions.mark(a, id, { toward, title: game.user.isGM ? _t("The GM marks it") : _t("Marked by its player") });
   }
 
   // ── Profile ─────────────────────────────────────────────────────────────────
@@ -504,13 +520,7 @@ class SocialFencingApp extends _SocialAppBase {
         ? `<select class="tsl-bond-type" data-bond-id="${b.id}" style="--c:${ap?.color ?? "#8a7d72"}" data-tooltip="${esc(type.hint)}">${typeOpts(b.type)}</select>`
         : `<span class="tsl-bond-type-tag" style="--c:${ap?.color ?? "#8a7d72"}" data-tooltip="${esc(type.hint)}"><i class="fas ${type.icon}"></i> ${esc(type.label)}</span>`;
       // The Strings, both ways: the GM puts them on and takes them off; a player can drop their own.
-      const adj = (dir, n) => {
-        const plus = isGM ? `<button type="button" class="tsl-hold-adj" data-hold-adj="${dir}" data-by="1" data-target="${b.targetActorId}" ${n >= STRING_CAP ? "disabled" : ""}
-          data-tooltip="${esc(dir === "mine" ? _t("Give {name} a String on them — they opened up in play: a confession, a secret, a favour owed", { name: me.name }) : _t("Give them a String on {name}", { name: me.name }))}">+</button>` : "";
-        const minus = (isGM || (dir === "mine" && canEdit)) ? `<button type="button" class="tsl-hold-adj" data-hold-adj="${dir}" data-by="-1" data-target="${b.targetActorId}" ${n ? "" : "disabled"}
-          data-tooltip="${esc(_t("Take the String off"))}">−</button>` : "";
-        return plus + minus;
-      };
+      const holdSwitch = (dir) => canEdit ? (dir === "mine" ? { holderId: me.id, targetId: b.targetActorId } : { holderId: b.targetActorId, targetId: me.id }) : null;
       const fresh = type.id === "stranger";
       const canInvest = b.stringCount > 0 && (fresh || (type.hostile ? str > 0 : str < 3));
       const details = !open ? "" : `
@@ -538,8 +548,8 @@ class SocialFencingApp extends _SocialAppBase {
           ${canEdit ? `<button type="button" class="tsl-icon-btn tsl-bond-remove" data-bond-id="${b.id}" data-name="${esc(b.targetName)}" aria-label="${esc(_t("End this bond (on both sides)"))}" data-tooltip="${esc(_t("End this bond (on both sides)"))}"><i class="fas fa-trash"></i></button>` : ""}
         </div>
         <div class="tsl-bond-sub">
-          ${this._holdChip("mine", b.stringCount, adj("mine", b.stringCount))}
-          ${this._holdChip("theirs", b.theirCount, adj("theirs", b.theirCount))}
+          ${this._holdChip("mine", b.stringCount, holdSwitch("mine"))}
+          ${this._holdChip("theirs", b.theirCount, holdSwitch("theirs"))}
           <button type="button" class="tsl-bond-more" data-bond-toggle="${b.id}">${open ? _t("Less") : _t("What it gives")} <i class="fas fa-chevron-${open ? "up" : "down"}"></i></button>
         </div>
         ${details}
@@ -609,7 +619,7 @@ class SocialFencingApp extends _SocialAppBase {
 
   /**
    * What a bond's type gives, per ●: on which approach, with which skill, what
-   * it forbids, its aura in a fight — then its ●● ability and its ●●●
+   * it forbids, its aura close by — then its ●● ability and its ●●●
    * signature (once per long rest). Shown locked until the bond is that deep.
    */
   _bondPowersHTML(b, type, str, canEdit) {
@@ -627,8 +637,8 @@ class SocialFencingApp extends _SocialAppBase {
     ].filter(Boolean);
     const levers = TSLBondAuras.leversOf(type.id, n);
     const reach = TSLBondAuras.range();
-    const aura = type.aura && levers && reach > 0 ? `<div class="tsl-bp-row" data-tooltip="${esc(_t("In a fight, within {reach} ft of each other — it goes on your sheet by itself, and doubles at ●●●.", { reach }))}">
-        <i class="fas fa-shield-heart"></i> ${_t("In a fight, close by:")} <b>${esc(type.aura.label)}</b> — ${esc(TSLBondAuras.describe(levers))}</div>` : "";
+    const aura = type.aura && levers && reach > 0 ? `<div class="tsl-bp-row" data-tooltip="${esc(_t("Within {reach} ft of each other, in a fight or not — it goes on your sheet by itself, and doubles at ●●●.", { reach }))}">
+        <i class="fas fa-shield-heart"></i> ${_t("Close by:")} <b>${esc(type.aura.label)}</b> — ${esc(TSLBondAuras.describe(levers))}</div>` : "";
     const ab = SocialArchetypeManager.getBondAbility(type.id);
     const sig = SocialArchetypeManager.getBondSignature(type.id);
     const ability = ab ? `<div class="tsl-bp-box ${str >= 2 ? "" : "locked"}">
@@ -756,7 +766,8 @@ class SocialFencingApp extends _SocialAppBase {
 
     // The Strings between the speaker and them, either way — right under the name, ticked or not (Talk only).
     const sp = ctx.speaker;
-    const holds = sp ? `<span class="tsl-x-holds">${this._holdChip("mine", TSLStringStore.countOn(sp.id, npc.id))}${this._holdChip("theirs", TSLStringStore.countOn(npc.id, sp.id))}</span>` : "";
+    const sw = ctx.canEdit;
+    const holds = sp ? `<span class="tsl-x-holds">${this._holdChip("mine", TSLStringStore.countOn(sp.id, npc.id), sw ? { holderId: sp.id, targetId: npc.id } : null)}${this._holdChip("theirs", TSLStringStore.countOn(npc.id, sp.id), sw ? { holderId: npc.id, targetId: sp.id } : null)}</span>` : "";
 
     // The word the speaker gave them (a Deal), until the GM marks how it ended.
     const word = !sp ? "" : TSLTalk.deals(npc).filter(d => d.byId === sp.id).map(d => `<div class="tsl-word" data-tooltip="${esc(_t("Keep it, and their String on you goes; break it, and yours on them burns. The GM marks it."))}">
@@ -818,7 +829,7 @@ class SocialFencingApp extends _SocialAppBase {
    * isn't. `mine`: this character has something on them; `theirs`: they have
    * something on this character. `controls` — the GM's + / − beside it.
    */
-  _holdChip(dir, n, controls = "") {
+  _holdChip(dir, n, toggle = null) {
     const esc = foundry.utils.escapeHTML;
     const mine = dir === "mine";
     const tip = mine
@@ -827,7 +838,12 @@ class SocialFencingApp extends _SocialAppBase {
       : (n ? _t("They have something on you. It powers their moves — at your roll, in the talk, beyond the scene — or a Pull in a fight. Answer one with your own String: Quits.")
         : _t("They have nothing on you. A bad miss against them (5 under the DC, or a 1) — or a win that costs one — gives them one."));
     const icon = n ? (mine ? "fa-check" : "fa-triangle-exclamation") : "fa-minus";
-    return `<span class="tsl-hold-chip tsl-hold-chip--${dir} ${n ? "on" : ""}" data-tooltip="${esc(tip)}"><i class="fas ${icon}"></i> ${mine ? _t("String on them") : _t("String on you")}${controls}</span>`;
+    const inner = `<i class="fas ${icon}"></i> ${mine ? _t("String on them") : _t("String on you")}`;
+    if (!toggle) return `<span class="tsl-hold-chip tsl-hold-chip--${dir} ${n ? "on" : ""}" data-tooltip="${esc(tip)}">${inner}</span>`;
+    // One at a time, so a String is on or off: the chip itself is the switch.
+    return `<button type="button" class="tsl-hold-chip tsl-hold-chip--${dir} tsl-hold-chip--btn ${n ? "on" : ""}" aria-pressed="${!!n}"
+      data-hold-toggle data-holder="${toggle.holderId}" data-target="${toggle.targetId}" data-on="${n ? 0 : 1}"
+      data-tooltip="${esc(`${tip}<br><i>${n ? _t("Click: take it off by hand.") : _t("Click: mark it by hand.")}</i>`)}">${inner}</button>`;
   }
 
   /** The tags themselves: each emotion (× to let it go) and, with `scars`, each scar (× for the GM: `scarX`). */
@@ -1323,7 +1339,7 @@ class SocialFencingApp extends _SocialAppBase {
         <h3>${_t("Scars")}</h3>
         <p>${_t("Take an emotion you already carry, and it leaves a <b>scar</b> instead — for good, one of each.")}</p>
         ${table([_t("Scar"), _t("From"), _t("For good")], Object.values(SCARS).map(s => [`<b>${esc(s.label)}</b>`, esc(EMOTIONS[s.from].label), esc(s.text)]))}
-        ${where(_t("<b>Where:</b> at the top of every Chronicle — what weighs on them now. × lets an emotion go; the GM puts any on or takes it off with +."))}`;
+        ${where(_t("<b>Where:</b> at the top of every Chronicle — what weighs on them now. × takes one off; <b>Change</b> opens every emotion, scar and condition as a switch — the GM on anyone, a player on their own character."))}`;
 
       case "strings": return `
         ${lead(_t("A <b>String</b> is something you have on someone — a debt, a secret, a weakness seen. <b>One at a time each way</b>: you have something on them, or you don't."))}
@@ -1346,7 +1362,7 @@ class SocialFencingApp extends _SocialAppBase {
         ${li(_t("<b>At your roll</b> — Power strikes back (−5 after the dice); Emotion makes you feel it (you win, and carry their emotion); Order sets the terms (you win, and pay their price)."),
              _t("<b>In the talk, or beyond the scene</b> — two moves of their nature's own. A chat card asks for your answer: give in (and take Inspiration), or refuse and pay for it."),
              _t("<b>In a fight</b> — any of them can Pull theirs against you."))}
-        ${where(_t("<b>Where:</b> Talk shows it under the name of whoever you face — ticked when you have one. Bonds shows both ways, for everyone."))}`;
+        ${where(_t("<b>Where:</b> Talk shows it under the name of whoever you face — ticked when you have one; click it to mark it or take it off by hand. Bonds shows both ways, for everyone."))}`;
 
       case "bonds": return `
         ${lead(_t("A bond is <b>who you are to each other</b> — its type — and <b>how deep it runs</b>: ●, ●● or ●●●. Both of you see the same bond. A roll never changes it."))}
@@ -1359,8 +1375,8 @@ class SocialFencingApp extends _SocialAppBase {
              _t("+1 when its skill rolls (a Friend: Persuasion; Family: Insight); −1 when the skill it forbids rolls — you can't frighten a lover, or fool your teacher."),
              _t("A Rival or an Enemy won't hear you out: −1 on anything but Pressure."),
              _t("Press someone close to you — a friend, family, a lover — and you win, but feel Guilty toward them."))}
-        <h3>${_t("In a fight")}</h3>
-        <p>${_t("Standing close to each other, the bond's aura goes on your sheet by itself: ±1 per bonus, ±2 at ●●●; several bonds add up to ±2 at most.")}</p>
+        <h3>${_t("Close by")}</h3>
+        <p>${_t("Standing close to each other — in a fight or not — the bond's aura goes on your sheet by itself: ±1 per bonus, ±2 at ●●●; several bonds add up to ±2 at most. Step apart, or leave the map, and it comes off.")}</p>
         <h3>${_t("●● and ●●●")}</h3>
         <p>${_t("At ●● the type's own ability opens. At ●●● — its signature, once per long rest (Bonds → What it gives → Call on it).")}</p>
         ${table([_t("Bond"), _t("Per ●"), "●●", _t("●●● — once per long rest")], BOND_TYPES.filter(t => t.id !== "stranger").map(t => {
@@ -1374,8 +1390,8 @@ class SocialFencingApp extends _SocialAppBase {
         ${lead(_t("You play the people; the module remembers them and counts the few rolls."))}
         <h3>${_t("Where to do what")}</h3>
         ${table(null, [
-          [`<b>${_t("Emotions and scars")}</b>`, _t("on anyone: the strip at the top of their Chronicle — + puts one on or takes it off, × lets an emotion go")],
-          [`<b>${_t("Bonds and Strings")}</b>`, _t("the Bonds tab: the type, the dots and the Strings both ways, right in the row; add anyone by name, or drag an actor in")],
+          [`<b>${_t("Emotions and scars")}</b>`, _t("on anyone: the strip at the top of their Chronicle — Change puts one on or takes it off, × lets it go; players do the same on their own character")],
+          [`<b>${_t("Bonds and Strings")}</b>`, _t("the Bonds tab: the type, the dots and the Strings both ways, right in the row — a String is a switch, click it; add anyone by name, or drag an actor in")],
           [`<b>${_t("What came out")}</b>`, _t("the NPC's Talk tab or Profile: click a fact to mark it known")],
           [`<b>${_t("How to play them")}</b>`, _t("the NPC's Talk tab: how they take each way, their price, their no, the mask to act out")],
           [`<b>${_t("Moves, words, lies")}</b>`, _t("the NPC's Talk tab: pull a String, mark a word kept or broken, bring a lie out")],
@@ -1537,20 +1553,27 @@ class SocialFencingApp extends _SocialAppBase {
     on("[data-t-clear-result]", "click", () => { this._tResult = null; this.render(false); });
 
     // ── What weighs on them: the GM's palette ──
-    on("[data-state-open]", "click", () => { if (!game.user.isGM) return; this._stateOpen = !this._stateOpen; this.render(false); });
+    on("[data-state-open]", "click", () => { if (!TSLEmotions.canEdit(this._actor)) return; this._stateOpen = !this._stateOpen; this.render(false); });
+    on("[data-state-cond]", "click", async (_e, n) => { await this._toggleState("cond", n.dataset.stateCond); this.render(false); });
+    on("[data-cond-off]", "click", async (_e, n) => { await TSLConditions.toggle(this._actor, n.dataset.condOff, false); this.render(false); });
+    on("[data-hold-toggle]", "click", async (_e, n) => {
+      n.disabled = true;
+      await TSLStringStore.set(n.dataset.holder, n.dataset.target, n.dataset.on === "1");
+      this.render(false);
+    });
     on("[data-state-emo]", "click", async (_e, n) => {
-      if (!game.user.isGM) return;
+      if (!TSLEmotions.canEdit(this._actor)) return;
       const toward = el.querySelector(".tsl-state-toward")?.value || null;
       await this._toggleState("emo", n.dataset.stateEmo, toward);
       this.render(false);
     });
     on("[data-state-scar]", "click", async (_e, n) => {
-      if (!game.user.isGM) return;
+      if (!TSLEmotions.canEdit(this._actor)) return;
       await this._toggleState("scar", n.dataset.stateScar);
       this.render(false);
     });
     on("[data-scar-clear]", "click", async (_e, n) => {
-      if (!game.user.isGM) return;
+      if (!TSLEmotions.canEdit(this._actor)) return;
       const scar = SCARS[n.dataset.scarClear];
       if (!scar || !(await this._confirm(_t("Take the scar off"), _t("Take <b>{scar}</b> off {name}? A scar is for good — take it off only when the story healed it.", { scar: foundry.utils.escapeHTML(scar.label), name: foundry.utils.escapeHTML(this._actor.name) })))) return;
       await TSLEmotions.removeScar(this._actor, scar.id);
@@ -1622,17 +1645,6 @@ class SocialFencingApp extends _SocialAppBase {
       if (await this._confirm(_t("End this bond (on both sides)"), _t("End the bond between <b>{a}</b> and <b>{b}</b>? Its type, dots, caption and notes go — on both sides.", { a: esc(this._actor.name), b: esc(n.dataset.name ?? "") }))) {
         await TSLBondStore.remove(this._actor.id, n.dataset.bondId);
       }
-    });
-    // A String either way: "mine" — this character's on them; "theirs" — theirs on this character (the GM's).
-    on("[data-hold-adj]", "click", async (_e, n) => {
-      const me = this._actor.id, other = n.dataset.target, up = Number(n.dataset.by) > 0, mine = n.dataset.holdAdj === "mine";
-      if (!mine && !game.user.isGM) return;
-      if (up && !game.user.isGM) return;
-      const [holder, target] = mine ? [me, other] : [other, me];
-      if (up) {
-        if (!(await TSLStringStore.add(holder, target, 1))) ui.notifications.warn(_t("At most {n} Strings on one person.", { n: STRING_CAP }));
-      } else await TSLStringStore.spend(holder, target);
-      this.render(false);
     });
     // A bond with anyone: by name (Enter or +), or an actor dragged in from the sidebar.
     const findBond = () => {

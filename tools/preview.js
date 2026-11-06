@@ -68,6 +68,11 @@ globalThis.canvas.scene.getFlag = (_s, k) => sceneFlags[k];
 globalThis.canvas.scene.setFlag = async (_s, k, v) => { sceneFlags[k] = v; };
 
 async function setup() {
+  // A few of the system's own conditions (Foundry's core icons), and Lyra is Prone — for the strip.
+  CONFIG.statusEffects.push(...[["blinded", "Blinded", "blind"], ["charmed", "Charmed", "heart"], ["deafened", "Deafened", "deaf"], ["frightened", "Frightened", "terror"],
+    ["grappled", "Grappled", "net"], ["poisoned", "Poisoned", "poison"], ["prone", "Prone", "falling"], ["restrained", "Restrained", "padlock"], ["stunned", "Stunned", "daze"], ["unconscious", "Unconscious", "unconscious"]]
+    .map(([id, name, ic]) => ({ id, name, img: `icons/svg/${ic}.svg` })));
+  lyra.effects.push({ id: "fxProne", name: "Prone", statuses: new Set(["prone"]), flags: {} });
   await SAM.setActorData(lyra, { notes: "Third daughter of a ruined house. Talks her way in, then out." });
   await SAM.setArchetype(roell, "tyrant");
   await SAM.setArchetype(duke, "machiavellian");
@@ -178,6 +183,7 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
   page("chronicle-bonds-gm", await chron(lyra, "bonds", {}), 560, 560);
   page("chronicle-state-gm", await chron(roell, "profile", { _stateOpen: true }), 560, 700);
   page("chronicle-state-pc", await chron(lyra, "talk", { _stateOpen: true, _tTarget: "roell" }), 560, 900);
+  page("chronicle-state-player", await chron(lyra, "talk", { _stateOpen: true, _tTarget: "roell" }, "player"), 560, 1000);
   page("chronicle-talk-locked", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "demand" }, "player"), 560, 1100);
   page("chronicle-talk-player", await chron(mira, "talk", { _tTarget: "ilse", _tTech: "appeal", _tSize: "costly", _tHelper: "lyra", _tLever: "desire", _tWitnesses: true }, "player"), 560, 1250);
   page("chronicle-talk-blackmail", await chron(mira, "talk", { _tTarget: "ilse", _tTech: "blackmail", _tSize: "against" }, "player"), 560, 1150);

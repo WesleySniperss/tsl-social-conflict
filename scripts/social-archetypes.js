@@ -964,7 +964,7 @@ const PROFILE_POINTS = [
  *   cost    — −1 when this skill rolls: what the relationship forbids;
  *   hostile — −1 on any approach but its own: they won't hear you out;
  *   guilt   — a Pressure win against them leaves you Guilty toward them;
- *   aura    — in a fight, within reach of each other (bond-powers.js): each
+ *   aura    — within reach of each other, in a fight or not (bond-powers.js): each
  *             lever ±1, ±2 at ●●● (several bonds sum; capped at ±2).
  *   mirror  — the type the other side holds (mentor ↔ protégé, sworn ↔ liege);
  *             the rest are the same on both sides.

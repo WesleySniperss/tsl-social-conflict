@@ -111,6 +111,35 @@ class TSLStringStore {
     return true;
   }
 
+  /**
+   * A String marked by hand — the table's own bookkeeping. With one at a time,
+   * a String is on or off. The GM marks any; a player marks their own
+   * character's, either way: theirs on others is written here, an NPC's on
+   * them goes through the GM (a player can't write an NPC). One slim line in
+   * the chat, so the table sees the hold change. Returns true when it changed.
+   */
+  static async set(holderId, targetId, on) {
+    const holder = game.actors.get(holderId), target = game.actors.get(targetId);
+    if (!holder || !target || holderId === targetId) return false;
+    const has = TSLStringStore.countOn(holderId, targetId) > 0;
+    if (has === !!on) return false;
+    if (!(game.user.isGM || holder.isOwner)) {
+      if (!target.isOwner || typeof TSLGMActions === "undefined") return false;
+      return !!(await TSLGMActions.request("stringSet", { holderId, targetId, on: !!on, pcId: targetId }));
+    }
+    if (on) { if (!(await TSLStringStore.add(holderId, targetId, 1))) return false; }
+    else if (!(await TSLStringStore.spend(holderId, targetId))) return false;
+    const esc = foundry.utils.escapeHTML;
+    const data = { holder: esc(holder.name), target: esc(target.name) };
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: holder }),
+      content: `<div class="tsl-x-card tsl-x-card--slim tsl-x--${on ? "strong" : "failure"}">
+        <div class="tsl-x-head"><i class="fas fa-masks-theater"></i><span class="tsl-x-title">${on ? _t("{holder} now has something on {target}", data) : _t("{holder} no longer has anything on {target}", data)}</span></div>
+      </div>`,
+    });
+    return true;
+  }
+
   // ── Spending a String in a talk, and investing it ───────────────────────────
 
   /**

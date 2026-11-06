@@ -75,6 +75,7 @@ class TSLGMActions {
       case "bondMirror":  return args?.actorId;
       case "abilityOutcome": return args?.pcId;   // the answer to an NPC's move (the card checks it's theirs)
       case "invokeSignature": return args?.actorId;
+      case "stringSet": return args?.pcId;   // a String marked by hand on the player's own character — either way
       default: return null;
     }
   }
@@ -112,6 +113,11 @@ class TSLGMActions {
         case "invokeSignature":
           // A ●●● bond's signature, once per long rest.
           await TSLBondPowers.invokeSignature(args);
+          break;
+        case "stringSet":
+          // A player marks a String by hand: theirs on someone, or someone's on them — their own character only.
+          if (args?.pcId !== args?.holderId && args?.pcId !== args?.targetId) { console.warn("TSL | Refused stringSet: not about their character."); break; }
+          await TSLStringStore.set(args.holderId, args.targetId, args.on);
           break;
         case "abilityOutcome":
           // A character answers an NPC's pull on a String (or answers it with their own: Quits).

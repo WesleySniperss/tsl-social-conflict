@@ -120,9 +120,19 @@ class TSLEmotions {
 
   static has(actor, id) { return TSLEmotions.of(actor).some(e => e.id === id); }
 
-  /** The scars they carry — ids. */
+  /** Every effect that IS this emotion — ours or a HUD toggle; two can exist if two rolls landed at once. */
+  static _effectIds(actor, id) {
+    const sid = TSLEmotions.statusId(id);
+    return (actor?.effects ?? []).filter(fx => fx.flags?.[EMOTION_SCOPE]?.emotion?.id === id
+      || (!fx.flags?.[EMOTION_SCOPE]?.emotion && [...(fx.statuses ?? [])].includes(sid))).map(fx => fx.id);
+  }
+
+  /** Who may change what weighs on someone: the GM, or that character's owner. */
+  static canEdit(actor) { return !!actor && (game.user.isGM || !!actor.isOwner); }
+
+  /** The scars they carry — ids, each once. */
   static scars(actor) {
-    return (actor?.effects ?? []).map(fx => fx.flags?.[EMOTION_SCOPE]?.scar).filter(id => SCARS[id]);
+    return [...new Set((actor?.effects ?? []).map(fx => fx.flags?.[EMOTION_SCOPE]?.scar).filter(id => SCARS[id]))];
   }
 
   /**
@@ -152,9 +162,9 @@ class TSLEmotions {
 
   /** Let it go. `how` — "act" (acted it out) or a friend's actor id (their comfort). Posts one line. */
   static async clear(actor, id, how = "act") {
-    const hit = TSLEmotions.of(actor).find(e => e.id === id);
-    if (!hit) return false;
-    await actor.deleteEmbeddedDocuments("ActiveEffect", [hit.effectId]);
+    const ids = TSLEmotions._effectIds(actor, id);
+    if (!ids.length) return false;
+    await actor.deleteEmbeddedDocuments("ActiveEffect", ids);
     const esc = foundry.utils.escapeHTML;
     const friend = how !== "act" ? game.actors.get(how) : null;
     await ChatMessage.create({
@@ -169,9 +179,9 @@ class TSLEmotions {
 
   /** Take it off without a word — the GM's own correction (no chat line). */
   static async unset(actor, id) {
-    const hit = TSLEmotions.of(actor).find(e => e.id === id);
-    if (hit) await actor.deleteEmbeddedDocuments("ActiveEffect", [hit.effectId]);
-    return !!hit;
+    const ids = TSLEmotions._effectIds(actor, id);
+    if (ids.length) await actor.deleteEmbeddedDocuments("ActiveEffect", ids);
+    return ids.length > 0;
   }
 
   /**
@@ -184,7 +194,7 @@ class TSLEmotions {
    */
   static async mark(actor, id, { toward = null, title = null } = {}) {
     const e = EMOTIONS[id];
-    if (!game.user.isGM || !actor || !e) return null;
+    if (!TSLEmotions.canEdit(actor) || !e) return null;
     if (id === "guilty" && !toward) return null;
     const had = TSLEmotions.of(actor).find(x => x.id === id);
     if (had) {
@@ -205,10 +215,10 @@ class TSLEmotions {
     return "added";
   }
 
-  /** The GM puts a scar on by hand (the story left one). Once each. One line in the chat. */
+  /** A scar put on by hand — the GM, or the character's owner (the story left one). Once each. One line in the chat. */
   static async addScar(actor, scarId) {
     const scar = SCARS[scarId];
-    if (!game.user.isGM || !actor || !scar || TSLEmotions.scars(actor).includes(scarId)) return false;
+    if (!TSLEmotions.canEdit(actor) || !scar || TSLEmotions.scars(actor).includes(scarId)) return false;
     await actor.createEmbeddedDocuments("ActiveEffect", [{
       name: _t("Scar — {scar}", { scar: scar.label }), img: "icons/svg/blood.svg", description: scar.text,
       flags: { [EMOTION_SCOPE]: { scar: scar.id } },
@@ -224,11 +234,11 @@ class TSLEmotions {
     return true;
   }
 
-  /** The GM wipes a scar (a story turn earned it). */
+  /** A scar wiped (a story turn earned it) — the GM, or the character's owner. Every copy of it. */
   static async removeScar(actor, scarId) {
-    if (!game.user.isGM) return;
-    const fx = (actor?.effects ?? []).find(f => f.flags?.[EMOTION_SCOPE]?.scar === scarId);
-    if (fx) await actor.deleteEmbeddedDocuments("ActiveEffect", [fx.id]);
+    if (!TSLEmotions.canEdit(actor)) return;
+    const ids = (actor.effects ?? []).filter(f => f.flags?.[EMOTION_SCOPE]?.scar === scarId).map(f => f.id);
+    if (ids.length) await actor.deleteEmbeddedDocuments("ActiveEffect", ids);
   }
 
   /**
@@ -260,3 +270,33 @@ class TSLEmotions {
     return parts;
   }
 }
+
+/**
+ * The system's own conditions — D&D's Prone, Charmed, Frightened… what the
+ * token HUD toggles — shown and switched from the Chronicle too, by the GM or
+ * the character's owner. Our own statuses (the emotions, a bond's aura, a pull,
+ * a moment) aren't among them; exhaustion is a level, not a switch — it stays
+ * on the sheet.
+ */
+class TSLConditions {
+  static list() {
+    return (globalThis.CONFIG?.statusEffects ?? [])
+      .filter(c => c?.id && !String(c.id).startsWith("tsl-") && c.id !== "exhaustion" && (c.img || c.icon))
+      .map(c => ({ id: c.id, name: game.i18n?.localize?.(c.name ?? c.label ?? c.id) ?? (c.name ?? c.id), img: c.img ?? c.icon }));
+  }
+
+  /** The ones on them now (from their active effects). */
+  static active(actor) {
+    const on = actor?.statuses instanceof Set ? actor.statuses
+      : new Set((actor?.effects ?? []).filter(e => !e.disabled).flatMap(e => [...(e.statuses ?? [])]));
+    return TSLConditions.list().filter(c => on.has(c.id));
+  }
+
+  /** On or off — through the system, as the token HUD does it. */
+  static async toggle(actor, id, active = undefined) {
+    if (!TSLEmotions.canEdit(actor) || typeof actor.toggleStatusEffect !== "function") return false;
+    await actor.toggleStatusEffect(id, active === undefined ? {} : { active });
+    return true;
+  }
+}
+globalThis.TSLConditions = TSLConditions;

@@ -1101,3 +1101,41 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 .tsl-cx-more summary span { font-style: italic; color: var(--tsl-muted); }
 .tsl-cx-more p { margin: 4px 0; font-size: 13px; }
 .tsl-cx-where { margin-top: 8px; }
+
+/* The strip's Change button, and the palette in three groups */
+.tsl-fencing .tsl-state-edit {
+  width: auto; height: 26px; flex: 0 0 auto; margin: 0 0 0 auto; padding: 0 10px; box-shadow: none; cursor: pointer; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 5px; border-radius: 13px; border: 1px solid var(--tsl-border2);
+  background: var(--tsl-surface2); color: var(--tsl-soft); font-family: var(--tsl-title); font-size: 11px; letter-spacing: 0.03em;
+}
+.tsl-fencing .tsl-state-edit i { font-size: 10px; color: var(--tsl-accent); }
+.tsl-fencing .tsl-state-edit:hover, .tsl-fencing .tsl-state-edit.on { color: #fff; border-color: var(--tsl-accent); background: rgba(232, 85, 122, 0.16); }
+.tsl-state-pal { gap: 8px; }
+.tsl-pal-group { display: flex; flex-direction: column; gap: 4px; }
+.tsl-pal-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+.tsl-pal-head b { font-family: var(--tsl-title); font-weight: 400; font-size: 12px; letter-spacing: 0.05em; color: var(--tsl-text); }
+.tsl-pal-head b i { color: var(--tsl-accent); font-size: 11px; margin-right: 3px; }
+.tsl-pal-head span { font-size: 11.5px; color: var(--tsl-dim); }
+.tsl-feel-pair { display: inline-flex; align-items: center; gap: 4px; }
+.tsl-feel-to { font-size: 11.5px; color: var(--tsl-dim); }
+.tsl-fencing .tsl-cond {
+  width: auto; height: 24px; margin: 0; padding: 0 8px 0 5px; box-shadow: none; cursor: pointer; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 4px; border-radius: 12px; font-size: 11.5px; line-height: 1;
+  background: rgba(0, 0, 0, 0.25); color: var(--tsl-dim); border: 1px dashed var(--tsl-border2);
+}
+.tsl-fencing .tsl-cond img { width: 14px; height: 14px; border: none; opacity: 0.75; }
+.tsl-fencing .tsl-cond:hover { color: #fff; border-color: #9fb4c8; }
+.tsl-fencing .tsl-cond.on { color: #fff; border-style: solid; border-color: #9fb4c8; background: rgba(159, 180, 200, 0.2); }
+.tsl-fencing .tsl-cond.on img { opacity: 1; }
+.tsl-cond-tag {
+  display: inline-flex; align-items: center; gap: 5px; padding: 1px 4px 1px 6px; border-radius: 10px;
+  font-size: 12.5px; color: #e6eef5; background: rgba(159, 180, 200, 0.18); border: 1px solid rgba(159, 180, 200, 0.6);
+}
+.tsl-cond-tag img { width: 15px; height: 15px; border: none; }
+
+/* A String chip that is a switch */
+.tsl-fencing .tsl-hold-chip--btn { width: auto; height: auto; margin: 0; cursor: pointer; box-shadow: none; font-family: var(--tsl-body, inherit); }
+.tsl-fencing .tsl-hold-chip--btn:not(.on) { border-style: dashed; }
+.tsl-fencing .tsl-hold-chip--btn:hover { color: #fff; border-color: var(--tsl-sway); }
+.tsl-fencing .tsl-hold-chip--theirs.tsl-hold-chip--btn:hover { border-color: #e0786e; }
+.tsl-fencing .tsl-hold-chip--btn:disabled { opacity: 0.5; cursor: progress; }

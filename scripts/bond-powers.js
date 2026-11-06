@@ -2,9 +2,11 @@
  * tsl-social-conflict | bond-powers.js
  *
  * What a bond does beyond the talk (restored from v1.52–v2.0):
- *   • the AURA — standing near someone you have a bond with changes how you
- *     fight: each type its own levers (BOND_TYPES[*].aura), ±1 each, ×2 at
- *     ●●●; several bonds in reach sum, each lever capped at ±2;
+ *   • the AURA — standing near someone you have a bond with, in a fight or
+ *     not (the user, 2026-11-06: «має працювати всюди»): each type its own
+ *     levers (BOND_TYPES[*].aura), ±1 each, ×2 at ●●●; several bonds in reach
+ *     sum, each lever capped at ±2. Off the map, nobody carries one — a token
+ *     taken off or a scene changed leaves no aura behind;
  *   • the ●●● SIGNATURE — once per long rest (BOND_SIGNATURES): what it puts
  *     on the sheets ends after that one's next roll; the rest is the GM's to
  *     play. A long rest makes it ready again.
@@ -118,6 +120,13 @@ class TSLBondAuras {
     if (!game.user?.isGM || (game.users?.activeGM && !game.users.activeGM.isSelf) || !globalThis.canvas?.ready) return;
     const range = TSLBondAuras.range();
     const tokens = (canvas.tokens?.placeables ?? []).filter(t => t.actor);
+    // Nobody off this map keeps an aura: a token was removed, the scene changed.
+    const here = new Set(tokens.map(t => t.actor));
+    for (const a of (game.actors?.contents ?? [...(game.actors ?? [])])) {
+      if (here.has(a)) continue;
+      const stale = (a.effects ?? []).filter(e => e.flags?.[BOND_POWER_SCOPE]?.bondAura).map(e => e.id);
+      if (stale.length) { try { await a.deleteEmbeddedDocuments("ActiveEffect", stale); } catch (err) { console.error(`TSL | Bond aura cleanup failed on ${a.name}:`, err); } }
+    }
     for (const tok of tokens) {
       const actor = tok.actor;
       const tally = {}, lines = [];
