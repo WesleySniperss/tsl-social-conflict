@@ -174,6 +174,11 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
   page("chronicle-profile-npc-player", await chron(duke, "profile", {}, "player"), 560, 1000);
   page("chronicle-profile-pc", await chron(lyra, "profile", {}, "player"), 560, 620);
   page("chronicle-bonds", await chron(lyra, "bonds", { _expandedBonds: new Set(BS.getList("lyra").map((b) => b.id)) }, "player"), 560, 1300);
+  page("chronicle-bonds-shut", await chron(lyra, "bonds", {}, "player"), 560, 560);
+  page("chronicle-bonds-gm", await chron(lyra, "bonds", {}), 560, 560);
+  page("chronicle-state-gm", await chron(roell, "profile", { _stateOpen: true }), 560, 700);
+  page("chronicle-state-pc", await chron(lyra, "talk", { _stateOpen: true, _tTarget: "roell" }), 560, 900);
+  page("chronicle-talk-locked", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "demand" }, "player"), 560, 1100);
   page("chronicle-talk-player", await chron(mira, "talk", { _tTarget: "ilse", _tTech: "appeal", _tSize: "costly", _tHelper: "lyra", _tLever: "desire", _tWitnesses: true }, "player"), 560, 1250);
   page("chronicle-talk-blackmail", await chron(mira, "talk", { _tTarget: "ilse", _tTech: "blackmail", _tSize: "against" }, "player"), 560, 1150);
   page("chronicle-talk-read", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "read" }, "player"), 560, 1050);
@@ -195,8 +200,8 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
   page("chronicle-talk-gm", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "bargain" }), 560, 1250);
   page("chronicle-talk-npc-gm", await chron(ilse, "talk"), 560, 2400);
   page("chronicle-talk-npc-word", await chron(roell, "talk"), 560, 2400);
-  for (const cat of ["start", "ap", "read", "emo", "natures", "bonds", "gm"]) {
-    page(`chronicle-codex-${cat}`, await chron(lyra, "codex", { _codexCat: cat }), 560, 1500);
+  for (const cat of ["start", "roll", "people", "emo", "strings", "bonds", "gm"]) {
+    page(`chronicle-codex-${cat}`, await chron(lyra, "codex", { _codexCat: cat }), 560, 2600);
   }
 
   // ── The Social Scene: a board — captions, a pinned note, a selection ──

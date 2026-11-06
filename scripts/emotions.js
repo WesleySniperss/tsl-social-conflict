@@ -182,7 +182,7 @@ class TSLEmotions {
    * the table sees what it opens — or, on a character, what it costs. GM client.
    * Returns "added" | "removed" | null.
    */
-  static async mark(actor, id, { toward = null } = {}) {
+  static async mark(actor, id, { toward = null, title = null } = {}) {
     const e = EMOTIONS[id];
     if (!game.user.isGM || !actor || !e) return null;
     if (id === "guilty" && !toward) return null;
@@ -197,12 +197,31 @@ class TSLEmotions {
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor }),
       content: `<div class="tsl-x-card tsl-x--success tsl-x-card--slim">
-        <div class="tsl-x-head"><i class="fas fa-comments"></i><span class="tsl-x-title">${_t("The words landed")}</span></div>
+        <div class="tsl-x-head"><i class="fas fa-comments"></i><span class="tsl-x-title">${title ? esc(title) : _t("The words landed")}</span></div>
         <div class="tsl-x-who">${_t("{img} {who} is <b>{emotion}</b> — {opens}.", { img: `<img class="tsl-emo-ico" src="${e.img}" alt="">`,
           who: esc(actor.name), emotion: esc(to ? `${e.label} → ${to}` : e.label), opens: esc(SocialArchetypeManager.isPC(actor) ? e.spoilsText : e.opensText) })}</div>
       </div>`,
     });
     return "added";
+  }
+
+  /** The GM puts a scar on by hand (the story left one). Once each. One line in the chat. */
+  static async addScar(actor, scarId) {
+    const scar = SCARS[scarId];
+    if (!game.user.isGM || !actor || !scar || TSLEmotions.scars(actor).includes(scarId)) return false;
+    await actor.createEmbeddedDocuments("ActiveEffect", [{
+      name: _t("Scar — {scar}", { scar: scar.label }), img: "icons/svg/blood.svg", description: scar.text,
+      flags: { [EMOTION_SCOPE]: { scar: scar.id } },
+    }]);
+    const esc = foundry.utils.escapeHTML;
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor }),
+      content: `<div class="tsl-x-card tsl-x--botch tsl-x-card--slim">
+        <div class="tsl-x-head"><img class="tsl-emo-ico" src="icons/svg/blood.svg" alt=""><span class="tsl-x-title">${_t("{who} carries a scar: {scar}", { who: esc(actor.name), scar: esc(scar.label) })}</span></div>
+        <div class="tsl-x-who">${esc(scar.text)}</div>
+      </div>`,
+    });
+    return true;
   }
 
   /** The GM wipes a scar (a story turn earned it). */

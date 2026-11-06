@@ -242,8 +242,83 @@ class SocialFencingApp extends _SocialAppBase {
                               this._buildProfileTab(ctx);
     return `<div class="tsl-chr">
       <nav class="tsl-tabs">${tabBtns}</nav>
+      ${this._stateStrip(ctx)}
       <div class="tsl-body">${body}</div>
     </div>`;
+  }
+
+  /**
+   * What weighs on this person right now — their emotions and scars — on every
+   * tab, so nobody has to go looking. Everyone who opens the Chronicle sees it;
+   * its owner and the GM let an emotion go (×); the GM opens the palette (+)
+   * and puts on or takes off any emotion or scar with one click.
+   */
+  _stateStrip(ctx) {
+    const esc = foundry.utils.escapeHTML;
+    const a = this._actor;
+    const isGM = game.user.isGM;
+    const tags = this._emotionTags(a, { canClear: ctx.canEdit, effects: ctx.isPC ? "mine" : "theirs", scars: true, scarX: isGM });
+    const open = isGM && this._stateOpen;
+    return `<div class="tsl-state ${open ? "open" : ""}">
+      <div class="tsl-state-row">
+        <span class="tsl-state-label" data-tooltip="${esc(_t("Emotions: −2 somewhere for whoever feels one, +2 for whoever plays on it, until it's let go (×). A scar stays for good."))}"><i class="fas fa-heart-pulse"></i> ${_t("Feels")}</span>
+        <div class="tsl-state-tags">${tags || `<span class="tsl-state-none">${_t("nothing right now")}</span>`}</div>
+        ${isGM ? `<button type="button" class="tsl-state-add ${open ? "on" : ""}" data-state-open aria-label="${esc(_t("Emotions and scars"))}"
+          data-tooltip="${esc(open ? _t("Close") : _t("Put on or take off an emotion or a scar — no roll"))}"><i class="fas fa-${open ? "xmark" : "plus"}"></i></button>` : ""}
+      </div>
+      ${open ? this._statePalette(a) : ""}
+    </div>`;
+  }
+
+  /** The GM's palette: every emotion and scar as a switch — on, off, one click. Guilt is owed to someone. */
+  _statePalette(a) {
+    const esc = foundry.utils.escapeHTML;
+    const feels = TSLEmotions.of(a), scars = TSLEmotions.scars(a);
+    const pc = SocialArchetypeManager.isPC(a);
+    const people = this._peopleOf(a);
+    const guilt = feels.find(f => f.id === "guilty");
+    const towardSel = people.length ? `<select class="tsl-state-toward" data-tooltip="${esc(_t("Guilty toward whom"))}">${people.map(p =>
+      `<option value="${p.id}" ${guilt?.toward === p.id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>` : "";
+    const emo = EMOTION_ORDER.map(id => {
+      const d = EMOTIONS[id], on = feels.some(f => f.id === id);
+      return `<button type="button" class="tsl-feel ${on ? "on" : ""}" data-state-emo="${id}" style="--c:${d.color}"
+        data-tooltip="${esc(`<b>${d.label}</b> — ${pc ? d.spoilsText : d.opensText}.<br>${on ? _t("Click to take it off.") : _t("Click to put it on.")}`)}"><img src="${d.img}" alt=""> ${esc(d.label)}</button>${id === "guilty" ? towardSel : ""}`;
+    }).join("");
+    const sc = Object.values(SCARS).map(s => {
+      const on = scars.includes(s.id);
+      return `<button type="button" class="tsl-feel tsl-feel--scar ${on ? "on" : ""}" data-state-scar="${s.id}"
+        data-tooltip="${esc(`<b>${_t("Scar — {scar}", { scar: s.label })}</b> (${EMOTIONS[s.from].label})<br>${s.text}<br>${on ? _t("Click to take it off.") : _t("Click to put it on.")}`)}"><img src="icons/svg/blood.svg" alt=""> ${esc(s.label)}</button>`;
+    }).join("");
+    return `<div class="tsl-state-pal">
+      <div class="tsl-q">${_t("Emotions")}</div><div class="tsl-feels">${emo}</div>
+      ${pc ? `<div class="tsl-q">${_t("Scars")}</div><div class="tsl-feels">${sc}</div>` : ""}
+      <p class="tsl-note">${_t("Your call from the scene — no roll. Putting one on posts a line in the chat; taking one off doesn't.")}</p>
+    </div>`;
+  }
+
+  /** Who someone could feel guilty toward: the people they're bonded with, and everyone on this map. */
+  _peopleOf(a) {
+    const out = new Map();
+    for (const b of TSLBondStore.getList(a.id)) { const x = game.actors.get(b.targetActorId); if (x) out.set(x.id, x); }
+    for (const t of (canvas?.tokens?.placeables ?? [])) { const x = t.actor ? (game.actors.get(t.actor.id) ?? t.actor) : null; if (x && !out.has(x.id)) out.set(x.id, x); }
+    out.delete(a.id);
+    // The characters first — guilt is most often owed to one of them.
+    const pc = (x) => (SocialArchetypeManager.isPC(x) ? 0 : 1);
+    return [...out.values()].sort((x, y) => pc(x) - pc(y) || (x.name ?? "").localeCompare(y.name ?? ""));
+  }
+
+  /** The GM's switch: put an emotion or a scar on, or take it off. */
+  async _toggleState(kind, id, toward = null) {
+    if (!game.user.isGM) return;
+    const a = this._actor;
+    if (kind === "scar") {
+      if (TSLEmotions.scars(a).includes(id)) await TSLEmotions.removeScar(a, id);
+      else await TSLEmotions.addScar(a, id);
+      return;
+    }
+    if (id === "guilty" && !toward) toward = this._peopleOf(a)[0]?.id ?? null;
+    if (id === "guilty" && !toward) { ui.notifications.warn(_t("Guilty is owed to someone — give them a bond, or put that person on the map.")); return; }
+    await TSLEmotions.mark(a, id, { toward, title: _t("The GM marks it") });
   }
 
   // ── Profile ─────────────────────────────────────────────────────────────────
@@ -286,12 +361,6 @@ class SocialFencingApp extends _SocialAppBase {
         <div class="tsl-sec-head"><span class="tsl-sec-title">${_t("Your maneuvers")}</span></div>
         <p class="tsl-note">${_t("Straight from {name}'s sheet: each maneuver rolls the better of its two skills, and the other backs it (+{n}, your proficiency) if {name} is trained in it. Best first — play to your strengths, and let the party do the rest.", { name, n: TSLTalk.profBonus(this._actor) })}</p>
         <div class="tsl-mine">${rows}</div>
-      </section>
-      <section class="tsl-sec">
-        <div class="tsl-sec-head"><span class="tsl-sec-title">${_t("Emotions & scars")}</span></div>
-        ${this._emotionRow(this._actor, { label: _t("Now"), canClear: canEdit, scars: true, effects: "mine" })
-          || `<p class="tsl-note">${_t("Nothing weighs on {name} right now.", { name })}</p>`}
-        <p class="tsl-note">${_t("Miss against someone and they hit back with their emotion; a String spent on you can do it too. Each costs −2 somewhere until you act it out. Take one you already carry, and it leaves a scar — for good.")}</p>
       </section>
       <section class="tsl-sec">
         <div class="tsl-sec-head"><span class="tsl-sec-title">${_t("Notes")}</span></div>
@@ -357,10 +426,8 @@ class SocialFencingApp extends _SocialAppBase {
     const learned = isGM ? "" : READ_ORDER.filter(q => known[q] && (!carded || q === "desire" || q === "fear") && (q !== "mask" || shows)).map(q =>
       `<span>${esc(READ_QUESTIONS[q].short)}</span><span>${esc(TSLTalk.answerFor(npc, q))}</span>`).join("");
 
-    const feeling = this._emotionRow(npc, { label: _t("Feeling"), canClear: isGM });
     return `
       ${natureSec}
-      ${feeling ? `<section class="tsl-sec">${feeling}</section>` : ""}
       <section class="tsl-sec">
         <div class="tsl-sec-head"><span class="tsl-sec-title">${_t("What the party knows")}</span></div>
         <div class="tsl-known-row">${knownChips}</div>
@@ -407,9 +474,19 @@ class SocialFencingApp extends _SocialAppBase {
 
   // ── Bonds ───────────────────────────────────────────────────────────────────
 
+  /**
+   * Every bond at once — who, what you are to each other, how deep, and the
+   * Strings both ways (ticked when they're there) — without opening anything.
+   * The GM changes the type, the dots and either String right in the row; a
+   * player lowers their dots and sees the rest. "What it gives" opens the
+   * type's powers, Invest / Pull, the caption and private notes. A bond can be
+   * made with anyone: by name, by dragging an actor in, or from the map.
+   */
   _buildBondsTab({ bonds, canEdit }) {
     const esc = foundry.utils.escapeHTML;
     const dis = canEdit ? "" : "disabled";
+    const isGM = game.user.isGM;
+    const me = this._actor;
     const typeOpts = (sel) => BOND_TYPES.map(t => `<option value="${t.id}" ${SocialArchetypeManager.getBondType(sel).id === t.id ? "selected" : ""}>${esc(t.label)}</option>`).join("");
 
     const rows = bonds.length ? bonds.map(b => {
@@ -418,35 +495,34 @@ class SocialFencingApp extends _SocialAppBase {
       const ap   = APPROACHES[SocialArchetypeManager.bondApproach(type.id)];
       const open = this._expandedBonds.has(b.id);
       // Only the GM sets the dots by hand; a player raises them by investing a String (lowering is theirs).
-      const raiseLocked = (v) => !game.user.isGM && v > str;
+      const raiseLocked = (v) => !isGM && v > str;
       const strTrack = [0, 1, 2, 3].map(v => `<button type="button" class="tsl-str ${v === 0 ? "zero" : ""} ${v > 0 && v <= str ? "on" : ""} ${v === str ? "cur" : ""}"
           data-bond-id="${b.id}" data-strength="${v}" ${canEdit && !raiseLocked(v) ? "" : "disabled"} data-tooltip="${esc(raiseLocked(v) ? _t("Raise it by investing a String on them.") : v === 0 ? _t("Faded — no effect")
-            : `${"●".repeat(v)}${ap ? ` — ${_t("+{n} when you ask them with {approach}", { n: v, approach: ap.label })}` : ""}`)}">${v === 0 ? "✕" : ""}</button>`).join("");
+            : `${"●".repeat(v)} — ${_t("How deep it runs, 0–3 ●.")}`)}">${v === 0 ? "✕" : ""}</button>`).join("");
+      // The type is the story's: the GM's to set. Everyone else sees it.
+      const typeCtl = isGM
+        ? `<select class="tsl-bond-type" data-bond-id="${b.id}" style="--c:${ap?.color ?? "#8a7d72"}" data-tooltip="${esc(type.hint)}">${typeOpts(b.type)}</select>`
+        : `<span class="tsl-bond-type-tag" style="--c:${ap?.color ?? "#8a7d72"}" data-tooltip="${esc(type.hint)}"><i class="fas ${type.icon}"></i> ${esc(type.label)}</span>`;
+      // The Strings, both ways: the GM puts them on and takes them off; a player can drop their own.
+      const adj = (dir, n) => {
+        const plus = isGM ? `<button type="button" class="tsl-hold-adj" data-hold-adj="${dir}" data-by="1" data-target="${b.targetActorId}" ${n >= STRING_CAP ? "disabled" : ""}
+          data-tooltip="${esc(dir === "mine" ? _t("Give {name} a String on them — they opened up in play: a confession, a secret, a favour owed", { name: me.name }) : _t("Give them a String on {name}", { name: me.name }))}">+</button>` : "";
+        const minus = (isGM || (dir === "mine" && canEdit)) ? `<button type="button" class="tsl-hold-adj" data-hold-adj="${dir}" data-by="-1" data-target="${b.targetActorId}" ${n ? "" : "disabled"}
+          data-tooltip="${esc(_t("Take the String off"))}">−</button>` : "";
+        return plus + minus;
+      };
       const fresh = type.id === "stranger";
       const canInvest = b.stringCount > 0 && (fresh || (type.hostile ? str > 0 : str < 3));
       const details = !open ? "" : `
         <div class="tsl-bond-body">
-          <div class="tsl-field-row">
-            <label data-tooltip="${esc(type.hint)}">${_t("Bond")}</label>
-            <select class="tsl-bond-type" data-bond-id="${b.id}" ${dis}>${typeOpts(b.type)}</select>
-            ${canEdit ? `<button type="button" class="tsl-icon-btn tsl-bond-remove" data-bond-id="${b.id}" data-tooltip="${esc(_t("End this bond (on both sides)"))}"><i class="fas fa-trash"></i></button>` : ""}
-          </div>
-          <div class="tsl-field-row">
-            <label data-tooltip="${esc(`${_t("How deep it runs, 0–3 ●.")} ${_t("It grows when you invest a String in it; the GM sets it by hand. A roll never changes who you are to each other.")}`)}">${_t("Strength")}</label>
-            <span class="tsl-str-track">${strTrack}</span>
-          </div>
+          <p class="tsl-note tsl-bond-hint"><i class="fas ${type.icon}"></i> ${esc(type.hint)}</p>
           ${this._bondPowersHTML(b, type, str, canEdit)}
-          <div class="tsl-field-row">
-            <label data-tooltip="${esc(_t("What you have on them — one at a time: won on a roll against them, lost on a miss. Spend it: they agree with no roll (Talk → Remind them), +5 after a miss, invest it in this bond, or Pull it in a fight. Holding it is leverage for an ask against their interests."))}">${_t("String")}</label>
-            <span class="tsl-strings">${"●".repeat(b.stringCount)}${"○".repeat(Math.max(0, STRING_CAP - b.stringCount))}</span>
-            ${canEdit ? `
-              ${game.user.isGM ? `<button type="button" class="tsl-icon-btn" data-str-adj="1" data-target="${b.targetActorId}" ${b.stringCount >= STRING_CAP ? "disabled" : ""} data-tooltip="${esc(_t("Give them a String on this person — when they open up in play: a confession, a secret, a favour owed (the GM's call)"))}">+</button>` : ""}
-              <button type="button" class="tsl-icon-btn" data-str-adj="-1" data-target="${b.targetActorId}" ${b.stringCount ? "" : "disabled"} data-tooltip="${esc(_t("Remove a String"))}">−</button>
-              <button type="button" class="tsl-btn tsl-pull" data-invest="${b.targetActorId}" ${canInvest ? "" : "disabled"}
-                data-tooltip="${esc(type.hostile ? _t("MAKE PEACE — spend your String on them: the hostile bond eases −1 ●. Both of you see it.") : fresh ? _t("INVEST — spend your String on them: you choose what you become to each other, at ●. Both of you see it.") : _t("INVEST — spend your String on them: +1 ● in this bond. Both of you see it."))}">${type.hostile ? _t("Make peace") : _t("Invest +1 ●")}</button>
-              <button type="button" class="tsl-btn tsl-pull" data-pull="${b.targetActorId}" ${b.stringCount ? "" : "disabled"}
-                data-tooltip="${esc(_t("PULL — burn one: STRIKE (+5 to your next attack, check or save against them) or GUARD (+5 AC against their next attack). It goes on your sheet and ends itself once used."))}">${_t("Pull +5")}</button>` : ""}
-          </div>
+          ${canEdit ? `<div class="tsl-bond-acts">
+            <button type="button" class="tsl-btn tsl-pull" data-invest="${b.targetActorId}" ${canInvest ? "" : "disabled"}
+              data-tooltip="${esc(type.hostile ? _t("MAKE PEACE — spend your String on them: the hostile bond eases −1 ●. Both of you see it.") : fresh ? _t("INVEST — spend your String on them: you choose what you become to each other, at ●. Both of you see it.") : _t("INVEST — spend your String on them: +1 ● in this bond. Both of you see it."))}">${type.hostile ? _t("Make peace") : _t("Invest +1 ●")}</button>
+            <button type="button" class="tsl-btn tsl-pull" data-pull="${b.targetActorId}" ${b.stringCount ? "" : "disabled"}
+              data-tooltip="${esc(_t("PULL — burn one: STRIKE (+5 to your next attack, check or save against them) or GUARD (+5 AC against their next attack). It goes on your sheet and ends itself once used."))}">${_t("Pull +5")}</button>
+          </div>` : ""}
           <div class="tsl-field-row">
             <label data-tooltip="${esc(_t("A few words on the line between you on the relationship map — both of you see it."))}">${_t("Caption")}</label>
             <input type="text" class="tsl-bond-label" data-bond-id="${b.id}" maxlength="60" value="${esc(b.label ?? "")}" placeholder="${esc(_t("e.g. sisters · a debt for a rescue"))}" ${dis}>
@@ -454,34 +530,81 @@ class SocialFencingApp extends _SocialAppBase {
           <input type="text" class="tsl-bond-notes" data-bond-id="${b.id}" value="${esc(b.notes ?? "")}" placeholder="${esc(_t("History, debts, secrets between you… (only you see this)"))}" ${dis}>
         </div>`;
       return `<div class="tsl-bond ${open ? "open" : ""}">
-        <div class="tsl-bond-head" data-bond-toggle="${b.id}">
+        <div class="tsl-bond-line">
           <img src="${b.targetImg}" alt="">
           <span class="tsl-bond-name">${esc(b.targetName)}</span>
-          <span class="tsl-bond-type-tag" style="--c:${ap?.color ?? "#8a7d72"}" data-tooltip="${esc(type.hint)}"><i class="fas ${type.icon}"></i> ${esc(type.label)}</span>
-          <span class="tsl-bond-dots">${str ? "●".repeat(str) : "○"}</span>
-          ${b.stringCount ? `<span class="tsl-bond-strings" data-tooltip="${esc(_t("You have something on them"))}"><i class="fas fa-masks-theater"></i></span>` : ""}
-          ${b.theirCount ? `<span class="tsl-bond-strings tsl-bond-strings--theirs" data-tooltip="${esc(_t("They have something on you"))}"><i class="fas fa-masks-theater"></i></span>` : ""}
-          <i class="fas fa-chevron-${open ? "up" : "down"} tsl-bond-chev"></i>
+          ${typeCtl}
+          <span class="tsl-str-track">${strTrack}</span>
+          ${canEdit ? `<button type="button" class="tsl-icon-btn tsl-bond-remove" data-bond-id="${b.id}" data-name="${esc(b.targetName)}" aria-label="${esc(_t("End this bond (on both sides)"))}" data-tooltip="${esc(_t("End this bond (on both sides)"))}"><i class="fas fa-trash"></i></button>` : ""}
+        </div>
+        <div class="tsl-bond-sub">
+          ${this._holdChip("mine", b.stringCount, adj("mine", b.stringCount))}
+          ${this._holdChip("theirs", b.theirCount, adj("theirs", b.theirCount))}
+          <button type="button" class="tsl-bond-more" data-bond-toggle="${b.id}">${open ? _t("Less") : _t("What it gives")} <i class="fas fa-chevron-${open ? "up" : "down"}"></i></button>
         </div>
         ${details}
       </div>`;
     }).join("") : `<p class="tsl-note tsl-empty">${_t("No bonds yet.")}</p>`;
 
+    // A bond with anyone: by name, from the map, or an actor dragged in from the sidebar.
     const aimed = this._targeted();
     const picking = this._picking && this._pickMode === "bond";
-    const add = canEdit ? `<div class="tsl-add-row tsl-add-row--pick">
-        <span class="tsl-note">${_t("Add a bond:")}</span>
-        ${aimed && !TSLBondStore.find(this._actor.id, aimed.id) ? `<button type="button" class="tsl-btn" data-bond-target="${aimed.id}"
-          data-tooltip="${esc(_t("The token you've targeted on the map (T)"))}"><i class="fas fa-bullseye"></i> ${esc(aimed.name)}</button>` : ""}
-        <button type="button" class="tsl-btn ${picking ? "picking" : ""}" data-bond-pick
-          data-tooltip="${esc(_t("Click a token on the map to bond with it. Esc cancels."))}"><i class="fas fa-crosshairs"></i> ${picking ? _t("Click a token…") : _t("Pick on the map")}</button>
+    const listId = `tsl-bond-who-${me.id}`;
+    const add = canEdit ? `<div class="tsl-bond-add">
+        <span class="tsl-q">${_t("Add a bond")}</span>
+        <div class="tsl-bond-add-row">
+          <input type="text" class="tsl-bond-find" list="${listId}" placeholder="${esc(_t("A name…"))}" autocomplete="off">
+          <datalist id="${listId}">${this._bondCandidates().map(a => `<option value="${esc(a.name)}"></option>`).join("")}</datalist>
+          <button type="button" class="tsl-btn" data-bond-find data-tooltip="${esc(_t("Add a bond with whoever has this name"))}"><i class="fas fa-plus"></i></button>
+          ${aimed && !TSLBondStore.find(me.id, aimed.id) ? `<button type="button" class="tsl-btn" data-bond-target="${aimed.id}"
+            data-tooltip="${esc(_t("The token you've targeted on the map (T)"))}"><i class="fas fa-bullseye"></i> ${esc(aimed.name)}</button>` : ""}
+          <button type="button" class="tsl-btn ${picking ? "picking" : ""}" data-bond-pick
+            data-tooltip="${esc(_t("Click a token on the map to bond with it. Esc cancels."))}"><i class="fas fa-crosshairs"></i> ${picking ? _t("Click a token…") : _t("On the map")}</button>
+        </div>
+        <span class="tsl-note">${_t("…or drag an actor in from the sidebar.")}</span>
       </div>` : "";
 
-    return `<section class="tsl-sec">
+    return `<section class="tsl-sec tsl-bonds-sec">
       <div class="tsl-sec-head"><span class="tsl-sec-title">${_t("Bonds")}</span></div>
       ${add}
       <div class="tsl-bonds">${rows}</div>
     </section>`;
+  }
+
+  /** Who this character could bond with: every actor this user can see, but themselves and those already bonded. */
+  _bondCandidates() {
+    const me = this._actor;
+    return (game.actors?.contents ?? [...(game.actors ?? [])])
+      .filter(a => a && a.id !== me.id && !TSLBondStore.find(me.id, a.id)
+        && (game.user.isGM || (a.testUserPermission?.(game.user, "LIMITED") ?? true)))
+      .sort((x, y) => (x.name ?? "").localeCompare(y.name ?? ""));
+  }
+
+  /** Make a bond with someone, or open the one there is. */
+  async _bondWith(actor) {
+    if (!actor || actor.id === this._actor.id) return;
+    const had = TSLBondStore.find(this._actor.id, actor.id);
+    const entry = had ?? await TSLBondStore.add(this._actor.id, actor.id);
+    if (!entry) return;
+    if (!had) ui.notifications.info(_t("Bond added: {a} → {b}", { a: this._actor.name, b: actor.name }));
+    this._expandedBonds.add(entry.id);
+    this.render(false);
+  }
+
+  /** Yes or no, in the module's dark dialog. */
+  _confirm(title, text) {
+    return new Promise(resolve => {
+      new Dialog({
+        title,
+        content: `<div class="tsl-dlg"><p>${text}</p></div>`,
+        buttons: {
+          yes: { icon: '<i class="fas fa-check"></i>', label: _t("Yes"), callback: () => resolve(true) },
+          no: { label: _t("No"), callback: () => resolve(false) },
+        },
+        default: "no",
+        close: () => resolve(false),
+      }, tslDialogOptions()).render(true);
+    });
   }
 
   /**
@@ -567,9 +690,7 @@ class SocialFencingApp extends _SocialAppBase {
     const picking = this._picking && this._pickMode === "target";
     const pick = `<button type="button" class="tsl-btn tsl-t-pick ${picking ? "picking" : ""}" data-t-pick data-tooltip="${esc(_t("Click an NPC's token on the map — or target it (T). Esc cancels."))}">
         <i class="fas fa-crosshairs"></i> ${picking ? _t("Click their token…") : tgt ? _t("Someone else") : _t("Pick on the map")}</button>`;
-    const mine = this._emotionRow(me, { label: _t("You"), canClear: ctx.canEdit, scars: true, effects: "mine" });
     return `
-      ${mine ? `<section class="tsl-sec tsl-you">${mine}</section>` : ""}
       ${tgt ? this._personPanel(tgt, { ...ctx, speaker: me }, pick) : `<section class="tsl-sec tsl-t-who">
         <p class="tsl-note">${_t("<b>Who are you talking to?</b> Target their token on the map — hover it and press <b>T</b> — or pick it:")}</p>
         ${pick}
@@ -633,12 +754,9 @@ class SocialFencingApp extends _SocialAppBase {
       `<span data-tooltip="${esc(READ_QUESTIONS[q].label)}">${esc(READ_QUESTIONS[q].short.toLowerCase())}</span>`).join(", ")}. ${_t("Watch how they take your words — or read them.")}</div>`;
     const know = rows || more ? `<div class="tsl-know-wrap">${rows ? `<div class="tsl-know-head">${_t("What the party knows")}</div><div class="tsl-know">${rows}</div>` : ""}${more}</div>` : "";
 
-    // The holds between the speaker and them — Strings either way (Talk only).
+    // The Strings between the speaker and them, either way — right under the name, ticked or not (Talk only).
     const sp = ctx.speaker;
-    const mine = sp ? TSLStringStore.countOn(sp.id, npc.id) : 0, theirs = sp ? TSLStringStore.countOn(npc.id, sp.id) : 0;
-    const holds = !(mine || theirs) ? "" : `<div class="tsl-holds">${mine ? `<span class="tsl-hold tsl-hold--mine" data-tooltip="${esc(_t("What you have on them. Spend it: they agree with no roll (Remind them), +5 after a miss, invest it in your bond, or Pull it in a fight."))}">
-        <i class="fas fa-masks-theater"></i> ${_t("You hold")} <b>${"●".repeat(mine)}</b></span>` : ""}${theirs ? `<span class="tsl-hold tsl-hold--theirs" data-tooltip="${esc(_t("What they have on you. It powers their moves — at your roll, in the talk, beyond the scene — or a Pull in a fight. Answer one with your own String: Quits."))}">
-        <i class="fas fa-masks-theater"></i> ${_t("They hold")} <b>${"●".repeat(theirs)}</b></span>` : ""}</div>`;
+    const holds = sp ? `<span class="tsl-x-holds">${this._holdChip("mine", TSLStringStore.countOn(sp.id, npc.id))}${this._holdChip("theirs", TSLStringStore.countOn(npc.id, sp.id))}</span>` : "";
 
     // The word the speaker gave them (a Deal), until the GM marks how it ended.
     const word = !sp ? "" : TSLTalk.deals(npc).filter(d => d.byId === sp.id).map(d => `<div class="tsl-word" data-tooltip="${esc(_t("Keep it, and their String on you goes; break it, and yours on them burns. The GM marks it."))}">
@@ -654,12 +772,11 @@ class SocialFencingApp extends _SocialAppBase {
     return `<section class="tsl-sec tsl-x-panel">
       <div class="tsl-x-top">
         <img class="tsl-x-portrait" src="${npc.img ?? "icons/svg/mystery-man.svg"}" alt="">
-        <div class="tsl-x-id"><span class="tsl-x-name">${esc(npc.name)}</span>${nature}</div>
+        <div class="tsl-x-id"><span class="tsl-x-name">${esc(npc.name)}</span>${nature}${holds}</div>
         <span class="tsl-x-phase" data-tooltip="${esc(_t("Their DC: 10 + proficiency + the better of WIS/INT. A small ask is 4 easier, one against their interests 4 harder."))}">${_t("DC {dc}", { dc: TSLTalk.dcFor(npc).dc })}</span>
         ${pick}
       </div>
       ${know}
-      ${holds}
       ${word}
       ${lied}
       ${this._emotionRow(npc, { label: _t("Feeling"), canClear: isGM, effects: "theirs" })}
@@ -691,7 +808,30 @@ class SocialFencingApp extends _SocialAppBase {
    * shows what each costs the one who feels it, "theirs" what it opens for
    * others. × lets an emotion go (its owner or the GM).
    */
-  _emotionRow(actor, { label = _t("Feeling"), canClear = false, scars = false, effects = null } = {}) {
+  _emotionRow(actor, { label = _t("Feeling"), ...opts } = {}) {
+    const tags = this._emotionTags(actor, opts);
+    return tags ? `<div class="tsl-emos"><span class="tsl-row-label">${label}</span>${tags}</div>` : "";
+  }
+
+  /**
+   * A String, one way, at a glance — ticked when it's there, a dash when it
+   * isn't. `mine`: this character has something on them; `theirs`: they have
+   * something on this character. `controls` — the GM's + / − beside it.
+   */
+  _holdChip(dir, n, controls = "") {
+    const esc = foundry.utils.escapeHTML;
+    const mine = dir === "mine";
+    const tip = mine
+      ? (n ? _t("You have something on them. Spend it: they agree with no roll (Talk → Remind them), +5 after a miss, invest it in your bond, or Pull it in a fight.")
+        : _t("Nothing on them yet. A strong win against them (5 over the DC, or a 20) gives you one; the GM can give you one from the talk."))
+      : (n ? _t("They have something on you. It powers their moves — at your roll, in the talk, beyond the scene — or a Pull in a fight. Answer one with your own String: Quits.")
+        : _t("They have nothing on you. A bad miss against them (5 under the DC, or a 1) — or a win that costs one — gives them one."));
+    const icon = n ? (mine ? "fa-check" : "fa-triangle-exclamation") : "fa-minus";
+    return `<span class="tsl-hold-chip tsl-hold-chip--${dir} ${n ? "on" : ""}" data-tooltip="${esc(tip)}"><i class="fas ${icon}"></i> ${mine ? _t("String on them") : _t("String on you")}${controls}</span>`;
+  }
+
+  /** The tags themselves: each emotion (× to let it go) and, with `scars`, each scar (× for the GM: `scarX`). */
+  _emotionTags(actor, { canClear = false, scars = false, scarX = false, effects = null } = {}) {
     const esc = foundry.utils.escapeHTML;
     const emos = TSLEmotions.of(actor);
     const sc = scars ? TSLEmotions.scars(actor) : [];
@@ -710,8 +850,9 @@ class SocialFencingApp extends _SocialAppBase {
         ? ` <small class="tsl-emo-eff">${esc(eff)}</small>` : ""}${canClear
         ? `<button type="button" class="tsl-emo-x" data-emo-clear="${actor.id}" data-emo="${e.id}" aria-label="${esc(_t("Let it go"))}" data-tooltip="${esc(_t("Let it go — act it out, or a friend's comfort"))}">×</button>` : ""}</span>`;
     }).join("");
-    const scarTags = sc.map(id => `<span class="tsl-scar" data-tooltip="${esc(`<b>${_t("Scar — {scar}", { scar: SCARS[id].label })}</b><br>${SCARS[id].text}`)}"><img src="icons/svg/blood.svg" alt=""> ${esc(SCARS[id].label)}</span>`).join("");
-    return `<div class="tsl-emos"><span class="tsl-row-label">${label}</span>${tags}${scarTags}</div>`;
+    const scarTags = sc.map(id => `<span class="tsl-scar" data-tooltip="${esc(`<b>${_t("Scar — {scar}", { scar: SCARS[id].label })}</b><br>${SCARS[id].text}`)}"><img src="icons/svg/blood.svg" alt=""> ${esc(SCARS[id].label)}${scarX
+      ? `<button type="button" class="tsl-emo-x" data-scar-clear="${id}" aria-label="${esc(_t("Take the scar off"))}" data-tooltip="${esc(_t("Take the scar off — a story turn healed it"))}">×</button>` : ""}</span>`).join("");
+    return tags + scarTags;
   }
 
   /** What the speaker is doing: asking, intimidating, lying or reading — from the maneuver picked, or else the button pressed. */
@@ -743,8 +884,12 @@ class SocialFencingApp extends _SocialAppBase {
     const lieWay = { pressure: _t("a threat you can't back up"), heart: _t("feelings you don't have"), reason: _t("proof that isn't, a deal you won't keep") };
     const lineOf = (t) => t.anyWay ? (lieWay[ap] ?? t.line) : t.line;
     const pct = (c) => `${Math.round(c.p * 100)}%`;
-    const lockOf = (id) => id === "blackmail" && !known.fear && !strings ? _t("needs their Fear or a String on them")
-      : id === "seduce" && !known.desire && tie < 2 ? _t("needs their Desire or a bond ●●") : null;
+    // All in needs its own leverage — say what is missing, and how to get it.
+    const lockOf = (id) => id === "blackmail" && !known.fear && !strings
+      ? { text: _t("nothing to blackmail them with yet"), why: _t("Blackmail needs something on them: their <b>Fear</b> — the party learns it from a Read, or the GM marks it when it comes out in the talk — or a <b>String</b> on them (a strong win against them). Until then, threaten them plainly: a Demand.") }
+      : id === "seduce" && !known.desire && tie < 2
+      ? { text: _t("needs their Desire or a bond ●●"), why: _t("Seduce plays on what they want, or on what is between you: their <b>Desire</b> — from a Read, or the GM marks it when it comes out in the talk — or a bond of ●● or more. Until then, ask from the heart: an Appeal.") }
+      : null;
     // A maneuver's two skills: the one that rolls in bold, a tick on the one that backs it.
     const skillsOf = (tech, pv) => tech.skills.map(k => k === pv.skill ? `<b>${esc(SKILL_LABELS[k] ?? k)}</b>`
       : `${esc(SKILL_LABELS[k] ?? k)}${pv.backed && k === pv.support ? ` <i class="fas fa-check" data-tooltip="${esc(_t("Trained — it backs the roll: +{n}", { n: TSLTalk.profBonus(this._actor) }))}"></i>` : ""}`).join(" + ");
@@ -785,9 +930,9 @@ class SocialFencingApp extends _SocialAppBase {
         const lock = lockOf(t.id);
         const pv = TSLTalk.preview(src, npc, { technique: t.id });
         return `<button type="button" class="tsl-tech-btn ${t.job === "gambit" ? "tsl-tech-btn--gambit" : ""} ${this._tTech === t.id ? "on" : ""} ${lock ? "locked" : ""}" data-tech="${t.id}" style="--c:${APPROACHES[ap].color}"
-          data-tooltip="${esc(`<b>${t.label}</b> — ${t.line}.<br>${t.rule}<br><i>${_t("The better of its two skills rolls; the other backs it (+{n}, your proficiency) if you're trained in it.", { n: TSLTalk.profBonus(this._actor) })}</i>`)}">
+          data-tooltip="${esc(lock ? `<b>${t.label}</b> — ${lock.why}` : `<b>${t.label}</b> — ${t.line}.<br>${t.rule}<br><i>${_t("The better of its two skills rolls; the other backs it (+{n}, your proficiency) if you're trained in it.", { n: TSLTalk.profBonus(this._actor) })}</i>`)}">
           <span class="tsl-mv-top"><em>${tag}</em><b>${lock ? `<i class="fas fa-lock"></i> ` : ""}${esc(t.label)}</b></span>
-          <span class="tsl-mv-skills">${lock ? esc(lock) : `${esc(t.line)} · ${skillsOf(t, pv)}`}</span></button>`;
+          <span class="tsl-mv-skills">${lock ? esc(lock.text) : `${esc(t.line)} · ${skillsOf(t, pv)}`}</span></button>`;
       };
       const allIn = lying ? null : TECHNIQUES[techniqueFor(ap, "gambit")];
       how = `${pressing ? "" : `<div class="tsl-q">${lying ? _t("How do you tell the lie?") : _t("How did your words come at them?")}</div>`}
@@ -1019,7 +1164,7 @@ class SocialFencingApp extends _SocialAppBase {
     const silenced = (SocialArchetypeManager.getActorData(npc).silence ?? []).map(id => game.actors.get(id)).filter(Boolean);
     return `<section class="tsl-sec tsl-abil-sec">
       <div class="tsl-sec-head"><span class="tsl-sec-title">${_t("Their moves")}</span><span class="tsl-gm-tag">GM</span></div>
-      <p class="tsl-note">${_t("Each costs the String they hold on that character. They take one when a character loses a roll to them — and when a win costs it: Pressure, Blackmail, a Deal, a price that is a debt. One at a time.")}</p>
+      <p class="tsl-note">${_t("Each costs the String they hold on that character. They take one when a character badly misses against them (5 under, or a 1) — and when a win costs it: Pressure, Blackmail, a Deal, a price that is a debt. One at a time.")}</p>
       ${holders.length ? `<div class="tsl-abil-holds"><i class="fas fa-masks-theater"></i> ${_t("They have something on: {list}", { list: holders.map(a => esc(a.name)).join(", ") })}</div>` : ""}
       <div class="tsl-abil-list">
         ${triad ? card(triad, `${when("roll")} · ${esc(triadName)} — ${esc(_t("you'll be asked after the dice"))}`) : ""}
@@ -1032,15 +1177,21 @@ class SocialFencingApp extends _SocialAppBase {
 
   // ── Codex ───────────────────────────────────────────────────────────────────
 
+  /**
+   * The rules, in the order a table needs them: how a conversation goes, what
+   * to press when the GM says roll, who the people are, emotions, Strings,
+   * bonds — and the GM's page. Each page opens with one plain sentence; the
+   * rest is short steps and tables, each saying where to find it on screen.
+   */
   _buildCodexTab({ isGM }) {
     const cats = [
-      { id: "start",   label: _t("How it works"), icon: "fa-play" },
-      { id: "ap",      label: _t("Maneuvers"),    icon: "fa-hand-fist" },
-      { id: "read",    label: _t("Reading"),      icon: "fa-eye" },
-      { id: "emo",     label: _t("Emotions"),     icon: "fa-heart-crack" },
-      { id: "natures", label: _t("Natures"),      icon: "fa-masks-theater" },
-      { id: "bonds",   label: _t("Strings & bonds"), icon: "fa-link" },
-      ...(isGM ? [{ id: "gm", label: "GM", icon: "fa-crown" }] : []),
+      { id: "start",   label: _t("How to play"), icon: "fa-play" },
+      { id: "roll",    label: _t("The roll"),    icon: "fa-dice-d20" },
+      { id: "people",  label: _t("People"),      icon: "fa-user-secret" },
+      { id: "emo",     label: _t("Emotions"),    icon: "fa-heart-crack" },
+      { id: "strings", label: _t("Strings"),     icon: "fa-masks-theater" },
+      { id: "bonds",   label: _t("Bonds"),       icon: "fa-link" },
+      ...(isGM ? [{ id: "gm", label: _t("GM"), icon: "fa-crown" }] : []),
     ];
     if (!cats.some(c => c.id === this._codexCat)) this._codexCat = "start";
     const nav = cats.map(c => `<button type="button" class="tsl-cx-cat ${this._codexCat === c.id ? "on" : ""}" data-codex-cat="${c.id}">
@@ -1054,207 +1205,222 @@ class SocialFencingApp extends _SocialAppBase {
   _codexPage(cat) {
     const esc = foundry.utils.escapeHTML;
     const sk = (t) => t.skills.map(k => esc(SKILL_LABELS[k] ?? k)).join(" + ");
-    // The maneuvers under the four buttons of Talk: plainly or all in, and the approach each comes at them with.
-    const cell = (t) => `<span>${esc(t.label)} <small>${sk(t)}</small></span>`;
-    const wide = (t) => `<span class="tsl-cx-grid-wide">${esc(t.label)} <small>${sk(t)}</small></span>`;
-    const rowOf = (button, apId) => { const a = APPROACHES[apId]; return `<i>${button}<small style="color:${a.color}"><i class="fas ${a.icon}"></i> ${esc(a.label)}</small></i>${cell(TECHNIQUES[techniqueFor(apId, "ask")])}${cell(TECHNIQUES[techniqueFor(apId, "gambit")])}`; };
-    const grid = `<div class="tsl-cx-grid tsl-cx-grid--two"><span></span><b>${_t("Plainly")}</b><b>${_t("All in")}</b>
-      ${rowOf(_t("I persuade"), "heart")}${rowOf(_t("I persuade"), "reason")}${rowOf(_t("I intimidate"), "pressure")}
-      <i>${_t("I lie")}</i>${wide(TECHNIQUES.deceive)}
-      <i>${_t("I read them")}</i>${wide(TECHNIQUES.read)}</div>`;
+    const lead = (html) => `<p class="tsl-cx-lead">${html}</p>`;
+    const steps = (items) => `<ol class="tsl-cx-flow">${items.map(([icon, title, text]) => `<li><b><i class="fas ${icon}"></i> ${title}</b><span>${text}</span></li>`).join("")}</ol>`;
+    const td = (c) => c && typeof c === "object" ? `<td${c.span ? ` colspan="${c.span}"` : ""}>${c.html}</td>` : `<td>${c}</td>`;
+    const table = (head, rows, cls = "") => `<table class="tsl-cx-table ${cls}">${head ? `<tr>${head.map(x => `<th>${x}</th>`).join("")}</tr>` : ""}${
+      rows.map(r => Array.isArray(r) ? `<tr>${r.map(td).join("")}</tr>` : `<tr class="${r.cls ?? ""}">${r.cells.map(td).join("")}</tr>`).join("")}</table>`;
+    const where = (html) => `<p class="tsl-t-where tsl-cx-where"><i class="fas fa-hand-pointer"></i> ${html}</p>`;
     const li = (...items) => `<ul>${items.map(x => `<li>${x}</li>`).join("")}</ul>`;
+    const apTag = (id) => { const a = APPROACHES[id]; return `<span class="tsl-cx-ap" style="--c:${a.color}"><i class="fas ${a.icon}"></i> ${esc(a.label)}</span>`; };
+    const T = TECHNIQUES;
+    const nm = (id) => `<b>${esc(T[id].label)}</b>`;
     switch (cat) {
-      case "ap": return `
-        <h3>${_t("Eight maneuvers")}</h3>
-        <p>${_t("When the GM calls for the roll, say what your words really were. Every maneuver is a pair of D&D skills: the better of the two rolls, through the system's own check; the other backs it (+{n}, your proficiency) if you're trained in it.", { n: TSLTalk.profBonus(this._actor) })}</p>
-        <div class="tsl-cx-card" style="--c:#d9b46a">
-          <div class="tsl-cx-card-head"><i class="fas fa-eye"></i> ${esc(TECHNIQUES.read.label)} <span>${sk(TECHNIQUES.read)} — ${esc(TECHNIQUES.read.line)}.</span></div>
-          <p>${esc(TECHNIQUES.read.rule)}</p>
+      case "roll": {
+        const btn = (icon, label, skill, text) => `<div class="tsl-cx-btn"><b><i class="fas ${icon}"></i> ${label}</b><em>${esc(SKILL_LABELS[skill] ?? skill)}</em><span>${text}</span></div>`;
+        return `
+        ${lead(_t("When the GM says “roll”, press what you did. Talk then asks only what matters for this roll — and shows your chance on the Roll button."))}
+        <div class="tsl-cx-btns">
+          ${btn("fa-comments", _t("I persuade"), "per", _t("You asked — will they do it? Say how: through the <b>Heart</b> (feelings, sympathy) or through <b>Reason</b> (facts, what's in it for them)."))}
+          ${btn("fa-hand-fist", _t("I intimidate"), "itm", _t("A threat, a challenge, shame — will they give in?"))}
+          ${btn("fa-mask", _t("I lie"), "dec", _t("What you said isn't true — will they believe it? Tell it any way."))}
+          ${btn("fa-eye", _t("I read them"), "ins", _t("What the talk won't show: what they hide, whether it's true."))}
         </div>
-        ${APPROACH_ORDER.map(id => {
-          const ap = APPROACHES[id];
-          return `<div class="tsl-cx-card" style="--c:${ap.color}">
-            <div class="tsl-cx-card-head"><i class="fas ${ap.icon}"></i> ${esc(ap.label)} <span>${esc(ap.gist)} ${esc(ap.cost)}</span></div>
-            ${["ask", "gambit"].map(job => {
-              const t = TECHNIQUES[techniqueFor(id, job)];
-              return !t ? "" : `<p><b>${esc(t.label)}</b> <span class="tsl-cx-small">(${job === "gambit" ? `${esc(TECH_JOBS.gambit.label.toLowerCase())} · ` : ""}${sk(t)} — ${esc(t.line)})</span> ${esc(t.rule)}</p>`;
-            }).join("")}
-          </div>`;
-        }).join("")}
-        <div class="tsl-cx-card" style="--c:${TECHNIQUES.deceive.color}">
-          <div class="tsl-cx-card-head"><i class="fas ${TECHNIQUES.deceive.icon}"></i> ${esc(TECHNIQUES.deceive.label)} <span>${sk(TECHNIQUES.deceive)} — ${esc(TECHNIQUES.deceive.line)}.</span></div>
-          <p>${_t("A lie isn't a way of coming at someone — it's told in one: a threat you can't back up (Pressure), feelings you don't have (Heart), proof that isn't (Reason). Their key and wall count for the way you told it.")}</p>
-          <p>${esc(TECHNIQUES.deceive.rule)} ${_t("How big the lie is shifts the DC the same way: a small one −4, a bold one +4.")}</p>
-        </div>
-        <h3>${_t("Asking, intimidating, lying")}</h3>
-        ${li(_t("<b>I persuade</b> — an Appeal (Heart) or an Argument (Reason). The way you come at them decides what winning costs. Sized by what it costs them; something against their interests needs leverage."),
-             _t("<b>I intimidate</b> — a Demand (Pressure), sized the same way. They give in without a price — and they remember it."),
-             _t("<b>All in</b> — Seduce instead of an Appeal, a Deal instead of an Argument, Blackmail instead of a Demand: any size, its own leverage — but each leaves a mark that lasts (a bond, your word, an enemy)."),
-             _t("<b>A lie</b> — Deceive, told any way: any size, no price — but it stays on record until the GM brings it out."))}
-        <h3>${_t("Key and wall")}</h3>
-        ${li(`<b><i class="fas fa-key"></i> ${_t("Key")}</b> — ${_t("the approach that opens them: you roll with <b>advantage</b> — a second d20, keep the better.")}`,
-             `<b><i class="fas fa-door-closed"></i> ${_t("Wall")}</b> — ${_t("the approach they close against: <b>disadvantage</b> — a second d20, keep the worse. And your second skill doesn't back you there.")}`,
-             _t("The third approach is a normal roll. How they take your words in the talk hints at which is which; the second die shows it; a Read tells it. A Read has no approach."))}
-        <h3>${_t("How big is the ask?")}</h3>
-        <ul>${ASK_ORDER.map(id => `<li><b>${esc(ASK_SIZES[id].label)}</b> — ${esc(ASK_SIZES[id].hint)}. ${_t("DC {shift}", { shift: `${ASK_SIZES[id].dc > 0 ? "+" : ASK_SIZES[id].dc < 0 ? "−" : "±"}${Math.abs(ASK_SIZES[id].dc)}` })}.</li>`).join("")}</ul>
-        <p class="tsl-cx-small">${_t("An ask against them needs leverage: their Desire or Fear, a String on them, or a deep bond (●●) that runs your way. Going all in brings its own.")}</p>
-        <h3>${_t("In private, or before witnesses")}</h3>
-        <p>${_t("Before an ask or a gambit, say who is watching. Before witnesses, everything weighs more:")}</p>
-        ${li(_t("<b>A no shames you</b> — you lose face: you're Insecure."),
-             _t("<b>The room tips the roll</b> — some natures bend before an audience (+2: an Idol performs generosity, a Duelist must answer a challenge), others harden (−2: a Tyrant never bends where their people can see). Like the key and the wall, it shows in the result — or read it first."))}
-        <h3>${_t("Your roll")}</h3>
-        <p>${_t("The system's check with <b>the better of the maneuver's two skills</b>, + <b>your proficiency ({support})</b> if you're trained in the other ± <b>bond</b> (± per ●: what yours gives is in Bonds) + <b>their Desire or Fear</b> (+{lever}, once you know it) + <b>help</b> (+{help}) ± <b>emotions</b> (+2 when they feel one that opens this approach), against <b>DC = 10 + their proficiency + the better of WIS/INT</b>, shifted by the size of an ask.", { support: TSLTalk.profBonus(this._actor), lever: LEVER_BONUS, help: HELP_BONUS })}</p>`;
+        <h3>${_t("Plainly, or all in")}</h3>
+        ${table([_t("You…"), _t("Plainly"), _t("All in")], [
+          [`${_t("I persuade")} ${apTag("heart")}`, nm("appeal"), `${nm("seduce")}<small>${_t("needs their Desire or a bond ●●")}</small>`],
+          [`${_t("I persuade")} ${apTag("reason")}`, nm("argument"), nm("bargain")],
+          [`${_t("I intimidate")} ${apTag("pressure")}`, nm("demand"), `${nm("blackmail")}<small>${_t("needs their Fear or a String on them")}</small>`],
+          [_t("I lie"), { span: 2, html: `${nm("deceive")} <small>${_t("told any way — their key and wall count for the way you tell it")}</small>` }],
+          [_t("I read them"), { span: 2, html: nm("read") }],
+        ], "tsl-cx-plain")}
+        <p>${_t("<b>All in</b> works at any size, but leaves a mark: Seduce — a broken heart if it fails; a Deal — your word; Blackmail — they'll pay you back. Until you have what Seduce or Blackmail plays on, its button is locked and says what's missing.")}</p>
+        <h3>${_t("Each maneuver")}</h3>
+        ${table([_t("Maneuver"), _t("If it works"), _t("If not")], TECHNIQUE_ORDER.map(id => [`<b>${esc(T[id].label)}</b><small>${sk(T[id])}</small>`, esc(T[id].win), esc(T[id].miss)]), "tsl-cx-moves")}
+        <p class="tsl-cx-small">${_t("The better of the two skills rolls, through the system's own check; the other adds your proficiency bonus if you're trained in it — but not into their wall.")}</p>
+        <h3>${_t("How big is it?")}</h3>
+        ${table([_t("Size"), "", _t("DC")], ASK_ORDER.map(id => [`<b>${esc(ASK_SIZES[id].label)}</b>`, esc(ASK_SIZES[id].hint), `<b>${ASK_SIZES[id].dc > 0 ? "+" : ASK_SIZES[id].dc < 0 ? "−" : "±"}${Math.abs(ASK_SIZES[id].dc)}</b>`]), "tsl-cx-sizes")}
+        <p class="tsl-cx-small">${_t("Against them needs leverage: their Desire or Fear, a String on them, or a bond of ●● that runs the same way — or go all in. A lie is sized the same way: a small one −4, a bold one +4.")}</p>
+        <h3>${_t("Who's watching?")}</h3>
+        ${table(null, [
+          [`<b><i class="fas fa-user-lock"></i> ${_t("In private")}</b>`, _t("Nothing more rides on it.")],
+          [`<b><i class="fas fa-users"></i> ${_t("Before witnesses")}</b>`, _t("A no shames you: Insecure. Some natures bend before an audience (+2), most harden (−2) — you'll see which in the result. The GM can make a whole scene public.")],
+        ], "tsl-cx-adds")}
+        <h3>${_t("What adds to your roll")}</h3>
+        ${table(null, [
+          [`<b>${_t("skill")}</b>`, _t("the better of the maneuver's two")],
+          [`<b>+${TSLTalk.profBonus(this._actor)}</b>`, _t("your proficiency, if you're trained in the other skill (not into their wall)")],
+          [`<b>+${LEVER_BONUS}</b>`, _t("their Desire or Fear, once the party knows it — if your words played on it")],
+          [`<b>+${HELP_BONUS}</b>`, _t("a friend who really backed you in the talk (they don't roll)")],
+          [`<b>±2</b>`, _t("emotions: one of theirs that your way plays on +2; one of yours that spoils it −2")],
+          [`<b>±●</b>`, _t("your bond with them (see Bonds)")],
+          [`<b>±1</b>`, _t("your scars")],
+          [`<b><i class="fas fa-key"></i> / <i class="fas fa-door-closed"></i></b>`, _t("their key: advantage · their wall: disadvantage")],
+        ], "tsl-cx-adds")}
+        <h3>${_t("What they say")}</h3>
+        ${table([_t("Result"), _t("When"), _t("What happens")], [
+          { cls: "tsl-cx-r--strong", cells: [`<b>${_t("Strong")}</b>`, _t("5 over the DC, or a 20"), _t("It works, on your terms — no price. You take a String on them.")] },
+          { cls: "tsl-cx-r--hit", cells: [`<b>${_t("Hit")}</b>`, _t("the DC or more"), _t("It works. An Appeal, an Argument or a Deal says “yes, but” — their price: pay it, or walk away.")] },
+          { cls: "tsl-cx-r--miss", cells: [`<b>${_t("Miss")}</b>`, _t("under the DC"), _t("No — they push back their own way, and you take their emotion (not on a Read). A proud one, refused something big, ends the talk.")] },
+          { cls: "tsl-cx-r--botch", cells: [`<b>${_t("Bad miss")}</b>`, _t("5 under, or a 1"), _t("As a miss — and they take a String on you.")] },
+        ], "tsl-cx-res")}
+        <p class="tsl-cx-small">${_t("After a miss you may burn your String on them for +{n}.", { n: STRING_SPEND_BONUS })}</p>
+        <h3>${_t("What winning costs")}</h3>
+        ${table(null, APPROACH_ORDER.map(id => [apTag(id), esc(APPROACHES[id].cost)]))}`;
+      }
 
-      case "read": return `
-        <h3>${_t("Reading people")}</h3>
-        <p>${_t("Most of what you learn about someone comes from the talk itself — what they let slip, how they take what you say. The GM marks it, and the party knows it for good. <b>Read them</b> — a roll — when the talk won't tell: they hide it, or they wear a mask.")}</p>
-        <p>${_t("<b>Read them</b>: Insight to watch them, or Investigation to dig into who they are — the better of the two. A hit answers one question:")}</p>
-        <ol class="tsl-cx-qs">${READ_ORDER.map(q => `<li>${esc(READ_QUESTIONS[q].label)}</li>`).join("")}</ol>
-        ${li(_t("<b>A strong hit</b> answers a second question."),
-             _t("What you learn goes into the party's dossier on them — for good."),
-             _t("Once the party knows their <b>key and their wall</b>, the nature is named and its whole card opens."),
-             _t("A miss: they notice, and won't be read again this scene — and that's all. A Read never costs you an emotion, and never moves a String."))}
+      case "people": {
+        const triads = Object.values(SOCIAL_TRIADS);
+        const apCell = (id) => apTag(id);
+        return `
+        ${lead(_t("Everyone the GM plays has a hidden <b>nature</b>. It decides which words open them, which close them, what they ask in return — and how they hit back."))}
+        ${table(null, [
+          [`<b class="tsl-cx-k"><i class="fas fa-key"></i> ${_t("Key")}</b>`, _t("the way that opens them — you roll with <b>advantage</b> (two d20, keep the better)")],
+          [`<b class="tsl-cx-w"><i class="fas fa-door-closed"></i> ${_t("Wall")}</b>`, _t("the way they close against — <b>disadvantage</b>, and your second skill doesn't help")],
+          [`<b>${_t("The third way")}</b>`, _t("a normal roll")],
+        ])}
+        <h3>${_t("How to figure them out")}</h3>
+        ${steps([
+          ["fa-ear-listen", _t("Watch the talk"), _t("The GM plays how they take each way of talking: warmth, a cold face, a sneer.")],
+          ["fa-dice", _t("The dice tell"), _t("On a roll, the second die shows a key or a wall — and the party writes it down.")],
+          ["fa-eye", _t("Read them"), _t("A hit answers one of these for the whole party; a strong hit, two.")],
+        ])}
+        <ol class="tsl-cx-qs">${[...READ_ORDER, ...READ_MOMENT].map(q => `<li>${esc(READ_QUESTIONS[q].label)}</li>`).join("")}</ol>
+        <p>${_t("What the party learns, it keeps. Once it knows their <b>key and wall</b>, the nature is named and its whole card opens.")}</p>
         <h3>${_t("Masks")}</h3>
-        <p>${_t("What you see first is the nature they <b>show</b> — “seems: Idol”. Sometimes it is their true face. Sometimes it is a <b>mask</b>: a Schemer playing the Caretaker, a Martyr playing the Tyrant — and the mask's key may be their wall.")}</p>
-        ${li(_t("Ask “<b>Is that their true face?</b>” — an open face names them on the spot; a mask shows as a mask."),
-             _t("Or learn the hard way: once you know their key and their wall, they're named — and the mask falls."),
-             _t("Someone who shows nothing is simply unread."))}
-        <h3>${_t("Learning by doing")}</h3>
-        <p>${_t("Every maneuver teaches: the second die shows their key or their wall; their price shows when they say “yes, but”; a slammed door shows what they do after a no; the room shows how they take witnesses.")}</p>
-        <h3>${_t("Nine natures, three ways of coping")}</h3>
-        <p>${_t("Karen Horney described three ways people cope with others — moving <b>against</b> them (Power), <b>toward</b> them (Emotion), <b>away</b> from them (Order). Inside a triad every nature has a different key and wall: knowing someone's way is never enough. Read the person.")}</p>`;
+        <p>${_t("What you see first is the face they <b>show</b> — “seems: Caretaker”. It may be who they are, or a mask: a Schemer playing the Caretaker. Ask “Is that their true face?” — or learn their key and wall, and the mask falls.")}</p>
+        <h3>${_t("Nine natures")}</h3>
+        <p class="tsl-cx-small">${_t("Three ways people cope with others (Karen Horney): <b>against</b> them — Power; <b>toward</b> them — Emotion; <b>away</b> from them — Order. Within one, every nature has a different key and wall.")}</p>
+        ${table([_t("Nature"), _t("Key"), _t("Wall"), _t("A miss leaves you")], triads.flatMap(t => [
+          { cls: "tsl-cx-triad-row", cells: [{ span: 4, html: `<b style="color:${t.color}">${esc(t.label)}</b> — ${_t("moving {how}", { how: esc(t.horney) })}` }] },
+          ...SOCIAL_ARCHETYPES.filter(x => x.triad === t.id).map(x => [`<b>${esc(x.label)}</b>`, apCell(x.key), apCell(x.wall), esc(EMOTIONS[x.hurts]?.label ?? "")]),
+        ]), "tsl-cx-nat")}
+        <p class="tsl-cx-small">${_t("Open one for the whole of it:")}</p>
+        ${triads.map(t => SOCIAL_ARCHETYPES.filter(x => x.triad === t.id).map(x => `<details class="tsl-cx-more" style="--c:${t.color}">
+          <summary><b>${esc(x.label)}</b> <span>${esc(x.description)}</span></summary>
+          <p><span class="tsl-cx-k"><i class="fas fa-key"></i> ${esc(APPROACHES[x.key].label)}</span> ${esc(x.keyText)}</p>
+          <p><span class="tsl-cx-w"><i class="fas fa-door-closed"></i> ${esc(APPROACHES[x.wall].label)}</span> ${esc(x.wallText)}</p>
+          <p><span class="tsl-cx-p"><i class="fas fa-handshake"></i> ${_t("Price")}</span> ${esc(x.price.text)}${x.price.string ? ` <i>${_t("(a String on you)")}</i>` : ""}</p>
+          <p><span class="tsl-cx-w"><i class="fas fa-heart-crack"></i> ${_t("On a no")}</span> ${esc(x.press)}</p>
+          <p><span class="tsl-cx-p"><i class="fas fa-users"></i> ${_t("Before witnesses")}</span> ${tslAudienceText(x.audience ?? 0)} — ${esc(x.audienceWhy ?? "")}.</p>
+          <p class="tsl-cx-small">${x.pressed === "firm" ? _t("After a no, they end it") : _t("After a no, they keep listening")} — ${esc(x.pressedWhy)}. ${esc(x.psych)}</p>
+        </details>`).join("")).join("")}`;
+      }
 
       case "emo": return `
-        <h3>${_t("Five emotions")}</h3>
-        <p>${_t("As in Thirsty Sword Lesbians, anyone can carry them — your character, or the person you're talking to. They show on the token. Each one costs whoever feels it, and helps whoever plays on it — until it's let go.")}</p>
-        ${EMOTION_ORDER.map(id => {
+        ${lead(_t("Five emotions, as in Thirsty Sword Lesbians — on anyone. Each one costs the one who feels it −2, and gives +2 to whoever plays on it — until it's let go."))}
+        ${table([_t("Emotion"), _t("On whoever feels it"), _t("For whoever plays on it"), _t("Let it go")], EMOTION_ORDER.map(id => {
           const d = EMOTIONS[id];
-          return `<div class="tsl-cx-card" style="--c:${d.color}">
-            <div class="tsl-cx-card-head"><img class="tsl-emo-ico" src="${d.img}" alt=""> ${esc(d.label)}</div>
-            <p><b>${_t("On you")}</b> ${esc(d.spoilsText)}.</p>
-            <p><b>${_t("On them")}</b> ${esc(d.opensText)}.</p>
-            <p><b>${_t("Let it go")}</b> ${esc(d.clear)} <span class="tsl-cx-small">${_t("Or a friend's comfort.")}</span></p>
-          </div>`;
-        }).join("")}
+          return [`<span class="tsl-cx-emo" style="--c:${d.color}"><img src="${d.img}" alt=""> ${esc(d.label)}</span>`, esc(d.spoilsText), esc(d.opensText), esc(d.clear)];
+        }), "tsl-cx-emos")}
+        <p class="tsl-cx-small">${_t("A friend's comfort lets any of them go, too.")}</p>
         <h3>${_t("Where they come from")}</h3>
-        ${li(_t("<b>The talk</b> — your words land: a threat that frightens, a reproach that shames, a truth with no way out. The GM marks it — no roll."),
-             _t("<b>A miss</b> — anything but a Read: the person hits back with their nature's emotion. Each nature hurts in its own way (Natures)."),
-             _t("<b>Before witnesses</b> — a no in front of others: you lose face, and you're Insecure."),
-             _t("<b>An NPC's move</b> — what they hold on you, spent: refuse them, and it can leave their emotion on you (Strings & bonds)."),
-             _t("<b>Gambits</b> — Blackmail leaves them Frightened; a broken heart leaves you Hopeless; a lie brought out leaves them Angry."))}
+        ${li(_t("<b>The talk</b> — your words land: a threat, a reproach, a truth with no way out. The GM marks it, no roll."),
+             _t("<b>A miss</b> — anything but a Read: they hit back with their nature's emotion."),
+             _t("<b>A no before witnesses</b> — you lose face: Insecure."),
+             _t("<b>All in</b> — Blackmail leaves them Frightened; a broken heart leaves you Hopeless; a lie brought out leaves them Angry."),
+             _t("<b>An NPC's move</b> — refuse it, and it may leave their emotion on you."))}
         <h3>${_t("Scars")}</h3>
-        <p>${_t("Take an emotion you already carry, and it leaves a <b>scar</b> instead — for good, one per emotion. A scar is a twist, not just a wound:")}</p>
-        <ul>${Object.values(SCARS).map(sc => `<li><b>${esc(sc.label)}</b> (${esc(EMOTIONS[sc.from].label)}) — ${esc(sc.text)}</li>`).join("")}</ul>`;
+        <p>${_t("Take an emotion you already carry, and it leaves a <b>scar</b> instead — for good, one of each.")}</p>
+        ${table([_t("Scar"), _t("From"), _t("For good")], Object.values(SCARS).map(s => [`<b>${esc(s.label)}</b>`, esc(EMOTIONS[s.from].label), esc(s.text)]))}
+        ${where(_t("<b>Where:</b> at the top of every Chronicle — what weighs on them now. × lets an emotion go; the GM puts any on or takes it off with +."))}`;
 
-      case "natures": return `
-        <h3>${_t("The nine natures")}</h3>
-        <p>${_t("The catalog is open to everyone; who is which is not — and some wear another's face.")}</p>
-        ${Object.values(SOCIAL_TRIADS).map(t => `
-          <div class="tsl-cx-triad" style="--c:${t.color}"><b>${esc(t.label)}</b> — ${_t("moving {how}", { how: esc(t.horney) })}</div>
-          ${SOCIAL_ARCHETYPES.filter(x => x.triad === t.id).map(x => `
-            <div class="tsl-cx-card" style="--c:${t.color}">
-              <div class="tsl-cx-card-head">${esc(x.label)} <span>${esc(x.description)}</span></div>
-              <p><span class="tsl-cx-k"><i class="fas fa-key"></i> ${esc(APPROACHES[x.key].label)}</span> ${esc(x.keyText)}</p>
-              <p><span class="tsl-cx-w"><i class="fas fa-door-closed"></i> ${esc(APPROACHES[x.wall].label)}</span> ${esc(x.wallText)}</p>
-              <p><span class="tsl-cx-p"><i class="fas fa-handshake"></i> ${_t("Price")}</span> ${esc(x.price.text)}${x.price.string ? ` <i>${_t("(a String on you)")}</i>` : ""}</p>
-              <p><span class="tsl-cx-w"><i class="fas fa-heart-crack"></i> ${_t("Hurts")}</span> ${esc(x.press)} ${_t("Miss against them and you're <b>{emotion}</b>.", { emotion: esc(EMOTIONS[x.hurts]?.label ?? _t("shaken")) })}</p>
-              <p><span class="tsl-cx-p"><i class="fas fa-users"></i> ${_t("Before witnesses")}</span> ${tslAudienceText(x.audience ?? 0)} — ${esc(x.audienceWhy ?? "")}.</p>
-              <p class="tsl-cx-small">${x.pressed === "firm" ? _t("After a no, they end it") : _t("After a no, they keep listening")} — ${esc(x.pressedWhy)}. ${esc(x.psych)}</p>
-            </div>`).join("")}`).join("")}`;
+      case "strings": return `
+        ${lead(_t("A <b>String</b> is something you have on someone — a debt, a secret, a weakness seen. <b>One at a time each way</b>: you have something on them, or you don't."))}
+        <h3>${_t("How Strings move")}</h3>
+        ${table(null, [
+          { cls: "tsl-cx-r--strong", cells: [`<b><i class="fas fa-check"></i> ${_t("You take one on them")}</b>`, _t("a strong win — 5 over the DC, or a 20 — on an ask, an all-in or a lie; or the GM hands you one from the talk: a confession, a secret, a favour owed")] },
+          { cls: "tsl-cx-r--botch", cells: [`<b><i class="fas fa-triangle-exclamation"></i> ${_t("They take one on you")}</b>`, _t("a bad miss — 5 under, or a 1; or a win that costs one: Pressure and Blackmail (they'll pay you back), a Deal (your word, until you keep it), a price that is a debt")] },
+          [`<b><i class="fas fa-minus"></i> ${_t("Nothing moves")}</b>`, _t("a plain win or a plain miss; a Read; a roll on which a String was spent")],
+        ], "tsl-cx-res")}
+        <h3>${_t("Spending yours")}</h3>
+        ${table(null, [
+          [`<b>${_t("Remind them")}</b>`, _t("they agree — no roll (Talk → Remind them). Against their interests, the GM says what it would take.")],
+          [`<b>+${STRING_SPEND_BONUS}</b>`, _t("after a miss against them")],
+          [`<b>${_t("Invest")}</b>`, _t("+1 ● in your bond (Bonds); a hostile one eases −1 ● instead")],
+          [`<b>${_t("Pull")}</b>`, _t("in a fight: +5 to your next attack, check or save against them — or +5 AC against their next attack")],
+          [`<b>${_t("Quits")}</b>`, _t("when they pull theirs on you, answer with yours: both burn, nothing happens")],
+          [`<b>${_t("Leverage")}</b>`, _t("holding one lets you ask against their interests, or blackmail them")],
+        ])}
+        <h3>${_t("Theirs on you: their moves")}</h3>
+        ${li(_t("<b>At your roll</b> — Power strikes back (−5 after the dice); Emotion makes you feel it (you win, and carry their emotion); Order sets the terms (you win, and pay their price)."),
+             _t("<b>In the talk, or beyond the scene</b> — two moves of their nature's own. A chat card asks for your answer: give in (and take Inspiration), or refuse and pay for it."),
+             _t("<b>In a fight</b> — any of them can Pull theirs against you."))}
+        ${where(_t("<b>Where:</b> Talk shows it under the name of whoever you face — ticked when you have one. Bonds shows both ways, for everyone."))}`;
 
       case "bonds": return `
-        <h3>${_t("Strings")}</h3>
-        <p>${_t("A String is what you have on someone — a debt, a weakness seen, a line crossed in front of others. One at a time: you have something on them, or you don't.")}</p>
-        <h3>${_t("The stake of every roll")}</h3>
-        ${li(_t("<b>A strong win</b> — 5 over the DC, or a 20 — on an ask, an all-in or a lie: you take a String on them."),
-             _t("<b>A bad miss</b> — 5 under, or a 1: they take one on you. A plain win or a plain miss moves none."),
-             _t("<b>Some wins cost one back:</b> Pressure and Blackmail (they'll pay you back), a Deal (they hold your word until you deliver), a price that is a debt."),
-             _t("<b>A Read moves none</b> — understanding someone is safe."),
-             _t("<b>A roll on which a String was spent moves none</b> — yours for +5, or theirs."),
-             _t("<b>From the talk:</b> a confession, a secret, a favour owed — the GM hands one over (Bonds → +), either way."))}
-        <h3>${_t("Spending yours")}</h3>
-        ${li(_t("<b>They agree</b> — instead of the roll (Talk → Remind them): a small or costly ask, done; one against their interests — the GM says what it would take."),
-             _t("<b>After a miss</b> against them: burn it for <b>+{n}</b>.", { n: STRING_SPEND_BONUS }),
-             _t("<b>Invest it</b> (Bonds → Invest): +1 ● in your bond — a hostile one eases −1 ● instead. With no bond yet, you choose what you become to each other. Both of you see it."),
-             _t("<b>Pull it in a fight</b> (Bonds → Pull): <b>Strike</b> +5 to your next attack, check or save against them, or <b>Guard</b> +5 AC against their next attack. It goes on your sheet and ends itself."),
-             _t("<b>Quits:</b> when they pull theirs on you, answer with yours — both burn, and nothing happens."),
-             _t("Holding one is <b>leverage</b> — for an ask against their interests, or for Blackmail."))}
-        <h3>${_t("Theirs on you: their moves")}</h3>
-        <p>${_t("Every NPC has three moves, and each costs the String they hold on you:")}</p>
-        ${li(_t("<b>At your roll — their triad's.</b> Power strikes back: −5 after the dice. Emotion makes you feel it: you win, and carry their emotion. Order sets the terms: you win, and pay their price."),
-             _t("<b>In the talk, and beyond the scene — their nature's two.</b> A card asks for your answer: give in (and take Inspiration), or refuse and pay for it."),
-             _t("<b>In a fight</b>, any of them can Pull theirs against you."))}
-        <p class="tsl-cx-small">${_t("A move is a tell: you see its name. Their triad's narrows them to three natures; their own all but names them — and under a mask, they still move as who they are.")}</p>
-        <h3>${_t("Bonds")}</h3>
-        <p>${_t("A bond is a type and a strength (●–●●●), shared by both people — what one side marks, the other sees. Your bond toward someone gives <b>+1 per ●</b> on maneuvers of the approach it runs:")}</p>
-        <ul>${APPROACH_ORDER.map(id => `<li><b>${esc(APPROACHES[id].label)}</b> — ${BOND_TYPES.filter(t => SocialArchetypeManager.bondApproach(t.id) === id).map(t => esc(t.label)).join(", ")}</li>`).join("")}</ul>
-        <p>${_t("<b>The type is who you are to each other</b> — the GM sets it, or you do when you invest a String in a new bond. <b>The dots are how deep it runs.</b> A roll never changes either: they grow when you invest Strings, and the GM moves them when the story does.")}</p>
-        <table class="tsl-cx-table tsl-cx-bonds"><tr><th>${_t("Bond")}</th><th>${_t("Per ●")}</th><th>●●</th><th>${_t("●●● — once per long rest")}</th></tr>${BOND_TYPES.filter(t => t.id !== "stranger").map(t => {
+        ${lead(_t("A bond is <b>who you are to each other</b> — its type — and <b>how deep it runs</b>: ●, ●● or ●●●. Both of you see the same bond. A roll never changes it."))}
+        <h3>${_t("How it changes")}</h3>
+        ${li(_t("<b>The type</b> — the GM sets it; or you do, when you invest a String in a new bond."),
+             _t("<b>The dots</b> — +1 ● for each String you invest; the GM moves them when the story does; lowering them is up to you."),
+             _t("<b>A Rival or an Enemy</b> — a String invested makes peace: −1 ●."))}
+        <h3>${_t("What it gives — per ●, against that person")}</h3>
+        ${li(_t("+1 on the way the bond runs: Heart for love and family, Pressure for rivals and enemies, Reason for allies, oaths and trust."),
+             _t("+1 when its skill rolls (a Friend: Persuasion; Family: Insight); −1 when the skill it forbids rolls — you can't frighten a lover, or fool your teacher."),
+             _t("A Rival or an Enemy won't hear you out: −1 on anything but Pressure."),
+             _t("Press someone close to you — a friend, family, a lover — and you win, but feel Guilty toward them."))}
+        <h3>${_t("In a fight")}</h3>
+        <p>${_t("Standing close to each other, the bond's aura goes on your sheet by itself: ±1 per bonus, ±2 at ●●●; several bonds add up to ±2 at most.")}</p>
+        <h3>${_t("●● and ●●●")}</h3>
+        <p>${_t("At ●● the type's own ability opens. At ●●● — its signature, once per long rest (Bonds → What it gives → Call on it).")}</p>
+        ${table([_t("Bond"), _t("Per ●"), "●●", _t("●●● — once per long rest")], BOND_TYPES.filter(t => t.id !== "stranger").map(t => {
           const tap = APPROACHES[SocialArchetypeManager.bondApproach(t.id)];
           const per = [tap ? `+ ${esc(tap.label)}` : "", t.edge ? `+ ${esc(SKILL_LABELS[t.edge])}` : "", t.cost ? `− ${esc(SKILL_LABELS[t.cost])}` : "", t.hostile ? esc(_t("− the rest")) : ""].filter(Boolean).join(", ");
-          return `<tr><td><b>${esc(t.label)}</b></td><td>${per}</td><td>${esc(SocialArchetypeManager.getBondAbility(t.id)?.label ?? "")}</td><td>${esc(SocialArchetypeManager.getBondSignature(t.id)?.label ?? "")}</td></tr>`;
-        }).join("")}</table>
-        <p class="tsl-cx-small">${_t("Each type also has an aura in a fight — close by, it goes on your sheet by itself (±1, ±2 at ●●●) — and some leave you Guilty if you press them. Bonds → open one to read it all.")}</p>
-        <p>${_t("<b>A Rival or an Enemy won't hear you out:</b> −1 per ● on anything but Pressure. So every Demand costs you later, when you come back to ask nicely.")}</p>
-        <p>${_t("The GM sets the dots by hand. A player raises them only by investing a String; lowering is theirs to do.")}</p>
-        <h3>${_t("Lies")}</h3>
-        <p>${_t("A lie that works stays on record. When the GM brings it out, they turn on the liar — an Enemy: the liar's String on them burns, and they take one on the liar.")}</p>`;
+          return [`<b>${esc(t.label)}</b>`, per, esc(SocialArchetypeManager.getBondAbility(t.id)?.label ?? ""), esc(SocialArchetypeManager.getBondSignature(t.id)?.label ?? "")];
+        }), "tsl-cx-bonds")}
+        ${where(_t("<b>Where:</b> the Bonds tab — everyone you're bonded with, the type, the dots and the Strings both ways, all at once. “What it gives” opens the rest."))}`;
 
       case "gm": return `
-        <h3>${_t("Running it")}</h3>
-        ${li(_t("<b>Play them live.</b> Their Talk tab says how they take each approach — let it show, and the table reads them from it. Mark what comes out (their Desire, Fear, price…) and what the words leave on them (an emotion) — no roll."),
-             _t("<b>Roll rarely.</b> Only when they're unwilling and it matters: usually once, when the ask is made; a Read when the talk can't show it — at most two or three rolls a conversation."),
-             _t("<b>Nobody declares a goal.</b> Every ask stands on its own — when what the party wants changes, they just ask for the new thing."),
-             _t("<b>Hold them to the words.</b> The maneuver is what the line really is: an Appeal that's really a threat is a Demand. Say so before the roll."),
+        ${lead(_t("You play the people; the module remembers them and counts the few rolls."))}
+        <h3>${_t("Where to do what")}</h3>
+        ${table(null, [
+          [`<b>${_t("Emotions and scars")}</b>`, _t("on anyone: the strip at the top of their Chronicle — + puts one on or takes it off, × lets an emotion go")],
+          [`<b>${_t("Bonds and Strings")}</b>`, _t("the Bonds tab: the type, the dots and the Strings both ways, right in the row; add anyone by name, or drag an actor in")],
+          [`<b>${_t("What came out")}</b>`, _t("the NPC's Talk tab or Profile: click a fact to mark it known")],
+          [`<b>${_t("How to play them")}</b>`, _t("the NPC's Talk tab: how they take each way, their price, their no, the mask to act out")],
+          [`<b>${_t("Moves, words, lies")}</b>`, _t("the NPC's Talk tab: pull a String, mark a word kept or broken, bring a lie out")],
+          [`<b>${_t("A public scene")}</b>`, _t("the Social Scene's header: every ask there starts before witnesses")],
+        ], "tsl-cx-adds")}
+        <h3>${_t("Running a conversation")}</h3>
+        ${li(_t("<b>Play them live.</b> Let each way of talking land as their Talk tab says — the table reads them from it."),
+             _t("<b>Mark what the talk does</b> — what comes out, what the words leave on them. No roll."),
+             _t("<b>Roll rarely</b> — when they're unwilling and it matters: usually once; a Read when the talk can't show it; two or three at most."),
+             _t("<b>Hold them to their words.</b> An Appeal that's really a threat is a Demand — say so before the roll."),
              _t("<b>Size the ask</b> by what it costs them, not by how tough they are."),
-             _t("<b>On a “yes, but”</b> their nature names the price (the NPC's Talk tab is your cheat sheet). The player decides whether to pay."),
-             _t("<b>On a “no”</b> they push back their own way — play their “on a no” line. A proud one, refused something big, closes the door for the scene."),
-             _t("<b>Don't let them re-roll the same ask</b> without something new: a lever, a String, an emotion on them, another approach, another room."),
-             _t("<b>Their Line</b> is real: an ask that crosses it is simply refused — no roll."),
-             _t("<b>Hold them to their word.</b> A Deal stays on the NPC's Talk tab until you mark it: Kept — their String goes; Broken — they keep it, and the speaker's on them burns. Strangers become Allies or Enemies; anyone else's bond is yours to change in Bonds."),
-             _t("<b>Lies come out</b> when the story says so — bring them out from their Talk tab."),
-             _t("<b>A great line, or a Charm spell?</b> Say “with advantage” — it's in the system's window. The window is also where a situational bonus goes."),
-             _t("<b>Play the emotions.</b> An Angry NPC snaps; a Frightened one gives ground. Let an emotion go (× on its tag) when it's acted out — and hold the players to theirs."),
-             _t("<b>Their Strings are their moves.</b> What an NPC holds on someone powers one of their three: their triad's at the roll (you're asked after the dice), their nature's two in the talk or beyond the scene (their Talk tab → Their moves). In a fight, Pull it."),
-             _t("<b>Reward the heart:</b> when an NPC opens up to a character — a confession, a secret, a weakness shown — give that character a String on them (Bonds → +). The same works the other way."))}
+             _t("<b>Yes, but</b> — their nature names the price; the player decides whether to pay."),
+             _t("<b>No</b> — they push back their own way. Don't let the same ask be rolled again without something new."),
+             _t("<b>Their Line</b> is real: an ask that crosses it is refused, no roll."),
+             _t("<b>Reward the heart:</b> when an NPC opens up to someone, give that character a String on them (Bonds → +)."))}
         <h3>${_t("The court")}</h3>
-        ${li(_t("<b>Give them a face.</b> In an NPC's Profile, set the <b>Mask</b>: their own nature for an open face, another for a mask, nothing for someone unreadable. The party sees it in Talk and on the Scene as “seems: …”."),
-             _t("<b>Say who's watching.</b> A hall, a feast, a crowd, their own people — the player sets “before witnesses”; hold them to it. For a whole court, make the scene public (the Social Scene's header): every ask there starts before witnesses. A word in a back room is private."),
-             _t("<b>Play the room.</b> A Tyrant never bends where their people can see; an Idol performs generosity for an audience. The card's “before witnesses” line says how each takes it."),
-             _t("<b>Every favour is a debt.</b> Strings are the court's currency: let NPCs collect them, trade on them, and call them in when it hurts most."))}
+        ${li(_t("<b>Give them a face</b> — Profile → Mask: their own nature, another one (a mask), or nothing."),
+             _t("<b>Say who's watching</b> — a hall, a feast, their own people. A Tyrant never bends where their people can see; an Idol performs for an audience."),
+             _t("<b>Every favour is a debt.</b> Let NPCs collect Strings, and call them in when it hurts most."))}
         <h3>${_t("Content")}</h3>
         <p>${_t("Some maneuvers model real manipulation — blackmail, guilt, coldness, seduction, lies. Agree on limits with your table before you play them, and keep them on NPCs unless everyone wants otherwise.")}</p>`;
 
       default: return `
         <p class="tsl-cx-motto">${_t("Every word is a move. Every favour is a debt. Everyone wears a mask — and someone is always watching.")}</p>
-        <h3>${_t("What it's for")}</h3>
-        <p>${_t("You want something from someone who doesn't want to give it — and it matters. Not one Persuasion check: the <b>person</b> decides how your words land. Everyone has a hidden nature that opens to one approach and closes against another. The whole game is to <b>understand the person</b>.")}</p>
-        <h3>${_t("The goal")}</h3>
-        <p>${_t("Get what you want from them — this time. There's no score to keep: each ask is its own yes or no. What carries over is what you learn about them, the emotions you leave, the Strings and bonds.")}</p>
-        <h3>${_t("A conversation is played")}</h3>
-        <ol class="tsl-cx-steps">
-          <li>${_t("<b>Talk</b> in character — the GM answers as them, and plays their hidden nature: one approach opens them, another closes them. Watch how they take what you say.")}</li>
-          <li>${_t("<b>What the talk does, stays.</b> When something comes out — what they want, what they fear, their price — the GM marks it, and the party knows it. When your words land — a threat, a reproach, a truth with no way out — the GM marks the emotion it leaves. No roll.")}</li>
-          <li>${_t("<b>The roll</b> — when the GM calls for it: usually once, at the moment that decides it; at most two or three times a conversation. You say what you did — I persuade, I intimidate, I lie, I read them — and Talk asks what happened: how your words came at them, what you asked for, who saw it. It counts all of it.")}</li>
-        </ol>
-        <p class="tsl-t-where"><i class="fas fa-circle-info"></i> ${_t("<b>Where:</b> right-click your character's token → the {icon} button → <b>Talk</b>. Target who you're talking to on the map (hover their token, press <b>T</b>) — or <b>Pick on the map</b>.", { icon: `<i class="fas fa-address-book"></i>` })}</p>
-        ${grid}
-        <h3>${_t("Why the approach matters")}</h3>
-        <p>${_t("Each person has a <b>key</b> — the approach that works on them: you roll with <b>advantage</b>. And a <b>wall</b> — the one they close against: <b>disadvantage</b>. The third is a normal roll. You read which is which from how they take your words and the face they show — or read them, when the talk won't tell.")}</p>
-        <h3>${_t("Skills and the party")}</h3>
-        <p>${_t("Every maneuver is a pair of D&D skills — the better one rolls in the system's own check window, the other backs it (+ your proficiency) if you're trained in it. So the one who asks needn't be the face: the brute demands with Athletics, the scholar argues from History, the watcher reads with Insight. A friend who backs your words adds +2. Your Profile lists what you're best at.")}</p>
-        <h3>${_t("What they say")}</h3>
-        ${li(_t("<b>Strong hit</b> (5 over, or a 20) — it works. An ask or gambit for something big also hands you a String on them."),
-             _t("<b>Hit</b> — it works; an Appeal, an Argument or a Deal gets “yes, but”: their nature names the price — pay it, or walk away."),
-             _t("<b>Miss</b> — they push back their own way, and it hurts: you take their nature's <b>emotion</b> (−2 somewhere until you act it out) — anything but a Read. A proud one, refused something big, closes the door for the scene."),
-             _t("<b>Bad miss</b> (5 under, or a 1) — and a String on you as well."))}
-        <p>${_t("After a miss you may burn a String on them for +{n}.", { n: STRING_SPEND_BONUS })}</p>
-        <h3>${_t("What winning costs")}</h3>
-        <ul>${APPROACH_ORDER.map(id => `<li><b>${esc(APPROACHES[id].label)}</b> — ${esc(APPROACHES[id].cost)}</li>`).join("")}</ul>
-        <h3>${_t("In private, or before witnesses")}</h3>
-        <p>${_t("Say who is watching. <b>Before witnesses</b> a no shames you: Insecure. Some natures bend before an audience; others harden.")}</p>
+        ${lead(_t("You want something from someone who doesn't want to give it. <b>Talk to them in character</b> — the module keeps who they are and what the talk did, and you roll only when the GM says so."))}
+        ${steps([
+          ["fa-comments", _t("Talk"), _t("Speak as your character. The GM answers as them — and plays who they really are: some words open them, others close them.")],
+          ["fa-pen-nib", _t("The GM marks what the talk did"), _t("What came out — what they want, what they fear, what they'd ask in return — and the emotion your words left on them. No roll.")],
+          ["fa-dice-d20", _t("Roll when the GM says"), _t("Usually once a conversation. In Talk, press what you did: <b>I persuade</b>, <b>I intimidate</b>, <b>I lie</b> or <b>I read them</b>.")],
+          ["fa-scale-balanced", _t("Take the answer"), _t("Yes; yes, but — at their price; or no — and their emotion on you. A big win or a bad miss also moves a String.")],
+          ["fa-link", _t("It stays"), _t("What you learned, the emotions, Strings and bonds go on into the next scene — and into a fight.")],
+        ])}
+        ${where(_t("<b>Where:</b> right-click your token → {icon} → the Chronicle. In <b>Talk</b>, target the one you talk to: hover their token and press <b>T</b>.", { icon: `<i class="fas fa-address-book"></i>` }))}
         <h3>${_t("An example")}</h3>
-        <p>${_t("Captain Roell won't open the gate. Lyra talks to him. She pushes — “Open it, or answer to the Duke” — and he goes cold: the GM is playing his wall. She changes tack: “You swore to protect these people. They're outside your gate.” He looks away; the GM marks him Guilty toward Lyra. “Be who your soldiers believe you are.” — “Roll.” One roll: an Appeal — Heart is his key, so advantage — and +2 for the guilt. “Yes — but ask it as a favour. On your knee, before my people.” Lyra kneels. The gate opens — and Roell remembers who knelt.")}</p>`;
+        <p class="tsl-cx-ex">${_t("Captain Roell won't open the gate. Lyra talks to him. She pushes — “Open it, or answer to the Duke” — and he goes cold: the GM is playing his wall. She changes tack: “You swore to protect these people. They're outside your gate.” He looks away; the GM marks him Guilty toward Lyra. “Be who your soldiers believe you are.” — “Roll.” One roll: an Appeal — Heart is his key, so advantage — and +2 for the guilt. “Yes — but ask it as a favour. On your knee, before my people.” Lyra kneels. The gate opens — and Roell remembers who knelt.")}</p>
+        <h3>${_t("Words you'll see")}</h3>
+        <dl class="tsl-cx-terms">${[
+          [_t("Nature"), _t("Who they are inside. It decides how your words land. Hidden — until the party figures them out.")],
+          [_t("Key · Wall"), _t("The way of talking that opens them (you roll with advantage) — and the one that closes them (disadvantage).")],
+          [_t("DC"), _t("How hard they are to move: 10 + their proficiency + the better of WIS and INT. Always shown.")],
+          [_t("String"), _t("Something you have on someone: a debt, a secret, a weakness. One at a time each way.")],
+          [_t("Bond"), _t("Who you are to each other, and how deep it runs: ●, ●● or ●●●.")],
+          [_t("Emotion · Scar"), _t("What a moment left on someone: −2 for them, +2 for whoever plays on it. The same one twice leaves a scar.")],
+          [_t("Mask"), _t("A face someone shows that isn't their own.")],
+        ].map(([dt, dd]) => `<dt>${dt}</dt><dd>${dd}</dd>`).join("")}</dl>`;
     }
   }
 
@@ -1370,6 +1536,27 @@ class SocialFencingApp extends _SocialAppBase {
     });
     on("[data-t-clear-result]", "click", () => { this._tResult = null; this.render(false); });
 
+    // ── What weighs on them: the GM's palette ──
+    on("[data-state-open]", "click", () => { if (!game.user.isGM) return; this._stateOpen = !this._stateOpen; this.render(false); });
+    on("[data-state-emo]", "click", async (_e, n) => {
+      if (!game.user.isGM) return;
+      const toward = el.querySelector(".tsl-state-toward")?.value || null;
+      await this._toggleState("emo", n.dataset.stateEmo, toward);
+      this.render(false);
+    });
+    on("[data-state-scar]", "click", async (_e, n) => {
+      if (!game.user.isGM) return;
+      await this._toggleState("scar", n.dataset.stateScar);
+      this.render(false);
+    });
+    on("[data-scar-clear]", "click", async (_e, n) => {
+      if (!game.user.isGM) return;
+      const scar = SCARS[n.dataset.scarClear];
+      if (!scar || !(await this._confirm(_t("Take the scar off"), _t("Take <b>{scar}</b> off {name}? A scar is for good — take it off only when the story healed it.", { scar: foundry.utils.escapeHTML(scar.label), name: foundry.utils.escapeHTML(this._actor.name) })))) return;
+      await TSLEmotions.removeScar(this._actor, scar.id);
+      this.render(false);
+    });
+
     if (!canEdit) return;
 
     // ── Profile ──
@@ -1394,10 +1581,7 @@ class SocialFencingApp extends _SocialAppBase {
     }
     on("input[data-point]", "change", (e, n) => SocialArchetypeManager.setActorData(this._actor, { points: { [n.dataset.point]: e.target.value.trim() } }));
     // ── Bonds ──
-    on("[data-bond-target]", "click", async (_e, n) => {
-      const entry = await TSLBondStore.add(this._actor.id, n.dataset.bondTarget);
-      if (entry) { this._expandedBonds.add(entry.id); this.render(false); }
-    });
+    on("[data-bond-target]", "click", (_e, n) => this._bondWith(game.actors.get(n.dataset.bondTarget)));
     on("[data-bond-pick]", "click", () => {
       if (this._picking) this._endPick(_t("Pick cancelled."));
       else this._startPick();
@@ -1433,12 +1617,45 @@ class SocialFencingApp extends _SocialAppBase {
     });
     on(".tsl-bond-notes", "change", (e, n) => TSLBondStore.update(this._actor.id, n.dataset.bondId, { notes: e.target.value.trim() }));
     on(".tsl-bond-label", "change", (e, n) => TSLBondStore.update(this._actor.id, n.dataset.bondId, { label: e.target.value.trim().slice(0, 60) }));
-    on(".tsl-bond-remove", "click", (_e, n) => TSLBondStore.remove(this._actor.id, n.dataset.bondId));
-    on("[data-str-adj]", "click", async (_e, n) => {
-      if (Number(n.dataset.strAdj) > 0) {
-        if (!(await TSLStringStore.add(this._actor.id, n.dataset.target, 1))) ui.notifications.warn(_t("At most {n} Strings on one person.", { n: STRING_CAP }));
-      } else await TSLStringStore.spend(this._actor.id, n.dataset.target);
+    on(".tsl-bond-remove", "click", async (_e, n) => {
+      const esc = foundry.utils.escapeHTML;
+      if (await this._confirm(_t("End this bond (on both sides)"), _t("End the bond between <b>{a}</b> and <b>{b}</b>? Its type, dots, caption and notes go — on both sides.", { a: esc(this._actor.name), b: esc(n.dataset.name ?? "") }))) {
+        await TSLBondStore.remove(this._actor.id, n.dataset.bondId);
+      }
+    });
+    // A String either way: "mine" — this character's on them; "theirs" — theirs on this character (the GM's).
+    on("[data-hold-adj]", "click", async (_e, n) => {
+      const me = this._actor.id, other = n.dataset.target, up = Number(n.dataset.by) > 0, mine = n.dataset.holdAdj === "mine";
+      if (!mine && !game.user.isGM) return;
+      if (up && !game.user.isGM) return;
+      const [holder, target] = mine ? [me, other] : [other, me];
+      if (up) {
+        if (!(await TSLStringStore.add(holder, target, 1))) ui.notifications.warn(_t("At most {n} Strings on one person.", { n: STRING_CAP }));
+      } else await TSLStringStore.spend(holder, target);
       this.render(false);
+    });
+    // A bond with anyone: by name (Enter or +), or an actor dragged in from the sidebar.
+    const findBond = () => {
+      const input = el.querySelector(".tsl-bond-find");
+      const name = input?.value?.trim().toLowerCase();
+      if (!name) return;
+      const actor = this._bondCandidates().find(a => a.name.toLowerCase() === name)
+        ?? this._bondCandidates().find(a => a.name.toLowerCase().startsWith(name));
+      if (!actor) { ui.notifications.warn(_t("Nobody by that name.")); return; }
+      this._bondWith(actor);
+    };
+    on("[data-bond-find]", "click", () => findBond());
+    on(".tsl-bond-find", "keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); findBond(); } });
+    on(".tsl-bonds-sec", "dragover", (e) => { e.preventDefault(); });
+    on(".tsl-bonds-sec", "drop", async (e) => {
+      e.preventDefault();
+      let data = null;
+      try { data = JSON.parse(e.dataTransfer?.getData("text/plain") || "null"); } catch { data = null; }
+      if (data?.type !== "Actor") return;
+      const dropped = data.uuid ? (globalThis.fromUuidSync?.(data.uuid) ?? null) : null;
+      const actor = game.actors.get(dropped?.id ?? data.id ?? String(data.uuid ?? "").split(".").pop());
+      if (!actor) { ui.notifications.warn(_t("Only an actor of this world can be bonded.")); return; }
+      this._bondWith(actor);
     });
     on("[data-pull]", "click", async (_e, n) => {
       const target = game.actors.get(n.dataset.pull);
@@ -1562,18 +1779,7 @@ class SocialFencingApp extends _SocialAppBase {
     document.addEventListener("keydown", this._onPickCancel);
   }
 
-  _defaultBondPick(targetActor) {
-    const existing = TSLBondStore.find(this._actor.id, targetActor.id);
-    if (existing) {
-      this._expandedBonds.add(existing.id);
-      this.render(false);
-    } else {
-      TSLBondStore.add(this._actor.id, targetActor.id).then(entry => {
-        if (entry) this._expandedBonds.add(entry.id);
-        ui.notifications.info(_t("Bond added: {a} → {b}", { a: this._actor.name, b: targetActor.name }));
-      });
-    }
-  }
+  _defaultBondPick(targetActor) { this._bondWith(targetActor); }
 
   async _endPick(message = null) {
     this._stopPick();

@@ -980,7 +980,10 @@ if (require.main === module) (async () => {
     ok(`Talk (player): the person; plainly or all in (${techs} maneuvers of that approach), with what each looks like; sizes with their DCs, the lever, the String, the roll line`, !bad(talk)
       && techs === 2 && /data-tech="appeal"/.test(talk) && /data-tech="seduce"/.test(talk) && /ask from the heart/.test(talk) && /What are you asking for\?/.test(talk) && /data-size="against"/.test(talk) && /DC 10/.test(talk)
       && /Their Desire/.test(talk) && /You have something on them/.test(talk) && /data-remind/.test(talk) && /vs DC 14/.test(talk) && /Roll — Appeal/.test(talk) && /Nature unread/.test(talk) && !/Schemer/.test(talk));
-    ok(`Talk shows the holds between you — "You hold ●"`, /tsl-hold--mine/.test(talk) && /You hold <b>●<\/b>/.test(talk) && !/tsl-hold--theirs/.test(talk));
+    ok(`Talk shows the Strings between you right under their name — ticked when you have one on them, a dash for theirs on you`,
+      /tsl-x-id">[\s\S]*tsl-hold-chip tsl-hold-chip--mine on"[\s\S]*fa-check[\s\S]*String on them/.test(talk) && /tsl-hold-chip tsl-hold-chip--theirs "[^>]*><i class="fas fa-minus"><\/i> String on you/.test(talk));
+    const bare = await render(Q, "talk", { _tTarget: "uiN" });
+    ok(`…and with none, it says so: a dash, "String on them", not a blank`, !bad(bare) && /tsl-hold-chip tsl-hold-chip--mine "[^>]*><i class="fas fa-minus"><\/i> String on them/.test(bare));
     ok(`no target list — the map, or your target`, !/<select class="tsl-t-target"/.test(talk) && /data-t-pick/.test(talk) && /Someone else/.test(talk));
     ok(`an ask offers who's watching — in private or before witnesses`, /data-wit="0"/.test(talk) && /data-wit="1"/.test(talk));
     const pub = await render(P, "talk", { _tTarget: "uiN", _tTech: "appeal", _tWitnesses: true });
@@ -1038,23 +1041,75 @@ if (require.main === module) (async () => {
     await R.TSLEmotions.add(N, "insecure", { by: "uiP" });
     const felt = await render(P, "talk", { _tTarget: "uiN", _tTech: "demand" });
     ok(`Talk shows what weighs on you (with ×) and what they feel — and it counts in the roll`, !bad(felt)
-      && /tsl-you/.test(felt) && /data-emo-clear="uiP"/.test(felt) && /Feeling/.test(felt) && /Insecure/.test(felt) && /you(?:'|&#39;)re Frightened/.test(felt));
+      && /class="tsl-state /.test(felt) && /data-emo-clear="uiP"/.test(felt) && /Feeling/.test(felt) && /Insecure/.test(felt) && /you(?:'|&#39;)re Frightened/.test(felt));
     ok(`the result shows where you rolled`, !bad(result) && /Appeal: They do it — for a price/.test(result) && /you paid their price/.test(result));
     const bonds = await render(P, "bonds", { _expandedBonds: new Set([BS.find("uiP", "uiN").id]) });
     ok(`bonds: type, strength, the String — Invest and Pull (no Hurt any more)`, !bad(bonds) && /tsl-str-track/.test(bonds) && /Pull \+5/.test(bonds) && /data-invest="uiN"/.test(bonds) && !/data-hurt=/.test(bonds) && /Rival/.test(bonds));
-    const pcProfile2 = await render(P, "profile");
-    ok(`a character's profile lists emotions & scars`, !bad(pcProfile2) && /Emotions &amp; scars|Emotions & scars/.test(pcProfile2) && /Frightened/.test(pcProfile2));
+    const shut = await render(P, "bonds");
+    ok(`…all at once, nothing opened: the type, the dots, and the Strings both ways — a player sees the type, can't change it, has no +`, !bad(shut)
+      && /tsl-bond-type-tag/.test(shut) && !/<select class="tsl-bond-type"/.test(shut) && /tsl-str-track/.test(shut)
+      && /tsl-hold-chip--mine on/.test(shut) && /tsl-hold-chip--theirs /.test(shut) && !/data-by="1"/.test(shut) && /data-hold-adj="mine" data-by="-1"/.test(shut));
+    ok(`…a bond with anyone: a name (all but yourself and who you're bonded with), the map, or an actor dragged in`, /class="tsl-bond-find"/.test(shut) && /<datalist/.test(shut)
+      && /<option value="Mira">/.test(shut) && !/<option value="Captain">/.test(shut) && !/<option value="Lyra">/.test(shut) && /drag an actor in/.test(shut));
+    const everyTab = await Promise.all(["profile", "bonds", "talk", "codex"].map((t) => render(P, t, { _tTarget: "uiN" })));
+    ok(`what weighs on them sits at the top of every tab — the emotion, what it costs, and × to let it go (a player: no +)`,
+      everyTab.every((h) => !bad(h) && /class="tsl-state "/.test(h) && /Frightened/.test(h) && /−2 Pressure/.test(h) && /data-emo-clear="uiP"/.test(h) && !/data-state-open/.test(h)));
+    const calm = await render(Q, "profile");
+    ok(`…and when nothing does, it says so`, !bad(calm) && /tsl-state-none/.test(calm));
+    const locked = await render(Q, "talk", { _tTarget: "uiN", _tTech: "demand" });
+    ok(`Blackmail with nothing on them is locked — and says why, and how to get it`, !bad(locked)
+      && /locked" data-tech="blackmail"/.test(locked) && /nothing to blackmail them with yet/.test(locked) && /data-tooltip="[^"]*needs something on them[^"]*Read[^"]*String/.test(locked));
     let codexOk = true, words = 0;
-    for (const c of ["start", "ap", "read", "emo", "natures", "bonds", "gm"]) {
+    for (const c of ["start", "roll", "people", "emo", "strings", "bonds", "gm"]) {
       const h = await render(P, "codex", { _codexCat: c });
-      if (bad(h)) codexOk = false;
-      if (c === "gm" && /Running it/.test(h)) codexOk = false;
-      if (c === "ap" && !/Eight maneuvers/.test(h)) codexOk = false;
-      if (c === "start" && !(/A conversation is played/.test(h) && /One roll/.test(h))) codexOk = false;
+      if (bad(h) || !/tsl-cx-lead/.test(h)) codexOk = false;
+      if (c === "gm" && /Where to do what/.test(h)) codexOk = false;
+      if (c === "roll" && !(/I persuade/.test(h) && /What they say/.test(h) && /tsl-cx-res/.test(h))) codexOk = false;
+      if (c === "start" && !(/Roll when the GM says/.test(h) && /One roll/.test(h) && /Words you(?:'|&#39;)ll see/.test(h))) codexOk = false;
+      if (c === "strings" && !/5 over the DC, or a 20/.test(h)) codexOk = false;
       words += h.replace(/<[^>]+>/g, " ").split(/\s+/).filter((w) => /[a-z]/i.test(w)).length;
     }
     ok(`Codex: every page renders for a player (no GM page) — ${words} words`, codexOk);
     game.user.isGM = true;
+    // ── The GM's own hand: everything on a character, at once, no roll ──
+    {
+      const gmStrip = await render(N, "profile");
+      const open = await render(N, "profile", { _stateOpen: true });
+      ok(`the GM sees + on the strip; it opens every emotion as a switch (scars only on characters)`, !bad(gmStrip) && /data-state-open/.test(gmStrip) && !/data-state-emo/.test(gmStrip)
+        && !bad(open) && (open.match(/data-state-emo="/g) ?? []).length === 5 && !/data-state-scar/.test(open));
+      const pcOpen = await render(Q, "profile", { _stateOpen: true });
+      ok(`…on a character, the five scars too — and Guilty asks toward whom`, !bad(pcOpen) && (pcOpen.match(/data-state-scar="/g) ?? []).length === 5 && /class="tsl-state-toward"/.test(pcOpen));
+      const app = new R.SocialFencingApp(N);
+      await app._toggleState("emo", "angry");
+      const on = R.TSLEmotions.has(N, "angry");
+      await app._toggleState("emo", "angry");
+      ok(`one click puts Angry on them, a second takes it off — no roll, never a scar`, on && !R.TSLEmotions.has(N, "angry") && !R.TSLEmotions.scars(N).length);
+      await app._toggleState("emo", "guilty", "uiQ");
+      const g = R.TSLEmotions.of(N).find((e) => e.id === "guilty");
+      ok(`…Guilty is owed to someone: toward whom the GM picked`, g?.toward === "uiQ");
+      await R.TSLEmotions.unset(N, "guilty");
+      const qApp = new R.SocialFencingApp(Q);
+      await qApp._toggleState("scar", "flinch");
+      const scarred = R.TSLEmotions.scars(Q).includes("flinch");
+      const scarView = await render(Q, "talk", { _tTarget: "uiN" });
+      await qApp._toggleState("scar", "flinch");
+      ok(`a scar by hand — shown at once, with × for the GM — and taken off again`, scarred && /data-scar-clear="flinch"/.test(scarView) && !R.TSLEmotions.scars(Q).includes("flinch"));
+      const rowGM = await render(P, "bonds");
+      ok(`the GM changes the type right in the row, and puts a String on or off either way`, !bad(rowGM) && /<select class="tsl-bond-type"/.test(rowGM)
+        && /data-hold-adj="mine" data-by="1"/.test(rowGM) && /data-hold-adj="theirs" data-by="1"/.test(rowGM));
+      const before = SS.countOn("uiN", "uiP");
+      if (before) await SS.spend("uiN", "uiP");
+      await SS.add("uiN", "uiP", 1);
+      const theirs = await render(P, "bonds");
+      ok(`…theirs on you shows as soon as it's there — the warning, not a dash`, /tsl-hold-chip tsl-hold-chip--theirs on"[^>]*><i class="fas fa-triangle-exclamation"><\/i> String on you/.test(theirs));
+      await SS.spend("uiN", "uiP");
+      const W = pc("uiW"); W.name = "Wren";
+      const pApp = new R.SocialFencingApp(P);
+      pApp.render = () => {};
+      await pApp._bondWith(W);
+      ok(`a bond with anyone, not only who's on the map — and it opens`, !!BS.find("uiP", "uiW") && pApp._expandedBonds.has(BS.find("uiP", "uiW").id) && !pApp._bondCandidates().some((a) => a.id === "uiW"));
+      await BS.remove("uiP", BS.find("uiP", "uiW").id);
+    }
     const gmTalk = await render(P, "talk", { _tTarget: "uiN", _tTech: "demand" });
     ok(`the GM sees the truth (the nature tagged hidden) — and the mask they wear`, !bad(gmTalk) && /Schemer/.test(gmTalk) && /hidden/.test(gmTalk) && /tsl-x-mask/.test(gmTalk) && /Caretaker/.test(gmTalk));
     const gmProfile2 = await render(N, "profile");
@@ -1336,7 +1391,7 @@ if (require.main === module) (async () => {
       await render(P, "profile"), await render(P, "bonds", { _expandedBonds: new Set([BS.find("uiP", "uiN").id]) }),
       await render(N, "profile"), await render(N, "talk"),
     ];
-    for (const c of ["start", "ap", "read", "emo", "natures", "bonds", "gm"]) ukViews.push(await render(P, "codex", { _codexCat: c }));
+    for (const c of ["start", "roll", "people", "emo", "strings", "bonds", "gm"]) ukViews.push(await render(P, "codex", { _codexCat: c }));
     try { ukViews.push(new R.TSLSceneVisualizer({ mode: "scene" })._renderHTML()); } catch (err) { ukViews.push("ERR:" + err.stack); }
     const cardsBefore = globalThis.__cards.length;
     const ukP = pc("ukP"), ukN = npc("ukN", "duelist");
