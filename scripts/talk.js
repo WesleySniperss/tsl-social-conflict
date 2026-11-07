@@ -510,6 +510,7 @@ class TSLTalk {
     const backed = !!support && TSLTalk.proficient(src, support);
     const parts = [{ label: SKILL_LABELS[skill] ?? skill, value: TSLTalk.skillMod(src, skill), base: true }];
     if (backed) parts.push({ label: _t("{skill} backs it", { skill: SKILL_LABELS[support] ?? support }), value: TSLTalk.profBonus(src) });
+    { const lean = ap ? SocialArchetypeManager.leaningDots(src, ap) : 0; if (lean) parts.push({ label: _t("{approach} leaning", { approach: APPROACHES[ap].label }), value: lean }); }
     parts.push(...TSLTalk.bondParts(src, npc, ap, skill));
     if (lever) parts.push({ label: lever === "desire" ? _t("their Desire") : lever === "price" ? _t("their Price") : _t("their Fear"), value: LEVER_BONUS });
     const helper = helperId ? game.actors.get(helperId) : null;

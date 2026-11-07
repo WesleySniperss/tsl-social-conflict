@@ -293,12 +293,20 @@ if (require.main === module) (async () => {
     p.system.skills.per = { mod: 3, proficient: 1 };
     ok(`a5e skill: ability mod + proficiency (${T.skillMod(p, "per")} = 6)`, T.skillMod(p, "per") === 6);
     p.system.skills.per = { total: 7, proficient: 1 };
-    await SAM.setActorData(p, { triad: { power: 0, attention: 2, order: 1 } });   // old Leanings dots on the actor — ignored
+    await SAM.setActorData(p, { triad: { power: 0, attention: 2, order: 1 } });   // Leanings: Heart ●●, Reason ●
     await BS.add("numP", "numN", { type: "friend", attitude: 2 });
     pc("numH");
     await SAM.setKnown(n, { desire: true });
     const pv = T.preview(p, n, { technique: "appeal", helperId: "numH", lever: "desire" });
-    ok(`preview: +7 Persuasion +2 bond +2 Desire +2 help = ${pv.mod} — no stats of the module's own`, pv.mod === 13 && pv.parts.length === 4 && !pv.parts.some((x) => /leaning/i.test(x.label)));
+    ok(`preview: +7 Persuasion +2 Heart leaning +2 bond +2 Desire +2 help = ${pv.mod}`, pv.mod === 15 && pv.parts.length === 5 && pv.parts.some((x) => x.label === "Heart leaning" && x.value === 2));
+    ok(`…a Leaning counts only on its own way: a Demand gets no Heart dots`, !T.preview(p, n, { technique: "demand" }).parts.some((x) => /leaning/.test(x.label)));
+    ok(`…and an NPC has a nature, not Leanings`, SAM.leaningDots(n, "heart") === 0);
+    const lp = pc("numLean");
+    const l1 = await SAM.setLeaning(lp, "power", 3), l2 = await SAM.setLeaning(lp, "attention", 2);
+    const tri = SAM.getCharacterNotes(lp).triad;
+    const l3 = await SAM.setLeaning(lp, "attention", 1);
+    ok(`Leanings: 4 dots to spread, at most 3 in one — past the pool it's refused; the same dot again takes one off`,
+      l1 && !l2 && tri.power === 3 && tri.attention === 0 && l3 && SAM.getCharacterNotes(lp).triad.attention === 1 && !(await SAM.setLeaning(lp, "order", 1)) && (await SAM.setLeaning(lp, "attention", 1)) && SAM.getCharacterNotes(lp).triad.attention === 0);
     p.system.skills.prf = { total: 4, proficient: 1 };
     const pb = T.preview(p, n, { technique: "appeal" });
     ok(`a maneuver's second skill backs the roll: trained in Performance — Appeal gets your proficiency (+3 here)`, pb.backed && pb.support === "prf" && pb.parts.some((x) => /Performance backs it/.test(x.label) && x.value === 3));
@@ -989,8 +997,11 @@ if (require.main === module) (async () => {
       && /Key · Heart/.test(gmNpcProfile) && /Wall · Reason/.test(gmNpcProfile) && /favour, to be named later/.test(gmNpcProfile) && /data-known="price"/.test(gmNpcProfile));
     game.user.isGM = false;
     const pcProfile = await render(P, "profile");
-    ok(`PC profile (player): their maneuvers from the sheet, best first — no stats of the module's own, no nature`, !bad(pcProfile) && /Your maneuvers/.test(pcProfile)
-      && (pcProfile.match(/class="tsl-mine-row/g) ?? []).length === 8 && !/data-lean=/.test(pcProfile) && !/archetypeId/.test(pcProfile));
+    ok(`the first tab (player): what weighs on them with every switch, the Leanings' dots, then their maneuvers best first — no nature`, !bad(pcProfile) && /Your maneuvers/.test(pcProfile)
+      && (pcProfile.match(/class="tsl-mine-row/g) ?? []).length === 8 && (pcProfile.match(/data-lean="/g) ?? []).length === 9 && /Leanings/.test(pcProfile)
+      && /What weighs on them/.test(pcProfile) && /data-state-emo=/.test(pcProfile) && !/class="tsl-state /.test(pcProfile) && !/archetypeId/.test(pcProfile)
+      && pcProfile.indexOf("What weighs on them") < pcProfile.indexOf("Leanings") && pcProfile.indexOf("Leanings") < pcProfile.indexOf("Your maneuvers"));
+    ok(`the Chronicle opens on the first tab`, new R.SocialFencingApp(P)._tab === "profile");
     const npcSeen = await render(N, "profile");
     ok(`an NPC's profile, seen by a player: only what the party learned — no dossier, no nature`, !bad(npcSeen)
       && /Leverage/.test(npcSeen) && !/Being outplayed/.test(npcSeen) && !/Never kneel/.test(npcSeen) && !/Schemer/.test(npcSeen) && !/Keep the gate shut/.test(npcSeen));
@@ -1078,9 +1089,11 @@ if (require.main === module) (async () => {
       && chipOn(chip(shut, "mine")) && !!chip(shut, "theirs") && /data-hold-toggle data-holder="uiP" data-target="uiN"/.test(shut) && /data-holder="uiN" data-target="uiP"/.test(shut));
     ok(`…a bond with anyone: a name (all but yourself and who you're bonded with), the map, or an actor dragged in`, /class="tsl-bond-find"/.test(shut) && /<datalist/.test(shut)
       && /<option value="Mira">/.test(shut) && !/<option value="Captain">/.test(shut) && !/<option value="Lyra">/.test(shut) && /drag an actor in/.test(shut));
-    const everyTab = await Promise.all(["profile", "bonds", "talk", "codex"].map((t) => render(P, t, { _tTarget: "uiN" })));
-    ok(`what weighs on them sits at the top of every tab — the emotion, what it costs, × to let it go, and Change for its player`,
-      everyTab.every((h) => !bad(h) && /class="tsl-state "/.test(h) && /Frightened/.test(h) && /−2 Pressure/.test(h) && /data-emo-clear="uiP"/.test(h) && /data-state-open/.test(h)));
+    const everyTab = await Promise.all(["bonds", "talk", "codex"].map((t) => render(P, t, { _tTarget: "uiN" })));
+    const firstTab = await render(P, "profile");
+    ok(`what weighs on them: on the first tab in full, a strip at the top of every other — the emotion, what it costs, × to let it go, and Change for its player`,
+      everyTab.every((h) => !bad(h) && /class="tsl-state "/.test(h) && /Frightened/.test(h) && /−2 Pressure/.test(h) && /data-emo-clear="uiP"/.test(h) && /data-state-open/.test(h))
+      && /Frightened/.test(firstTab) && /−2 Pressure/.test(firstTab) && /data-emo-clear="uiP"/.test(firstTab));
     const mineOpen = await render(P, "profile", { _stateOpen: true });
     ok(`…Change opens every emotion and scar as a switch, for the player on their own character`, !bad(mineOpen) && (mineOpen.match(/data-state-emo="/g) ?? []).length === 5 && (mineOpen.match(/data-state-scar="/g) ?? []).length === 5);
     P.isOwner = false;
@@ -1106,10 +1119,12 @@ if (require.main === module) (async () => {
     game.user.isGM = true;
     // ── The GM's own hand: everything on a character, at once, no roll ──
     {
-      const gmStrip = await render(N, "profile");
-      const open = await render(N, "profile", { _stateOpen: true });
-      ok(`the GM sees + on the strip; it opens every emotion as a switch (scars only on characters)`, !bad(gmStrip) && /data-state-open/.test(gmStrip) && !/data-state-emo/.test(gmStrip)
-        && !bad(open) && (open.match(/data-state-emo="/g) ?? []).length === 5 && !/data-state-scar/.test(open));
+      const gmStrip = await render(N, "bonds");
+      const open = await render(N, "bonds", { _stateOpen: true });
+      const npcFirst = await render(N, "profile");
+      ok(`the GM sees Change on the strip; it opens every emotion as a switch (scars only on characters) — and on the NPC's first tab they're all there already`, !bad(gmStrip) && /data-state-open/.test(gmStrip) && !/data-state-emo/.test(gmStrip)
+        && !bad(open) && (open.match(/data-state-emo="/g) ?? []).length === 5 && !/data-state-scar/.test(open)
+        && !bad(npcFirst) && (npcFirst.match(/data-state-emo="/g) ?? []).length === 5 && npcFirst.indexOf("What weighs on them") < npcFirst.indexOf("Nature"));
       const pcOpen = await render(Q, "profile", { _stateOpen: true });
       ok(`…on a character, the five scars too — and Guilty asks toward whom`, !bad(pcOpen) && (pcOpen.match(/data-state-scar="/g) ?? []).length === 5 && /class="tsl-state-toward"/.test(pcOpen));
       const app = new R.SocialFencingApp(N);

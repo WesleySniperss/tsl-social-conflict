@@ -1139,3 +1139,11 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 .tsl-fencing .tsl-hold-chip--btn:hover { color: #fff; border-color: var(--tsl-sway); }
 .tsl-fencing .tsl-hold-chip--theirs.tsl-hold-chip--btn:hover { border-color: #e0786e; }
 .tsl-fencing .tsl-hold-chip--btn:disabled { opacity: 0.5; cursor: progress; }
+
+/* The first tab: what weighs on them, every switch in sight; the Leanings' dots */
+.tsl-state-sec { gap: 8px; }
+.tsl-state-sec .tsl-sec-title i { color: var(--tsl-accent); margin-right: 4px; }
+.tsl-state-sec .tsl-state-tags { min-height: 22px; }
+.tsl-state-sec .tsl-state-pal { border-top: 1px solid var(--tsl-border); padding-top: 8px; }
+.tsl-lean-val small { font-size: 11px; color: var(--tsl-dim); margin-left: 6px; }
+.tsl-mine-lean { color: var(--tsl-sway); }

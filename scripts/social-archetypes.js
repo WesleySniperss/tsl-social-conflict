@@ -1062,6 +1062,16 @@ const BOND_TYPE_ALIASES = { indebted: "sworn", creditor: "liege" };
 /** What the party may have learned about someone — the Read questions. */
 const KNOWN_FACTS = ["desire", "fear", "key", "wall", "price", "pressed", "mask", "audience"];
 
+/**
+ * Leanings — how a player character reaches for people: dots spread across the
+ * three approaches (kept by the approach's school: power · attention · order),
+ * TRIAD_POINT_POOL in all, at most LEANING_MAX in one. Each dot is +1 on a
+ * maneuver that comes at someone that way (a lie: the way it's told). Restored
+ * on 2026-11-07 (the user: «Наші крапочки архетипів теж» — v3.6 had dropped them).
+ */
+const TRIAD_POINT_POOL = 4;
+const LEANING_MAX = 3;
+
 class SocialArchetypeManager {
   static getFlagScope() { return SOCIAL_FENCING_SCOPE; }
   static getFlagKey()   { return "socialFencing"; }
@@ -1149,8 +1159,36 @@ class SocialArchetypeManager {
       notes: data.notes || "",
       title: data.title || "",   // a few words under their name on the relationship map
       stance: data.stance || null,
+      triad: {
+        power:     data.triad?.power     ?? 0,
+        attention: data.triad?.attention ?? 0,
+        order:     data.triad?.order     ?? 0,
+      },
       points: Object.fromEntries(PROFILE_POINTS.map(p => [p.id, data.points?.[p.id] ?? ""])),
     };
+  }
+
+  /** A character's Leaning in an approach: its dots (0–3). NPCs have natures, not Leanings. */
+  static leaningDots(actor, approachId) {
+    if (!SocialArchetypeManager.isPC(actor)) return 0;
+    const school = APPROACHES[approachId]?.school;
+    return school ? Math.max(0, Math.min(LEANING_MAX, SocialArchetypeManager.getCharacterNotes(actor).triad[school] ?? 0)) : 0;
+  }
+
+  /**
+   * Set a Leaning: `value` dots in that school. Clicking the dot it already
+   * has takes one off. Refused (false) past the pool — lower another first.
+   */
+  static async setLeaning(actor, school, value) {
+    if (!actor || !["power", "attention", "order"].includes(school)) return false;
+    const triad = SocialArchetypeManager.getCharacterNotes(actor).triad;
+    const cur = triad[school] ?? 0;
+    let next = Math.max(0, Math.min(LEANING_MAX, value | 0));
+    if (next === cur) next = cur - 1;
+    const others = Object.entries(triad).reduce((sum, [k, v]) => sum + (k === school ? 0 : (v || 0)), 0);
+    if (next > cur && others + next > TRIAD_POINT_POOL) return false;
+    await SocialArchetypeManager.setActorData(actor, { triad: { ...triad, [school]: Math.max(0, next) } });
+    return true;
   }
 
   /**

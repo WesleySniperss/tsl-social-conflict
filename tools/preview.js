@@ -73,7 +73,7 @@ async function setup() {
     ["grappled", "Grappled", "net"], ["poisoned", "Poisoned", "poison"], ["prone", "Prone", "falling"], ["restrained", "Restrained", "padlock"], ["stunned", "Stunned", "daze"], ["unconscious", "Unconscious", "unconscious"]]
     .map(([id, name, ic]) => ({ id, name, img: `icons/svg/${ic}.svg` })));
   lyra.effects.push({ id: "fxProne", name: "Prone", statuses: new Set(["prone"]), flags: {} });
-  await SAM.setActorData(lyra, { notes: "Third daughter of a ruined house. Talks her way in, then out." });
+  await SAM.setActorData(lyra, { notes: "Third daughter of a ruined house. Talks her way in, then out.", triad: { power: 1, attention: 2, order: 1 } });
   await SAM.setArchetype(roell, "tyrant");
   await SAM.setArchetype(duke, "machiavellian");
   await SAM.setArchetype(ilse, "dogmatic");
@@ -177,7 +177,7 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
 
   page("chronicle-profile-npc", await chron(roell, "profile"), 560, 1250);
   page("chronicle-profile-npc-player", await chron(duke, "profile", {}, "player"), 560, 1000);
-  page("chronicle-profile-pc", await chron(lyra, "profile", {}, "player"), 560, 620);
+  page("chronicle-profile-pc", await chron(lyra, "profile", {}, "player"), 560, 1500);
   page("chronicle-bonds", await chron(lyra, "bonds", { _expandedBonds: new Set(BS.getList("lyra").map((b) => b.id)) }, "player"), 560, 1300);
   page("chronicle-bonds-shut", await chron(lyra, "bonds", {}, "player"), 560, 560);
   page("chronicle-bonds-gm", await chron(lyra, "bonds", {}), 560, 560);

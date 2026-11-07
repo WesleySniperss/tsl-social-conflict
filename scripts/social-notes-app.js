@@ -72,7 +72,7 @@ class SocialFencingApp extends _SocialAppBase {
   constructor(actor, options = {}) {
     super(options);
     this._actor   = actor;
-    this._tab     = SocialArchetypeManager.isPC(actor) ? "talk" : "profile";
+    this._tab     = "profile";   // the first tab: who they are, and what weighs on them now
     this._codexCat = "start";
     this._picking = false;
     this._expandedBonds = new Set();
@@ -242,7 +242,7 @@ class SocialFencingApp extends _SocialAppBase {
                               this._buildProfileTab(ctx);
     return `<div class="tsl-chr">
       <nav class="tsl-tabs">${tabBtns}</nav>
-      ${this._stateStrip(ctx)}
+      ${this._tab === "profile" ? "" : this._stateStrip(ctx)}
       <div class="tsl-body">${body}</div>
     </div>`;
   }
@@ -257,9 +257,7 @@ class SocialFencingApp extends _SocialAppBase {
     const esc = foundry.utils.escapeHTML;
     const a = this._actor;
     const can = TSLEmotions.canEdit(a);
-    const tags = this._emotionTags(a, { canClear: can, effects: ctx.isPC ? "mine" : "theirs", scars: true, scarX: can })
-      + TSLConditions.active(a).map(c => `<span class="tsl-cond-tag" data-tooltip="${esc(c.name)}"><img src="${c.img}" alt=""> ${esc(c.name)}${can
-        ? `<button type="button" class="tsl-emo-x" data-cond-off="${c.id}" aria-label="${esc(_t("Take it off"))}" data-tooltip="${esc(_t("Take it off"))}">×</button>` : ""}</span>`).join("");
+    const tags = this._stateTags(a, ctx.isPC);
     const open = can && this._stateOpen;
     return `<div class="tsl-state ${open ? "open" : ""}">
       <div class="tsl-state-row">
@@ -270,6 +268,30 @@ class SocialFencingApp extends _SocialAppBase {
       </div>
       ${open ? this._statePalette(a) : ""}
     </div>`;
+  }
+
+  /** What's on them now, as tags: emotions (what each costs, or opens), scars, conditions — × for whoever may change it. */
+  _stateTags(a, isPC = SocialArchetypeManager.isPC(a)) {
+    const esc = foundry.utils.escapeHTML;
+    const can = TSLEmotions.canEdit(a);
+    return this._emotionTags(a, { canClear: can, effects: isPC ? "mine" : "theirs", scars: true, scarX: can })
+      + TSLConditions.active(a).map(c => `<span class="tsl-cond-tag" data-tooltip="${esc(c.name)}"><img src="${c.img}" alt=""> ${esc(c.name)}${can
+        ? `<button type="button" class="tsl-emo-x" data-cond-off="${c.id}" aria-label="${esc(_t("Take it off"))}" data-tooltip="${esc(_t("Take it off"))}">×</button>` : ""}</span>`).join("");
+  }
+
+  /**
+   * The first tab's own: what weighs on them now — and, for whoever may change
+   * it (the GM; a player on their own character), every emotion, scar and
+   * condition as a switch right below, nothing to open.
+   */
+  _stateSection(ctx) {
+    const a = this._actor;
+    const tags = this._stateTags(a, ctx.isPC);
+    return `<section class="tsl-sec tsl-state-sec">
+      <div class="tsl-sec-head"><span class="tsl-sec-title"><i class="fas fa-heart-pulse"></i> ${_t("What weighs on them")}</span></div>
+      <div class="tsl-state-tags">${tags || `<span class="tsl-state-none">${_t("nothing right now")}</span>`}</div>
+      ${TSLEmotions.canEdit(a) ? this._statePalette(a) : ""}
+    </section>`;
   }
 
   /**
@@ -340,7 +362,38 @@ class SocialFencingApp extends _SocialAppBase {
   // ── Profile ─────────────────────────────────────────────────────────────────
 
   _buildProfileTab(ctx) {
-    return ctx.isPC ? this._buildPcProfile(ctx) : this._buildNpcProfile(ctx);
+    return this._stateSection(ctx) + (ctx.isPC ? this._buildPcProfile(ctx) : this._buildNpcProfile(ctx));
+  }
+
+  /**
+   * Leanings — how this character reaches for people: dots in Pressure, Heart
+   * and Reason (TRIAD_POINT_POOL to spread, LEANING_MAX in one), +1 a dot on a
+   * maneuver that comes at someone that way.
+   */
+  _leaningsSection({ notes, canEdit }) {
+    const esc = foundry.utils.escapeHTML;
+    const dis = canEdit ? "" : "disabled";
+    const total = Object.values(notes.triad).reduce((sum, v) => sum + (v || 0), 0);
+    const left = TRIAD_POINT_POOL - total;
+    const rows = APPROACH_ORDER.map(id => {
+      const ap = APPROACHES[id];
+      const val = Math.min(LEANING_MAX, notes.triad[ap.school] ?? 0);
+      const pips = Array.from({ length: LEANING_MAX }, (_, i) => `<button type="button" class="tsl-pip ${i < val ? "on" : ""}" data-lean="${ap.school}" data-value="${i + 1}"
+          style="--pip:${ap.color}" ${dis} aria-label="${esc(ap.label)} ${i + 1}" data-tooltip="${esc(i + 1 === val ? _t("Click again to take this dot off.") : _t("{n} — +{n} on {approach}", { n: i + 1, approach: ap.label }))}"></button>`).join("");
+      return `<div class="tsl-lean-row">
+        <span class="tsl-lean-label" style="--c:${ap.color}" data-tooltip="${esc(`${ap.gist} ${ap.examples}.`)}"><i class="fas ${ap.icon}"></i> ${esc(ap.label)}</span>
+        <span class="tsl-pips">${pips}</span>
+        <span class="tsl-lean-val">${val ? `+${val}` : ""} <small>${esc(ap.short)}</small></span>
+      </div>`;
+    }).join("");
+    return `<section class="tsl-sec">
+      <div class="tsl-sec-head">
+        <span class="tsl-sec-title">${_t("Leanings")}</span>
+        <span class="tsl-budget ${left < 0 ? "over" : left === 0 ? "spent" : ""}">${left < 0 ? _t("{n} over — lower one", { n: -left }) : _t("{n} / {pool} left", { n: left, pool: TRIAD_POINT_POOL })}</span>
+      </div>
+      <p class="tsl-note">${_t("How {name} reaches for people. Each dot is <b>+1</b> on a maneuver that comes at someone that way — a lie too, the way it's told. {pool} dots to spread, at most {max} in one.", { name: esc(this._actor.name), pool: TRIAD_POINT_POOL, max: LEANING_MAX })}</p>
+      ${rows}
+    </section>`;
   }
 
   /**
@@ -349,7 +402,8 @@ class SocialFencingApp extends _SocialAppBase {
    * best first; emotions & scars; notes. No stats of the module's own: the
    * character sheet is the character.
    */
-  _buildPcProfile({ notes, canEdit }) {
+  _buildPcProfile(ctx) {
+    const { notes, canEdit } = ctx;
     const esc = foundry.utils.escapeHTML;
     const dis = canEdit ? "" : "disabled";
     const name = esc(this._actor.name);
@@ -360,7 +414,8 @@ class SocialFencingApp extends _SocialAppBase {
       const skill = TSLTalk.bestSkill(this._actor, t.skills);
       const support = t.skills.find(k => k !== skill) ?? null;
       const backed = !!support && TSLTalk.proficient(this._actor, support);
-      return { t, skill, support, backed, total: TSLTalk.skillMod(this._actor, skill) + (backed ? TSLTalk.profBonus(this._actor) : 0) };
+      const lean = t.approach ? SocialArchetypeManager.leaningDots(this._actor, t.approach) : 0;
+      return { t, skill, support, backed, lean, total: TSLTalk.skillMod(this._actor, skill) + (backed ? TSLTalk.profBonus(this._actor) : 0) + lean };
     }).sort((x, y) => y.total - x.total);
     const top = mine[0]?.total ?? 0;
     const rows = mine.map(m => {
@@ -368,14 +423,15 @@ class SocialFencingApp extends _SocialAppBase {
       return `<div class="tsl-mine-row ${m.total >= top - 1 ? "tsl-mine-row--best" : ""}" style="--c:${ap?.color ?? m.t.color ?? READ_COLOR}"
         data-tooltip="${esc(`<b>${m.t.label}</b> — ${m.t.line}.<br>${[m.t.anyWay ? _t("Any way") : m.t.job === "gambit" ? TECH_JOBS.gambit.label : "", ap?.label ?? ""].filter(Boolean).join(" · ")}`)}">
         <span class="tsl-mine-name"><i class="fas ${ap?.icon ?? m.t.icon ?? "fa-eye"}"></i> ${esc(m.t.label)}</span>
-        <span class="tsl-mine-skills">${esc(SKILL_LABELS[m.skill] ?? m.skill)}${m.support ? ` + ${esc(SKILL_LABELS[m.support] ?? m.support)}${m.backed ? ` <i class="fas fa-check" data-tooltip="${esc(_t("Trained — it backs the roll: +{n}", { n: TSLTalk.profBonus(this._actor) }))}"></i>` : ""}` : ""}</span>
+        <span class="tsl-mine-skills">${esc(SKILL_LABELS[m.skill] ?? m.skill)}${m.support ? ` + ${esc(SKILL_LABELS[m.support] ?? m.support)}${m.backed ? ` <i class="fas fa-check" data-tooltip="${esc(_t("Trained — it backs the roll: +{n}", { n: TSLTalk.profBonus(this._actor) }))}"></i>` : ""}` : ""}${m.lean ? ` · <span class="tsl-mine-lean">${esc(_t("{approach} leaning", { approach: ap.label }))} +${m.lean}</span>` : ""}</span>
         <span class="tsl-mine-bonus">${sign(m.total)}</span>
       </div>`;
     }).join("");
     return `
+      ${this._leaningsSection(ctx)}
       <section class="tsl-sec">
         <div class="tsl-sec-head"><span class="tsl-sec-title">${_t("Your maneuvers")}</span></div>
-        <p class="tsl-note">${_t("Straight from {name}'s sheet: each maneuver rolls the better of its two skills, and the other backs it (+{n}, your proficiency) if {name} is trained in it. Best first — play to your strengths, and let the party do the rest.", { name, n: TSLTalk.profBonus(this._actor) })}</p>
+        <p class="tsl-note">${_t("From {name}'s sheet and Leanings: each maneuver rolls the better of its two skills, the other backs it (+{n}, your proficiency) if {name} is trained in it, and the Leaning of its way adds its dots. Best first — play to your strengths, and let the party do the rest.", { name, n: TSLTalk.profBonus(this._actor) })}</p>
         <div class="tsl-mine">${rows}</div>
       </section>
       <section class="tsl-sec">
@@ -1266,6 +1322,7 @@ class SocialFencingApp extends _SocialAppBase {
         ${table(null, [
           [`<b>${_t("skill")}</b>`, _t("the better of the maneuver's two")],
           [`<b>+${TSLTalk.profBonus(this._actor)}</b>`, _t("your proficiency, if you're trained in the other skill (not into their wall)")],
+          [`<b>+●</b>`, _t("your Leaning in that way — the dots on your Profile, +1 each")],
           [`<b>+${LEVER_BONUS}</b>`, _t("their Desire or Fear, once the party knows it — if your words played on it")],
           [`<b>+${HELP_BONUS}</b>`, _t("a friend who really backed you in the talk (they don't roll)")],
           [`<b>±2</b>`, _t("emotions: one of theirs that your way plays on +2; one of yours that spoils it −2")],
@@ -1339,7 +1396,7 @@ class SocialFencingApp extends _SocialAppBase {
         <h3>${_t("Scars")}</h3>
         <p>${_t("Take an emotion you already carry, and it leaves a <b>scar</b> instead — for good, one of each.")}</p>
         ${table([_t("Scar"), _t("From"), _t("For good")], Object.values(SCARS).map(s => [`<b>${esc(s.label)}</b>`, esc(EMOTIONS[s.from].label), esc(s.text)]))}
-        ${where(_t("<b>Where:</b> at the top of every Chronicle — what weighs on them now. × takes one off; <b>Change</b> opens every emotion, scar and condition as a switch — the GM on anyone, a player on their own character."))}`;
+        ${where(_t("<b>Where:</b> the first tab of the Chronicle, Profile — what weighs on them now, and every emotion, scar and condition as a switch (the GM on anyone, a player on their own character). On the other tabs, a strip at the top: × takes one off, Change opens the switches."))}`;
 
       case "strings": return `
         ${lead(_t("A <b>String</b> is something you have on someone — a debt, a secret, a weakness seen. <b>One at a time each way</b>: you have something on them, or you don't."))}
@@ -1390,7 +1447,7 @@ class SocialFencingApp extends _SocialAppBase {
         ${lead(_t("You play the people; the module remembers them and counts the few rolls."))}
         <h3>${_t("Where to do what")}</h3>
         ${table(null, [
-          [`<b>${_t("Emotions and scars")}</b>`, _t("on anyone: the strip at the top of their Chronicle — Change puts one on or takes it off, × lets it go; players do the same on their own character")],
+          [`<b>${_t("Emotions and scars")}</b>`, _t("on anyone: the first tab of their Chronicle — every emotion, scar and condition is a switch there; players do the same on their own character")],
           [`<b>${_t("Bonds and Strings")}</b>`, _t("the Bonds tab: the type, the dots and the Strings both ways, right in the row — a String is a switch, click it; add anyone by name, or drag an actor in")],
           [`<b>${_t("What came out")}</b>`, _t("the NPC's Talk tab or Profile: click a fact to mark it known")],
           [`<b>${_t("How to play them")}</b>`, _t("the NPC's Talk tab: how they take each way, their price, their no, the mask to act out")],
@@ -1433,6 +1490,7 @@ class SocialFencingApp extends _SocialAppBase {
           [_t("Key · Wall"), _t("The way of talking that opens them (you roll with advantage) — and the one that closes them (disadvantage).")],
           [_t("DC"), _t("How hard they are to move: 10 + their proficiency + the better of WIS and INT. Always shown.")],
           [_t("String"), _t("Something you have on someone: a debt, a secret, a weakness. One at a time each way.")],
+          [_t("Leanings"), _t("How your character reaches for people: dots in Pressure, Heart and Reason, +1 a dot when your words come that way. On the Profile.")],
           [_t("Bond"), _t("Who you are to each other, and how deep it runs: ●, ●● or ●●●.")],
           [_t("Emotion · Scar"), _t("What a moment left on someone: −2 for them, +2 for whoever plays on it. The same one twice leaves a scar.")],
           [_t("Mask"), _t("A face someone shows that isn't their own.")],
@@ -1583,6 +1641,10 @@ class SocialFencingApp extends _SocialAppBase {
     if (!canEdit) return;
 
     // ── Profile ──
+    on("[data-lean]", "click", async (_e, n) => {
+      if (!(await SocialArchetypeManager.setLeaning(this._actor, n.dataset.lean, Number(n.dataset.value))))
+        ui.notifications.warn(_t("Only {n} dots to spread — lower another approach first.", { n: TRIAD_POINT_POOL }));
+    });
     on("select[name='archetypeId']", "change", (e) => {
       // A new nature is a new secret: un-name it, forget what was known about the old one.
       SocialArchetypeManager.setActorData(this._actor, { archetypeId: e.target.value || null, revealed: false, known: {} });
