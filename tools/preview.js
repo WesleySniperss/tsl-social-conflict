@@ -228,6 +228,36 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
   page("scene-selected", await board("scene", { kind: "node", id: "roell" }), 940, 760);
   page("scene-pair", await board("scene", { kind: "edge", id: ["lyra", "mira"].sort().join("|") }), 940, 760);
 
+  // ── Bonds in reach: a bonded one's token wears the bond; the corner panel lists it ──
+  {
+    const N = R.TSLBondNear;
+    const was = { ready: canvas.ready, grid: canvas.grid, controlled: canvas.tokens.controlled, placeables: canvas.tokens.placeables };
+    canvas.ready = true;
+    canvas.grid = { measurePath: (pts) => ({ distance: Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y) / 20 }) };   // a 100 px square is 5 ft
+    const at = (a, x, y) => ({ id: "t-" + a.id, actor: a, x, y, w: 100, h: 100, center: { x: x + 50, y: y + 50 }, visible: true, document: { hidden: false, texture: { src: a.img } } });
+    const toks = [at(lyra, 300, 330), at(roell, 470, 250), at(mira, 170, 230), at(duke, 880, 380)];
+    canvas.tokens.placeables = toks;
+    canvas.tokens.controlled = [toks[0]];
+    const pairs = N.pairs();
+    const marks = pairs.map((p) => `<div class="tsl-bond-mark" style="left:${p.other.x + 50}px;top:${p.other.y - 4}px;font-size:13px">${N.badgeHTML([N.info(p)])}</div>`).join("");
+    const tokenImgs = toks.map((t) => `<img src="${t.document.texture.src}" style="position:absolute;left:${t.x}px;top:${t.y}px;width:100px;height:100px;border-radius:50%;object-fit:cover;object-position:top;border:3px solid ${t === toks[0] ? "#ff9829" : "#333"};background:#555">
+      <div style="position:absolute;left:${t.x - 20}px;top:${t.y + 104}px;width:140px;text-align:center;color:#fff;font:13px Signika,sans-serif;text-shadow:0 0 4px #000">${t.actor.name}</div>`).join("");
+    const reachRing = `<div style="position:absolute;left:${350 - 300}px;top:${380 - 300}px;width:600px;height:600px;border-radius:50%;border:2px dashed rgba(232,85,122,0.35)"></div>`;
+    page("near", `<div style="position:relative;width:1180px;height:720px;overflow:hidden;background:#24302a;background-image:linear-gradient(rgba(0,0,0,.25) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.25) 1px,transparent 1px);background-size:100px 100px">
+      ${reachRing}${tokenImgs}
+      <div id="hud" style="left:0;top:0;width:1180px;height:720px"><div id="tsl-bond-marks">${marks}</div></div>
+      <div style="position:absolute;left:16px;bottom:16px;display:flex;flex-direction:column;gap:16px;width:72px">
+        <section id="tsl-bond-near">${N.panelHTML(pairs)}</section>
+        <div style="width:200px;background:rgba(11,10,19,.8);border:1px solid #4b4a54;border-radius:8px;padding:6px 8px;color:#e7d1b1;font:12px Signika,sans-serif;line-height:1.6">
+          <div><span style="color:#d0b04a">●</span> Gamemaster [GM]</div><div><span style="color:#5ac">●</span> Player [Lyra Vane]</div></div>
+      </div>
+    </div>`, 1180, 720);
+    page("near-folded", `<div style="position:relative;width:400px;height:200px;background:#24302a">
+      <div style="position:absolute;left:16px;bottom:16px;display:flex;flex-direction:column;gap:16px;width:72px">
+        <section id="tsl-bond-near">${N.panelHTML(pairs, { folded: true })}</section></div></div>`, 400, 200);
+    Object.assign(canvas, { ready: was.ready, grid: was.grid }); canvas.tokens.controlled = was.controlled; canvas.tokens.placeables = was.placeables;
+  }
+
   // ── Dialogs (each prompt once, captured as built) ──
   {
     dialogs.length = 0;

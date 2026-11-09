@@ -1518,8 +1518,9 @@ class SocialFencingApp extends _SocialAppBase {
              _t("Their bond toward you is their guard: someone close lets it down (DC −● when you ask them); an Enemy is wary (DC +●)."))}
         <h3>${_t("Close by")}</h3>
         <p>${_t("Standing close to each other — in a fight or not — the bond's aura goes on your sheet by itself: ±1 per bonus, ±2 at ●●●; several bonds add up to ±2 at most. Step apart, or leave the map, and it comes off.")}</p>
+        <p>${_t("On the map it shows at once: when your character comes within that reach, their token wears the bond — its type, ●, a <b>tick</b> if you have a String on them, a <b>!</b> if they have one on you — and the panel in the bottom-left corner, above the players, lists everyone in reach with what the bond gives right now. Click a name there to open your bonds.")}</p>
         <h3>${_t("●● and ●●●")}</h3>
-        <p>${_t("At ●● the type's own ability opens. At ●●● — its signature, once per long rest (Bonds → What it gives → Call on it).")}</p>
+        <p>${_t("At ●● the type's own ability opens. At ●●● — its signature, once per long rest (Bonds → Call on it, right in its row).")}</p>
         ${table([_t("Bond"), _t("Per ●"), "●●", _t("●●● — once per long rest")], BOND_TYPES.filter(t => t.id !== "stranger").map(t => {
           const tap = APPROACHES[SocialArchetypeManager.bondApproach(t.id)];
           const per = [tap ? `+ ${esc(tap.label)}` : "", t.edge ? `+ ${esc(SKILL_LABELS[t.edge])}` : "", t.cost ? `− ${esc(SKILL_LABELS[t.cost])}` : "", t.hostile ? esc(_t("− the rest")) : ""].filter(Boolean).join(", ");

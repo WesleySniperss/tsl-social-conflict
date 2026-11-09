@@ -207,7 +207,7 @@ const EXPORTS = ["SocialArchetypeManager", "TSLTalk", "TSLStringStore", "TSLBond
   "TSLEmotions", "TSLConditions", "EMOTIONS", "EMOTION_ORDER", "SCARS",
   "READ_QUESTIONS", "READ_ORDER", "ARCHETYPE_TELLS", "ARCHETYPE_REACTIONS", "BOND_TYPES", "PROFILE_POINTS",
   "SKILL_LABELS", "STRING_CAP", "migrateToV3", "TSL_I18N", "TSLi18n", "TSL_UK", "TALK_GRADES", "JOB_GRADES",
-  "TSLAbilities", "TRIAD_MOVES", "NPC_ABILITIES", "TSLBondAuras", "TSLBondMoments", "TSLBondPowers", "BOND_ABILITIES", "BOND_SIGNATURES"];
+  "TSLAbilities", "TRIAD_MOVES", "NPC_ABILITIES", "TSLBondAuras", "TSLBondNear", "TSLBondMoments", "TSLBondPowers", "BOND_ABILITIES", "BOND_SIGNATURES"];
 let api;
 try {
   api = new Function(combined + "\nreturn { " + EXPORTS.map((e) => `${e}: typeof ${e} !== "undefined" ? ${e} : undefined`).join(", ") + " };")();
@@ -808,6 +808,55 @@ if (require.main === module) (async () => {
     ok(`…and when the fight ends, standing together, they keep it`, hasAura(p) && hasAura(fr));
     game.combat = wasCombat;
     Object.assign(canvas, { ready: was.ready, grid: was.grid }); canvas.tokens.placeables = was.placeables;
+  }
+
+  // ═══ Bonds in reach, on screen: their token wears the bond, the corner lists it ═══
+  {
+    const N = R.TSLBondNear;
+    const me = pc("nrP"), rival = npc("nrR"), pal = npc("nrF"), mentor = npc("nrM");
+    await BS.add("nrP", "nrR", { type: "rival", attitude: 2 });
+    await BS.add("nrP", "nrF", { type: "friend", attitude: 3 });
+    await BS.add("nrP", "nrM", { type: "mentor", attitude: 1 });
+    await SS.add("nrP", "nrR", 1);        // a String on the rival
+    await SS.add("nrF", "nrP", 1);        // the friend holds one on Lyra
+    const was = { ready: canvas.ready, placeables: canvas.tokens.placeables, controlled: canvas.tokens.controlled, grid: canvas.grid, user: game.user };
+    canvas.ready = true;
+    canvas.grid = { measurePath: (pts) => ({ distance: Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y) / 20 }) };   // 20 px a foot
+    const tk = (a, x) => ({ id: "t" + a.id, actor: a, center: { x, y: 0 }, x: x - 50, y: -50, w: 100, visible: true, document: { hidden: false, texture: { src: "" } } });
+    const tMe = tk(me, 0), tR = tk(rival, 200), tF = tk(pal, 240), tM = tk(mentor, 2000);
+    canvas.tokens.placeables = [tMe, tR, tF, tM];
+    canvas.tokens.controlled = [tMe];
+    const ids = (ps) => ps.map((p) => p.other.actor.id).join(",");
+    const gmPairs = N.pairs();
+    ok(`the GM, their token selected: the rival (10 ft) and the friend (12 ft) are in reach, nearest first — the mentor 100 ft off is not: ${ids(gmPairs)}`, ids(gmPairs) === "nrR,nrF");
+    canvas.tokens.controlled = [];
+    ok(`…with nothing selected, the GM sees no badges`, N.pairs().length === 0);
+    game.user = { id: "pl1", isGM: false, name: "Player" };
+    ok(`a player: their own character on the map is enough, selected or not`, ids(N.pairs()) === "nrR,nrF");
+    tR.document.hidden = true;
+    ok(`…a token the GM hid never wears a badge for a player`, ids(N.pairs()) === "nrF");
+    tR.document.hidden = false; tF.visible = false;
+    ok(`…nor one out of their sight`, ids(N.pairs()) === "nrR");
+    tF.visible = true;
+    const [pR, pF] = N.pairs();
+    const bR = N.badgeHTML([N.info(pR)]), bF = N.badgeHTML([N.info(pF)]);
+    ok(`the rival's badge: Rival ●●○ and a tick — you have a String on them`, /Rival/.test(bR) && /●●○/.test(bR) && /tsl-bm-str--mine/.test(bR) && !/tsl-bm-str--theirs/.test(bR) && /tsl-bm--hostile/.test(bR));
+    ok(`the friend's: Friend ●●● and a warning — they have one on you`, /Friend/.test(bF) && /●●●/.test(bF) && /tsl-bm-str--theirs/.test(bF) && !/tsl-bm-str--mine/.test(bF) && /tsl-bm--warm/.test(bF));
+    const text = N.panelHTML(N.pairs()).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+    ok(`the corner panel lists both, with what the aura gives right now, their guard, the Strings and the ●● / ●●● powers: ${text.slice(0, 150)}…`,
+      /Bonds in reach/.test(text) && /nrR/.test(text) && /nrF/.test(text) && /They have your back/.test(text) && /\+2 to saving throws/.test(text)
+      && /their guard is down for you: DC −3/.test(text) && /Steady me/.test(text) && /— ready/.test(text) && /String on them/.test(text) && /String on you/.test(text));
+    const folded = N.panelHTML(N.pairs(), { folded: true });
+    ok(`…folded: only the header and the count`, /tsl-bn-count">2</.test(folded) && !/tsl-bn-row/.test(folded));
+    settingsMap.set(`${SCOPE}.bondAuraRange`, 0);
+    const off = N.panelHTML(N.pairs());
+    ok(`auras off (reach 0): the bonds still show within 15 ft, with no aura claimed`, N.pairs().length === 2 && !/They have your back/.test(off));
+    settingsMap.delete(`${SCOPE}.bondAuraRange`);
+    settingsMap.set(`${SCOPE}.bondNearShow`, false);
+    ok(`…and each viewer can turn it off`, N.enabled() === false);
+    settingsMap.delete(`${SCOPE}.bondNearShow`);
+    game.user = was.user;
+    Object.assign(canvas, { ready: was.ready, grid: was.grid }); canvas.tokens.placeables = was.placeables; canvas.tokens.controlled = was.controlled;
   }
 
   // ═══ Strings in a fight (Pull) ══════════════════════════════════════════════

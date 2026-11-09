@@ -59,7 +59,14 @@ Hooks.once("init", () => {
     hint: _t("Standing this close to someone you have a bond with — in a fight or not — gives that bond's aura (feet). 0 turns bond auras off."),
     scope: "world", config: true, type: Number, default: 15,
     range: { min: 0, max: 60, step: 5 },
-    onChange: () => { try { TSLBondAuras.refresh(); } catch { /* not ready */ } },
+    onChange: () => { try { TSLBondAuras.refresh(); TSLBondNear.update(); } catch { /* not ready */ } },
+  });
+
+  game.settings.register(TSL_SCOPE, "bondNearShow", {
+    name: _t("Bonds in reach on screen"),
+    hint: _t("When your character comes within the aura's reach of someone they have a bond with, that one's token shows the bond — its type, ●, the Strings between you — and a panel in the bottom-left corner lists it with what it gives right now. On your screen only; the GM sees it for the tokens they select."),
+    scope: "client", config: true, type: Boolean, default: true,
+    onChange: () => { try { TSLBondNear.update(); } catch { /* not ready */ } },
   });
 
   // An NPC's pull on a String is a chat card that waits for the answer: wire its buttons.
@@ -197,6 +204,9 @@ Hooks.once("ready", () => {
   // A bond reaches into a fight (its aura); its ●●● signature lasts one roll and comes back with a long rest.
   try { TSLBondAuras.register(); TSLBondMoments.registerHooks(); TSLBondPowers.registerRestHooks(); }
   catch (err) { console.error("TSL | bond powers failed:", err); }
+  // On every screen: a bonded one's token in reach wears the bond, and the corner panel lists it.
+  try { TSLBondNear.register(); }
+  catch (err) { console.error("TSL | bonds in reach failed:", err); }
   try { SocialHUD.register(); }
   catch (err) { console.error("TSL | SocialHUD failed:", err); }
   // An actor deleted from the world takes its bonds and Strings with it (the active GM tidies up).
