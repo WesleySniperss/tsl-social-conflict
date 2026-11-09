@@ -1147,3 +1147,36 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 .tsl-state-sec .tsl-state-pal { border-top: 1px solid var(--tsl-border); padding-top: 8px; }
 .tsl-lean-val small { font-size: 11px; color: var(--tsl-dim); margin-left: 6px; }
 .tsl-mine-lean { color: var(--tsl-sway); }
+
+/* Leanings as the archetype: the triad, its natures, what each dot gives on the sheet */
+.tsl-lean-row--triad { grid-template-columns: 150px auto minmax(0, 1fr); padding: 3px 6px; border-radius: 6px; border: 1px solid transparent; }
+.tsl-lean-row--triad.ruling { border-color: color-mix(in srgb, var(--c) 55%, transparent); background: color-mix(in srgb, var(--c) 8%, transparent); }
+.tsl-lean-row--triad .tsl-lean-label { color: var(--c); display: flex; flex-direction: column; gap: 1px; }
+.tsl-lean-row--triad .tsl-lean-label small { font-family: var(--tsl-body); font-size: 10.5px; letter-spacing: 0; color: var(--tsl-dim); }
+.tsl-lean-row--triad .tsl-lean-val { font-size: 12px; color: var(--tsl-soft); }
+.tsl-lean-row--triad .tsl-lean-val b { color: var(--tsl-sway); font-weight: 600; }
+.tsl-lean-none { color: var(--tsl-dim); font-style: italic; }
+.tsl-lean-sheet b { color: var(--tsl-sway); }
+.tsl-mine-lean.neg { color: #f0a59d; }
+
+/* The Strings at hand, on the first tab */
+.tsl-strings-sec .tsl-sec-title i { color: var(--tsl-sway); margin-right: 4px; }
+.tsl-sr { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; padding: 4px 6px; border: 1px solid rgba(224, 180, 94, 0.35); border-radius: 8px; background: rgba(224, 180, 94, 0.06); }
+.tsl-sr img { width: 28px; height: 28px; flex: 0 0 28px; border-radius: 50%; object-fit: cover; border: 1px solid var(--tsl-border2); }
+.tsl-sr-name { flex: 1 1 auto; min-width: 80px; font-family: var(--tsl-title); font-size: 13px; color: #fff; }
+.tsl-sr-acts { display: flex; flex-wrap: wrap; gap: 4px; }
+.tsl-fencing .tsl-sr-acts .tsl-btn--tiny { margin-left: 0; }
+.tsl-fencing .tsl-sr-acts .tsl-btn--tiny i { color: var(--tsl-sway); }
+.tsl-sr-theirs { color: #e0786e; }
+.tsl-sr-theirs i { margin-right: 4px; }
+
+/* The Read: what you look for, before the roll */
+.tsl-rqs { display: flex; flex-wrap: wrap; gap: 5px; }
+.tsl-fencing .tsl-rq {
+  width: auto; height: auto; min-height: 26px; margin: 0; padding: 3px 9px; box-shadow: none; cursor: pointer; text-align: left; line-height: 1.2;
+  display: inline-flex; align-items: center; gap: 6px; border-radius: 13px; font-size: 12.5px;
+  background: rgba(0, 0, 0, 0.25); color: var(--tsl-soft); border: 1px dashed rgba(217, 180, 106, 0.5);
+}
+.tsl-fencing .tsl-rq:hover { color: #fff; border-color: #d9b46a; }
+.tsl-fencing .tsl-rq.on { color: #fff; border-style: solid; border-color: #d9b46a; background: rgba(217, 180, 106, 0.18); }
+.tsl-fencing .tsl-rq b { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: #d9b46a; color: #1a1010; font-size: 11px; }

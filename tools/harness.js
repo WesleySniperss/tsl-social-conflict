@@ -299,7 +299,7 @@ if (require.main === module) (async () => {
     await SAM.setKnown(n, { desire: true });
     const pv = T.preview(p, n, { technique: "appeal", helperId: "numH", lever: "desire" });
     ok(`preview: +7 Persuasion +2 Heart leaning +2 bond +2 Desire +2 help = ${pv.mod}`, pv.mod === 15 && pv.parts.length === 5 && pv.parts.some((x) => x.label === "Heart leaning" && x.value === 2));
-    ok(`…a Leaning counts only on its own way: a Demand gets no Heart dots`, !T.preview(p, n, { technique: "demand" }).parts.some((x) => /leaning/.test(x.label)));
+    ok(`…a Leaning counts only on its own way: a Demand gets no Heart dots — and with none in Pressure, while leaning elsewhere, it's foreign ground: −1`, T.preview(p, n, { technique: "demand" }).parts.some((x) => /foreign ground/.test(x.label) && x.value === -1) && !T.preview(p, n, { technique: "demand" }).parts.some((x) => x.label === "Heart leaning"));
     ok(`…and an NPC has a nature, not Leanings`, SAM.leaningDots(n, "heart") === 0);
     const lp = pc("numLean");
     const l1 = await SAM.setLeaning(lp, "power", 3), l2 = await SAM.setLeaning(lp, "attention", 2);
@@ -307,6 +307,13 @@ if (require.main === module) (async () => {
     const l3 = await SAM.setLeaning(lp, "attention", 1);
     ok(`Leanings: 4 dots to spread, at most 3 in one — past the pool it's refused; the same dot again takes one off`,
       l1 && !l2 && tri.power === 3 && tri.attention === 0 && l3 && SAM.getCharacterNotes(lp).triad.attention === 1 && !(await SAM.setLeaning(lp, "order", 1)) && (await SAM.setLeaning(lp, "attention", 1)) && SAM.getCharacterNotes(lp).triad.attention === 0);
+    const leanFx = () => lp.effects.filter((e) => e.flags?.[SCOPE]?.triadBonus);
+    ok(`Leanings on the sheet, as before: Power ●●● → +3 Intimidation on every check (one effect); an empty triad gives nothing`,
+      SAM.leanSkillBonus(lp, "itm") === 3 && SAM.leanSkillBonus(lp, "ins") === 0 && leanFx().length === 1 && leanFx()[0].changes.some((c) => c.key === "system.skills.itm.bonuses.check" && c.value === "+3"));
+    await SAM.setLeaning(lp, "power", 3);
+    ok(`…it follows the dots: one off — +2; Power ●● is the archetype (a lead of 2)`, SAM.leanSkillBonus(lp, "itm") === 2 && leanFx().length === 1 && SAM.rulingTriad(lp) === "power");
+    await SAM.setLeaning(lp, "power", 2); await SAM.setLeaning(lp, "power", 1);
+    ok(`…and with no dots, no effect`, !leanFx().length && SAM.rulingTriad(lp) === null);
     p.system.skills.prf = { total: 4, proficient: 1 };
     const pb = T.preview(p, n, { technique: "appeal" });
     ok(`a maneuver's second skill backs the roll: trained in Performance — Appeal gets your proficiency (+3 here)`, pb.backed && pb.support === "prf" && pb.parts.some((x) => /Performance backs it/.test(x.label) && x.value === 3));
@@ -334,7 +341,11 @@ if (require.main === module) (async () => {
     const ch = T.chance(p, kn, { technique: "appeal" });
     ok(`the odds use only what the party knows: unknown → a normal roll; their key known → advantage; both known → the third is a normal roll for sure`,
       relBefore === "unknown" && r1 === "key,unknown,unknown" && r2 === "wall,plain" && ch.mode === "adv" && T.knownRelation(kn, null) === null);
-    ok(`a Read has no size and no approach: the base DC`, T.preview(p, n, { technique: "read" }).dc === 14 && T.preview(p, n, { technique: "read" }).size === null
+    ok(`their guard: a Friend ●● toward you lowers the DC by 2 — on a Read too`, T.preview(p, n, { technique: "read" }).dcMods.some((m) => /guard is down/.test(m.label) && m.value === -2));
+    const foe = npc("numFoe", "tyrant");
+    await BS.add("numFoe", "numP", { type: "enemy", attitude: 1 });
+    ok(`…an Enemy ● is wary of you: DC +1`, T.preview(p, foe, { technique: "read" }).dcMods.some((m) => /wary/.test(m.label) && m.value === 1));
+    ok(`a Read has no size and no approach: the base DC (and their guard)`, T.preview(p, n, { technique: "read" }).dc === 12 && T.preview(p, n, { technique: "read" }).size === null
       && T.preview(p, n, { technique: "read" }).approach === null && !T.preview(p, n, { technique: "read" }).parts.some((x) => /leaning|bond/.test(x.label)));
     ok(`no openings: an ask against them still needs leverage`, /needs leverage/.test(T.preview(pc("numQ"), npc("numM", "broker"), { technique: "argument", size: "against" }).blocked ?? ""));
     ok(`only NPCs are asked`, !!T.preview(n, p, { technique: "appeal" }).blocked);
@@ -746,9 +757,10 @@ if (require.main === module) (async () => {
     ok(`every type but Stranger has its approach, an ●● ability, a ●●● signature and an aura`,
       R.BOND_TYPES.filter((t) => t.id !== "stranger").every((t) => SAM.bondApproach(t.id) && SAM.getBondAbility(t.id)?.text && SAM.getBondSignature(t.id)?.text && t.aura?.label)
       && !SAM.getBondAbility("stranger") && !SAM.getBondSignature("stranger"));
-    ok(`every aura lever is ±1, doubled at ●●●`, R.BOND_TYPES.every((t) => !t.aura || Object.entries(t.aura).every(([k, v]) => k === "label" || Math.abs(v) === 1)));
+    ok(`every aura is as it was: ±1 or ±2 a lever, doubled at ●●●, never past ±2`, R.BOND_TYPES.every((t) => !t.aura || Object.entries(t.aura).every(([k, v]) => k === "label" || [1, 2].includes(Math.abs(v))))
+      && R.BOND_TYPES.every((t) => !t.aura || Object.values(R.TSLBondAuras.leversOf(t.id, 3)).every((v) => Math.abs(v) <= 2)));
     const A = R.TSLBondAuras;
-    ok(`a Lover close by: +1 initiative, +1 AC at ● — +2 each at ●●●`, A.leversOf("lover", 1).ac === 1 && A.leversOf("lover", 3).ac === 2 && A.leversOf("lover", 3).init === 2 && A.leversOf("stranger", 3) === null);
+    ok(`a Lover close by: +1 initiative and +2 AC at ● — +2 each at ●●●`, A.leversOf("lover", 1).ac === 2 && A.leversOf("lover", 1).init === 1 && A.leversOf("lover", 3).ac === 2 && A.leversOf("lover", 3).init === 2 && A.leversOf("stranger", 3) === null);
     const p = pc("spP"), fr = pc("spF");
     await BS.add("spP", "spF", { type: "friend", attitude: 2 });
     const sigOf = () => BS.find("spP", "spF");
@@ -812,6 +824,27 @@ if (require.main === module) (async () => {
     const g = h.effects.filter((e) => e.flags?.[SCOPE]?.stringPull)[1];
     ok(`dnd5e guard: +5 AC as a plain number`, g?.changes.length === 1 && g.changes[0].key === "system.attributes.ac.bonus" && g.changes[0].value === "+5");
     game.system.id = "a5e";
+    const reg = {}, on0 = Hooks.on;
+    Hooks.on = (n, fn) => { (reg[n] ??= []).push(fn); return 0; };
+    SS.registerPullHooks();
+    Hooks.on = on0;
+    const guards = () => h.effects.filter((e) => e.flags?.[SCOPE]?.stringPull?.mode === "guard").length;
+    await Promise.all(reg.createChatMessage.map((fn) => fn({ rolls: [1], speaker: { actor: "pT" } })));
+    const afterTheirRoll = guards();
+    await Promise.all(reg.updateCombat.map((fn) => fn({ combatant: { actor: t } }, { turn: 1 })));
+    const afterTheirTurn = guards();
+    await Promise.all(reg.updateCombat.map((fn) => fn({ combatant: { actor: h } }, { turn: 2 })));
+    ok(`Guard holds for a round: not their roll, not their turn — it ends when the holder's next turn starts`, afterTheirRoll === 1 && afterTheirTurn === 1 && guards() === 0);
+    await SS.pull(h, t, "guard").catch(() => {});
+    // One String each way: an old world's three on one person count as one, are cut to one on load, and spending it leaves none.
+    const tr = makeActor("trH");
+    await tr.setFlag(SCOPE, "stringList", [{ id: "a", targetActorId: "pT" }, { id: "b", targetActorId: "pT" }, { id: "c", targetActorId: "pT" }, { id: "d", targetActorId: "pH" }]);
+    const shown = SS.countOn("trH", "pT");
+    const cut = await SS.trimToCap(tr);
+    const left = (tr.getFlag(SCOPE, "stringList") ?? []).length;
+    await tr.setFlag(SCOPE, "stringList", [{ id: "a", targetActorId: "pT" }, { id: "b", targetActorId: "pT" }]);
+    await SS.spend("trH", "pT");
+    ok(`one String each way: three old ones show as one, are cut to one, and spending it leaves none`, shown === 1 && cut === 2 && left === 2 && SS.countOn("trH", "pT") === 0);
   }
 
   // ═══ The system rolls its own check — without its dialog ═══════════════════
@@ -1157,6 +1190,24 @@ if (require.main === module) (async () => {
       await pApp._bondWith(W);
       ok(`a bond with anyone, not only who's on the map — and it opens`, !!BS.find("uiP", "uiW") && pApp._expandedBonds.has(BS.find("uiP", "uiW").id) && !pApp._bondCandidates().some((a) => a.id === "uiW"));
       await BS.remove("uiP", BS.find("uiP", "uiW").id);
+      if (!SS.countOn("uiP", "uiN")) await SS.add("uiP", "uiN", 1);
+      const first = await render(P, "profile");
+      ok(`the first tab: the Strings at hand — who here you have something on, and what to do with it now`, !bad(first) && /Strings — here/.test(first)
+        && /data-remind-on="uiN"/.test(first) && /data-pull-on="uiN" data-mode="strike"/.test(first) && /data-pull-on="uiN" data-mode="guard"/.test(first) && /data-invest="uiN"/.test(first)
+        && first.indexOf("Strings — here") < first.indexOf("Leanings"));
+      const bondsShut = await render(P, "bonds");
+      ok(`every bond shows what it gives without opening it: per ●, the aura, ●●, ●●●`, !bad(bondsShut) && /tsl-bp-gives/.test(bondsShut) && /tsl-bp-box/.test(bondsShut) && /Caption &amp; notes|Caption & notes/.test(bondsShut));
+      const readNo = await render(P, "talk", { _tTarget: "uiN", _tTech: "read" });
+      const readYes = await render(P, "talk", { _tTarget: "uiN", _tTech: "read", _tQuestions: ["fear"] });
+      ok(`the Read: what you look for is picked before the roll — no pick, no roll`, !bad(readNo) && /data-read-q="fear"/.test(readNo) && /data-t-roll disabled/.test(readNo)
+        && /tsl-rq on" data-read-q="fear"/.test(readYes) && !/data-t-roll disabled/.test(readYes));
+    }
+    {
+      const rp = pc("rqP"), rn = npc("rqN", "tyrant");
+      canvas.tokens.placeables.push({ actor: rp, visible: true, document: { hidden: false } }, { actor: rn, visible: true, document: { hidden: false } });
+      const before = globalThis.__dialogCount;
+      await roll(rp, rn, { technique: "read", questions: ["fear", "key"] }, [20]);
+      ok(`…and on a strong hit both are answered — no question asked after the roll`, globalThis.__dialogCount === before && SAM.getKnown(rn).fear && SAM.getKnown(rn).key);
       // The String is a switch, either way; a player's on an NPC's side goes through the GM.
       const had = SS.countOn("uiP", "uiN");
       if (had) await SS.spend("uiP", "uiN");

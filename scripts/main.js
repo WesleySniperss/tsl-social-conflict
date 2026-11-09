@@ -164,13 +164,30 @@ Hooks.once("setup", () => {
   catch (err) { console.error("TSL | Emotion statuses failed:", err); }
 });
 
+/**
+ * Every load, on the active GM: one String each way in every list (worlds
+ * from before the cap kept up to three on one person), and every character's
+ * Leanings on their sheet (the effect that sharpens Intimidation / Insight /
+ * Deception). Both are no-ops when nothing is off.
+ */
+async function tidyStringsAndLeanings() {
+  if (!game.user?.isGM || (game.users?.activeGM && !game.users.activeGM.isSelf)) return;
+  let cut = 0;
+  for (const actor of game.actors?.contents ?? []) {
+    try { cut += await TSLStringStore.trimToCap(actor); } catch (err) { console.warn(`TSL | String trim failed on ${actor.name}:`, err); }
+    if (!SocialArchetypeManager.isPC(actor)) continue;
+    try { await SocialArchetypeManager.syncLeaningEffect(actor); } catch (err) { console.warn(`TSL | Leanings effect failed on ${actor.name}:`, err); }
+  }
+  if (cut) console.log(`TSL | one String each way: ${cut} extra String(s) cut`);
+}
+
 Hooks.once("ready", () => {
   // The socket FIRST — it carries every player action to the GM. A migration
   // below that threw must never leave the GM deaf to the players.
   try { TSLSocket.register(); }
   catch (err) { console.error("TSL | Error registering the socket:", err); }
 
-  migrateToV3().catch(err => console.error("TSL | v3 migration failed:", err));
+  migrateToV3().then(() => tidyStringsAndLeanings()).catch(err => console.error("TSL | migration failed:", err));
   migrateTokenChronicles().catch(err => console.error("TSL | migrateTokenChronicles failed:", err));
   // A bond is one shared relationship — fill in any missing mirror.
   TSLBondStore.reconcileAll().catch(err => console.error("TSL | TSLBondStore.reconcileAll failed:", err));

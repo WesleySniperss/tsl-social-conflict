@@ -964,8 +964,10 @@ const PROFILE_POINTS = [
  *   cost    — −1 when this skill rolls: what the relationship forbids;
  *   hostile — −1 on any approach but its own: they won't hear you out;
  *   guilt   — a Pressure win against them leaves you Guilty toward them;
- *   aura    — within reach of each other, in a fight or not (bond-powers.js): each
- *             lever ±1, ±2 at ●●● (several bonds sum; capped at ±2).
+ *   guard   — THEIR bond toward you is their guard (v2): −1 = their guard is
+ *             down for you (DC −● when you ask them), +1 = wary (DC +●).
+ *   aura    — within reach of each other, in a fight or not (bond-powers.js):
+ *             v2's strengths, ×2 at ●●● (several bonds sum; capped at ±2).
  *   mirror  — the type the other side holds (mentor ↔ protégé, sworn ↔ liege);
  *             the rest are the same on both sides.
  * ●● opens the type's ability (BOND_ABILITIES); ●●● its signature
@@ -974,40 +976,40 @@ const PROFILE_POINTS = [
 const BOND_TYPES = [
   { id: "stranger",  label: "Stranger",  icon: "fa-circle-question",          school: null,
     hint: "Barely acquainted. No bond effect yet — invest a String to make them someone to you." },
-  { id: "ally",      label: "Ally",      icon: "fa-handshake",                school: "order", edge: "per", cost: "dec",
+  { id: "ally",      label: "Ally",      icon: "fa-handshake",                school: "order", edge: "per", cost: "dec", guard: 0,
     aura: { label: "Side by side", attack: 1 },
     hint: "A shared cause. Per ●: +1 with Reason, +1 Persuasion (they trust your word), −1 Deception (they see your games)." },
-  { id: "friend",    label: "Friend",    icon: "fa-mug-hot",                  school: "attention", edge: "per", cost: "itm", guilt: true,
+  { id: "friend",    label: "Friend",    icon: "fa-mug-hot",                  school: "attention", edge: "per", cost: "itm", guilt: true, guard: -1,
     aura: { label: "They have your back", save: 1 },
     hint: "Genuine warmth. Per ●: +1 with Heart, +1 Persuasion, −1 Intimidation (your threats ring hollow). Pressure on a friend leaves you Guilty." },
-  { id: "family",    label: "Family",    icon: "fa-house-chimney",            school: "attention", edge: "ins", cost: "dec", guilt: true,
+  { id: "family",    label: "Family",    icon: "fa-house-chimney",            school: "attention", edge: "ins", cost: "dec", guilt: true, guard: -1,
     aura: { label: "Close ranks", attack: 1, save: 1 },
     hint: "Blood or chosen. Per ●: +1 with Heart, +1 Insight (you know them), −1 Deception (they know when you lie). Pressure on your own leaves you Guilty." },
-  { id: "crush",     label: "Crush",     icon: "fa-heart-circle-exclamation", school: "attention", edge: "prf", cost: "ins",
+  { id: "crush",     label: "Crush",     icon: "fa-heart-circle-exclamation", school: "attention", edge: "prf", cost: "ins", guard: -1,
     aura: { label: "Showing off", init: 1 },
     hint: "Longing. Per ●: +1 with Heart, +1 Performance (you shine for them), −1 Insight (you see what you want to see)." },
-  { id: "lover",     label: "Lover",     icon: "fa-heart",                    school: "attention", edge: "ins", cost: "itm", guilt: true,
-    aura: { label: "For each other", init: 1, ac: 1 },
+  { id: "lover",     label: "Lover",     icon: "fa-heart",                    school: "attention", edge: "ins", cost: "itm", guilt: true, guard: -1,
+    aura: { label: "For each other", init: 1, ac: 2 },
     hint: "Hearts entangled. Per ●: +1 with Heart, +1 Insight (you read them), −1 Intimidation (you cannot frighten them). Pressure on a lover leaves you Guilty." },
-  { id: "mentor",    label: "Mentor",    icon: "fa-graduation-cap",           school: "attention", edge: "ins", cost: "dec", mirror: "protege",
-    aura: { label: "Their teaching", spellDC: 1, maneuverDC: 1 },
+  { id: "mentor",    label: "Mentor",    icon: "fa-graduation-cap",           school: "attention", edge: "ins", cost: "dec", mirror: "protege", guard: -1,
+    aura: { label: "Their teaching", spellDC: 2, maneuverDC: 2 },
     hint: "They shaped you. Per ●: +1 with Heart, +1 Insight, −1 Deception (you cannot fool your teacher)." },
-  { id: "protege",   label: "Protégé",   icon: "fa-seedling",                 school: "attention", edge: "per", cost: "itm", guilt: true, mirror: "mentor",
-    aura: { label: "To make them proud", check: 1 },
+  { id: "protege",   label: "Protégé",   icon: "fa-seedling",                 school: "attention", edge: "per", cost: "itm", guilt: true, mirror: "mentor", guard: -1,
+    aura: { label: "To make them proud", check: 2 },
     hint: "You shaped them. Per ●: +1 with Heart, +1 Persuasion (they listen), −1 Intimidation (menacing your ward shames you). Pressure on them leaves you Guilty." },
-  { id: "rival",     label: "Rival",     icon: "fa-khanda",                   school: "power", hostile: true,
+  { id: "rival",     label: "Rival",     icon: "fa-khanda",                   school: "power", hostile: true, guard: 0,
     aura: { label: "Blood up", init: 1, attack: 1 },
     hint: "A respected opponent. Per ●: +1 with Pressure, −1 on anything else (pride won't be talked down)." },
-  { id: "enemy",     label: "Enemy",     icon: "fa-skull",                    school: "power", hostile: true, cost: "ins",
-    aura: { label: "Tunnel vision", init: 1, attack: 1, save: -1 },
+  { id: "enemy",     label: "Enemy",     icon: "fa-skull",                    school: "power", hostile: true, cost: "ins", guard: 1,
+    aura: { label: "Tunnel vision", init: 2, attack: 2, save: -1 },
     hint: "Open hostility. Per ●: +1 with Pressure, −1 on anything else, −1 Insight (they give you nothing to read)." },
-  { id: "sworn",     label: "Sworn",     icon: "fa-hand-fist",                school: "order", edge: "per", cost: "itm", guilt: true, mirror: "liege",
+  { id: "sworn",     label: "Sworn",     icon: "fa-hand-fist",                school: "order", edge: "per", cost: "itm", guilt: true, mirror: "liege", guard: -1,
     aura: { label: "Oathbound", save: 1, attack: -1 },
     hint: "You gave them your word. Per ●: +1 with Reason, +1 Persuasion (you appeal to the oath), −1 Intimidation (you don't threaten the one you serve). Pressure on them leaves you Guilty." },
-  { id: "liege",     label: "Liege",     icon: "fa-chess-king",               school: "order", edge: "itm", cost: "dec", mirror: "sworn",
+  { id: "liege",     label: "Liege",     icon: "fa-chess-king",               school: "order", edge: "itm", cost: "dec", mirror: "sworn", guard: 0,
     aura: { label: "The oath answers", init: 1 },
     hint: "They swore to you. Per ●: +1 with Reason, +1 Intimidation (your word carries weight), −1 Deception (they watch you closely)." },
-  { id: "confidant", label: "Confidant", icon: "fa-comment-dots",             school: "order", edge: "ins", cost: "dec", guilt: true,
+  { id: "confidant", label: "Confidant", icon: "fa-comment-dots",             school: "order", edge: "ins", cost: "dec", guilt: true, guard: -1,
     aura: { label: "Shared counsel", check: 1 },
     hint: "They trust you with what they hide. Per ●: +1 with Reason, +1 Insight (you know their mind), −1 Deception (they'd catch your lie). Turning on them leaves you Guilty." },
 ];
@@ -1168,6 +1170,72 @@ class SocialArchetypeManager {
     };
   }
 
+  /**
+   * Which triad sharpens which everyday check on the SHEET (v1.8–v2's "Social
+   * Leanings" effect): +1 a dot, on every check with that skill — a social
+   * maneuver that rolls it too. A will to dominate makes threats land; living
+   * through people teaches you to read them; a cool head controls what others
+   * get to know.
+   */
+  static get TRIAD_SKILLS() {
+    return { power: { key: "itm", label: "Intimidation" }, attention: { key: "ins", label: "Insight" }, order: { key: "dec", label: "Deception" } };
+  }
+
+  /** The triad a character leans into: a lead of 2+ dots over the others — or null (split, or none yet). */
+  static rulingTriad(actor) {
+    const t = SocialArchetypeManager.getCharacterNotes(actor).triad;
+    const entries = Object.entries(t).sort((a, b) => (b[1] || 0) - (a[1] || 0));
+    const [top, next] = entries;
+    return top && (top[1] || 0) >= 2 && (top[1] || 0) > (next?.[1] || 0) ? top[0] : null;
+  }
+
+  /** What the Leanings effect adds to a skill on this sheet (read back from the effect itself). */
+  static leanSkillBonus(actor, skillKey) {
+    const eff = (actor?.effects ?? []).find(e => !e.disabled && e.flags?.[SOCIAL_FENCING_SCOPE]?.triadBonus);
+    const ch = (eff?.changes ?? []).find(c => c.key === `system.skills.${skillKey}.bonuses.check`);
+    return ch ? (parseInt(String(ch.value).replace(/\s+/g, ""), 10) || 0) : 0;
+  }
+
+  /**
+   * Keep the one "Leanings" effect on a character's sheet in step with their
+   * dots: +1 a dot to Intimidation / Insight / Deception checks. Removed when
+   * there are no dots. The owner or the GM writes it.
+   */
+  static async syncLeaningEffect(actor) {
+    if (!actor || !SocialArchetypeManager.isPC(actor) || !(game.user?.isGM || actor.isOwner)) return;
+    const triad = SocialArchetypeManager.getCharacterNotes(actor).triad;
+    const changes = [], lines = [];
+    for (const [t, m] of Object.entries(SocialArchetypeManager.TRIAD_SKILLS)) {
+      const dots = Math.min(LEANING_MAX, triad[t] ?? 0);
+      if (!dots) continue;
+      changes.push({ key: `system.skills.${m.key}.bonuses.check`, mode: 2, value: `+${dots}`, priority: 20 });
+      lines.push(`+${dots} ${SKILL_LABELS[m.key] ?? m.label}`);
+    }
+    const old = (actor.effects ?? []).filter(e => e.flags?.[SOCIAL_FENCING_SCOPE]?.triadBonus);
+    const canon = (cs) => (cs ?? []).map(c => `${c.key}|${String(c.value)}`).join("§");
+    if (old.length === 1 && changes.length && canon(old[0].changes) === canon(changes)) return;
+    if (old.length) await actor.deleteEmbeddedDocuments("ActiveEffect", old.map(e => e.id));
+    if (!changes.length) return;
+    await actor.createEmbeddedDocuments("ActiveEffect", [{
+      name: _t("Leanings"), img: "icons/svg/upgrade.svg", origin: `module.${SOCIAL_FENCING_SCOPE}`, disabled: false, changes,
+      description: _t("Your Leanings sharpen everyday checks: {list} — on every check with that skill, social maneuvers too.", { list: lines.join(", ") }),
+      flags: { [SOCIAL_FENCING_SCOPE]: { triadBonus: true } },
+    }]);
+  }
+
+  /**
+   * What a character's Leanings do to a maneuver of this approach: +1 a dot —
+   * or −1 on a way with no dots while they lean elsewhere (foreign ground, as
+   * before). 0 for NPCs and for a character with no dots yet.
+   */
+  static leaningMod(actor, approachId) {
+    if (!SocialArchetypeManager.isPC(actor) || !approachId) return 0;
+    const dots = SocialArchetypeManager.leaningDots(actor, approachId);
+    if (dots) return dots;
+    const total = Object.values(SocialArchetypeManager.getCharacterNotes(actor).triad).reduce((sum, v) => sum + (v || 0), 0);
+    return total > 0 ? -1 : 0;
+  }
+
   /** A character's Leaning in an approach: its dots (0–3). NPCs have natures, not Leanings. */
   static leaningDots(actor, approachId) {
     if (!SocialArchetypeManager.isPC(actor)) return 0;
@@ -1188,6 +1256,7 @@ class SocialArchetypeManager {
     const others = Object.entries(triad).reduce((sum, [k, v]) => sum + (k === school ? 0 : (v || 0)), 0);
     if (next > cur && others + next > TRIAD_POINT_POOL) return false;
     await SocialArchetypeManager.setActorData(actor, { triad: { ...triad, [school]: Math.max(0, next) } });
+    await SocialArchetypeManager.syncLeaningEffect(actor);
     return true;
   }
 

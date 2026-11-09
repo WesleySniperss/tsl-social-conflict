@@ -44,7 +44,7 @@ class TSLBondAuras {
     const aura = SocialArchetypeManager.getBondType(typeId)?.aura;
     if (!aura || strength <= 0) return null;
     const n = TSLBondAuras.magnitude(strength), out = {};
-    for (const [k, v] of Object.entries(aura)) if (k !== "label" && v) out[k] = v * n;
+    for (const [k, v] of Object.entries(aura)) if (k !== "label" && v) out[k] = Math.max(-2, Math.min(2, v * n));
     return out;
   }
 

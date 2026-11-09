@@ -510,7 +510,10 @@ class TSLTalk {
     const backed = !!support && TSLTalk.proficient(src, support);
     const parts = [{ label: SKILL_LABELS[skill] ?? skill, value: TSLTalk.skillMod(src, skill), base: true }];
     if (backed) parts.push({ label: _t("{skill} backs it", { skill: SKILL_LABELS[support] ?? support }), value: TSLTalk.profBonus(src) });
-    { const lean = ap ? SocialArchetypeManager.leaningDots(src, ap) : 0; if (lean) parts.push({ label: _t("{approach} leaning", { approach: APPROACHES[ap].label }), value: lean }); }
+    { // The Leanings: +1 a dot on their way — or −1 on a way with no dots while leaning elsewhere (as before).
+      const lean = ap ? SocialArchetypeManager.leaningMod(src, ap) : 0;
+      if (lean > 0) parts.push({ label: _t("{approach} leaning", { approach: APPROACHES[ap].label }), value: lean });
+      else if (lean < 0) parts.push({ label: _t("no {approach} leaning — foreign ground", { approach: APPROACHES[ap].label }), value: lean }); }
     parts.push(...TSLTalk.bondParts(src, npc, ap, skill));
     if (lever) parts.push({ label: lever === "desire" ? _t("their Desire") : lever === "price" ? _t("their Price") : _t("their Fear"), value: LEVER_BONUS });
     const helper = helperId ? game.actors.get(helperId) : null;
@@ -519,6 +522,17 @@ class TSLTalk {
     const mod = parts.reduce((sum, p) => sum + p.value, 0);
 
     const dcInfo = TSLTalk.dcFor(npc, size);
+    // THEIR bond toward the speaker is their guard (as before): a friend's is
+    // down for you (DC −●), an enemy is wary (DC +●).
+    { const theirs = TSLBondStore.find(npc.id, src.id);
+      const gType = theirs ? SocialArchetypeManager.getBondType(theirs.type) : null;
+      const n = theirs ? TSLBondStore.getStrength(npc.id, src.id) : 0;
+      const g = (gType?.guard ?? 0) * n;
+      if (g) {
+        const data = { type: gType.label, dots: "●".repeat(n) };
+        dcInfo.mods.push({ label: g < 0 ? _t("their guard is down for you — {type} {dots}", data) : _t("they're wary of you — {type} {dots}", data), value: g });
+        dcInfo.dc += g;
+      } }
     // Shut out (the Hermit's Silence): until a truth is brought them, every ask is 4 harder.
     if (sized && typeof TSLAbilities !== "undefined" && TSLAbilities.silenced(npc, src.id)) {
       dcInfo.mods.push({ label: _t("their silence"), value: 4 });
@@ -619,7 +633,10 @@ class TSLTalk {
     //    pay their price (a "yes, but").
     let questions = [], paid = null;
     if (pv.job === "read" && (grade === "strong" || grade === "success")) {
-      questions = await TSLTalk.promptQuestions(npc, grade === "strong" ? 2 : 1);
+      // Chosen before the roll (the user, 2026-11-09): the first on a hit, the second too on a strong one.
+      const open = TSLTalk.openQuestions(npc);
+      const asked = (opts.questions ?? []).filter(q => open.includes(q));
+      questions = asked.length ? asked.slice(0, grade === "strong" ? 2 : 1) : await TSLTalk.promptQuestions(npc, grade === "strong" ? 2 : 1);
     } else if (grade === "success" && TSLTalk.hasPrice(pv.technique)) {
       paid = await TSLTalk.promptPrice(npc, TSLTalk.priceOf(npc), { deal: pv.technique === "bargain" });
     }

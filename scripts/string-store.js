@@ -44,9 +44,26 @@ class TSLStringStore {
     await actor.setFlag(STRING_FLAG, "stringList", list);
   }
 
-  /** How many Strings `actorId` holds on `targetActorId`. */
+  /** How many Strings `actorId` holds on `targetActorId` — one at most: old worlds kept up to three, and they count as one. */
   static countOn(actorId, targetActorId) {
-    return TSLStringStore.getList(actorId).filter(e => e.targetActorId === targetActorId).length;
+    return Math.min(STRING_CAP, TSLStringStore.getList(actorId).filter(e => e.targetActorId === targetActorId).length);
+  }
+
+  /**
+   * One String each way, always (the user: «може бути лише по одній струні»).
+   * Worlds from before the cap kept up to three on one person: cut every list
+   * down to one per person. GM client; returns how many were cut.
+   */
+  static async trimToCap(actor) {
+    const list = actor?.getFlag?.(STRING_FLAG, "stringList") ?? [];
+    const seen = new Map(), kept = [];
+    for (const e of list) {
+      const n = seen.get(e.targetActorId) ?? 0;
+      if (n < STRING_CAP) kept.push(e);
+      seen.set(e.targetActorId, n + 1);
+    }
+    if (kept.length !== list.length) await actor.setFlag(STRING_FLAG, "stringList", kept);
+    return list.length - kept.length;
   }
 
   /** Is this holder already at the cap on that person? */
@@ -104,10 +121,9 @@ class TSLStringStore {
    */
   static async spend(actorId, targetActorId) {
     const list = TSLStringStore.getList(actorId);
-    const idx  = list.findIndex(e => e.targetActorId === targetActorId);
-    if (idx === -1) return false;
-    list.splice(idx, 1);
-    await TSLStringStore._saveList(actorId, list);
+    if (!list.some(e => e.targetActorId === targetActorId)) return false;
+    // One at a time: spending it leaves nothing on them (an old world's extra copies go with it).
+    await TSLStringStore._saveList(actorId, list.filter(e => e.targetActorId !== targetActorId));
     return true;
   }
 
@@ -209,8 +225,8 @@ class TSLStringStore {
    * the holder, so it works mid-combat too — no mental maths for the table.
    *   strike — +5 to your next attack roll, ability check or saving throw
    *            (aim it at them); it ends after your next roll.
-   *   guard  — +5 AC: you know how they move. It ends after THEIR next roll
-   *            (their attack) or when your next turn starts.
+   *   guard  — +5 AC: you know how they move. It holds for a round — until
+   *            the start of your next turn (or the end of the fight).
    * Returns true when a String was spent.
    */
   static async pull(holder, target, mode = "strike") {
@@ -233,7 +249,7 @@ class TSLStringStore {
       // HUD palette, so nobody toggles it by hand.
       statuses: ["tsl-string-pull"],
       description: guard
-        ? _t("+5 AC against {name} — you know how they move. Ends after their next roll, or when your next turn starts.", { name: target.name })
+        ? _t("+5 AC — you know how {name} moves. For a round: until the start of your next turn.", { name: target.name })
         : _t("+5 to your next attack roll, ability check or saving throw — aimed at {name}. Ends after your next roll.", { name: target.name }),
       flags: { [STRING_FLAG]: { stringPull: { mode: guard ? "guard" : "strike", targetId: target.id } } },
     }]);
@@ -244,7 +260,7 @@ class TSLStringStore {
       content: `<div class="tsl-x-card tsl-x--good">
         <div class="tsl-x-head"><i class="fas fa-masks-theater"></i><span class="tsl-x-title">${_t("A String is pulled")}</span></div>
         <div class="tsl-x-who">${esc(holder.name)} → ${esc(target.name)}</div>
-        <div class="tsl-x-outcome">${guard ? _t("+5 AC against their next attack") : _t("+5 to the next attack, check or save against them")}</div>
+        <div class="tsl-x-outcome">${guard ? _t("+5 AC until the start of your next turn") : _t("+5 to the next attack, check or save against them")}</div>
         <ul class="tsl-x-after"><li class="tsl-x-after-item">${_t("It's on the sheet now and ends by itself once used.")} ${_t("Strings left on them: {n}.", { n: left })}</li></ul>
       </div>`,
     });
@@ -253,8 +269,8 @@ class TSLStringStore {
 
   /**
    * End pulled Strings once they've done their job. GM client (the active GM)
-   * only: a "strike" ends when the holder rolls anything; a "guard" ends when
-   * the one it guards against rolls, or when the holder's next turn starts.
+   * only: a "strike" ends when the holder rolls anything; a "guard" holds for
+   * a round — it ends when the holder's next turn starts, or the fight ends.
    */
   static registerPullHooks() {
     const isActiveGM = () => game.user.isGM && (!game.users.activeGM || game.users.activeGM.isSelf);
@@ -269,7 +285,11 @@ class TSLStringStore {
       const speakerId = msg.speaker?.actor;
       if (!speakerId) return;
       await endPulls(game.actors.get(speakerId), p => p.mode === "strike");
-      for (const a of game.actors) await endPulls(a, p => p.mode === "guard" && p.targetId === speakerId);
+    });
+    // A guard holds for a round: it ends when the holder's next turn starts — or when the fight ends.
+    Hooks.on("deleteCombat", async (combat) => {
+      if (!isActiveGM()) return;
+      for (const c of combat?.combatants ?? []) await endPulls(c.actor, p => p.mode === "guard");
     });
     Hooks.on("updateCombat", async (combat, chg) => {
       if (!isActiveGM() || !("turn" in chg || "round" in chg)) return;
