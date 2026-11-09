@@ -25,6 +25,18 @@
 console.log("TSL | Loading emotions.js...");
 
 const EMOTION_SCOPE = "tsl-social-conflict";
+
+/**
+ * Whether one of our effects shows on the token. Foundry v14 draws an effect
+ * there only if it has a duration or its `showIcon` says ALWAYS; v13 drew any
+ * effect with a status. Ours — an emotion, a String pulled, a bond in reach, a
+ * signature's moment — have no duration (the story ends them), so they say
+ * ALWAYS; NEVER keeps one off the token. v13 has no such field: nothing to add.
+ */
+function tslShowIcon(show = true) {
+  const S = globalThis.CONST?.ACTIVE_EFFECT_SHOW_ICON;
+  return S ? { showIcon: show ? S.ALWAYS : S.NEVER } : {};
+}
 /** What an emotion costs the one who feels it. */
 const EMOTION_PENALTY = 2;
 /** What it gives those who play on it. */
@@ -153,7 +165,7 @@ class TSLEmotions {
       return { id, added: false, scar: scar.id };
     }
     await actor.createEmbeddedDocuments("ActiveEffect", [{
-      name: e.label, img: e.img, statuses: [TSLEmotions.statusId(id)],
+      name: e.label, img: e.img, statuses: [TSLEmotions.statusId(id)], ...tslShowIcon(),
       description: `${e.spoilsText}. ${e.clear}`,
       flags: { [EMOTION_SCOPE]: { emotion: { id, by, toward } } },
     }]);
@@ -270,33 +282,3 @@ class TSLEmotions {
     return parts;
   }
 }
-
-/**
- * The system's own conditions — D&D's Prone, Charmed, Frightened… what the
- * token HUD toggles — shown and switched from the Chronicle too, by the GM or
- * the character's owner. Our own statuses (the emotions, a bond's aura, a pull,
- * a moment) aren't among them; exhaustion is a level, not a switch — it stays
- * on the sheet.
- */
-class TSLConditions {
-  static list() {
-    return (globalThis.CONFIG?.statusEffects ?? [])
-      .filter(c => c?.id && !String(c.id).startsWith("tsl-") && c.id !== "exhaustion" && (c.img || c.icon))
-      .map(c => ({ id: c.id, name: game.i18n?.localize?.(c.name ?? c.label ?? c.id) ?? (c.name ?? c.id), img: c.img ?? c.icon }));
-  }
-
-  /** The ones on them now (from their active effects). */
-  static active(actor) {
-    const on = actor?.statuses instanceof Set ? actor.statuses
-      : new Set((actor?.effects ?? []).filter(e => !e.disabled).flatMap(e => [...(e.statuses ?? [])]));
-    return TSLConditions.list().filter(c => on.has(c.id));
-  }
-
-  /** On or off — through the system, as the token HUD does it. */
-  static async toggle(actor, id, active = undefined) {
-    if (!TSLEmotions.canEdit(actor) || typeof actor.toggleStatusEffect !== "function") return false;
-    await actor.toggleStatusEffect(id, active === undefined ? {} : { active });
-    return true;
-  }
-}
-globalThis.TSLConditions = TSLConditions;

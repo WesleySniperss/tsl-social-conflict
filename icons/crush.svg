@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Crush: a heart an arrow went through. TSL: Social Conflict, CC BY-SA 4.0. -->
+  <defs>
+    <mask id="tsl-crush-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+      <rect width="512" height="512" fill="#fff"/>
+      <line x1="24" y1="488" x2="488" y2="24" stroke="#000" stroke-width="92"/>
+    </mask>
+  </defs>
+  <path fill="#fff" mask="url(#tsl-crush-cut)" d="M256 420C256 420 86 318 86 186C86 132 128 92 180 92C214 92 242 112 256 142C270 112 298 92 332 92C384 92 426 132 426 186C426 318 256 420 256 420Z"/>
+  <line x1="56" y1="456" x2="404" y2="108" stroke="#fff" stroke-width="44"/>
+  <path fill="#fff" d="M488 24L445 158L354 67Z"/>
+  <path fill="none" stroke="#fff" stroke-width="34" d="M120 444V392H68M84 480V428H32"/>
+</svg>

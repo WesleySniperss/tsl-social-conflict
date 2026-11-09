@@ -249,10 +249,12 @@ class SocialFencingApp extends _SocialAppBase {
   }
 
   /**
-   * What weighs on this person right now — emotions, scars and the system's own
-   * conditions (D&D's) — on every tab, so nobody has to go looking. Everyone
-   * who opens the Chronicle sees it. Its owner and the GM change it: × takes one
-   * off; "Change" opens the palette, where every one of them is a switch.
+   * What weighs on this person right now — their emotions and scars, the
+   * social statuses — on every tab, so nobody has to go looking. Everyone who
+   * opens the Chronicle sees it. Its owner and the GM change it: × takes one
+   * off; "Change" opens the palette, where every one of them is a switch. The
+   * system's own conditions (D&D's) stay with the system — the token HUD — not
+   * here (the user, 2026-11-09: «мають бути тільки статуси відносин»).
    */
   _stateStrip(ctx) {
     const esc = foundry.utils.escapeHTML;
@@ -265,40 +267,44 @@ class SocialFencingApp extends _SocialAppBase {
         <span class="tsl-state-label" data-tooltip="${esc(_t("Emotions: −2 somewhere for whoever feels one, +2 for whoever plays on it, until it's let go (×). A scar stays for good."))}"><i class="fas fa-heart-pulse"></i> ${_t("Feels")}</span>
         <div class="tsl-state-tags">${tags || `<span class="tsl-state-none">${_t("nothing right now")}</span>`}</div>
         ${can ? `<button type="button" class="tsl-state-edit ${open ? "on" : ""}" data-state-open
-          data-tooltip="${esc(open ? _t("Close") : _t("Put on or take off an emotion, a scar or a condition — no roll"))}"><i class="fas fa-${open ? "xmark" : "pen"}"></i> ${open ? _t("Close") : _t("Change")}</button>` : ""}
+          data-tooltip="${esc(open ? _t("Close") : _t("Put on or take off an emotion or a scar — no roll"))}"><i class="fas fa-${open ? "xmark" : "pen"}"></i> ${open ? _t("Close") : _t("Change")}</button>` : ""}
       </div>
       ${open ? this._statePalette(a) : ""}
     </div>`;
   }
 
-  /** What's on them now, as tags: emotions (what each costs, or opens), scars, conditions — × for whoever may change it. */
+  /** What's on them now, as tags: emotions (what each costs, or opens) and scars — × for whoever may change it. */
   _stateTags(a, isPC = SocialArchetypeManager.isPC(a)) {
-    const esc = foundry.utils.escapeHTML;
     const can = TSLEmotions.canEdit(a);
-    return this._emotionTags(a, { canClear: can, effects: isPC ? "mine" : "theirs", scars: true, scarX: can })
-      + TSLConditions.active(a).map(c => `<span class="tsl-cond-tag" data-tooltip="${esc(c.name)}"><img src="${c.img}" alt=""> ${esc(c.name)}${can
-        ? `<button type="button" class="tsl-emo-x" data-cond-off="${c.id}" aria-label="${esc(_t("Take it off"))}" data-tooltip="${esc(_t("Take it off"))}">×</button>` : ""}</span>`).join("");
+    return this._emotionTags(a, { canClear: can, effects: isPC ? "mine" : "theirs", scars: true, scarX: can });
   }
 
   /**
    * The first tab's own: what weighs on them now — and, for whoever may change
-   * it (the GM; a player on their own character), every emotion, scar and
-   * condition as a switch right below, nothing to open.
+   * it (the GM; a player on their own character), every emotion and scar as a
+   * switch right below, nothing to open. Then, while they're on the map, the
+   * bonds in reach: the same statuses their token carries.
    */
   _stateSection(ctx) {
     const a = this._actor;
     const tags = this._stateTags(a, ctx.isPC);
+    const near = TSLBondNear.onMap(a) ? TSLBondNear.statusesOf(a) : null;
+    const nearRow = near ? `<div class="tsl-state-near" data-tooltip="${foundry.utils.escapeHTML(_t("Bonds in reach: on the token as statuses, with the aura they give — while you stand close."))}">
+        <span class="tsl-state-near-label"><i class="fas fa-link"></i> ${_t("Close by")}</span>
+        ${near.length ? near.map(w => TSLBondNear.chipHTML(w)).join("") : `<span class="tsl-state-none">${_t("no one they're bonded with")}</span>`}
+      </div>` : "";
     return `<section class="tsl-sec tsl-state-sec">
       <div class="tsl-sec-head"><span class="tsl-sec-title"><i class="fas fa-heart-pulse"></i> ${_t("What weighs on them")}</span></div>
       <div class="tsl-state-tags">${tags || `<span class="tsl-state-none">${_t("nothing right now")}</span>`}</div>
       ${TSLEmotions.canEdit(a) ? this._statePalette(a) : ""}
+      ${nearRow}
     </section>`;
   }
 
   /**
-   * The palette: every emotion, scar and condition as a switch — on or off, one
-   * click, no roll. The GM's on anyone; a player's on their own character.
-   * Guilt is owed to someone.
+   * The palette: every emotion and scar as a switch — on or off, one click, no
+   * roll. The GM's on anyone; a player's on their own character. Guilt is owed
+   * to someone.
    */
   _statePalette(a) {
     const esc = foundry.utils.escapeHTML;
@@ -319,9 +325,6 @@ class SocialFencingApp extends _SocialAppBase {
       return `<button type="button" class="tsl-feel tsl-feel--scar ${on ? "on" : ""}" data-state-scar="${s.id}" aria-pressed="${on}"
         data-tooltip="${esc(`<b>${_t("Scar — {scar}", { scar: s.label })}</b> (${EMOTIONS[s.from].label})<br>${s.text}<br>${on ? _t("Click to take it off.") : _t("Click to put it on.")}`)}"><img src="icons/svg/blood.svg" alt=""> ${esc(s.label)}</button>`;
     }).join("");
-    const active = new Set(TSLConditions.active(a).map(c => c.id));
-    const conds = TSLConditions.list().map(c => `<button type="button" class="tsl-cond ${active.has(c.id) ? "on" : ""}" data-state-cond="${c.id}" aria-pressed="${active.has(c.id)}"
-        data-tooltip="${esc(`<b>${c.name}</b><br>${active.has(c.id) ? _t("Click to take it off.") : _t("Click to put it on.")}`)}"><img src="${c.img}" alt=""> ${esc(c.name)}</button>`).join("");
     const group = (icon, title, hint, body) => `<div class="tsl-pal-group">
         <div class="tsl-pal-head"><b><i class="fas ${icon}"></i> ${title}</b><span>${hint}</span></div>
         <div class="tsl-feels">${body}</div>
@@ -329,7 +332,6 @@ class SocialFencingApp extends _SocialAppBase {
     return `<div class="tsl-state-pal">
       ${group("fa-heart-crack", _t("Emotions"), _t("−2 for whoever feels one, +2 for whoever plays on it — until it's let go"), emo)}
       ${pc ? group("fa-droplet", _t("Scars"), _t("for good — the same emotion twice leaves one"), sc) : ""}
-      ${conds ? group("fa-person-falling", _t("Conditions"), _t("the system's own — the same as on the token"), conds) : ""}
       <p class="tsl-note">${_t("Click to put one on or take it off — no roll. An emotion or a scar put on posts a line in the chat.")}</p>
     </div>`;
   }
@@ -345,11 +347,10 @@ class SocialFencingApp extends _SocialAppBase {
     return [...out.values()].sort((x, y) => pc(x) - pc(y) || (x.name ?? "").localeCompare(y.name ?? ""));
   }
 
-  /** The switch: an emotion, a scar or a condition, on or off — the GM on anyone, a player on their own. */
+  /** The switch: an emotion or a scar, on or off — the GM on anyone, a player on their own. */
   async _toggleState(kind, id, toward = null) {
     const a = this._actor;
     if (!TSLEmotions.canEdit(a)) return;
-    if (kind === "cond") { await TSLConditions.toggle(a, id); return; }
     if (kind === "scar") {
       if (TSLEmotions.scars(a).includes(id)) await TSLEmotions.removeScar(a, id);
       else await TSLEmotions.addScar(a, id);
@@ -1405,24 +1406,26 @@ class SocialFencingApp extends _SocialAppBase {
           [`<b>${_t("skill")}</b>`, _t("the better of the maneuver's two")],
           [`<b>+${TSLTalk.profBonus(this._actor)}</b>`, _t("your proficiency, if you're trained in the other skill (not into their wall)")],
           [`<b>±●</b>`, _t("your Leanings: +1 a dot on that way, −1 on a way with none while you lean elsewhere (their skill bonus is already on your sheet)")],
-          [`<b>+${LEVER_BONUS}</b>`, _t("their Desire or Fear, once the party knows it — if your words played on it")],
+          [`<b>+${LEVER_BONUS}</b>`, _t("what the party knows, played on: their Desire or Fear in an ask, if your words used it; all in plays on its own — Seduce on Desire, Blackmail on Fear, a Deal on their Price")],
           [`<b>+${HELP_BONUS}</b>`, _t("a friend who really backed you in the talk (they don't roll)")],
           [`<b>±2</b>`, _t("emotions: one of theirs that your way plays on +2; one of yours that spoils it −2")],
           [`<b>±●</b>`, _t("your bond with them (see Bonds)")],
           [`<b>DC ±●</b>`, _t("their bond toward you: a friend's guard is down (DC −●), an enemy is wary (DC +●)")],
           [`<b>±1</b>`, _t("your scars")],
           [`<b><i class="fas fa-key"></i> / <i class="fas fa-door-closed"></i></b>`, _t("their key: advantage · their wall: disadvantage")],
+          [`<b><i class="fas fa-file-lines"></i></b>`, _t("your sheet: whatever it adds to that skill — the Leanings' bonus, a bond's aura while you stand close — the system's window counts it itself")],
         ], "tsl-cx-adds")}
         <h3>${_t("What they say")}</h3>
         ${table([_t("Result"), _t("When"), _t("What happens")], [
           { cls: "tsl-cx-r--strong", cells: [`<b>${_t("Strong")}</b>`, _t("5 over the DC, or a 20"), _t("It works, on your terms — no price. You take a String on them.")] },
           { cls: "tsl-cx-r--hit", cells: [`<b>${_t("Hit")}</b>`, _t("the DC or more"), _t("It works. An Appeal, an Argument or a Deal says “yes, but” — their price: pay it, or walk away.")] },
           { cls: "tsl-cx-r--miss", cells: [`<b>${_t("Miss")}</b>`, _t("under the DC"), _t("No — they push back their own way, and you take their emotion (not on a Read). A proud one, refused something big, ends the talk.")] },
-          { cls: "tsl-cx-r--botch", cells: [`<b>${_t("Bad miss")}</b>`, _t("5 under, or a 1"), _t("As a miss — and they take a String on you.")] },
+          { cls: "tsl-cx-r--botch", cells: [`<b>${_t("Bad miss")}</b>`, _t("5 under, or a 1"), _t("As a miss — and they take a String on you (not on a Read).")] },
         ], "tsl-cx-res")}
         <p class="tsl-cx-small">${_t("After a miss you may burn your String on them for +{n}.", { n: STRING_SPEND_BONUS })}</p>
         <h3>${_t("What winning costs")}</h3>
-        ${table(null, APPROACH_ORDER.map(id => [apTag(id), esc(APPROACHES[id].cost)]))}`;
+        ${table(null, APPROACH_ORDER.map(id => [apTag(id), esc(APPROACHES[id].cost)]))}
+        ${where(_t("<b>Where:</b> the Chronicle → Talk. Target the one you talk to on the map — hover their token and press <b>T</b>, or Pick on the map; the four buttons are under their name, your chance on the Roll button."))}`;
       }
 
       case "people": {
@@ -1437,7 +1440,8 @@ class SocialFencingApp extends _SocialAppBase {
         ])}
         <h3>${_t("How to figure them out")}</h3>
         ${steps([
-          ["fa-ear-listen", _t("Watch the talk"), _t("The GM plays how they take each way of talking: warmth, a cold face, a sneer.")],
+          ["fa-ear-listen", _t("Watch the talk"), _t("The GM plays how they take each way of talking — warmth, a cold face, a sneer — and lets what they hide show: a flinch, a change of subject, a yes too quick.")],
+          ["fa-pen-nib", _t("The GM marks it"), _t("When the talk brings something out, the GM marks it known — for the whole party, for good. No roll.")],
           ["fa-dice", _t("The dice tell"), _t("On a roll, the second die shows a key or a wall — and the party writes it down.")],
           ["fa-eye", _t("Read them"), _t("Pick what you look for before the roll, and play it. A hit answers the first, for the whole party; a strong hit, the second too.")],
         ])}
@@ -1460,7 +1464,8 @@ class SocialFencingApp extends _SocialAppBase {
           <p><span class="tsl-cx-w"><i class="fas fa-heart-crack"></i> ${_t("On a no")}</span> ${esc(x.press)}</p>
           <p><span class="tsl-cx-p"><i class="fas fa-users"></i> ${_t("Before witnesses")}</span> ${tslAudienceText(x.audience ?? 0)} — ${esc(x.audienceWhy ?? "")}.</p>
           <p class="tsl-cx-small">${x.pressed === "firm" ? _t("After a no, they end it") : _t("After a no, they keep listening")} — ${esc(x.pressedWhy)}. ${esc(x.psych)}</p>
-        </details>`).join("")).join("")}`;
+        </details>`).join("")).join("")}
+        ${where(_t("<b>Where:</b> Talk, under the name of whoever you face — what the party knows of them, and what it doesn't yet. Once their nature is named, its whole card opens there."))}`;
       }
 
       case "emo": return `
@@ -1479,7 +1484,7 @@ class SocialFencingApp extends _SocialAppBase {
         <h3>${_t("Scars")}</h3>
         <p>${_t("Take an emotion you already carry, and it leaves a <b>scar</b> instead — for good, one of each.")}</p>
         ${table([_t("Scar"), _t("From"), _t("For good")], Object.values(SCARS).map(s => [`<b>${esc(s.label)}</b>`, esc(EMOTIONS[s.from].label), esc(s.text)]))}
-        ${where(_t("<b>Where:</b> the first tab of the Chronicle, Profile — what weighs on them now, and every emotion, scar and condition as a switch (the GM on anyone, a player on their own character). On the other tabs, a strip at the top: × takes one off, Change opens the switches."))}`;
+        ${where(_t("<b>Where:</b> the first tab of the Chronicle — what weighs on them now, every emotion and scar a switch (the GM on anyone, a player on their own character); on the other tabs, a strip at the top: × takes one off, Change opens the switches. On the token, each one shows as a status."))}`;
 
       case "strings": return `
         ${lead(_t("A <b>String</b> is something you have on someone — a debt, a secret, a weakness seen. <b>One at a time each way</b>: you have something on them, or you don't."))}
@@ -1502,7 +1507,7 @@ class SocialFencingApp extends _SocialAppBase {
         ${li(_t("<b>At your roll</b> — Power strikes back (−5 after the dice); Emotion makes you feel it (you win, and carry their emotion); Order sets the terms (you win, and pay their price)."),
              _t("<b>In the talk, or beyond the scene</b> — two moves of their nature's own. A chat card asks for your answer: give in (and take Inspiration), or refuse and pay for it."),
              _t("<b>In a fight</b> — any of them can Pull theirs against you."))}
-        ${where(_t("<b>Where:</b> the Profile lists who here you have something on, with what to do with it now; Talk shows it under the name of whoever you face; Bonds shows both ways, for everyone."))}`;
+        ${where(_t("<b>Where:</b> the Profile lists who here you have something on, with what to do with it now; Talk shows it under the name of whoever you face; Bonds shows both ways, for everyone; the corner panel, for everyone in reach."))}`;
 
       case "bonds": return `
         ${lead(_t("A bond is <b>who you are to each other</b> — its type — and <b>how deep it runs</b>: ●, ●● or ●●●. Both of you see the same bond. A roll never changes it."))}
@@ -1518,22 +1523,27 @@ class SocialFencingApp extends _SocialAppBase {
              _t("Their bond toward you is their guard: someone close lets it down (DC −● when you ask them); an Enemy is wary (DC +●)."))}
         <h3>${_t("Close by")}</h3>
         <p>${_t("Standing close to each other — in a fight or not — the bond's aura goes on your sheet by itself: ±1 per bonus, ±2 at ●●●; several bonds add up to ±2 at most. Step apart, or leave the map, and it comes off.")}</p>
-        <p>${_t("On the map it shows at once: when your character comes within that reach, their token wears the bond — its type, ●, a <b>tick</b> if you have a String on them, a <b>!</b> if they have one on you — and the panel in the bottom-left corner, above the players, lists everyone in reach with what the bond gives right now. Click a name there to open your bonds.")}</p>
+        ${table(null, [
+          [`<b><i class="fas fa-user-tag"></i> ${_t("On the token")}</b>`, _t("a status like any other, on both of you: the type's icon, tinted the way it runs — Pressure, Heart or Reason — named with its dots and the other one; the aura is in it. A token the GM hid doesn't count. Between two NPCs it works, but stays off the token.")],
+          [`<b><i class="fas fa-table-list"></i> ${_t("In the corner")}</b>`, _t("bottom-left, above the players: everyone your character is close to — the aura right now, their guard, the Strings both ways, ●● and whether ●●● is ready. Click a name to open your bonds; click the header to fold it.")],
+          [`<b><i class="fas fa-heart-pulse"></i> ${_t("In the Chronicle")}</b>`, _t("the first tab, under what weighs on them: Close by — the same statuses.")],
+        ], "tsl-cx-adds")}
         <h3>${_t("●● and ●●●")}</h3>
         <p>${_t("At ●● the type's own ability opens. At ●●● — its signature, once per long rest (Bonds → Call on it, right in its row).")}</p>
         ${table([_t("Bond"), _t("Per ●"), "●●", _t("●●● — once per long rest")], BOND_TYPES.filter(t => t.id !== "stranger").map(t => {
           const tap = APPROACHES[SocialArchetypeManager.bondApproach(t.id)];
           const per = [tap ? `+ ${esc(tap.label)}` : "", t.edge ? `+ ${esc(SKILL_LABELS[t.edge])}` : "", t.cost ? `− ${esc(SKILL_LABELS[t.cost])}` : "", t.hostile ? esc(_t("− the rest")) : ""].filter(Boolean).join(", ");
-          return [`<b>${esc(t.label)}</b>`, per, esc(SocialArchetypeManager.getBondAbility(t.id)?.label ?? ""), esc(SocialArchetypeManager.getBondSignature(t.id)?.label ?? "")];
+          return [`${TSLBondNear.icon(t)} <b>${esc(t.label)}</b>`, per, esc(SocialArchetypeManager.getBondAbility(t.id)?.label ?? ""), esc(SocialArchetypeManager.getBondSignature(t.id)?.label ?? "")];
         }), "tsl-cx-bonds")}
-        ${where(_t("<b>Where:</b> the Bonds tab — everyone you're bonded with: the type, the dots, the Strings both ways and what the bond gives, all in sight."))}`;
+        ${where(_t("<b>Where:</b> the Bonds tab — everyone you're bonded with: the type, the dots, the Strings both ways and what the bond gives, all in sight. On the map — a status on both tokens while you're close, and the corner panel."))}`;
 
       case "gm": return `
         ${lead(_t("You play the people; the module remembers them and counts the few rolls."))}
         <h3>${_t("Where to do what")}</h3>
         ${table(null, [
-          [`<b>${_t("Emotions and scars")}</b>`, _t("on anyone: the first tab of their Chronicle — every emotion, scar and condition is a switch there; players do the same on their own character")],
+          [`<b>${_t("Emotions and scars")}</b>`, _t("on anyone: the first tab of their Chronicle — every emotion and scar is a switch there; players do the same on their own character. D&D's own conditions stay on the token HUD.")],
           [`<b>${_t("Bonds and Strings")}</b>`, _t("the Bonds tab: the type, the dots and the Strings both ways, right in the row — a String is a switch, click it; add anyone by name, or drag an actor in")],
+          [`<b>${_t("Bonds in reach")}</b>`, _t("nothing to do: while two bonded tokens stand close, each carries the bond as a status with its aura. Your client writes them — stay connected. A hidden token doesn't count; between two NPCs it stays off the token.")],
           [`<b>${_t("What came out")}</b>`, _t("the NPC's Talk tab or Profile: click a fact to mark it known")],
           [`<b>${_t("How to play them")}</b>`, _t("the NPC's Talk tab: how they take each way, their price, their no, the mask to act out")],
           [`<b>${_t("Moves, words, lies")}</b>`, _t("the NPC's Talk tab: pull a String, mark a word kept or broken, bring a lie out")],
@@ -1542,13 +1552,14 @@ class SocialFencingApp extends _SocialAppBase {
         <h3>${_t("Running a conversation")}</h3>
         ${li(_t("<b>Play them live.</b> Let each way of talking land as their Talk tab says — the table reads them from it."),
              _t("<b>Mark what the talk does</b> — what comes out, what the words leave on them. No roll."),
+             _t("<b>Let what they hide show.</b> A flinch, a change of subject, a yes too quick — and when the players name it, mark it known."),
              _t("<b>Roll rarely</b> — when they're unwilling and it matters: usually once; a Read when the talk can't show it; two or three at most."),
              _t("<b>Hold them to their words.</b> An Appeal that's really a threat is a Demand — say so before the roll."),
              _t("<b>Size the ask</b> by what it costs them, not by how tough they are."),
              _t("<b>Yes, but</b> — their nature names the price; the player decides whether to pay."),
              _t("<b>No</b> — they push back their own way. Don't let the same ask be rolled again without something new."),
              _t("<b>Their Line</b> is real: an ask that crosses it is refused, no roll."),
-             _t("<b>Reward the heart:</b> when an NPC opens up to someone, give that character a String on them (Bonds → +)."))}
+             _t("<b>Reward the heart:</b> when an NPC opens up to someone, give that character a String on them — in that character's Bonds, click “String on them” in the NPC's row."))}
         <h3>${_t("The court")}</h3>
         ${li(_t("<b>Give them a face</b> — Profile → Mask: their own nature, another one (a mask), or nothing."),
              _t("<b>Say who's watching</b> — a hall, a feast, their own people. A Tyrant never bends where their people can see; an Idol performs for an audience."),
@@ -1566,6 +1577,13 @@ class SocialFencingApp extends _SocialAppBase {
           ["fa-scale-balanced", _t("Take the answer"), _t("Yes; yes, but — at their price; or no — and their emotion on you. A big win or a bad miss also moves a String.")],
           ["fa-link", _t("It stays"), _t("What you learned, the emotions, Strings and bonds go on into the next scene — and into a fight.")],
         ])}
+        <h3>${_t("On screen")}</h3>
+        ${table(null, [
+          [`<b><i class="fas fa-address-book"></i> ${_t("The Chronicle")}</b>`, _t("right-click your token → the address-book button: Profile (who you are, what weighs on you, the Strings at hand), Bonds, Talk (the roll) and this Codex")],
+          [`<b><i class="fas fa-user-tag"></i> ${_t("On the token")}</b>`, _t("emotions and scars as statuses — and, while you stand close to someone you're bonded with, the bond, on both of you")],
+          [`<b><i class="fas fa-table-list"></i> ${_t("In the corner")}</b>`, _t("bottom-left, above the players: the bonds in reach, with what each gives right now")],
+          [`<b><i class="fas fa-diagram-project"></i> ${_t("The Social Scene")}</b>`, _t("the Social button on the VTools bar: everyone here and what ties them, on one board")],
+        ], "tsl-cx-adds")}
         ${where(_t("<b>Where:</b> right-click your token → {icon} → the Chronicle. In <b>Talk</b>, target the one you talk to: hover their token and press <b>T</b>.", { icon: `<i class="fas fa-address-book"></i>` }))}
         <h3>${_t("An example")}</h3>
         <p class="tsl-cx-ex">${_t("Captain Roell won't open the gate. Lyra talks to him. She pushes — “Open it, or answer to the Duke” — and he goes cold: the GM is playing his wall. She changes tack: “You swore to protect these people. They're outside your gate.” He looks away; the GM marks him Guilty toward Lyra. “Be who your soldiers believe you are.” — “Roll.” One roll: an Appeal — Heart is his key, so advantage — and +2 for the guilt. “Yes — but ask it as a favour. On your knee, before my people.” Lyra kneels. The gate opens — and Roell remembers who knelt.")}</p>
@@ -1573,6 +1591,7 @@ class SocialFencingApp extends _SocialAppBase {
         <dl class="tsl-cx-terms">${[
           [_t("Nature"), _t("Who they are inside. It decides how your words land. Hidden — until the party figures them out.")],
           [_t("Key · Wall"), _t("The way of talking that opens them (you roll with advantage) — and the one that closes them (disadvantage).")],
+          [_t("Maneuver"), _t("What your words really were: one of eight, each a pair of D&D skills — the better one rolls, the other backs it.")],
           [_t("DC"), _t("How hard they are to move: 10 + their proficiency + the better of WIS and INT. Always shown.")],
           [_t("String"), _t("Something you have on someone: a debt, a secret, a weakness. One at a time each way.")],
           [_t("Leanings"), _t("Your archetype: dots in Power, Emotion and Order. Each is +1 to a skill on your sheet — Intimidation, Insight, Deception — and +1 on maneuvers of its way. On the Profile.")],
@@ -1704,8 +1723,6 @@ class SocialFencingApp extends _SocialAppBase {
 
     // ── What weighs on them: the GM's palette ──
     on("[data-state-open]", "click", () => { if (!TSLEmotions.canEdit(this._actor)) return; this._stateOpen = !this._stateOpen; this.render(false); });
-    on("[data-state-cond]", "click", async (_e, n) => { await this._toggleState("cond", n.dataset.stateCond); this.render(false); });
-    on("[data-cond-off]", "click", async (_e, n) => { await TSLConditions.toggle(this._actor, n.dataset.condOff, false); this.render(false); });
     on("[data-hold-toggle]", "click", async (_e, n) => {
       n.disabled = true;
       await TSLStringStore.set(n.dataset.holder, n.dataset.target, n.dataset.on === "1");

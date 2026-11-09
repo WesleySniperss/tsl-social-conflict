@@ -3,7 +3,7 @@
    One look for every surface: the Chronicle, dialogs, chat cards, the Scene.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.tsl-fencing, .tsl-dialog, #tsl-scene-visualizer, #tsl-relationship-visualizer, .chat-message .tsl-x-card, #tsl-bond-marks, #tsl-bond-near {
+.tsl-fencing, .tsl-dialog, #tsl-scene-visualizer, #tsl-relationship-visualizer, .chat-message .tsl-x-card, #tsl-bond-near {
   --tsl-bg:       #150c0f;
   --tsl-bg2:      #1d1114;
   --tsl-surface:  rgba(255, 255, 255, 0.035);
@@ -1118,20 +1118,27 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 .tsl-pal-head span { font-size: 11.5px; color: var(--tsl-dim); }
 .tsl-feel-pair { display: inline-flex; align-items: center; gap: 4px; }
 .tsl-feel-to { font-size: 11.5px; color: var(--tsl-dim); }
-.tsl-fencing .tsl-cond {
-  width: auto; height: 24px; margin: 0; padding: 0 8px 0 5px; box-shadow: none; cursor: pointer; white-space: nowrap;
-  display: inline-flex; align-items: center; gap: 4px; border-radius: 12px; font-size: 11.5px; line-height: 1;
-  background: rgba(0, 0, 0, 0.25); color: var(--tsl-dim); border: 1px dashed var(--tsl-border2);
+
+/* A bond in reach — the status its token carries: the type's icon, tinted the way it runs */
+.tsl-bs-ico {
+  display: inline-block; flex: 0 0 auto; width: 15px; height: 15px; vertical-align: -2px;
+  -webkit-mask-size: contain; mask-size: contain; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center;
 }
-.tsl-fencing .tsl-cond img { width: 14px; height: 14px; border: none; opacity: 0.75; }
-.tsl-fencing .tsl-cond:hover { color: #fff; border-color: #9fb4c8; }
-.tsl-fencing .tsl-cond.on { color: #fff; border-style: solid; border-color: #9fb4c8; background: rgba(159, 180, 200, 0.2); }
-.tsl-fencing .tsl-cond.on img { opacity: 1; }
-.tsl-cond-tag {
-  display: inline-flex; align-items: center; gap: 5px; padding: 1px 4px 1px 6px; border-radius: 10px;
-  font-size: 12.5px; color: #e6eef5; background: rgba(159, 180, 200, 0.18); border: 1px solid rgba(159, 180, 200, 0.6);
+.tsl-bs-ico--fa { width: 15px; text-align: center; color: var(--tsl-dim); }
+.tsl-state-near { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 8px; padding-top: 7px; border-top: 1px dashed var(--tsl-border); }
+.tsl-state-near-label { font-size: 12px; color: var(--tsl-dim); margin-right: 2px; white-space: nowrap; }
+.tsl-state-near-label i { color: var(--tsl-accent); }
+.tsl-bs-chip {
+  display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px 2px 6px; border-radius: 11px; white-space: nowrap;
+  font-size: 12.5px; line-height: 1.2; color: var(--tsl-text); background: rgba(0, 0, 0, 0.25); border: 1px solid var(--tsl-border2);
 }
-.tsl-cond-tag img { width: 15px; height: 15px; border: none; }
+.tsl-bs-chip b { font-weight: 600; }
+.tsl-bs--warm { border-color: rgba(155, 110, 232, 0.55); }
+.tsl-bs--hostile { border-color: rgba(232, 85, 122, 0.6); }
+.tsl-bs-dots { color: var(--tsl-sway); letter-spacing: 0.04em; font-size: 11px; }
+.tsl-bs-who { color: var(--tsl-muted); font-size: 12px; }
+.tsl-bs-who::before { content: "· "; }
 
 /* A String chip that is a switch */
 .tsl-fencing .tsl-hold-chip--btn { width: auto; height: auto; margin: 0; cursor: pointer; box-shadow: none; font-family: var(--tsl-body, inherit); }
@@ -1180,29 +1187,6 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 .tsl-fencing .tsl-rq:hover { color: #fff; border-color: #d9b46a; }
 .tsl-fencing .tsl-rq.on { color: #fff; border-style: solid; border-color: #d9b46a; background: rgba(217, 180, 106, 0.18); }
 .tsl-fencing .tsl-rq b { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: #d9b46a; color: #1a1010; font-size: 11px; }
-
-/* ── Bonds in reach: the badge on a bonded one's token (in the canvas HUD layer) ── */
-#hud > #tsl-bond-marks { left: 0; top: 0; width: 0; height: 0; overflow: visible; z-index: -1; }   /* under the token HUD and chat bubbles */
-#tsl-bond-marks .tsl-bond-mark {
-  position: absolute; transform: translate(-50%, -100%); pointer-events: none; white-space: nowrap;
-  display: flex; flex-direction: column; align-items: center; gap: 0.2em;
-}
-#tsl-bond-marks .tsl-bm-line {
-  display: inline-flex; align-items: center; gap: 0.35em; padding: 0.18em 0.6em; border-radius: 1em;
-  background: rgba(21, 12, 15, 0.88); border: 1px solid rgba(232, 85, 122, 0.75); color: var(--tsl-text);
-  font-family: var(--tsl-body); font-size: 1em; line-height: 1.2; box-shadow: 0 1px 5px rgba(0, 0, 0, 0.7);
-}
-#tsl-bond-marks .tsl-bm-icon { color: var(--tsl-accent); font-size: 0.9em; }
-#tsl-bond-marks .tsl-bm--hostile { border-color: rgba(208, 87, 77, 0.9); }
-#tsl-bond-marks .tsl-bm--hostile .tsl-bm-icon { color: #e0786e; }
-#tsl-bond-marks .tsl-bm--stranger { border-color: rgba(255, 255, 255, 0.28); color: var(--tsl-soft); }
-#tsl-bond-marks .tsl-bm--stranger .tsl-bm-icon { color: var(--tsl-dim); }
-#tsl-bond-marks .tsl-bm-type { font-weight: 600; }
-#tsl-bond-marks .tsl-bm-dots { color: var(--tsl-sway); letter-spacing: 0.06em; font-size: 0.9em; }
-#tsl-bond-marks .tsl-bm-str { font-size: 0.85em; }
-#tsl-bond-marks .tsl-bm-str--mine { color: var(--tsl-sway); }
-#tsl-bond-marks .tsl-bm-str--theirs { color: #e0786e; }
-#tsl-bond-marks .tsl-bm-who { color: var(--tsl-muted); font-size: 0.85em; }
 
 /* ── Bonds in reach: the corner panel (left column, right above the players) ── */
 #tsl-bond-near {

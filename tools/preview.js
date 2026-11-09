@@ -68,7 +68,7 @@ globalThis.canvas.scene.getFlag = (_s, k) => sceneFlags[k];
 globalThis.canvas.scene.setFlag = async (_s, k, v) => { sceneFlags[k] = v; };
 
 async function setup() {
-  // A few of the system's own conditions (Foundry's core icons), and Lyra is Prone — for the strip.
+  // The system's own conditions exist in the world (Foundry's core icons), and Lyra is Prone — our menu lists none of them.
   CONFIG.statusEffects.push(...[["blinded", "Blinded", "blind"], ["charmed", "Charmed", "heart"], ["deafened", "Deafened", "deaf"], ["frightened", "Frightened", "terror"],
     ["grappled", "Grappled", "net"], ["poisoned", "Poisoned", "poison"], ["prone", "Prone", "falling"], ["restrained", "Restrained", "padlock"], ["stunned", "Stunned", "daze"], ["unconscious", "Unconscious", "unconscious"]]
     .map(([id, name, ic]) => ({ id, name, img: `icons/svg/${ic}.svg` })));
@@ -114,6 +114,8 @@ const pages = [];
 const page = (name, body, w = 560, h = 1200) => {
   if (only.length && !only.some((o) => name.includes(o))) return;
   const file = path.join(OUT, name + ".html");
+  // The module's own files (bond icons) live outside Foundry's public folder.
+  body = body.replaceAll("modules/tsl-social-conflict/", `${url(ROOT)}/`);
   fs.writeFileSync(file, `<!doctype html><html><head>${head}</head><body class="vtt game system-a5e theme-dark"><div id="shot-root">${body}</div></body></html>`);
   pages.push({ name, file, w, h });
 };
@@ -228,9 +230,9 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
   page("scene-selected", await board("scene", { kind: "node", id: "roell" }), 940, 760);
   page("scene-pair", await board("scene", { kind: "edge", id: ["lyra", "mira"].sort().join("|") }), 940, 760);
 
-  // ── Bonds in reach: a bonded one's token wears the bond; the corner panel lists it ──
+  // ── Bonds in reach: the bond is a status on both tokens; the corner panel lists it ──
   {
-    const N = R.TSLBondNear;
+    const N = R.TSLBondNear, A = R.TSLBondAuras;
     const was = { ready: canvas.ready, grid: canvas.grid, controlled: canvas.tokens.controlled, placeables: canvas.tokens.placeables };
     canvas.ready = true;
     canvas.grid = { measurePath: (pts) => ({ distance: Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y) / 20 }) };   // a 100 px square is 5 ft
@@ -239,13 +241,21 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
     canvas.tokens.placeables = toks;
     canvas.tokens.controlled = [toks[0]];
     const pairs = N.pairs();
-    const marks = pairs.map((p) => `<div class="tsl-bond-mark" style="left:${p.other.x + 50}px;top:${p.other.y - 4}px;font-size:13px">${N.badgeHTML([N.info(p)])}</div>`).join("");
-    const tokenImgs = toks.map((t) => `<img src="${t.document.texture.src}" style="position:absolute;left:${t.x}px;top:${t.y}px;width:100px;height:100px;border-radius:50%;object-fit:cover;object-position:top;border:3px solid ${t === toks[0] ? "#ff9829" : "#333"};background:#555">
+    // What each token carries, drawn as Foundry draws statuses: its own (emotions, conditions…) and the bonds in reach, as the GM writes them.
+    const iconsOf = (t) => [
+      ...(t.actor.effects ?? []).filter((e) => (e.statuses?.size ?? 0) > 0 && e.img).map((e) => ({ img: e.img, tint: e.tint })),
+      ...A.share(A.closeTo(t, toks)).map((w) => A.statusData(t.actor, w)).filter((d) => d.statuses.length).map((d) => ({ img: d.img, tint: d.tint })),
+    ];
+    const statusIcons = (t) => iconsOf(t).map((ic, i) => {
+      const fill = ic.tint ? `background:${ic.tint};-webkit-mask:url('${ic.img}') center/contain no-repeat` : `background:url('${ic.img}') center/contain no-repeat`;
+      return `<div style="position:absolute;left:${t.x + Math.floor(i / 5) * 21}px;top:${t.y + (i % 5) * 21}px;width:21px;height:21px;padding:1px;box-sizing:border-box;background:rgba(0,0,0,.5);border:1px solid #000;border-radius:3px"><div style="width:100%;height:100%;${fill}"></div></div>`;
+    }).join("");
+    const tokenImgs = toks.map((t) => `<img src="${t.document.texture.src}" style="position:absolute;left:${t.x}px;top:${t.y}px;width:100px;height:100px;border-radius:6px;object-fit:cover;object-position:top;outline:3px solid ${t === toks[0] ? "#ff9829" : "transparent"};background:#555">
+      ${statusIcons(t)}
       <div style="position:absolute;left:${t.x - 20}px;top:${t.y + 104}px;width:140px;text-align:center;color:#fff;font:13px Signika,sans-serif;text-shadow:0 0 4px #000">${t.actor.name}</div>`).join("");
     const reachRing = `<div style="position:absolute;left:${350 - 300}px;top:${380 - 300}px;width:600px;height:600px;border-radius:50%;border:2px dashed rgba(232,85,122,0.35)"></div>`;
     page("near", `<div style="position:relative;width:1180px;height:720px;overflow:hidden;background:#24302a;background-image:linear-gradient(rgba(0,0,0,.25) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.25) 1px,transparent 1px);background-size:100px 100px">
       ${reachRing}${tokenImgs}
-      <div id="hud" style="left:0;top:0;width:1180px;height:720px"><div id="tsl-bond-marks">${marks}</div></div>
       <div style="position:absolute;left:16px;bottom:16px;display:flex;flex-direction:column;gap:16px;width:72px">
         <section id="tsl-bond-near">${N.panelHTML(pairs)}</section>
         <div style="width:200px;background:rgba(11,10,19,.8);border:1px solid #4b4a54;border-radius:8px;padding:6px 8px;color:#e7d1b1;font:12px Signika,sans-serif;line-height:1.6">
@@ -255,6 +265,8 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
     page("near-folded", `<div style="position:relative;width:400px;height:200px;background:#24302a">
       <div style="position:absolute;left:16px;bottom:16px;display:flex;flex-direction:column;gap:16px;width:72px">
         <section id="tsl-bond-near">${N.panelHTML(pairs, { folded: true })}</section></div></div>`, 400, 200);
+    // The first tab while they stand there: what weighs on them, then Close by — the same statuses.
+    page("near-profile", await chron(lyra, "profile", {}, "player"), 560, 900);
     Object.assign(canvas, { ready: was.ready, grid: was.grid }); canvas.tokens.controlled = was.controlled; canvas.tokens.placeables = was.placeables;
   }
 

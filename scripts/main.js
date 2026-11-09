@@ -56,15 +56,15 @@ Hooks.once("init", () => {
   // How far a bond reaches (its aura) — in a fight or not. 0 turns auras off.
   game.settings.register(TSL_SCOPE, "bondAuraRange", {
     name: _t("Bond aura reach"),
-    hint: _t("Standing this close to someone you have a bond with — in a fight or not — gives that bond's aura (feet). 0 turns bond auras off."),
+    hint: _t("Standing this close (feet) to someone you have a bond with — in a fight or not — puts the bond on both tokens as a status, with its aura. 0 turns the auras off; the bond still shows within 15 ft."),
     scope: "world", config: true, type: Number, default: 15,
     range: { min: 0, max: 60, step: 5 },
     onChange: () => { try { TSLBondAuras.refresh(); TSLBondNear.update(); } catch { /* not ready */ } },
   });
 
   game.settings.register(TSL_SCOPE, "bondNearShow", {
-    name: _t("Bonds in reach on screen"),
-    hint: _t("When your character comes within the aura's reach of someone they have a bond with, that one's token shows the bond — its type, ●, the Strings between you — and a panel in the bottom-left corner lists it with what it gives right now. On your screen only; the GM sees it for the tokens they select."),
+    name: _t("Bonds in reach: the corner panel"),
+    hint: _t("A panel in the bottom-left corner lists everyone your character stands close to with a bond — what it gives right now, the Strings both ways. On your screen only; the GM sees it for the tokens they select. The bond itself shows on the tokens as a status either way."),
     scope: "client", config: true, type: Boolean, default: true,
     onChange: () => { try { TSLBondNear.update(); } catch { /* not ready */ } },
   });
@@ -179,13 +179,22 @@ Hooks.once("setup", () => {
  */
 async function tidyStringsAndLeanings() {
   if (!game.user?.isGM || (game.users?.activeGM && !game.users.activeGM.isSelf)) return;
-  let cut = 0;
+  let cut = 0, shown = 0;
+  // v14 draws an effect on the token only with showIcon ALWAYS (or a duration): our statuses made
+  // before 3.15 never said so — an emotion, a String pulled, a signature's moment — so they get it now.
+  const ALWAYS = globalThis.CONST?.ACTIVE_EFFECT_SHOW_ICON?.ALWAYS;
+  const ours = (e) => e.flags?.[TSL_SCOPE]?.emotion || e.flags?.[TSL_SCOPE]?.stringPull || e.flags?.[TSL_SCOPE]?.bondMoment;
   for (const actor of game.actors?.contents ?? []) {
     try { cut += await TSLStringStore.trimToCap(actor); } catch (err) { console.warn(`TSL | String trim failed on ${actor.name}:`, err); }
+    if (ALWAYS !== undefined) {
+      const fix = (actor.effects ?? []).filter(e => ours(e) && e.showIcon !== ALWAYS).map(e => ({ _id: e.id, showIcon: ALWAYS }));
+      if (fix.length) { try { await actor.updateEmbeddedDocuments("ActiveEffect", fix); shown += fix.length; } catch (err) { console.warn(`TSL | status icons failed on ${actor.name}:`, err); } }
+    }
     if (!SocialArchetypeManager.isPC(actor)) continue;
     try { await SocialArchetypeManager.syncLeaningEffect(actor); } catch (err) { console.warn(`TSL | Leanings effect failed on ${actor.name}:`, err); }
   }
   if (cut) console.log(`TSL | one String each way: ${cut} extra String(s) cut`);
+  if (shown) console.log(`TSL | ${shown} status(es) now shown on their tokens`);
 }
 
 Hooks.once("ready", () => {

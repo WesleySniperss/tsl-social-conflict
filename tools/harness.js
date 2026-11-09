@@ -149,7 +149,7 @@ globalThis.Hooks = {
   _fire: (n, ...a) => { for (const fn of onceHooks[n] ?? []) try { fn(...a); } catch (e) {} },
 };
 globalThis.CONFIG = { statusEffects: [], A5E: { ROLL_MODE: { NORMAL: 0, ADVANTAGE: 1, DISADVANTAGE: -1 } } };
-globalThis.CONST = { ACTIVE_EFFECT_MODES: { CUSTOM: 0, MULTIPLY: 1, ADD: 2, DOWNGRADE: 3, UPGRADE: 4, OVERRIDE: 5 } };
+globalThis.CONST = { ACTIVE_EFFECT_MODES: { CUSTOM: 0, MULTIPLY: 1, ADD: 2, DOWNGRADE: 3, UPGRADE: 4, OVERRIDE: 5 }, ACTIVE_EFFECT_SHOW_ICON: { NEVER: 0, CONDITIONAL: 1, ALWAYS: 2 } };   // as on v14
 
 // ── Actor factory (dnd5e/a5e-ish) ────────────────────────────────────────────
 const actorStore = {};
@@ -177,6 +177,16 @@ function makeActor(id, { cha = 0, wis = 0, con = 0, int = 0 } = {}, { npc = fals
       return arr;
     },
     deleteEmbeddedDocuments: async (_t, ids) => { for (const i of ids) { const idx = effects.findIndex((e) => e.id === i); if (idx >= 0) effects.splice(idx, 1); } },
+    updateEmbeddedDocuments: async (_t, arr) => {
+      for (const u of arr) {
+        const e = effects.find((x) => x.id === u._id);
+        if (!e) continue;
+        const { _id, ...rest } = clone(u);
+        Object.assign(e, rest);
+        if (rest.statuses) e.statuses = new Set(rest.statuses);
+      }
+      return arr;
+    },
   };
   actorStore[id] = a;
   return a;
@@ -204,10 +214,10 @@ const EXPORTS = ["SocialArchetypeManager", "TSLTalk", "TSLStringStore", "TSLBond
   "SocialFencingDialog", "TSLGMActions", "TSLSocket", "TSLSceneVisualizer", "TSLHudButton",
   "SOCIAL_ARCHETYPES", "SOCIAL_TRIADS", "APPROACHES", "APPROACH_ORDER", "ASK_SIZES", "ASK_ORDER",
   "TECHNIQUES", "TECH_JOBS", "JOB_ORDER", "LEVER_BONUS",
-  "TSLEmotions", "TSLConditions", "EMOTIONS", "EMOTION_ORDER", "SCARS",
+  "TSLEmotions", "EMOTIONS", "EMOTION_ORDER", "SCARS",
   "READ_QUESTIONS", "READ_ORDER", "ARCHETYPE_TELLS", "ARCHETYPE_REACTIONS", "BOND_TYPES", "PROFILE_POINTS",
   "SKILL_LABELS", "STRING_CAP", "migrateToV3", "TSL_I18N", "TSLi18n", "TSL_UK", "TALK_GRADES", "JOB_GRADES",
-  "TSLAbilities", "TRIAD_MOVES", "NPC_ABILITIES", "TSLBondAuras", "TSLBondNear", "TSLBondMoments", "TSLBondPowers", "BOND_ABILITIES", "BOND_SIGNATURES"];
+  "TSLAbilities", "TRIAD_MOVES", "NPC_ABILITIES", "TSLBondAuras", "TSLBondNear", "TSLBondMoments", "TSLBondPowers", "BOND_ABILITIES", "BOND_SIGNATURES", "tidyStringsAndLeanings"];
 let api;
 try {
   api = new Function(combined + "\nreturn { " + EXPORTS.map((e) => `${e}: typeof ${e} !== "undefined" ? ${e} : undefined`).join(", ") + " };")();
@@ -775,37 +785,75 @@ if (require.main === module) (async () => {
     ok(`…not twice`, globalThis.__cards.length === cards);
     await BS.clearSignatures("spP");
     ok(`a long rest makes it ready again`, !sigOf().sigUsed);
-    // The aura: two tokens 10 ft apart on a ready canvas.
+    // The bond on the token: two tokens 10 ft apart on a ready canvas.
     const was = { ready: canvas.ready, placeables: canvas.tokens.placeables, grid: canvas.grid };
     canvas.ready = true;
     canvas.grid = { measurePath: (pts) => ({ distance: Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y) / 20 }) };   // 20 px a foot
-    canvas.tokens.placeables = [{ actor: p, center: { x: 0, y: 0 } }, { actor: fr, center: { x: 200, y: 0 } }];
+    const at = (a, x, hidden = false) => ({ actor: a, center: { x, y: 0 }, document: { hidden } });
+    canvas.tokens.placeables = [at(p, 0), at(fr, 200)];
     const wasCombat = game.combat;
-    const hasAura = (a) => a.effects.some((e) => e.flags?.[SCOPE]?.bondAura);
-    const deletable = () => { for (const who of [p, fr]) for (const e of who.effects.filter((x) => x.flags?.[SCOPE]?.bondAura)) e.delete = async () => { who.effects.splice(who.effects.indexOf(e), 1); }; };
+    const statusOf = (a) => a.effects.filter((e) => e.flags?.[SCOPE]?.bondStatus);
+    const hasAura = (a) => statusOf(a).length > 0;
     game.combat = null;
+    p.effects.push({ id: "oldAura", name: "Bonds in reach", statuses: new Set(["tsl-bond-aura"]), flags: { [SCOPE]: { bondAura: true } } });
     await A._refresh();
     const outOfFight = hasAura(p) && hasAura(fr);
-    ok(`close by, with no fight on, the aura is there all the same — it works everywhere`, outOfFight);
+    ok(`close by, with no fight on, the bond is there all the same — it works everywhere; the single aura of 3.14 is gone`, outOfFight && !p.effects.some((e) => e.id === "oldAura"));
     game.combat = { started: true, scene: null };
     await A._refresh();
-    const aura = p.effects.find((e) => e.flags?.[SCOPE]?.bondAura);
-    ok(`…and in a fight, 10 ft from their liege, the Sworn's aura stays on the sheet (●●●: ±2): ${aura?.description?.replace(/<[^>]+>/g, "") ?? "none"}`, !!aura && aura.changes.length > 0 && /Oathbound/.test(aura.description));
-    canvas.tokens.placeables = [{ actor: p, center: { x: 0, y: 0 } }, { actor: fr, center: { x: 2000, y: 0 } }];
-    for (const who of [p, fr]) for (const e of who.effects.filter((x) => x.flags?.[SCOPE]?.bondAura)) e.delete = async () => { who.effects.splice(who.effects.indexOf(e), 1); };
+    const [aura] = statusOf(p), [liege] = statusOf(fr);
+    ok(`the bond is a status on the token like any other: "${aura?.name}" — its own icon, tinted the way it runs, the aura on the sheet (●●●: ±2): ${aura?.description?.replace(/<[^>]+>/g, "") ?? "none"}`,
+      !!aura && aura.name === "Sworn ●●● — spF" && [...aura.statuses].includes("tsl-bond-sworn") && aura.img === "icons/svg/holy-shield.svg"
+      && aura.tint === R.APPROACHES.reason.color && aura.changes.length > 0 && /Oathbound/.test(aura.description)
+      && aura.showIcon === CONST.ACTIVE_EFFECT_SHOW_ICON.ALWAYS);
+    ok(`…and the other one carries it from their side: "${liege?.name}"`, !!liege && liege.name === "Liege ●●● — spP" && [...liege.statuses].includes("tsl-bond-liege") && aura.img !== liege.img);
+    const fxCount = p.effects.length;
+    let writes = 0;
+    const upd = p.updateEmbeddedDocuments, crt = p.createEmbeddedDocuments;
+    p.updateEmbeddedDocuments = async (...x) => { writes++; return upd(...x); };
+    p.createEmbeddedDocuments = async (...x) => { writes++; return crt(...x); };
     await A._refresh();
-    ok(`…and comes off when they're 100 ft apart`, !p.effects.some((e) => e.flags?.[SCOPE]?.bondAura));
-    canvas.tokens.placeables = [{ actor: p, center: { x: 0, y: 0 } }, { actor: fr, center: { x: 200, y: 0 } }];
+    p.updateEmbeddedDocuments = upd; p.createEmbeddedDocuments = crt;
+    ok(`…and nothing is written again while nobody moves`, writes === 0 && p.effects.length === fxCount && statusOf(p)[0] === aura);
+    canvas.tokens.placeables = [at(p, 0), at(fr, 2000)];
+    await A._refresh();
+    ok(`…and comes off when they're 100 ft apart`, !hasAura(p) && !hasAura(fr));
+    canvas.tokens.placeables = [at(p, 0), at(fr, 200)];
     await A._refresh();
     const backOn = hasAura(p);
-    deletable();
-    canvas.tokens.placeables = [{ actor: fr, center: { x: 200, y: 0 } }];
+    canvas.tokens.placeables = [at(fr, 200)];
     await A._refresh();
-    ok(`…and off anyone taken off the map — no aura left behind on the sheet`, backOn && !hasAura(p));
-    canvas.tokens.placeables = [{ actor: p, center: { x: 0, y: 0 } }, { actor: fr, center: { x: 200, y: 0 } }];
+    ok(`…and off anyone taken off the map — nothing left behind on the sheet`, backOn && !hasAura(p) && !hasAura(fr));
+    canvas.tokens.placeables = [at(p, 0), at(fr, 200, true)];
+    await A._refresh();
+    ok(`…a token the GM hid neither gives nor carries one — its place isn't given away`, !hasAura(p) && !hasAura(fr));
+    canvas.tokens.placeables = [at(p, 0), at(fr, 200)];
     game.combat = null;
     await A._refresh();
     ok(`…and when the fight ends, standing together, they keep it`, hasAura(p) && hasAura(fr));
+    // Several bonds close by: each its own status; together each lever stops at ±2.
+    const fam = pc("spM");
+    await BS.add("spP", "spM", { type: "family", attitude: 3 });
+    canvas.tokens.placeables = [at(p, 0), at(fr, 200), at(fam, 240)];
+    await A._refresh();
+    const saves = statusOf(p).map((e) => e.changes.filter((c) => /abilities/.test(c.key) && /"save"/.test(c.value)).map((c) => Number(JSON.parse(c.value).formula)).reduce((s, v) => s + v, 0));
+    ok(`two bonds close by: two statuses on the token; the saves they give stop at +2 together (${saves.join(" + ")})`, statusOf(p).length === 2 && saves.reduce((s, v) => s + v, 0) === 2);
+    // Between two NPCs: on the sheet, off the token — no NPC's secret ally shows.
+    const n1 = npc("spN1"), n2 = npc("spN2");
+    await BS.add("spN1", "spN2", { type: "ally", attitude: 1 });
+    canvas.tokens.placeables = [at(n1, 1000), at(n2, 1100)];
+    await A._refresh();
+    const [secret] = statusOf(n1);
+    ok(`between two NPCs the aura works on the sheet, but nothing shows on the token`, !!secret && secret.changes.length > 0 && secret.statuses.size === 0
+      && secret.showIcon === CONST.ACTIVE_EFFECT_SHOW_ICON.NEVER);
+    // v14 draws an effect on the token only with showIcon ALWAYS: an emotion says so; one made before 3.15 gets it on the GM's load.
+    const em = pc("spE");
+    await R.TSLEmotions.mark(em, "angry", { title: "test" });
+    const fresh = em.effects.find((e) => e.flags?.[SCOPE]?.emotion);
+    em.effects.push({ id: "oldEmo", name: "Frightened", statuses: new Set(["tsl-emo-frightened"]), showIcon: 1, flags: { [SCOPE]: { emotion: { id: "frightened" } } } });
+    await R.tidyStringsAndLeanings();
+    ok(`an emotion shows on the token like any status (v14's showIcon), and one put on before 3.15 is shown after the GM's load`,
+      fresh?.showIcon === CONST.ACTIVE_EFFECT_SHOW_ICON.ALWAYS && em.effects.find((e) => e.id === "oldEmo")?.showIcon === CONST.ACTIVE_EFFECT_SHOW_ICON.ALWAYS);
     game.combat = wasCombat;
     Object.assign(canvas, { ready: was.ready, grid: was.grid }); canvas.tokens.placeables = was.placeables;
   }
@@ -830,22 +878,23 @@ if (require.main === module) (async () => {
     const gmPairs = N.pairs();
     ok(`the GM, their token selected: the rival (10 ft) and the friend (12 ft) are in reach, nearest first — the mentor 100 ft off is not: ${ids(gmPairs)}`, ids(gmPairs) === "nrR,nrF");
     canvas.tokens.controlled = [];
-    ok(`…with nothing selected, the GM sees no badges`, N.pairs().length === 0);
+    ok(`…with nothing selected, the GM's corner stays empty`, N.pairs().length === 0);
     game.user = { id: "pl1", isGM: false, name: "Player" };
     ok(`a player: their own character on the map is enough, selected or not`, ids(N.pairs()) === "nrR,nrF");
     tR.document.hidden = true;
-    ok(`…a token the GM hid never wears a badge for a player`, ids(N.pairs()) === "nrF");
+    ok(`…a token the GM hid is never listed for a player`, ids(N.pairs()) === "nrF");
     tR.document.hidden = false; tF.visible = false;
     ok(`…nor one out of their sight`, ids(N.pairs()) === "nrR");
     tF.visible = true;
-    const [pR, pF] = N.pairs();
-    const bR = N.badgeHTML([N.info(pR)]), bF = N.badgeHTML([N.info(pF)]);
-    ok(`the rival's badge: Rival ●●○ and a tick — you have a String on them`, /Rival/.test(bR) && /●●○/.test(bR) && /tsl-bm-str--mine/.test(bR) && !/tsl-bm-str--theirs/.test(bR) && /tsl-bm--hostile/.test(bR));
-    ok(`the friend's: Friend ●●● and a warning — they have one on you`, /Friend/.test(bF) && /●●●/.test(bF) && /tsl-bm-str--theirs/.test(bF) && !/tsl-bm-str--mine/.test(bF) && /tsl-bm--warm/.test(bF));
-    const text = N.panelHTML(N.pairs()).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+    const html = N.panelHTML(N.pairs());
+    const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
     ok(`the corner panel lists both, with what the aura gives right now, their guard, the Strings and the ●● / ●●● powers: ${text.slice(0, 150)}…`,
       /Bonds in reach/.test(text) && /nrR/.test(text) && /nrF/.test(text) && /They have your back/.test(text) && /\+2 to saving throws/.test(text)
       && /their guard is down for you: DC −3/.test(text) && /Steady me/.test(text) && /— ready/.test(text) && /String on them/.test(text) && /String on you/.test(text));
+    ok(`…each with the same icon its token carries, tinted the way the bond runs`, /mask-image:url\('icons\/svg\/sword\.svg'\)/.test(html) && /mask-image:url\('icons\/svg\/tankard\.svg'\)/.test(html) && html.includes(R.APPROACHES.pressure.color));
+    const mineNow = N.statusesOf(me);
+    ok(`the Chronicle sees what the token carries, worked out the GM's way: ${mineNow.map((w) => w.type.label + " — " + w.partner.name).join(", ")}`,
+      mineNow.map((w) => w.partner.id).join(",") === "nrR,nrF" && /tsl-bs-chip/.test(N.chipHTML(mineNow[0])) && /Rival/.test(N.chipHTML(mineNow[0])));
     const folded = N.panelHTML(N.pairs(), { folded: true });
     ok(`…folded: only the header and the count`, /tsl-bn-count">2</.test(folded) && !/tsl-bn-row/.test(folded));
     settingsMap.set(`${SCOPE}.bondAuraRange`, 0);
@@ -1279,21 +1328,15 @@ if (require.main === module) (async () => {
       await R.TSLGMActions.handle({ action: "stringSet", args: { holderId: "uiN", targetId: "uiZ", on: true, pcId: "uiZ" } }, "uMal2");
       game.users.get = getU;
       ok(`…the relay writes only about the player's own character`, SS.countOn("uiN", "uiQ") === beforeQ && SS.countOn("uiN", "uiZ") === 1);
-      // The system's conditions, in the same strip.
+      // Our menu holds the social statuses only — D&D's conditions stay with the system (the token HUD).
       const savedFx = CONFIG.statusEffects;
-      CONFIG.statusEffects = [...savedFx, { id: "prone", name: "Prone", img: "icons/svg/falling.svg" }, { id: "exhaustion", name: "Exhaustion", img: "icons/svg/sleep.svg" }];
-      Q.toggleStatusEffect = async (id, { active } = {}) => {
-        const has = Q.effects.find((e) => [...(e.statuses ?? [])].includes(id));
-        if (has && active !== true) Q.effects.splice(Q.effects.indexOf(has), 1);
-        else if (!has && active !== false) Q.effects.push({ id: "fx" + id, statuses: new Set([id]), flags: {} });
-      };
-      const qApp2 = new R.SocialFencingApp(Q);
-      await qApp2._toggleState("cond", "prone");
+      CONFIG.statusEffects = [...savedFx, { id: "prone", name: "Prone", img: "icons/svg/falling.svg" }, { id: "blinded", name: "Blinded", img: "icons/svg/blind.svg" }];
+      Q.effects.push({ id: "fxProne", name: "Prone", statuses: new Set(["prone"]), flags: {} });
       const proneView = await render(Q, "talk", { _tTarget: "uiN", _stateOpen: true });
-      ok(`the system's conditions too: Prone on — shown in the strip with ×, and a switch in Change (exhaustion stays on the sheet)`, !bad(proneView)
-        && /tsl-cond-tag[\s\S]*Prone[\s\S]*data-cond-off="prone"/.test(proneView) && /data-state-cond="prone"/.test(proneView) && !/data-state-cond="exhaustion"/.test(proneView) && !/data-state-cond="tsl-emo-/.test(proneView));
-      await R.TSLConditions.toggle(Q, "prone", false);
-      ok(`…and off again`, !R.TSLConditions.active(Q).length);
+      const firstTab = await render(Q, "profile");
+      ok(`our menu holds only the social statuses — emotions and scars; D&D's conditions (Prone, Blinded…) are the system's, not listed even while one is on`,
+        !bad(proneView) && !/Prone|Blinded/.test(proneView) && !/Prone|Blinded/.test(firstTab) && /data-state-emo="angry"/.test(firstTab) && /data-state-scar=/.test(firstTab));
+      Q.effects.splice(Q.effects.findIndex((e) => e.id === "fxProne"), 1);
       CONFIG.statusEffects = savedFx;
     }
     const gmTalk = await render(P, "talk", { _tTarget: "uiN", _tTech: "demand" });
