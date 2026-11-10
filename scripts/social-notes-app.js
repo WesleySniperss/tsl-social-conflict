@@ -1021,9 +1021,9 @@ class SocialFencingApp extends _SocialAppBase {
     const pct = (c) => `${Math.round(c.p * 100)}%`;
     // All in needs its own leverage — say what is missing, and how to get it.
     const lockOf = (id) => id === "blackmail" && !known.fear && !strings
-      ? { text: _t("nothing to blackmail them with yet"), why: _t("Blackmail needs something on them: their <b>Fear</b> — the party learns it from a Read, or the GM marks it when it comes out in the talk — or a <b>String</b> on them (a strong win against them). Until then, threaten them plainly: a Demand.") }
+      ? { text: _t("nothing to blackmail them with yet"), why: _t("Blackmail needs something on them: their <b>Fear</b> — the GM marks it once the party names it, from the talk or from what a Read lets them see — or a <b>String</b> on them (a strong win against them). Until then, threaten them plainly: a Demand.") }
       : id === "seduce" && !known.desire && tie < 2
-      ? { text: _t("needs their Desire or a bond ●●"), why: _t("Seduce plays on what they want, or on what is between you: their <b>Desire</b> — from a Read, or the GM marks it when it comes out in the talk — or a bond of ●● or more. Until then, ask from the heart: an Appeal.") }
+      ? { text: _t("needs their Desire or a bond ●●"), why: _t("Seduce plays on what they want, or on what is between you: their <b>Desire</b> — the GM marks it once the party names it, from the talk or from what a Read lets them see — or a bond of ●● or more. Until then, ask from the heart: an Appeal.") }
       : null;
     // A maneuver's two skills: the one that rolls in bold, a tick on the one that backs it.
     const skillsOf = (tech, pv) => tech.skills.map(k => k === pv.skill ? `<b>${esc(SKILL_LABELS[k] ?? k)}</b>`
@@ -1036,7 +1036,7 @@ class SocialFencingApp extends _SocialAppBase {
       ${modeBtn("ask", "fa-comments", _t("I persuade"), "per", _t("I've said what I want: will they do it?"))}
       ${modeBtn("press", "fa-hand-fist", _t("I intimidate"), "itm", _t("a threat, a challenge, shame: will they give in?"))}
       ${modeBtn("lie", "fa-mask", _t("I lie"), "dec", _t("what I said isn't true: will they believe it?"))}
-      ${modeBtn("read", "fa-eye", _t("I read them"), "ins", _t("what the talk doesn't show: what they hide, whether it's true"))}
+      ${modeBtn("read", "fa-eye", _t("I read them"), "ins", _t("whether it's true, how they'll take you — and a glimpse of what they hide"))}
     </div>`;
 
     // How your words came at them: the ways that fit what you're doing — and how this person is known to take each.
@@ -1163,11 +1163,13 @@ class SocialFencingApp extends _SocialAppBase {
     const picks = this._readPicks(npc);
     const chips = TSLTalk.openQuestions(npc).map(q => {
       const i = picks.indexOf(q);
-      return `<button type="button" class="tsl-rq ${i >= 0 ? "on" : ""}" data-read-q="${q}" aria-pressed="${i >= 0}">${i >= 0 ? `<b>${i + 1}</b>` : ""}${esc(READ_QUESTIONS[q].label)}</button>`;
+      const deep = READ_DEPTH.includes(q);
+      return `<button type="button" class="tsl-rq ${i >= 0 ? "on" : ""} ${deep ? "tsl-rq--deep" : ""}" data-read-q="${q}" aria-pressed="${i >= 0}"
+        ${deep ? `data-tooltip="${esc(_t("What they hide isn't told: the GM lets it show — you name it."))}"` : ""}>${i >= 0 ? `<b>${i + 1}</b>` : ""}${deep ? `<i class="fas fa-mask"></i>` : ""}${esc(READ_QUESTIONS[q].label)}</button>`;
     }).join("");
     return `<div class="tsl-q">${_t("What do you look for?")}</div>
       <div class="tsl-rqs">${chips || `<span class="tsl-note">${_t("They have nothing left to hide from you.")}</span>`}</div>
-      <p class="tsl-note">${_t("Pick it now and play it — say what you watch for. A hit answers the first; a strong hit, the second too. The GM tells it in the scene.")}</p>`;
+      <p class="tsl-note">${_t("Pick it now and play it — say what you watch for. A hit answers the first; a strong hit, the second too. The moment and how they react, the GM tells straight; what they hide ({icon}) the GM lets show — and you name it.", { icon: `<i class="fas fa-mask"></i>` })}</p>`;
   }
 
   /** The last roll, right where Roll was clicked — and what to do next. */
@@ -1183,9 +1185,14 @@ class SocialFencingApp extends _SocialAppBase {
     if (r.witnesses) bits.push(r.audience ? `${_t("before witnesses")} — ${tslAudienceText(r.audience)}` : _t("before witnesses"));
     const priced = r.grade === "success" && TSLTalk.hasPrice(r.technique);
     if (priced) bits.push(r.paid ? _t("you paid their price") : _t("you walked away from their price"));
-    if (tech?.job === "read" && r.questions?.length) bits.push(_t("learned: {what}", { what: r.questions.map(q => READ_QUESTIONS[q]?.short).join(", ") }));
+    const told = tech?.job === "read" ? (r.questions ?? []).filter(q => !READ_DEPTH.includes(q)) : [];
+    const shown = tech?.job === "read" && hit ? (r.questions ?? []).filter(q => READ_DEPTH.includes(q)) : [];
+    if (told.length) bits.push(_t("learned: {what}", { what: told.map(q => READ_QUESTIONS[q]?.short).join(", ") }));
+    if (shown.length) bits.push(_t("the GM lets it show: {what}", { what: shown.map(q => READ_QUESTIONS[q]?.short).join(", ") }));
     const next = tech?.job === "read"
-      ? (hit ? _t("The party knows more now — see “What the party knows” above.") : _t("They noticed. Keep talking — how they take what you say shows them too."))
+      ? (hit ? (shown.length ? _t("Watch them now — the GM lets it show. Say what you see; once you name it, it's on record for the party.")
+          : _t("The party knows more now — see “What the party knows” above."))
+        : _t("They noticed. Keep talking — how they take what you say shows them too."))
       : tech?.anyWay ? (hit ? _t("They believe it — for now. If it ever comes out, they hold a String on you.") : _t("Caught — and it left a mark (see the chat card). They won't listen to you again this scene."))
       : hit ? (priced && !r.paid ? _t("You walked away from the deal — they keep what you asked for.")
         : r.technique === "bargain" ? _t("They'll do it — and your word is given. Keep it, and their String on you goes; break it, and yours on them burns.")
@@ -1379,7 +1386,7 @@ class SocialFencingApp extends _SocialAppBase {
           ${btn("fa-comments", _t("I persuade"), "per", _t("You asked — will they do it? Say how: through the <b>Heart</b> (feelings, sympathy) or through <b>Reason</b> (facts, what's in it for them)."))}
           ${btn("fa-hand-fist", _t("I intimidate"), "itm", _t("A threat, a challenge, shame — will they give in?"))}
           ${btn("fa-mask", _t("I lie"), "dec", _t("What you said isn't true — will they believe it? Tell it any way."))}
-          ${btn("fa-eye", _t("I read them"), "ins", _t("What the talk won't show: what they hide, whether it's true."))}
+          ${btn("fa-eye", _t("I read them"), "ins", _t("Whether it's true, what they're after, how they'll take your words — and a glimpse of what they hide."))}
         </div>
         <h3>${_t("Plainly, or all in")}</h3>
         ${table([_t("You…"), _t("Plainly"), _t("All in")], [
@@ -1443,10 +1450,13 @@ class SocialFencingApp extends _SocialAppBase {
           ["fa-ear-listen", _t("Watch the talk"), _t("The GM plays how they take each way of talking — warmth, a cold face, a sneer — and lets what they hide show: a flinch, a change of subject, a yes too quick.")],
           ["fa-pen-nib", _t("The GM marks it"), _t("When the talk brings something out, the GM marks it known — for the whole party, for good. No roll.")],
           ["fa-dice", _t("The dice tell"), _t("On a roll, the second die shows a key or a wall — and the party writes it down.")],
-          ["fa-eye", _t("Read them"), _t("Pick what you look for before the roll, and play it. A hit answers the first, for the whole party; a strong hit, the second too.")],
+          ["fa-eye", _t("Read them"), _t("Pick what you look for before the roll, and play it. A hit answers the first; a strong hit, the second too. The moment and how they react, the GM tells straight; what they hide, the GM lets show — and you name it.")],
         ])}
-        <ol class="tsl-cx-qs">${[...READ_ORDER, ...READ_MOMENT].map(q => `<li>${esc(READ_QUESTIONS[q].label)}</li>`).join("")}</ol>
-        <p>${_t("What the party learns, it keeps. Once it knows their <b>key and wall</b>, the nature is named and its whole card opens.")}</p>
+        ${table(null, [
+          [`<b><i class="fas fa-comment"></i> ${_t("Told straight")}</b>`, [...READ_MOMENT, ...READ_ORDER.filter(q => !READ_DEPTH.includes(q))].map(q => esc(READ_QUESTIONS[q].label)).join("<br>")],
+          [`<b><i class="fas fa-mask"></i> ${_t("Shown — you name it")}</b>`, `${READ_DEPTH.map(q => esc(READ_QUESTIONS[q].label)).join("<br>")}<small>${_t("The GM plays it in the scene — a flinch, a glance, a hint. Say what you saw; once you name it, the GM puts it on record for the party.")}</small>`],
+        ], "tsl-cx-adds")}
+        <p>${_t("What the party learns, it keeps. Once it knows their <b>key and wall</b>, the nature is named and its card opens — but what they themselves want and fear is theirs, not their nature's: it still has to come out in play.")}</p>
         <h3>${_t("Masks")}</h3>
         <p>${_t("What you see first is the face they <b>show</b> — “seems: Caretaker”. It may be who they are, or a mask: a Schemer playing the Caretaker. Ask “Is that their true face?” — or learn their key and wall, and the mask falls.")}</p>
         <h3>${_t("Nine natures")}</h3>
@@ -1553,6 +1563,7 @@ class SocialFencingApp extends _SocialAppBase {
         ${li(_t("<b>Play them live.</b> Let each way of talking land as their Talk tab says — the table reads them from it."),
              _t("<b>Mark what the talk does</b> — what comes out, what the words leave on them. No roll."),
              _t("<b>Let what they hide show.</b> A flinch, a change of subject, a yes too quick — and when the players name it, mark it known."),
+             _t("<b>A Read on what they hide</b> sends you a whisper: what to show, and how. Play it; when the players name it, press the button on the whisper — it's on record."),
              _t("<b>Roll rarely</b> — when they're unwilling and it matters: usually once; a Read when the talk can't show it; two or three at most."),
              _t("<b>Hold them to their words.</b> An Appeal that's really a threat is a Demand — say so before the roll."),
              _t("<b>Size the ask</b> by what it costs them, not by how tough they are."),

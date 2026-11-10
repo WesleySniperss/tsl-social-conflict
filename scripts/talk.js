@@ -88,7 +88,7 @@ const ASK_ORDER = ["small", "costly", "against"];
 
 /** What a maneuver does: the ask, the all-in gamble, or a read. */
 const TECH_JOBS = {
-  read:   { id: "read",   label: "Read",   icon: "fa-eye",          hint: "When the talk doesn't show it — what they hide, the face they wear: one straight answer, for the whole party." },
+  read:   { id: "read",   label: "Read",   icon: "fa-eye",          hint: "When the talk doesn't show it: whether it's true, how they'll take you, the face they wear — told straight; what they hide, shown for you to name." },
   ask:    { id: "ask",    label: "Ask",    icon: "fa-hand-holding", hint: "You've made your case: will they do it? Sized by what it costs them; the way your words came at them decides what winning costs." },
   gambit: { id: "gambit", label: "All in", icon: "fa-dice",         hint: "A gamble on leverage — it works on anything, and the consequences last." },
 };
@@ -106,9 +106,9 @@ const JOB_ORDER = ["read", "ask", "gambit"];
 const TECHNIQUES = {
   read:      { approach: null,       job: "read",   label: "Read them", skills: ["ins", "inv"],
     line: "watch them — or dig into who they are",
-    win: "one answer about them for the whole party — two on a strong hit",
+    win: "one answer for the whole party — two on a strong hit; what they hide, the GM lets show, and you name it",
     miss: "they notice, and won't let you read them again this scene — and that's all: reading someone is safe",
-    rule: "Hit: one answer about them for the whole party; a strong hit, two. Miss: they notice — no emotion, no String. A Read never moves Strings." },
+    rule: "Hit: one answer for the whole party; a strong hit, two. The moment and how they react, the GM tells straight; their Desire, Fear or Price, the GM lets show — once you name it, it's on record. Miss: they notice — no emotion, no String. A Read never moves Strings." },
   demand:    { approach: "pressure", job: "ask",    label: "Demand",    skills: ["itm", "ath"],
     line: "do it — or else",
     win: "they give in — no price; but they remember who made them: they take a String on you",
@@ -159,7 +159,20 @@ function approachOf(technique, told = null) {
   return t?.approach ?? (t?.anyWay && APPROACHES[told] ? told : null);
 }
 
-/** What a Read can ask. Each answer becomes the party's knowledge for good. */
+/**
+ * What a Read can ask. Three ways to know a person, together (the user,
+ * 2026-11-10: «звучить ніби їх усі можна поєднати»):
+ *   • the talk — anything, no roll: the GM plays it, the players name it, the
+ *     GM marks it known;
+ *   • a Read, of the moment and the reaction — whether it's true, what they're
+ *     after now, how they'll take a way of talking, their face, the room: the
+ *     GM tells it straight (D&D's Insight: intentions, lies, the next move);
+ *   • a Read, of what they HIDE (READ_DEPTH: their Desire, Fear, Price): not
+ *     told. A hit makes the GM let it show in the scene (a whisper says what
+ *     and how); the players name it, and the GM marks it — «страх… треба
+ *     показувати відіграшем».
+ * Whatever is known is the party's for good.
+ */
 const READ_QUESTIONS = {
   desire:   { id: "desire",   label: "What do they really want?",       short: "Desire" },
   fear:     { id: "fear",     label: "What do they fear?",              short: "Fear" },
@@ -175,6 +188,8 @@ READ_QUESTIONS.intent = { id: "intent", label: "What are they after right now?",
 READ_QUESTIONS.truth = { id: "truth", label: "Are they telling the truth?", short: "Truth" };
 const READ_MOMENT = ["intent", "truth"];
 const READ_ORDER = ["desire", "fear", "key", "wall", "price", "pressed", "mask", "audience"];
+/** What they hide: a Read makes the GM show it — the players name it themselves. */
+const READ_DEPTH = ["desire", "fear", "price"];
 
 /** The four grades of an ask, as the table reads them. */
 const TALK_GRADES = {
@@ -781,6 +796,7 @@ class TSLTalk {
     const arch = SocialArchetypeManager.getArchetype(npc);
     const known = SocialArchetypeManager.getKnown(npc);
     const knownPatch = {};
+    const tells = [];   // what a Read caught of what they hide: the GM lets it show (a whisper, after the card)
     const lines = [];
     const note = (html, tone = "") => lines.push({ html, tone });
     const sized = job === "ask" || job === "gambit";
@@ -846,6 +862,12 @@ class TSLTalk {
       case "read": {
         if (hit) {
           for (const q of (p.questions ?? []).filter(id => READ_QUESTIONS[id])) {
+            if (READ_DEPTH.includes(q)) {
+              // What they hide isn't told: the GM lets it show, and the players name it.
+              if (!known[q]) tells.push(q);
+              note(_t("{icon} <b>{question}</b> You catch something — the GM lets it show now. Watch them, and say what you think it is.", { icon: `<i class="fas fa-eye"></i>`, question: READ_QUESTIONS[q].label }), "good");
+              continue;
+            }
             if (!READ_MOMENT.includes(q)) knownPatch[q] = true;
             note(`<i class="fas fa-eye"></i> <b>${READ_QUESTIONS[q].label}</b> ${esc(TSLTalk.answerFor(npc, q))}`, "good");
           }
@@ -1015,7 +1037,82 @@ class TSLTalk {
       content: TSLTalk._card({ p, tech, src, npc, rel, lines, reaction }),
       rolls,
     });
+    if (tells.length) await TSLTalk._tellCard(npc, src, tells);
     TSLTalk._pulse({ srcId: src.id, tgtId: npc.id, technique: tech.id, approach: ap, job, grade: p.grade, paid: p.paid, rel, ended, granted, witnesses });
+  }
+
+  // ── What they hide: the GM lets it show, the players name it ────────────────
+
+  /** How to let it show, without saying it. */
+  static tellHow(q) {
+    switch (q) {
+      case "desire": return _t("Let them reach for it: a glance that lingers, a question too eager, a hand that hesitates.");
+      case "fear":   return _t("Let them flinch from it: a change of subject, a laugh too quick, anger out of nowhere.");
+      case "price":  return _t("Let them hint at it: what they'd never ask for, a favour they mention twice.");
+      default:       return "";
+    }
+  }
+
+  /** The GM's whisper after a Read caught something hidden: what it is, how to play it, and the button for when they name it. */
+  static _tellCardHTML(npc, src, qs) {
+    const esc = foundry.utils.escapeHTML;
+    const known = SocialArchetypeManager.getKnown(npc);
+    const rows = qs.map(q => `<li class="tsl-x-after-item tsl-tell">
+        <div><b>${esc(READ_QUESTIONS[q].short)}</b> — <i>${esc(TSLTalk.answerFor(npc, q))}</i></div>
+        <div class="tsl-tell-how">${esc(TSLTalk.tellHow(q))}</div>
+        ${known[q] ? `<div class="tsl-tell-done"><i class="fas fa-check"></i> ${_t("Named — the party knows it now.")}</div>`
+          : `<button type="button" class="tsl-tell-btn" data-tsl-tell="${q}"><i class="fas fa-check"></i> ${_t("They named it — mark it known")}</button>`}
+      </li>`).join("");
+    return `<div class="tsl-x-card tsl-x-card--slim">
+      <div class="tsl-x-head"><i class="fas fa-eye"></i><span class="tsl-x-title">${_t("Let it show — {name}", { name: esc(npc.name) })}</span></div>
+      <div class="tsl-x-who">${_t("For the GM only. {who} looked closely: play it in the scene, don't say it. When the players name it, mark it.", { who: esc(src?.name ?? "") })}</div>
+      <ul class="tsl-x-after">${rows}</ul>
+    </div>`;
+  }
+
+  static async _tellCard(npc, src, qs) {
+    const gms = (game.users?.filter?.(u => u.isGM) ?? []).map(u => u.id);
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: npc }),
+      whisper: gms,
+      content: TSLTalk._tellCardHTML(npc, src, qs),
+      flags: { [TALK_SCOPE]: { tell: { npcId: npc.id, byId: src?.id ?? null, qs } } },
+    });
+  }
+
+  /** The players named what the GM let show: it's the party's now (the GM's client). */
+  static async nameTell(npcId, q, byId = null) {
+    if (!game.user?.isGM || !READ_DEPTH.includes(q)) return false;
+    const npc = game.actors.get(npcId);
+    if (!npc || SocialArchetypeManager.getKnown(npc)[q]) return false;
+    await SocialArchetypeManager.setKnown(npc, { [q]: true });
+    const esc = foundry.utils.escapeHTML;
+    const by = byId ? game.actors.get(byId) : null;
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: by ?? npc }),
+      content: `<div class="tsl-x-card tsl-x-card--slim">
+        <div class="tsl-x-head"><i class="fas fa-eye"></i><span class="tsl-x-title">${_t("Named: {name}'s {fact}", { name: esc(npc.name), fact: esc(READ_QUESTIONS[q].short) })}</span></div>
+        <div class="tsl-x-who">${_t("The party saw it, and said it. It's on record now — see what the party knows, in Talk.")}</div>
+      </div>`,
+    });
+    return true;
+  }
+
+  /** The whisper's button (the GM's alone): they named it — mark it, and the card says so. */
+  static bindTellCard(message, html) {
+    const f = message?.getFlag?.(TALK_SCOPE, "tell");
+    const root = html instanceof HTMLElement ? html : html?.[0];
+    if (!f || !root) return;
+    const npc = game.actors.get(f.npcId);
+    root.querySelectorAll("[data-tsl-tell]").forEach(btn => {
+      if (!game.user.isGM || !npc) { btn.remove(); return; }
+      btn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        btn.disabled = true;
+        await TSLTalk.nameTell(f.npcId, btn.dataset.tslTell, f.byId);
+        await message.update({ content: TSLTalk._tellCardHTML(npc, f.byId ? game.actors.get(f.byId) : null, f.qs ?? []) });
+      });
+    });
   }
 
   /** Why a win gives the speaker a String on them. */

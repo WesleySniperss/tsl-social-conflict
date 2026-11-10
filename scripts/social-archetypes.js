@@ -1063,6 +1063,8 @@ const BOND_TYPE_ALIASES = { indebted: "sworn", creditor: "liege" };
 
 /** What the party may have learned about someone — the Read questions. */
 const KNOWN_FACTS = ["desire", "fear", "key", "wall", "price", "pressed", "mask", "audience"];
+/** What is theirs, not their nature's: naming the nature doesn't give it away — it comes out in play. */
+const PERSONAL_FACTS = ["desire", "fear"];
 
 /**
  * Leanings — how a player character reaches for people: dots spread across the
@@ -1138,12 +1140,15 @@ class SocialArchetypeManager {
   /**
    * What the party has learned about this person — one flag per Read
    * question (desire, fear, key, wall, price, pressed, mask, audience). Shared by everyone at the
-   * table and kept for good: knowledge of a person is campaign-long.
+   * table and kept for good: knowledge of a person is campaign-long. A named nature opens its card
+   * (key, wall, price, after a no, witnesses) — but what they themselves want and fear is theirs,
+   * not their nature's: it still has to come out in play (the user, 2026-11-10: «страх… треба
+   * показувати відіграшем»).
    */
   static getKnown(actor) {
     const k = SocialArchetypeManager.getActorData(actor).known ?? {};
     const named = SocialArchetypeManager.isRevealed(actor);
-    return Object.fromEntries(KNOWN_FACTS.map(f => [f, named || !!k[f]]));
+    return Object.fromEntries(KNOWN_FACTS.map(f => [f, (named && !PERSONAL_FACTS.includes(f)) || !!k[f]]));
   }
 
   static async setKnown(actor, patch = {}) {

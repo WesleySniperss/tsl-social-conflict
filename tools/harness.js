@@ -217,7 +217,7 @@ const EXPORTS = ["SocialArchetypeManager", "TSLTalk", "TSLStringStore", "TSLBond
   "TSLEmotions", "EMOTIONS", "EMOTION_ORDER", "SCARS",
   "READ_QUESTIONS", "READ_ORDER", "ARCHETYPE_TELLS", "ARCHETYPE_REACTIONS", "BOND_TYPES", "PROFILE_POINTS",
   "SKILL_LABELS", "STRING_CAP", "migrateToV3", "TSL_I18N", "TSLi18n", "TSL_UK", "TALK_GRADES", "JOB_GRADES",
-  "TSLAbilities", "TRIAD_MOVES", "NPC_ABILITIES", "TSLBondAuras", "TSLBondNear", "TSLBondMoments", "TSLBondPowers", "BOND_ABILITIES", "BOND_SIGNATURES", "tidyStringsAndLeanings"];
+  "TSLAbilities", "TRIAD_MOVES", "NPC_ABILITIES", "TSLBondAuras", "TSLBondNear", "TSLBondMoments", "TSLBondPowers", "BOND_ABILITIES", "BOND_SIGNATURES", "tidyStringsAndLeanings", "READ_DEPTH"];
 let api;
 try {
   api = new Function(combined + "\nreturn { " + EXPORTS.map((e) => `${e}: typeof ${e} !== "undefined" ? ${e} : undefined`).join(", ") + " };")();
@@ -398,11 +398,21 @@ if (require.main === module) (async () => {
   // ═══ The Read ══════════════════════════════════════════════════════════════
   {
     const p = pc("rP"), h = npc("rH", "hermit");          // key Reason — but a Read has no approach
+    const cardsBefore = globalThis.__cards.length;
     const r1 = await roll(p, h, { technique: "read" }, [14], ["o1"]);
-    ok(`Read: an answer for the party (their Fear) — no approach, so no second die`,
-      r1.rel === "plain" && r1.natureDie === null && SAM.getKnown(h).fear && /What do they fear\?/.test(lastCard()) && bond("rH", "rP") === "none");
-    await roll(p, h, { technique: "read" }, [15], ["o0", "o0"]);
-    ok(`a strong Read: two answers`, SAM.getKnown(h).desire && SAM.getKnown(h).key);
+    const [pub, whisper] = globalThis.__cards.slice(cardsBefore);
+    ok(`a Read on what they hide (their Fear) isn't told: the card says the GM lets it show — nothing on record yet; no approach, so no second die`,
+      r1.rel === "plain" && r1.natureDie === null && !SAM.getKnown(h).fear && /What do they fear\?/.test(pub?.content ?? "") && /the GM lets it show/.test(pub?.content ?? "")
+      && !pub?.whisper && bond("rH", "rP") === "none");
+    const fearText = T.answerFor(h, "fear");
+    ok(`…the GM gets a whisper: their Fear, how to let it show, and a button for when the players name it`,
+      Array.isArray(whisper?.whisper) && /Let it show/.test(whisper?.content ?? "") && whisper.content.includes(foundry.utils.escapeHTML(fearText))
+      && /Let them flinch from it/.test(whisper.content) && /data-tsl-tell="fear"/.test(whisper.content) && !(pub?.content ?? "").includes(foundry.utils.escapeHTML(fearText)));
+    await T.nameTell("rH", "fear", "rP");
+    ok(`…they name it, the GM presses it: their Fear is the party's now (a slim line for the table, no Fear in it)`,
+      SAM.getKnown(h).fear && /Named: .*Fear/.test(lastCard()) && !lastCard().includes(foundry.utils.escapeHTML(fearText)) && /They named it|Named — the party knows it now/.test(T._tellCardHTML(h, p, ["fear"])));
+    await roll(p, h, { technique: "read" }, [15], ["o1", "o1"]);
+    ok(`a strong Read: two answers, told straight — how they take Pressure, Heart or Reason (key and wall)`, SAM.getKnown(h).key && SAM.getKnown(h).wall && !SAM.getKnown(h).desire);
     const b = npc("rB", "broker");
     await roll(p, b, { technique: "read" }, [6]);
     ok(`a missed Read: they notice — no emotion, no String`, /They notice/.test(lastCard()) && R.TSLEmotions.of(p).length === 0 && SS.countOn("rB", "rP") === 0);
@@ -675,8 +685,9 @@ if (require.main === module) (async () => {
   {
     const p = pc("sP"), b = npc("sB", "broker");
     const r = await roll(p, b, { technique: "read" }, [17], ["o0", "o0"]);
-    ok(`a strong Read: two answers — and no String either way (a Read moves none)`,
-      r.grade === "strong" && r.questions.length === 2 && SAM.getKnown(b).desire && SS.countOn("sP", "sB") === 0 && SS.countOn("sB", "sP") === 0);
+    ok(`a strong Read on what they want and fear: both shown, neither told — and no String either way (a Read moves none)`,
+      r.grade === "strong" && r.questions.join() === "desire,fear" && !SAM.getKnown(b).desire && !SAM.getKnown(b).fear
+      && /data-tsl-tell="desire"[\s\S]*data-tsl-tell="fear"/.test(lastCard()) && SS.countOn("sP", "sB") === 0 && SS.countOn("sB", "sP") === 0);
     makeActor("sX"); makeActor("sY");
     await BS.add("sX", "sY", { type: "stranger", attitude: 1 });
     const w = await BS.shift("sX", "sY", "warm");
@@ -1298,14 +1309,20 @@ if (require.main === module) (async () => {
       const readNo = await render(P, "talk", { _tTarget: "uiN", _tTech: "read" });
       const readYes = await render(P, "talk", { _tTarget: "uiN", _tTech: "read", _tQuestions: ["fear"] });
       ok(`the Read: what you look for is picked before the roll — no pick, no roll`, !bad(readNo) && /data-read-q="fear"/.test(readNo) && /data-t-roll disabled/.test(readNo)
-        && /tsl-rq on" data-read-q="fear"/.test(readYes) && !/data-t-roll disabled/.test(readYes));
+        && /tsl-rq on tsl-rq--deep" data-read-q="fear"/.test(readYes) && !/data-t-roll disabled/.test(readYes)
+        && /tsl-rq  ?" data-read-q="key"/.test(readNo) && /the GM lets show/.test(readNo));
     }
     {
       const rp = pc("rqP"), rn = npc("rqN", "tyrant");
       canvas.tokens.placeables.push({ actor: rp, visible: true, document: { hidden: false } }, { actor: rn, visible: true, document: { hidden: false } });
       const before = globalThis.__dialogCount;
       await roll(rp, rn, { technique: "read", questions: ["fear", "key"] }, [20]);
-      ok(`…and on a strong hit both are answered — no question asked after the roll`, globalThis.__dialogCount === before && SAM.getKnown(rn).fear && SAM.getKnown(rn).key);
+      ok(`…and on a strong hit both are taken up — the key told straight, the Fear shown for the GM to play; no question asked after the roll`,
+        globalThis.__dialogCount === before && !SAM.getKnown(rn).fear && SAM.getKnown(rn).key && /data-tsl-tell="fear"/.test(lastCard()));
+      // Naming the nature opens its card — but what they want and fear still has to come out in play.
+      await SAM.setRevealed(rn, true);
+      ok(`a named nature opens its card (key, wall, price…) — not what they themselves want and fear`,
+        SAM.getKnown(rn).wall && SAM.getKnown(rn).price && !SAM.getKnown(rn).fear && !SAM.getKnown(rn).desire && T.openQuestions(rn).includes("fear"));
       // The String is a switch, either way; a player's on an NPC's side goes through the GM.
       const had = SS.countOn("uiP", "uiN");
       if (had) await SS.spend("uiP", "uiN");

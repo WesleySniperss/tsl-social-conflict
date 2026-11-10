@@ -1243,3 +1243,14 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 #tsl-bond-near .tsl-bn-pd { color: var(--tsl-sway); letter-spacing: 0.04em; }
 #tsl-bond-near .tsl-bn-pow--sig { border-color: rgba(224, 180, 94, 0.55); color: var(--tsl-text); }
 #tsl-bond-near .tsl-bn-pow--sig.used { opacity: 0.55; border-style: dashed; }
+
+/* ── A Read on what they hide: the chip says the GM will show it; the GM's whisper ── */
+.tsl-fencing .tsl-rq--deep i { color: var(--tsl-muted); font-size: 11px; margin-right: 2px; }
+.chat-message .tsl-x-card .tsl-tell-how { font-size: 12px; color: var(--tsl-soft); font-style: italic; margin: 2px 0 4px; }
+.chat-message .tsl-x-card .tsl-tell-btn {
+  width: auto; height: auto; margin: 2px 0 0; padding: 3px 9px; line-height: 1.2; font-size: 12px; cursor: pointer;
+  border-radius: 12px; border: 1px solid rgba(127, 211, 154, 0.6); background: rgba(127, 211, 154, 0.12); color: var(--tsl-text);
+}
+.chat-message .tsl-x-card .tsl-tell-btn:hover { background: rgba(127, 211, 154, 0.22); }
+.chat-message .tsl-x-card .tsl-tell-btn:disabled { opacity: 0.5; cursor: default; }
+.chat-message .tsl-x-card .tsl-tell-done { font-size: 12px; color: var(--tsl-good); }

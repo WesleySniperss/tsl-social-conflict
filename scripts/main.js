@@ -69,10 +69,12 @@ Hooks.once("init", () => {
     onChange: () => { try { TSLBondNear.update(); } catch { /* not ready */ } },
   });
 
-  // An NPC's pull on a String is a chat card that waits for the answer: wire its buttons.
+  // Cards that wait for an answer: an NPC's pull on a String; the GM's "let it show" after a Read.
   Hooks.on("renderChatMessageHTML", (message, html) => {
     try { TSLAbilities.bindCard(message, html); }
     catch (err) { console.warn("TSL | ability card:", err); }
+    try { TSLTalk.bindTellCard(message, html); }
+    catch (err) { console.warn("TSL | tell card:", err); }
   });
 });
 
