@@ -36,29 +36,29 @@ When the GM calls for the roll, say what your words really were, and roll once a
   | Against them | against their interests or loyalties | +4 |
 
   An ask against them needs leverage: their Desire or Fear, a String on them, or a deep bond — or go all in.
-- **All in** works at any size, on its own leverage, but it leaves a lasting mark:
-  - **Blackmail** plays on their Fear: they do it, Frightened of you, and they'll pay you back.
-  - **Seduce** plays on their Desire or your bond: they do it for you.
+- **All in** works at any size and is never locked: what you hold over someone may have come from anyone, so the table decides whether it bites. What the party has on record adds +2. It always leaves a lasting mark:
+  - **Blackmail** plays on what you hold over them — their Fear (+2 once known), a secret, a debt: they do it, Frightened of you, and they'll pay you back.
+  - **Seduce** plays on their Desire (+2 once known), on your bond, or on charm alone: they do it for you, no price — and you let them close: they take a String on you.
   - **A Deal** stakes your word (their Price, if you know it, adds +2): you owe them until you deliver.
-- **A lie isn't an approach — it's told in one.** Press *I lie* and say how you told it, and how big it is (a small lie is 4 easier, a bold one 4 harder): their key and wall, your bond and their emotions all count for the way you told it. A sob story to someone who opens to Heart rolls with advantage; forged proof to someone who closes against Reason, with disadvantage. **Deceive** works until the GM brings the lie out — then they turn on you.
+- **A lie isn't an approach — it's told in one.** Press *I lie* and say how you told it, and how big it is (a small lie is 4 easier, a bold one 4 harder): their key and wall, your bond and their emotions all count for the way you told it. A sob story to someone who opens to Heart rolls with advantage; forged proof to someone who closes against Reason, with disadvantage. **Deceive** wins no String, however well it lands: what they believe is no hold on them. It works until the lie comes out — the GM brings it out, or a bad miss of yours against them does — and then they turn on you.
 - **Read them** answers one question for the whole party; a strong hit, two. What can be seen in the moment, the GM tells straight: whether it's true, what they're after right now, how they'd take Pressure, Heart or Reason, whether that face is theirs, how they act before witnesses. What they hide is never told: their Desire, Fear or Price. A hit makes the GM let it show in the scene (a whisper tells the GM what and how), and once the players name it, the GM marks it known with one click. Anything can also come out of the talk with no roll at all. A Read never moves Strings, and a missed one never costs you an emotion. Naming someone's nature opens its card, but not what they themselves want and fear.
 
-**Every roll is a stake.** Win an ask, an all-in or a lie by 5 or more (or roll a 20), and you take a **String** on them; miss by 5 or more (or roll a 1), and they take one on you. The same rule both ways, one String at a time each way. A roll never changes a bond. What winning also costs depends on the approach:
+**Every roll is a stake.** Win an ask or an all-in by 5 or more (or roll a 20), and you take a **String** on them; miss by 5 or more (or roll a 1), and they take one on you. The same rule both ways, one String at a time each way. A roll never changes a bond. What winning also costs depends on the approach:
 
 | Approach | When it works | When it misses |
 |---|---|---|
 | **Pressure** | They give in without a price, but remember it: they take a String on you, even when you win. Pressing someone close to you leaves you Guilty. | Their emotion. |
-| **Heart** | Your heart is on the table: a plain hit costs their price. | You showed your heart: their emotion. |
-| **Reason** | They see it your way; a plain hit costs their price. A Deal stakes your word: they hold a String on you until you deliver. Keep it and their String goes; break it and yours on them burns. The GM marks which. | Their emotion. |
+| **Heart** | Their price. | You showed your heart: their emotion, and they take a String on you — on any miss, not only a bad one. |
+| **Reason** | They see it your way, for their price. A Deal stakes your word: they hold a String on you until you deliver. Keep it and their String goes; break it and yours on them burns. The GM marks which. | Their emotion. |
 
 What they say:
 
 | Result | When | What happens |
 |---|---|---|
-| **Strong hit** | 5 over, or a 20 | It works, on your terms: no price. You take a String on them. |
+| **Strong hit** | 5 over, or a 20 | It works, and it's worth a String on them. An Appeal's or an Argument's price still stands: pay it and keep the String, or put the String on it and have it on your terms. |
 | **Hit** | a hit | It works. An Appeal, an Argument or a Deal gets "yes, but": their nature names the price; you pay, or you walk away. |
 | **Miss** | a miss | They push back their own way, and it hurts: you take their nature's **emotion** (anything but a Read). A proud nature, refused something big, closes the door for the scene. |
-| **Bad miss** | 5 under, or a 1 | As a miss, and they take a String on you. |
+| **Bad miss** | 5 under, or a 1 | As a miss, and they take a String on you. If they believe a lie of yours, it comes out. |
 
 **In private, or before witnesses.** Before an ask or a gambit, say who is watching. Before witnesses a no shames you (you lose face: Insecure). For a whole court, the GM makes the scene public from the Social Scene's header, and every ask there starts before witnesses. And the room tips the roll: some natures bend before an audience (+2), most harden (−2). Like the key and the wall, that shows only in the result, or in a Read.
 
@@ -83,11 +83,14 @@ Five emotions, as in Thirsty Sword Lesbians. Anyone can carry them, a player cha
 | **Insecure** | −2 on Reason | +2 to Heart against them | prove yourself with a reckless risk |
 | **Hopeless** | −2 on asks and gambits | +2 to Reason against them | give something up, or accept comfort |
 
+An emotion on someone also takes down their wall against the way it opens: a Frightened Tyrant can be pressed, a Guilty Duelist can be asked from the heart. Say something that leaves the emotion first, then ask.
+
 A friend's comfort lets any of them go, too. Where emotions come from:
 - **the talk itself**: your words land, and the GM marks it from the NPC's own Talk tab — no roll (marking it again takes it back; Guilty is marked toward one character);
 - **a miss**: each nature hits back with its own emotion (the Tyrant frightens you, the Duelist makes you angry, the Martyr makes you guilty…);
 - **an NPC's move**, refused (below);
-- **gambits**: Blackmail leaves them Frightened; a broken heart leaves you Hopeless; a lie brought out leaves them Angry;
+- **gambits**: Blackmail leaves them Frightened; a Seduce that leaned on your bond and failed breaks your heart (Hopeless); a lie brought out leaves them Angry;
+- **someone close, used**: winning something against the interests of a friend, family or a lover leaves you Guilty toward them, whatever the way;
 - **a no before witnesses**: you lose face, and you're Insecure.
 
 Take an emotion you already carry, and it leaves a **scar** instead. A scar is permanent, one per emotion, and a twist rather than just a wound:
@@ -128,7 +131,9 @@ The second die is rolled after the first, so nothing before the roll gives the n
 - whether they bend or harden before witnesses;
 - and, whenever it matters, what they're after right now and whether what they just said is true (about the moment, so these two aren't kept).
 
-The party keeps every answer. Once it knows the key and the wall, the nature is named and its whole card opens.
+Every Read that hits also notices one thing about them — a sign of who they really are, one of forty per nature (“You notice: they test small commands to see who jumps”). It never names the nature: it's evidence for the table, and under a mask it is the true nature that shows.
+
+The party keeps every answer. Once it knows the key and the wall, the nature is named and its whole card opens — with how that nature shows in plain sight.
 
 **Masks** (Nature and Demeanor). The GM can give an NPC a face to show: their own nature (an open face), another one (a mask: a Schemer playing the Caretaker), or nothing (unreadable). Players see "seems: Caretaker" in Talk and on the Scene, and can open how they seem; the key, the wall and the price are always the true nature's. A Read ("Is that their true face?") names an open face on the spot, or shows a mask for what it is; learning the key and the wall names them, and the mask falls.
 
@@ -136,7 +141,7 @@ The party keeps every answer. Once it knows the key and the wall, the nature is 
 
 A **String** is what you have on someone: a debt, a weakness seen, a line crossed in front of others. **One at a time**: you have something on them, or you don't.
 
-- **How it moves.** The roll the GM calls is its stake: a strong win (5 over, or a 20) and you take one on them; a bad miss (5 under, or a 1) and they take one on you. A plain win or a plain miss moves none. Some wins cost one back: Pressure and Blackmail (they'll pay you back), a Deal (your word, until you deliver), a price that is a debt. A Read moves none, and neither does a roll on which a String was spent. The GM can also hand one over from the talk: a confession, a secret, a favour owed.
+- **How it moves.** The roll the GM calls is its stake: a strong win (5 over, or a 20) and you take one on them; a bad miss (5 under, or a 1) and they take one on you. A plain win or a plain miss moves none. Any miss from the heart gives them one too (an Appeal, a Seduce). Some wins cost one back: Pressure and Blackmail (they'll pay you back), a Seduce (you let them close), a Deal (your word, until you deliver), a price that is a debt. A Read moves none, and neither does a roll on which a String was spent. The GM can also hand one over from the talk: a confession, a secret, a favour owed.
 - **Spending yours:**
   - **they agree**, instead of the roll (Talk → *Remind them*): a small or costly ask is done; one against their interests, the GM says what it would take;
   - **+5** after a miss against them;

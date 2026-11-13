@@ -66,6 +66,11 @@ class TSLi18n {
     if (typeof SOCIAL_ARCHETYPES !== "undefined") for (const a of SOCIAL_ARCHETYPES) {
       tr(a, ["label", "keyText", "wallText", "press", "pressedWhy", "audienceWhy", "description", "psych", "craves", "dreads"]);
       tr(a.price, ["text"]);
+      // The three plain tells on the nature's card — a list, translated line by line.
+      if (Array.isArray(a.tells)) {
+        if (!a.__en.tells) a.__en.tells = [...a.tells];
+        a.tells = a.__en.tells.map(x => _t(x));
+      }
     }
     if (typeof TECHNIQUES !== "undefined") vals(TECHNIQUES).forEach(t => tr(t, ["label", "line", "win", "miss", "rule"]));
     if (typeof TECH_JOBS !== "undefined") vals(TECH_JOBS).forEach(j => tr(j, ["label", "hint"]));

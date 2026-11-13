@@ -281,4 +281,20 @@ class TSLEmotions {
     }
     return parts;
   }
+
+  /**
+   * The emotion on `tgt` that opens this way of talking for `src` (its id), or
+   * null. A state beats a habit: while they carry it, their wall against that
+   * way doesn't stand (TSLTalk.relationFor) — fear lets a threat through, guilt
+   * a plea, hopelessness an argument. Guilt is owed to one person only.
+   */
+  static opening(src, tgt, approach) {
+    if (!approach || !tgt) return null;
+    for (const e of TSLEmotions.of(tgt)) {
+      if (EMOTIONS[e.id]?.opens !== approach) continue;
+      if (e.id === "guilty" && e.toward && e.toward !== src?.id) continue;
+      return e.id;
+    }
+    return null;
+  }
 }

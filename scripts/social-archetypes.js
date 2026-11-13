@@ -40,7 +40,7 @@ const APPROACHES = {
     gist: "Go through what they feel.",
     short: "charm, pity, guilt",
     examples: "admiration, charm, pity, guilt, jealousy, your own vulnerability",
-    cost: "Your heart is on the table: their emotion when it misses, and on a bad miss a String on you.",
+    cost: "Your heart is on the table: when it misses, they've seen it — a String on you, on any miss — and their emotion with it.",
     skills: ["per", "prf", "ins", "dec"],
   },
   reason: {
@@ -171,7 +171,7 @@ const SOCIAL_ARCHETYPES = [
     label: "Martyr",
     triad: "attention",
     key: "pressure",
-    keyText: "Coldness. An unmoved face, attention given to someone else — deny them the audience their suffering needs.",
+    keyText: "A cold demand. Say what's expected of them — flat, unmoved, no thanks and no audience for the sigh — and they do it, to be the one who always does. A threat only hands them a tormentor.",
     wall: "heart",
     wallText: "Sympathy and help. Warmth feeds the martyrdom; they push it away and suffer louder.",
     price: { text: "Say out loud what it costs them — and let them remind you of it.", string: true },
@@ -1309,10 +1309,14 @@ class SocialArchetypeManager {
     return pool?.length ? _t(pool[Math.floor(Math.random() * pool.length)]) : null;
   }
 
-  /** A veiled observation about this nature (flavour for a Read). */
+  /**
+   * A veiled observation about this nature: what a Read that hits also notices
+   * (as in v1–v2; lost in the v3.0 rebuild, back on 2026-11-14). Evidence, never
+   * the name — under a mask it is the TRUE nature that shows.
+   */
   static pickTell(archId) {
     const pool = ARCHETYPE_TELLS[archId];
-    return pool?.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+    return pool?.length ? _t(pool[Math.floor(Math.random() * pool.length)]) : null;
   }
 
   /**

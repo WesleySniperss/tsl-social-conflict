@@ -376,6 +376,10 @@
 .tsl-x--failure .tsl-x-outcome { color: #e8b07a; }
 .tsl-x--botch .tsl-x-outcome { color: #f0a59d; }
 .tsl-x-flavour { font-style: italic; color: #c9b3a2; font-size: 13px; }
+/* What a Read also notices: a sign of who they really are. */
+.tsl-x-sign { padding: 4px 0 4px 8px; border-left: 2px solid rgba(224, 180, 94, 0.55); }
+.tsl-x-sign i.fas { font-style: normal; color: #e0b45e; margin-right: 3px; }
+.tsl-x-sign b { font-style: normal; font-weight: 600; color: #f0dfc8; }
 .tsl-x-after { list-style: none; margin: 0; padding: 5px 0 0; border-top: 1px dashed rgba(255, 255, 255, 0.08); display: flex; flex-direction: column; gap: 4px; }
 .tsl-x-after-item { margin: 0; padding: 0 0 0 8px; border-left: 2px solid rgba(255, 255, 255, 0.18); font-size: 13px; color: #d9c4b2; }
 .tsl-x-after-item b { color: #fff; font-weight: 600; }
@@ -1254,3 +1258,7 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 .chat-message .tsl-x-card .tsl-tell-btn:hover { background: rgba(127, 211, 154, 0.22); }
 .chat-message .tsl-x-card .tsl-tell-btn:disabled { opacity: 0.5; cursor: default; }
 .chat-message .tsl-x-card .tsl-tell-done { font-size: 12px; color: var(--tsl-good); }
+
+/* All in with nothing on record: not a lock — a note on what the record would add */
+.tsl-fencing .tsl-pick-out--bare { color: var(--tsl-soft); font-size: 12.5px; padding: 5px 8px; border-left: 2px solid var(--tsl-sway); background: rgba(224, 180, 94, 0.07); border-radius: 0 4px 4px 0; }
+.tsl-fencing .tsl-pick-out--bare i { color: var(--tsl-sway); margin-right: 3px; }

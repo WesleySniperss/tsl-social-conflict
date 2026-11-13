@@ -380,8 +380,9 @@ if (require.main === module) (async () => {
     const b = npc("aB", "broker");
     await roll(q, b, { technique: "demand", size: "costly" }, [8]);
     ok(`a yielding nature keeps listening — a plain miss costs their emotion, no String (only a bad one does)`, !/door is closed/.test(lastCard()) && SS.countOn("aB", "aQ") === 0 && R.TSLEmotions.has(q, "hopeless"));
-    await roll(q, b, { technique: "argument", size: "small" }, [15, 2]);
-    ok(`a yes to a small ask wins a String too — the GM calls the roll, so there's nothing to farm`, SS.countOn("aQ", "aB") === 1 && /They took your word for it/.test(lastCard()));
+    await roll(q, b, { technique: "argument", size: "small" }, [15, 2], ["pay"]);
+    ok(`a strong yes to a small ask: their price paid, and the String it's worth kept — the GM calls the roll, so there's nothing to farm`,
+      SS.countOn("aQ", "aB") === 1 && /They took your word for it/.test(lastCard()) && /for a price/.test(lastCard()));
     const t = npc("aT", "tyrant");
     await roll(q, t, { technique: "argument", size: "small" }, [1]);
     ok(`a bad miss (a natural 1): a String on you; a small ask slams no door`, SS.countOn("aT", "aQ") === 1 && !/door is closed/.test(lastCard()));
@@ -393,6 +394,45 @@ if (require.main === module) (async () => {
     const r = await roll(q, h, { technique: "argument", size: "costly" }, [4, 3], ["burn", "pay"]);
     ok(`a near miss: burn a String for +5 and it lands (${r.total} vs ${r.dc})`, r.stringSpent && (r.grade === "success" || r.grade === "strong") && SS.countOn("aQ", "aH") === 0);
     ok(`one at a time: at most ${R.STRING_CAP} String on one person`, R.STRING_CAP === 1 && (await SS.add("aQ", "aH", 5)) === 1);
+  }
+
+  // ═══ Three ways, three costs — and a state beats a habit ════════════════════
+  {
+    const TE = R.TSLEmotions;
+    const p = pc("cP"), h = npc("cH", "hermit");            // Hermit: key Reason, wall Pressure — Heart is a normal roll
+    await roll(p, h, { technique: "appeal", size: "costly" }, [4]);
+    ok(`the heart pays when it loses: a plain miss of an Appeal — they saw your heart, a String on you`,
+      SS.countOn("cH", "cP") === 1 && /You showed your heart/.test(lastCard()));
+    const p2 = pc("cP2"), h2 = npc("cH2", "hermit");
+    const miss = await roll(p2, h2, { technique: "argument", size: "costly" }, [3, 2]);
+    ok(`…a plain miss of an Argument costs their emotion only (Pressure pays when it wins, Reason pays the price)`,
+      miss.grade === "failure" && SS.countOn("cH2", "cP2") === 0 && TE.has(p2, "hopeless"));
+    // An emotion on them that opens your way takes their wall down for it.
+    const t = npc("cT", "tyrant"), p3 = pc("cP3");          // Tyrant: wall Pressure
+    await SAM.setKnown(t, { wall: true });
+    const calm = T.chance(p3, t, { technique: "demand", size: "costly" });
+    await TE.mark(t, "frightened", { title: "test" });
+    const shaken = T.chance(p3, t, { technique: "demand", size: "costly" });
+    ok(`a state beats a habit: a Frightened Tyrant's wall against Pressure doesn't stand — a normal roll, +2 (${Math.round(calm.p * 100)}% → ${Math.round(shaken.p * 100)}%)`,
+      calm.mode === "dis" && shaken.mode === "normal" && shaken.down === "frightened" && shaken.p > calm.p + 0.25);
+    const r = await roll(p3, t, { technique: "demand", size: "costly" }, [12]);
+    ok(`…on the roll too: no second die, and the card says why the wall didn't stand`,
+      r.rel === "plain" && r.natureDie === null && r.wallLost === 0 && /it doesn(?:'|&#39;)t stand/.test(lastCard()));
+    const t2 = npc("cT2", "tyrant");
+    await TE.mark(t2, "frightened", { title: "test" });
+    const cardsAt = globalThis.__cards.length;
+    await roll(pc("cP5"), t2, { technique: "demand", size: "costly" }, [12]);
+    ok(`…while the wall is unknown, nothing gives it away — and Heart, their key, is untouched`,
+      !/their wall/.test(globalThis.__cards.slice(cardsAt).map((c) => c.content).join("")) && !SAM.getKnown(t2).wall && T.relationFor(p3, t2, "heart").rel === "key");
+    // Someone close, made to act against themselves: it's on you, whatever the way.
+    const f = npc("cF", "hermit"), p4 = pc("cP4"), p6 = pc("cP6");
+    await BS.add("cP4", "cF", { type: "friend", attitude: 2 });
+    await BS.add("cP6", "cF", { type: "friend", attitude: 2 });
+    await roll(p6, f, { technique: "appeal", size: "costly" }, [19]);
+    const easy = TE.of(p6).some((e) => e.id === "guilty");
+    await roll(p4, f, { technique: "appeal", size: "against" }, [19]);
+    ok(`a friend talked into acting against themselves — by the heart, not by force: Guilty toward them all the same; a costly favour leaves none`,
+      !easy && TE.of(p4).some((e) => e.id === "guilty" && e.toward === "cF") && /act against themselves/.test(lastCard()));
   }
 
   // ═══ The Read ══════════════════════════════════════════════════════════════
@@ -419,15 +459,31 @@ if (require.main === module) (async () => {
     const m = npc("rM", "martyr");
     await roll(p, m, { technique: "read" }, [1]);
     ok(`a bad Read: they notice — and still no String: reading someone is safe`, SS.countOn("rM", "rP") === 0 && /They notice/.test(lastCard()));
+    // What a Read also notices (v1–v2's tells, lost in the v3.0 rebuild): a sign of who they really are.
+    const signOf = (id, html) => R.ARCHETYPE_TELLS[id].some((l) => html.includes(foundry.utils.escapeHTML(l)));
+    ok(`a Read that hits also notices one thing about them: one of the 40 signs of their nature, on the card — evidence, not the name`,
+      /You notice:/.test(pub?.content ?? "") && signOf("hermit", pub?.content ?? "") && !/Hermit/.test(pub?.content ?? ""));
+    ok(`…a Read that misses notices nothing`, !/You notice:/.test(lastCard()));
+    const face = npc("rF", "machiavellian");
+    await SAM.setActorData(face, { maskId: "caretaker" });      // a Schemer playing the Caretaker
+    const beforeFace = globalThis.__cards.length;
+    await roll(p, face, { technique: "read" }, [15], ["o1"]);
+    const facePub = globalThis.__cards.slice(beforeFace).find((c) => !c.whisper)?.content ?? "";   // the table's card, not the GM's whisper
+    ok(`…under a mask it is the true nature that shows — the face says one thing, the signs another`,
+      /You notice:/.test(facePub) && signOf("machiavellian", facePub) && !signOf("caretaker", facePub));
+    await roll(p, npc("rT", "tyrant"), { technique: "argument" }, [19]);
+    ok(`…and only a Read notices: an ask shows no sign`, !/You notice:/.test(lastCard()));
   }
 
   // ═══ Gambits ════════════════════════════════════════════════════════════════
   {
     const p = pc("gP"), h = npc("gH", "hermit");          // wall Pressure, firm
-    ok(`Blackmail needs a hold: their Fear or a String`, /Blackmail needs/.test(T.preview(p, h, { technique: "blackmail" }).blocked ?? ""));
+    const open = T.preview(p, h, { technique: "blackmail" });
+    ok(`Blackmail is never locked: what you hold over them may have come from anyone — the GM decides if it bites; with nothing on record, no lever`,
+      !open.blocked && open.bare && open.lever === null);
     await SAM.setKnown(h, { fear: true });
     const pv = T.preview(p, h, { technique: "blackmail" });
-    ok(`…their Fear is enough — and it plays on it (+${R.LEVER_BONUS})`, !pv.blocked && pv.lever === "fear");
+    ok(`…their Fear, once on record, plays on it (+${R.LEVER_BONUS})`, !pv.blocked && !pv.bare && pv.lever === "fear" && pv.mod === open.mod + R.LEVER_BONUS);
     await roll(p, h, { technique: "blackmail", size: "costly" }, [17, 15]);
     ok(`Blackmail lands strong: a String on them, and one on you (they'll pay you back) — whether they're your Enemy now is the GM's to say`, SS.countOn("gP", "gH") === 1 && SS.countOn("gH", "gP") === 1 && bond("gH", "gP") === "stranger1" && /never forgive/.test(lastCard()));
     const p2 = pc("gQ"), h2 = npc("gH2", "hermit");
@@ -436,17 +492,25 @@ if (require.main === module) (async () => {
     ok(`Blackmail called badly: a String on you — and the door closes; the bond is left to the GM`,
       SS.countOn("gH2", "gQ") === 1 && BS.find("gH2", "gQ")?.type !== "enemy" && /calls your bluff/.test(lastCard()) && /door is closed/.test(lastCard()));
     const c = npc("gC", "caretaker");                     // key Heart
-    ok(`Seduce needs their Desire or a bond ●●`, /Seduce needs/.test(T.preview(p, c, { technique: "seduce" }).blocked ?? ""));
+    ok(`Seduce is never locked either — on charm alone, with no lever`, !T.preview(p, c, { technique: "seduce" }).blocked && T.preview(p, c, { technique: "seduce" }).bare && T.preview(p, c, { technique: "seduce" }).lever === null);
+    const charm = pc("gP7"), cold = npc("gC7", "hermit");   // nothing known, nothing between them
+    await roll(charm, cold, { technique: "seduce", size: "costly" }, [3]);
+    ok(`…refused on charm alone: no heartbreak — the nature's own emotion (Hopeless is the Hermit's), and a String on you`,
+      /isn(?:'|&#39;)t charmed/.test(lastCard()) && !/heartbreak/.test(lastCard()) && SS.countOn("gC7", "gP7") === 1);
     await SAM.setKnown(c, { desire: true });
     await roll(p, c, { technique: "seduce", size: "small" }, [8, 12]);
-    ok(`Seduce lands: they do it for you — and the roll doesn't make you anything to each other`, BS.find("gC", "gP")?.type !== "friend" && /for you/.test(lastCard()));
+    ok(`Seduce lands: they do it for you, no price — and all in always binds you: they take a String on you; the roll doesn't make you anything to each other`,
+      BS.find("gC", "gP")?.type !== "friend" && /for you/.test(lastCard()) && SS.countOn("gC", "gP") === 1 && /You let them close/.test(lastCard()));
     const i = npc("gI", "exalted");                       // Idol: key Heart, firm
     await SAM.setKnown(i, { desire: true });
     await roll(p, i, { technique: "seduce", size: "costly" }, [2, 3]);
-    ok(`Seduce fails: heartbreak — Hopeless, no String on a plain miss; a proud one closes the door`, SS.countOn("gI", "gP") === 0 && /heartbreak/.test(lastCard()) && /door is closed/.test(lastCard()));
+    ok(`Seduce fails: they turn down what you held out — you showed your heart, a String on you; a proud one closes the door`,
+      SS.countOn("gI", "gP") === 1 && /turns it down/.test(lastCard()) && /You showed your heart/.test(lastCard()) && /door is closed/.test(lastCard()));
     const s = npc("gS", "machiavellian");                 // Schemer: wall Reason
     await roll(p, s, { technique: "deceive", approach: "reason", size: "costly" }, [18, 16]);
-    ok(`Deceive lands (even into their wall): they believe it — the lie is on record`, T.lies(s).length === 1 && /The lie holds/.test(lastCard()) && SS.countOn("gP", "gS") === 1);
+    ok(`Deceive lands (even into their wall): they believe it — the lie is on record, and wins no String: a lie is no hold on anyone`,
+      T.lies(s).length === 1 && /The lie holds/.test(lastCard()) && SS.countOn("gP", "gS") === 0);
+    await SS.add("gP", "gS", 1);                           // a String won honestly, before the lie comes out
     await T.exposeLie(s, T.lies(s)[0].id);
     ok(`the GM brings the lie out: an Enemy — the liar's String on them burns, and they take one on the liar`, T.lies(s).length === 0 && SS.countOn("gS", "gP") === 1 && SS.countOn("gP", "gS") === 0 && bond("gS", "gP") === "enemy2" && /The lie comes out/.test(lastCard()) && /String on them burns/.test(lastCard()));
     const m = npc("gM", "martyr");                        // yields — but a lie caught ends it anyway
@@ -469,8 +533,17 @@ if (require.main === module) (async () => {
     ok(`a maneuver with its own approach ignores what the form says`, T.preview(lq, lb, { technique: "demand", approach: "heart" }).approach === "pressure");
     const lt = npc("gLt", "hermit");                      // Hermit: Heart is a normal roll, and they harden before witnesses
     await roll(pc("gQ4"), lt, { technique: "deceive", approach: "heart", size: "costly" }, [20]);
-    ok(`the card speaks of a lie, not a deal: they believe it, a big lie — and a String on them`,
-      /They believe it/.test(lastCard()) && /Heart · Deceive · Big lie/.test(lastCard()) && /They believe you/.test(lastCard()) && SS.countOn("gQ4", "gLt") === 1);
+    ok(`the card speaks of a lie, not a deal: they believe it, a big lie — and even a 20 wins no String on them`,
+      /They believe it/.test(lastCard()) && /Heart · Deceive · Big lie/.test(lastCard()) && !/They believe you/.test(lastCard()) && SS.countOn("gQ4", "gLt") === 0);
+    // A lie on record comes out by itself when its teller slips badly against them.
+    const slip = pc("gQ6"), mark = npc("gLv", "broker");
+    await roll(slip, mark, { technique: "deceive", approach: "reason", size: "small" }, [15, 15]);
+    const told = T.lies(mark).length;
+    await roll(slip, mark, { technique: "demand", size: "costly" }, [10]);
+    const stillHeld = T.lies(mark).length;
+    await roll(slip, mark, { technique: "demand", size: "costly" }, [1]);
+    ok(`a lie they believe holds through a plain miss — and comes out by itself on a bad one: no need for the GM to remember it`,
+      told === 1 && stillHeld === 1 && T.lies(mark).length === 0 && /The lie comes out/.test(lastCard()) && SS.countOn("gLv", "gQ6") === 1);
     await roll(pc("gQ5"), npc("gLu", "hermit"), { technique: "deceive", approach: "heart", size: "costly", witnesses: true }, [6]);
     ok(`caught before witnesses: you lose face — for being caught, not for being refused`, /Caught/.test(lastCard()) && /Caught before witnesses/.test(lastCard()) && !/Refused before witnesses/.test(lastCard()));
     await roll(pc("gQ6"), npc("gLv", "duelist"), { technique: "deceive", approach: "reason", size: "costly", witnesses: true }, [8]);
@@ -521,8 +594,18 @@ if (require.main === module) (async () => {
     ok(`an Argument lands: no word given, no String either way — their price paid; and the roll names no bond`, hit.grade === "success" && T.deals(t).length === 0 && SS.countOn("eaT", "eaP") === 0 && !BS.find("eaT", "eaP")
       && /for a price/.test(lastCard()));
     const b = npc("eaB", "broker");
+    const dlgBefore = globalThis.__dialogs.length;
     await roll(pc("eaQ"), b, { technique: "argument", size: "small" }, [15, 2]);
-    ok(`a strong one needs no price — and wins a String on them`, /does it/.test(lastCard()) && SS.countOn("eaQ", "eaB") === 1 && BS.find("eaB", "eaQ")?.type === "stranger");
+    const asked = globalThis.__dialogs.slice(dlgBefore).some((d) => /On whose terms/.test(d.title ?? "") && d.buttons?.terms && d.buttons?.pay);
+    ok(`a strong one: their price still stands — "on my terms" puts the String the win is worth on it: no price, no String`,
+      asked && /on eaQ(?:'|&#39;)s terms/.test(lastCard()) && SS.countOn("eaQ", "eaB") === 0 && !BS.find("eaB", "eaQ") && SAM.getKnown(b).price);
+    const q2 = pc("eaQ2");
+    await roll(q2, b, { technique: "argument", size: "small" }, [15, 2], ["pay"]);
+    ok(`…or pay it and keep the String`, /for a price/.test(lastCard()) && /keeps what the win is worth/.test(lastCard()) && SS.countOn("eaQ2", "eaB") === 1 && BS.find("eaB", "eaQ2")?.type === "stranger");
+    const dlgCap = globalThis.__dialogs.length;
+    await roll(q2, b, { technique: "argument", size: "small" }, [15, 2]);
+    ok(`…with a String on them already, there's none to win: the strong yes is on your terms, nothing to choose`,
+      !globalThis.__dialogs.slice(dlgCap).some((d) => /On whose terms/.test(d.title ?? "")) && /on eaQ2(?:'|&#39;)s terms/.test(lastCard()) && SS.countOn("eaQ2", "eaB") === 1);
     const m = npc("eaM", "tyrant");
     await roll(pc("eaR"), m, { technique: "argument", size: "small" }, [2]);
     ok(`a plain miss: they out-argue you — their emotion, no String`, SS.countOn("eaM", "eaR") === 0 && R.TSLEmotions.has(game.actors.get("eaR"), "frightened"));
@@ -736,9 +819,13 @@ if (require.main === module) (async () => {
     await roll(s2, h, { technique: "read" }, [3]);
     ok(`a Read that misses costs no emotion`, TE.of(s2).length === 0);
     const c = npc("eC", "exalted");                                         // Idol hurts Insecure — but heartbreak is Hopeless
-    await SAM.setKnown(c, { desire: true });
-    await roll(s2, c, { technique: "seduce", size: "costly" }, [2, 3]);
-    ok(`a broken heart leaves you Hopeless (not the nature's Insecure)`, TE.has(s2, "hopeless") && !TE.has(s2, "insecure"));
+    await BS.add("eU", "eC", { type: "crush", attitude: 2 });               // nothing known of what they want: the Seduce leans on what's between them
+    await roll(s2, c, { technique: "seduce", size: "costly" }, [1, 1]);
+    ok(`a Seduce that leaned on what's between you, refused: a broken heart — Hopeless (not the nature's Insecure)`, TE.has(s2, "hopeless") && !TE.has(s2, "insecure") && /heartbreak/.test(lastCard()));
+    const s2b = pc("eU2"), c2 = npc("eC2", "exalted");
+    await SAM.setKnown(c2, { desire: true });
+    await roll(s2b, c2, { technique: "seduce", size: "costly" }, [2, 3]);
+    ok(`…one that played on their Desire is just a no: the nature's own emotion (Insecure), no heartbreak`, TE.has(s2b, "insecure") && !TE.has(s2b, "hopeless") && /turns it down/.test(lastCard()));
     const s3 = pc("eV"), d = npc("eD", "duelist");                          // key Pressure
     for (let i = 0; i < 3; i++) await roll(s3, d, { technique: "demand", size: "small" }, [12, 12]);
     ok(`winning by Pressure costs: they hold a String on you — while you hold one on them (one each way)`, SS.countOn("eD", "eV") === 1 && SS.countOn("eV", "eD") === 1);
@@ -1108,7 +1195,7 @@ if (require.main === module) (async () => {
     const quiet = console.log;
     console.log = () => {};
     // Persuasion all through: the Caretaker's key is Heart (Appeal), their wall Reason (Argument); to the Duelist, Reason is a normal roll.
-    const key = await rate({ technique: "appeal" }), flat = await rate({ technique: "argument", nature: "duelist", N: 1000 }), wall = await rate({ technique: "argument" });
+    const key = await rate({ technique: "appeal", N: 1000 }), flat = await rate({ technique: "argument", nature: "duelist", N: 1000 }), wall = await rate({ technique: "argument", N: 1000 });
     const plainKeyLever = await rate({ who: "plain", technique: "appeal", lever: "desire" });
     console.log = quiet;
     ok(`the person decides: face +7 — key ${key}%, plain ${flat}%, wall ${wall}%`, key - flat >= 15 && flat - wall >= 15);
@@ -1136,7 +1223,8 @@ if (require.main === module) (async () => {
     };
     const gmNpcProfile = await render(N, "profile");
     ok(`NPC profile (GM): nature card with key, wall and price; the facts; dossier; agenda`, !bad(gmNpcProfile)
-      && /Key · Heart/.test(gmNpcProfile) && /Wall · Reason/.test(gmNpcProfile) && /favour, to be named later/.test(gmNpcProfile) && /data-known="price"/.test(gmNpcProfile));
+      && /Key · Heart/.test(gmNpcProfile) && /Wall · Reason/.test(gmNpcProfile) && /favour, to be named later/.test(gmNpcProfile) && /data-known="price"/.test(gmNpcProfile)
+      && /How it shows/.test(gmNpcProfile) && /Answers questions with questions/.test(gmNpcProfile));
     game.user.isGM = false;
     const pcProfile = await render(P, "profile");
     ok(`the first tab (player): what weighs on them with every switch, the Leanings' dots, then their maneuvers best first — no nature`, !bad(pcProfile) && /Your maneuvers/.test(pcProfile)
@@ -1244,9 +1332,11 @@ if (require.main === module) (async () => {
     ok(`…and nobody else's: no Change, no switches, no ×`, !bad(notMine) && !/data-state-open/.test(notMine) && !/data-state-emo/.test(notMine) && !/data-emo-clear/.test(notMine));
     const calm = await render(Q, "profile");
     ok(`…and when nothing does, it says so`, !bad(calm) && /tsl-state-none/.test(calm));
-    const locked = await render(Q, "talk", { _tTarget: "uiN", _tTech: "demand" });
-    ok(`Blackmail with nothing on them is locked — and says why, and how to get it`, !bad(locked)
-      && /locked" data-tech="blackmail"/.test(locked) && /nothing to blackmail them with yet/.test(locked) && /data-tooltip="[^"]*needs something on them[^"]*Read[^"]*String/.test(locked));
+    const open = await render(Q, "talk", { _tTarget: "uiN", _tTech: "demand" });
+    const picked = await render(Q, "talk", { _tTarget: "uiN", _tTech: "blackmail" });
+    ok(`Blackmail with nothing on record isn't locked — it can be rolled, and the form says what the record would add`, !bad(open) && !bad(picked)
+      && /data-tech="blackmail"/.test(open) && !/locked" data-tech="blackmail"/.test(open) && !/fa-lock"/.test(open)
+      && /tsl-pick-out--bare/.test(picked) && /the GM decides if it bites/.test(picked) && !/data-t-roll disabled/.test(picked));
     let codexOk = true, words = 0;
     for (const c of ["start", "roll", "people", "emo", "strings", "bonds", "gm"]) {
       const h = await render(P, "codex", { _codexCat: c });
@@ -1541,8 +1631,9 @@ if (require.main === module) (async () => {
       ok(`Emotion makes the win hurt: you get it — and carry their Guilt, toward them`, R.TSLEmotions.of(q).some((e) => e.id === "guilty" && e.toward === "abM") && /You(?:'|&#39;)ll feel it/.test(lastCard()) && SS.countOn("abM", "abQ") === 0);
       const hr = npc("abH2", "hermit");                            // Order; key Reason
       await SS.add("abH2", "abQ", 1);
-      await roll(q, hr, { technique: "argument", size: "small" }, [18, 2], ["use"]);
-      ok(`Order sets the terms: a strong yes — at their price all the same`, /On my terms/.test(lastCard()) && /On their terms/.test(lastCard()) && SAM.getKnown(hr).price);
+      await roll(q, hr, { technique: "argument", size: "small" }, [18, 2], ["terms", "use"]);
+      ok(`Order sets the terms: a strong yes you took on your own terms — at their price all the same`,
+        /On my terms/.test(lastCard()) && /On their terms/.test(lastCard()) && !/went on their price/.test(lastCard()) && SAM.getKnown(hr).price && SS.countOn("abH2", "abQ") === 0);
       await SS.add("abD2", "abQ", 1);
       const kept = await roll(q, d2, { technique: "demand", size: "costly" }, [20, 3]);
       ok(`…and the GM may keep it: the roll stands, and the stake moves as usual (a 20: a String on them; theirs stays one)`, kept.grade === "strong" && SS.countOn("abD2", "abQ") === 1 && SS.countOn("abQ", "abD2") === 1);
@@ -1615,17 +1706,20 @@ if (require.main === module) (async () => {
       const code = fs.readFileSync(path.join(ROOT, rel), "utf8");
       for (const m of code.matchAll(/_t\(\s*"((?:[^"\\]|\\.)*)"/g)) lit.add(JSON.parse(`"${m[1]}"`));
     }
-    const noUk = [...lit, ...Object.values(R.ARCHETYPE_REACTIONS).flat()].filter((k) => typeof UK[k] !== "string");
-    ok(`the Ukrainian dictionary covers every line on screen (${lit.size} interface lines, 180 reactions)${noUk.length ? ` — missing: "${noUk[0]}"` : ""}`, noUk.length === 0);
+    const shortTells = R.SOCIAL_ARCHETYPES.flatMap((a) => a.__en?.tells ?? a.tells ?? []);
+    const noUk = [...lit, ...Object.values(R.ARCHETYPE_REACTIONS).flat(), ...Object.values(R.ARCHETYPE_TELLS).flat(), ...shortTells].filter((k) => typeof UK[k] !== "string");
+    ok(`the Ukrainian dictionary covers every line on screen (${lit.size} interface lines, 180 reactions, 360 signs a Read notices, ${shortTells.length} on the natures' cards)${noUk.length ? ` — missing: "${noUk[0]}"` : ""}`, noUk.length === 0);
     const ph = (x) => [...String(x).matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort().join();
     const badPh = Object.entries(UK).find(([en, uk]) => ph(en) !== ph(uk));
     ok(`…and keeps every {placeholder}${badPh ? ` (not in: "${badPh[0]}")` : ""}`, !badPh);
     L.missing = new Set();      // before the switch: the data texts are translated in it, and a miss there counts
     I.setLanguage("uk");
     const ukNames = R.SOCIAL_ARCHETYPES.map((a) => a.label.toLowerCase());
-    const ukLeak = Object.entries(R.ARCHETYPE_REACTIONS).flatMap(([, pool]) => pool.map((l) => UK[l] ?? "")).find((l) => ukNames.some((x) => l.toLowerCase().includes(x)));
-    ok(`Ukrainian: the natures, techniques and emotions speak it (${R.TECHNIQUES.appeal.label}, ${R.SOCIAL_ARCHETYPES[0].label}, ${R.EMOTIONS.frightened.label}) — and no reaction names a nature${ukLeak ? ` (leak: "${ukLeak}")` : ""}`,
+    const ukLeak = [...Object.values(R.ARCHETYPE_REACTIONS), ...Object.values(R.ARCHETYPE_TELLS)].flatMap((pool) => pool.map((l) => UK[l] ?? "")).find((l) => ukNames.some((x) => l.toLowerCase().includes(x)));
+    ok(`Ukrainian: the natures, techniques and emotions speak it (${R.TECHNIQUES.appeal.label}, ${R.SOCIAL_ARCHETYPES[0].label}, ${R.EMOTIONS.frightened.label}) — and no reaction or sign names a nature${ukLeak ? ` (leak: "${ukLeak}")` : ""}`,
       R.TECHNIQUES.appeal.label === "Прохання" && R.SOCIAL_ARCHETYPES[0].label === "Тиран" && R.EMOTIONS.frightened.label === "Переляк" && !ukLeak);
+    const ukSign = R.SocialArchetypeManager.pickTell("tyrant");
+    ok(`…a sign is picked in the reader's language, and the nature's card lists how it shows`, R.ARCHETYPE_TELLS.tyrant.some((l) => UK[l] === ukSign) && R.SOCIAL_ARCHETYPES[0].tells[0] === UK[R.SOCIAL_ARCHETYPES[0].__en.tells[0]]);
     const ukViews = [
       await render(P, "talk", { _tTarget: "uiN", _tTech: "appeal", _tWitnesses: true }),
       await render(P, "talk", { _tTarget: "uiN", _tTech: "read" }),

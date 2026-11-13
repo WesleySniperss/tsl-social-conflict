@@ -187,7 +187,7 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
   page("chronicle-state-pc", await chron(lyra, "talk", { _stateOpen: true, _tTarget: "roell" }), 560, 900);
   page("chronicle-state-player", await chron(lyra, "talk", { _stateOpen: true, _tTarget: "roell" }, "player"), 560, 1000);
   page("chronicle-talk-readq", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "read", _tQuestions: ["fear", "key"] }, "player"), 560, 1100);
-  page("chronicle-talk-locked", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "demand" }, "player"), 560, 1100);
+  page("chronicle-talk-allin", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "blackmail" }, "player"), 560, 1250);   // all in with nothing on record: not locked — the form says what the record would add
   page("chronicle-talk-player", await chron(mira, "talk", { _tTarget: "ilse", _tTech: "appeal", _tSize: "costly", _tHelper: "lyra", _tLever: "desire", _tWitnesses: true }, "player"), 560, 1250);
   page("chronicle-talk-blackmail", await chron(mira, "talk", { _tTarget: "ilse", _tTech: "blackmail", _tSize: "against" }, "player"), 560, 1150);
   page("chronicle-talk-read", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "read" }, "player"), 560, 1050);
@@ -275,6 +275,7 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
     dialogs.length = 0;
     await T.promptPrice(duke, T.priceOf(duke));
     await T.promptPrice(roell, T.priceOf(roell));
+    await T.promptPrice(roell, T.priceOf(roell), { strong: true });   // a strong yes: pay and keep the String — or on my terms
     await T.promptQuestions(ilse, 2);
     await R.TSLAbilities.promptMove(roell, lyra, R.TRIAD_MOVES.power, { total: 16, dc: 15, technique: "demand", grade: "success" });
     await T.promptStringBurn(lyra, roell, 12, 14, 1);
@@ -282,7 +283,14 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
     await new R.SocialFencingApp(lyra)._promptLetGo(lyra, "angry");
     const dl = dialogs.map((d) => windowHTML({ id: "dlg", classes: d.opts?.classes ?? ["dialog"], title: d.title ?? "Dialog", width: d.opts?.width ?? 400,
       inner: `<div class="dialog-content">${d.content ?? ""}</div><div class="dialog-buttons">${Object.entries(d.buttons ?? {}).map(([k, b]) => `<button class="dialog-button ${k} ${k === d.default ? "default bright" : ""}">${b.icon ?? ""} ${b.label ?? k}</button>`).join("")}</div>` })).join("");
-    page("dialogs", dl || "<p>no dialogs</p>", 520, 1700);
+    page("dialogs", dl || "<p>no dialogs</p>", 520, 2000);
+  }
+
+  // ── A state beats a habit: Roell's wall is Pressure — but Frightened, it doesn't stand ──
+  {
+    await SAM.setKnown(roell, { wall: true });
+    if (!R.TSLEmotions.has(roell, "frightened")) await R.TSLEmotions.mark(roell, "frightened", { title: "preview" });
+    page("chronicle-talk-walldown", await chron(mira, "talk", { _tTarget: "roell", _tTech: "demand" }, "player"), 560, 1250);
   }
 
   console.log(pages.map((p) => p.name).join("\n"));
