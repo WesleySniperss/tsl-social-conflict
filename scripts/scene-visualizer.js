@@ -164,15 +164,13 @@ class TSLSceneVisualizer extends _TSLVizBase {
       title: SocialArchetypeManager.getCharacterNotes(actor).title,
       arch,
       named: arch && revealed ? arch : null,
-      seems: revealed ? null : SocialArchetypeManager.getShown(actor),
-      unmasked: !revealed && SocialArchetypeManager.getKnown(actor).mask && !!SocialArchetypeManager.getMask(actor),
       hasBond: TSLBondStore.getList(actor.id).length > 0 || TSLStringStore.getList(actor.id).length > 0,
       emotions: TSLEmotions.of(actor).map(e => e.id),
     };
   }
 
   static _isRelevant(nd) {
-    return nd.pc || nd.hasBond || !!nd.named || !!nd.seems || nd.emotions.length > 0 || !!nd.title;
+    return nd.pc || nd.hasBond || !!nd.named || nd.emotions.length > 0 || !!nd.title;
   }
 
   /**
@@ -448,11 +446,6 @@ class TSLSceneVisualizer extends _TSLVizBase {
       const tint = (a) => SOCIAL_TRIADS[a.triad]?.color ?? "#9b6ee8";
       const tag = nd.named
         ? `<div class="tsl-viz-named" style="--c:${tint(nd.named)}" data-tooltip="${esc(_t("Figured out: {nature} — {description}", { nature: nd.named.label, description: nd.named.description }))}">${esc(nd.named.label)}</div>`
-        : nd.seems
-        ? `<div class="tsl-viz-named tsl-viz-named--seems ${nd.unmasked ? "tsl-viz-named--mask" : ""}" style="--c:${tint(nd.seems)}" data-tooltip="${esc(nd.unmasked
-            ? _t("A mask: they only play the {mask}. Who they really are is still unread.", { mask: nd.seems.label })
-            : _t("What they show: the {nature} — maybe their true face, maybe a mask.", { nature: nd.seems.label }))}">${nd.unmasked
-            ? `<i class="fas fa-mask"></i> ${esc(nd.seems.label)}` : esc(_t("seems: {nature}", { nature: nd.seems.label }))}</div>`
         : "";
       const ring = nd.pc ? "var(--tsl-sway, #e0b45e)" : nd.named ? tint(nd.named) : "rgba(255, 255, 255, 0.28)";
       const emos = nd.emotions.length ? `<div class="tsl-viz-emos">${nd.emotions.map(id => `<img src="${EMOTIONS[id].img}" alt="" data-tooltip="${esc(`${EMOTIONS[id].label} — ${EMOTIONS[id].spoilsText}`)}">`).join("")}</div>` : "";
@@ -599,13 +592,11 @@ class TSLSceneVisualizer extends _TSLVizBase {
     const tint = (a) => SOCIAL_TRIADS[a.triad]?.color ?? "#9b6ee8";
     // The nature, as far as the table knows it (the GM also sees the truth).
     const nature = nd.named ? `<span class="tsl-viz-named" style="--c:${tint(nd.named)}">${esc(nd.named.label)}</span>`
-      : nd.seems ? `<span class="tsl-viz-named tsl-viz-named--seems" style="--c:${tint(nd.seems)}">${esc(nd.unmasked ? _t("{mask} — a mask", { mask: nd.seems.label }) : _t("seems: {nature}", { nature: nd.seems.label }))}</span>`
       : nd.pc ? "" : `<span class="tsl-viz-dim">${_t("Nature unread")}</span>`;
     const truth = isGM && nd.arch && !nd.named ? `<div class="tsl-viz-p-row tsl-viz-dim">${_t("Their nature (only you see it): {nature}", { nature: esc(nd.arch.label) })}</div>` : "";
     const feels = TSLEmotions.of(actor).map(e => {
       const d = EMOTIONS[e.id];
-      const toward = e.toward ? game.actors.get(e.toward)?.name : null;
-      return `<span class="tsl-viz-emo" style="--c:${d.color}" data-tooltip="${esc(`${d.label} — ${d.spoilsText}`)}"><img src="${d.img}" alt=""> ${esc(d.label)}${toward ? ` → ${esc(toward)}` : ""}</span>`;
+      return `<span class="tsl-viz-emo" style="--c:${d.color}" data-tooltip="${esc(`${d.label} — ${d.spoilsText}. ${TSLEmotions.sheetWords(e.id)}`)}"><img src="${d.img}" alt=""> ${esc(d.label)}</span>`;
     }).join("");
     // Their bonds: to whoever is on the board (the GM: to anyone at all).
     const bonds = TSLBondStore.getList(id).map(b => {
@@ -927,7 +918,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
 
   /**
    * Animate a maneuver that just resolved, on BOTH windows that are open.
-   * { srcId, tgtId, technique, approach, job, grade, paid, rel, ended, granted, witnesses }
+   * { srcId, tgtId, technique, approach, job, grade, paid, rel, granted, witnesses }
    */
   static pulse(data) {
     for (const key of ["scene", "world"]) {
@@ -937,7 +928,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
     }
   }
 
-  _playPulse({ srcId, tgtId, technique = null, approach, job = null, grade, paid = null, rel = null, ended = false, granted = false, witnesses = false } = {}) {
+  _playPulse({ srcId, tgtId, technique = null, approach, job = null, grade, paid = null, rel = null, granted = false, witnesses = false } = {}) {
     const root = this.element?.[0] ?? this.element;
     const stage = root?.querySelector?.(".tsl-viz-world");   // the board's coordinate space
     const svg   = root?.querySelector?.(".tsl-viz-svg");
@@ -982,7 +973,6 @@ class TSLSceneVisualizer extends _TSLVizBase {
       // The answer, floating over them — long enough to read.
       const label = job === "read" || approach === "read" ? (hit ? _t("read") : _t("noticed"))
         : technique === "deceive" ? (hit ? _t("they believe it") : _t("caught"))
-        : technique === "bargain" ? (grade === "strong" || (grade === "success" && paid) ? _t("a deal") : _t("no deal"))
         : job === "gambit" ? (hit ? _t("it works") : _t("it blows up"))
         : grade === "strong" ? _t("yes")
         : grade === "success" ? (technique === "demand" ? _t("gives in") : paid ? _t("yes, for a price") : _t("a price refused"))
@@ -997,15 +987,13 @@ class TSLSceneVisualizer extends _TSLVizBase {
       setTimeout(() => float.remove(), 3000);
     }
 
-    // A proud one refused something big and ended the talk: the door closes.
-    if (ended) this._playResolution(stage, tgtNode, tgt, "ended");
-    else if (granted && (grade === "strong" || job === "gambit")) this._playResolution(stage, tgtNode, tgt, "yes");
+    if (granted && (grade === "strong" || job === "gambit")) this._playResolution(stage, tgtNode, tgt);
   }
 
-  /** The climax on the NPC's portrait: a warm yes, or the door closing. */
-  _playResolution(stage, node, pos, what) {
+  /** The climax on the NPC's portrait: a warm yes. */
+  _playResolution(stage, node, pos) {
     if (!node) return;
-    const tone = what === "ended" ? "walked" : "swayed";
+    const tone = "swayed";
     node.classList.add(`resolve-${tone}`);
     setTimeout(() => node.classList.remove(`resolve-${tone}`), 3200);
     if (!pos) return;
@@ -1017,7 +1005,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
     setTimeout(() => burst.remove(), 1800);
     const word = document.createElement("div");
     word.className = `tsl-viz-resolveword tsl-viz-resolveword--${tone}`;
-    word.textContent = what === "ended" ? _t("DOOR CLOSED") : _t("AGREED");
+    word.textContent = _t("AGREED");
     word.style.left = `${pos.x}px`;
     word.style.top  = `${pos.y}px`;
     stage.appendChild(word);

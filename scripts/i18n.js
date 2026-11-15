@@ -64,7 +64,7 @@ class TSLi18n {
     if (typeof APPROACHES !== "undefined") vals(APPROACHES).forEach(a => tr(a, ["label", "gist", "short", "examples", "cost"]));
     if (typeof SOCIAL_TRIADS !== "undefined") vals(SOCIAL_TRIADS).forEach(t => tr(t, ["label", "horney", "hint"]));
     if (typeof SOCIAL_ARCHETYPES !== "undefined") for (const a of SOCIAL_ARCHETYPES) {
-      tr(a, ["label", "keyText", "wallText", "press", "pressedWhy", "audienceWhy", "description", "psych", "craves", "dreads"]);
+      tr(a, ["label", "keyText", "wallText", "press", "audienceWhy", "description", "psych", "craves", "dreads", "hint"]);
       tr(a.price, ["text"]);
       // The three plain tells on the nature's card — a list, translated line by line.
       if (Array.isArray(a.tells)) {
@@ -79,7 +79,7 @@ class TSLi18n {
     if (typeof TALK_GRADES !== "undefined") vals(TALK_GRADES).forEach(g => tr(g, ["label"]));
     if (typeof JOB_GRADES !== "undefined") vals(JOB_GRADES).forEach(trMap);
     if (typeof SKILL_LABELS !== "undefined") trMap(SKILL_LABELS);
-    if (typeof EMOTIONS !== "undefined") vals(EMOTIONS).forEach(e => tr(e, ["label", "spoilsText", "opensText", "clear"]));
+    if (typeof EMOTIONS !== "undefined") vals(EMOTIONS).forEach(e => tr(e, ["label", "spoilsText", "opensText", "sheetText", "clear"]));
     if (typeof SCARS !== "undefined") vals(SCARS).forEach(s => tr(s, ["label", "text"]));
     if (typeof PROFILE_POINTS !== "undefined") PROFILE_POINTS.forEach(p => tr(p, ["label", "hint", "placeholder"]));
     if (typeof BOND_TYPES !== "undefined") BOND_TYPES.forEach(b => { tr(b, ["label", "hint"]); tr(b.aura, ["label"]); });

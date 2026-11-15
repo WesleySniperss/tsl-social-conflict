@@ -243,20 +243,29 @@ class TSLBondStore {
     return null;
   }
 
-  /** The ●●● signature is once per long rest: \`sigUsed\` is this side's own (never mirrored). */
-  static async markSignatureUsed(actorId, bondId) {
+  /**
+   * What a bond gives on call is once per long rest: the ●● ability (`abUsed`)
+   * and the ●●● signature (`sigUsed`) — each this side's own, never mirrored.
+   */
+  static async markUsed(actorId, bondId, key = "sigUsed") {
+    if (key !== "sigUsed" && key !== "abUsed") return;
     const list = TSLBondStore.getList(actorId);
     const entry = list.find(b => b.id === bondId);
     if (!entry) return;
-    entry.sigUsed = true;
+    entry[key] = true;
     await TSLBondStore._saveList(actorId, list);
   }
 
-  /** A long rest: every signature of this actor's bonds is ready again. */
-  static async clearSignatures(actorId) {
+  /** A long rest: every ability and signature of this actor's bonds is ready again. */
+  static async clearUsed(actorId) {
     const list = TSLBondStore.getList(actorId);
-    if (!list.some(b => b.sigUsed)) return;
-    for (const b of list) b.sigUsed = false;
+    if (!list.some(b => b.sigUsed || b.abUsed)) return false;
+    for (const b of list) { b.sigUsed = false; b.abUsed = false; }
     await TSLBondStore._saveList(actorId, list);
+    return true;
   }
+
+  /** Kept for older callers. */
+  static async markSignatureUsed(actorId, bondId) { return TSLBondStore.markUsed(actorId, bondId, "sigUsed"); }
+  static async clearSignatures(actorId) { return TSLBondStore.clearUsed(actorId); }
 }

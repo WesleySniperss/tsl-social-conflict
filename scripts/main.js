@@ -59,14 +59,7 @@ Hooks.once("init", () => {
     hint: _t("Standing this close (feet) to someone you have a bond with — in a fight or not — puts the bond on both tokens as a status, with its aura. 0 turns the auras off; the bond still shows within 15 ft."),
     scope: "world", config: true, type: Number, default: 15,
     range: { min: 0, max: 60, step: 5 },
-    onChange: () => { try { TSLBondAuras.refresh(); TSLBondNear.update(); } catch { /* not ready */ } },
-  });
-
-  game.settings.register(TSL_SCOPE, "bondNearShow", {
-    name: _t("Bonds in reach: the corner panel"),
-    hint: _t("A panel in the bottom-left corner lists everyone your character stands close to with a bond — what it gives right now, the Strings both ways. On your screen only; the GM sees it for the tokens they select. The bond itself shows on the tokens as a status either way."),
-    scope: "client", config: true, type: Boolean, default: true,
-    onChange: () => { try { TSLBondNear.update(); } catch { /* not ready */ } },
+    onChange: () => { try { TSLBondAuras.refresh(); } catch { /* not ready */ } },
   });
 
   // Cards that wait for an answer: an NPC's pull on a String; the GM's "let it show" after a Read.
@@ -181,22 +174,41 @@ Hooks.once("setup", () => {
  */
 async function tidyStringsAndLeanings() {
   if (!game.user?.isGM || (game.users?.activeGM && !game.users.activeGM.isSelf)) return;
-  let cut = 0, shown = 0;
+  let cut = 0, shown = 0, sheeted = 0;
   // v14 draws an effect on the token only with showIcon ALWAYS (or a duration): our statuses made
   // before 3.15 never said so — an emotion, a String pulled, a signature's moment — so they get it now.
   const ALWAYS = globalThis.CONST?.ACTIVE_EFFECT_SHOW_ICON?.ALWAYS;
+  // …and the system lists a status in its own panel only if it is one of its kind (a5e: a "condition"):
+  // ours made before 3.18 were plain passive effects, so its Effects Panel never showed them.
+  const kind = tslSystemStatus().system?.effectType;
   const ours = (e) => e.flags?.[TSL_SCOPE]?.emotion || e.flags?.[TSL_SCOPE]?.stringPull || e.flags?.[TSL_SCOPE]?.bondMoment;
   for (const actor of game.actors?.contents ?? []) {
     try { cut += await TSLStringStore.trimToCap(actor); } catch (err) { console.warn(`TSL | String trim failed on ${actor.name}:`, err); }
-    if (ALWAYS !== undefined) {
-      const fix = (actor.effects ?? []).filter(e => ours(e) && e.showIcon !== ALWAYS).map(e => ({ _id: e.id, showIcon: ALWAYS }));
-      if (fix.length) { try { await actor.updateEmbeddedDocuments("ActiveEffect", fix); shown += fix.length; } catch (err) { console.warn(`TSL | status icons failed on ${actor.name}:`, err); } }
+    const fix = [];
+    for (const e of (actor.effects ?? [])) {
+      if (!ours(e)) continue;
+      const patch = {};
+      if (ALWAYS !== undefined && e.showIcon !== ALWAYS) patch.showIcon = ALWAYS;
+      if (kind && e.system?.effectType !== kind) patch["system.effectType"] = kind;
+      if (Object.keys(patch).length) fix.push({ _id: e.id, ...patch });
     }
+    if (fix.length) { try { await actor.updateEmbeddedDocuments("ActiveEffect", fix); shown += fix.length; } catch (err) { console.warn(`TSL | status icons failed on ${actor.name}:`, err); } }
+    // Emotions and scars made before 3.18 did nothing on the sheet: written anew, with their edge and burden.
+    try { sheeted += await TSLEmotions.sync(actor); } catch (err) { console.warn(`TSL | emotions on the sheet failed on ${actor.name}:`, err); }
+    // The mask and the "after a no" stance are gone (3.18): drop what old worlds kept of them.
+    try {
+      const d = actor.getFlag?.(TSL_SCOPE, "socialFencing");
+      if (d && ("maskId" in d || "stance" in d)) await actor.update({ [`flags.${TSL_SCOPE}.socialFencing.-=maskId`]: null, [`flags.${TSL_SCOPE}.socialFencing.-=stance`]: null });
+    } catch (err) { console.warn(`TSL | mask cleanup failed on ${actor.name}:`, err); }
+    // The Deal is gone (3.18): a word given in one is no longer tracked. The String it left stays a String.
+    try { if (actor.getFlag?.(TSL_SCOPE, "deals") !== undefined) await actor.unsetFlag(TSL_SCOPE, "deals"); }
+    catch (err) { console.warn(`TSL | deal cleanup failed on ${actor.name}:`, err); }
     if (!SocialArchetypeManager.isPC(actor)) continue;
     try { await SocialArchetypeManager.syncLeaningEffect(actor); } catch (err) { console.warn(`TSL | Leanings effect failed on ${actor.name}:`, err); }
   }
   if (cut) console.log(`TSL | one String each way: ${cut} extra String(s) cut`);
   if (shown) console.log(`TSL | ${shown} status(es) now shown on their tokens`);
+  if (sheeted) console.log(`TSL | ${sheeted} emotion(s) and scar(s) now work on their sheets`);
 }
 
 Hooks.once("ready", () => {
@@ -212,12 +224,9 @@ Hooks.once("ready", () => {
   // A pulled String is a real effect — end it once it has done its job.
   try { TSLStringStore.registerPullHooks(); }
   catch (err) { console.error("TSL | String pull hooks failed:", err); }
-  // A bond reaches into a fight (its aura); its ●●● signature lasts one roll and comes back with a long rest.
+  // A bond reaches into a fight (its aura); its ●● ability and ●●● signature come back with a long rest.
   try { TSLBondAuras.register(); TSLBondMoments.registerHooks(); TSLBondPowers.registerRestHooks(); }
   catch (err) { console.error("TSL | bond powers failed:", err); }
-  // On every screen: a bonded one's token in reach wears the bond, and the corner panel lists it.
-  try { TSLBondNear.register(); }
-  catch (err) { console.error("TSL | bonds in reach failed:", err); }
   try { SocialHUD.register(); }
   catch (err) { console.error("TSL | SocialHUD failed:", err); }
   // An actor deleted from the world takes its bonds and Strings with it (the active GM tidies up).

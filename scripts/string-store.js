@@ -247,7 +247,7 @@ class TSLStringStore {
       changes,
       // A status id (and, on v14, showIcon) makes the token show the icon; it is
       // NOT registered in the HUD palette, so nobody toggles it by hand.
-      statuses: ["tsl-string-pull"], ...tslShowIcon(),
+      statuses: ["tsl-string-pull", TSL_STATUS_MARK], ...tslShowIcon(),
       description: guard
         ? _t("+5 AC — you know how {name} moves. For a round: until the start of your next turn.", { name: target.name })
         : _t("+5 to your next attack roll, ability check or saving throw — aimed at {name}. Ends after your next roll.", { name: target.name }),

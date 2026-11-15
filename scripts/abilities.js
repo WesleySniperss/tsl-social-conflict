@@ -12,7 +12,7 @@
  *     deadline, the GM says how it ended. Whoever holds a String on that NPC
  *     can answer with it instead: Quits — both burn, nothing happens.
  * An NPC takes a String on a character when that character loses a roll to
- * them (and when a win costs one: Pressure, a Deal, a price that is a debt).
+ * them (and when a win costs one: Pressure, Blackmail, a Seduce, a price that is a debt).
  * One at a time. Inspired by Thirsty Sword Lesbians — its GM moves for each
  * playbook and its Influence with a String (Powered by Lesbians).
  *
@@ -32,7 +32,7 @@ const TRIAD_MOVES = {
   power:     { id: "strike-back", triad: "power", on: "any", name: "Strike back",
     text: "After the dice, they spend the String: −5 to the roll. Your own +5, turned against you." },
   attention: { id: "feel-it", triad: "attention", on: "hit", name: "You'll feel it",
-    text: "You get what you asked for — and carry their emotion for it (the Martyr and the Caretaker: Guilt toward them; the Idol: Insecure)." },
+    text: "You get what you asked for — and carry their emotion for it (the Martyr and the Caretaker: Guilty; the Idol: Insecure)." },
   order:     { id: "my-terms", triad: "order", on: "hit", name: "On my terms",
     text: "You get it — and pay their price, whatever the grade, even after a Demand or Blackmail." },
 };
@@ -99,13 +99,13 @@ const NPC_ABILITIES = {
       text: "They remind you what they've given up for you — and ask one thing.",
       outcomes: [
         { id: "yes", by: "pc", label: "Do it", result: "{pc} does it — and takes Inspiration.", fx: ["inspire"] },
-        { id: "no", by: "pc", label: "Refuse", result: "{pc} refuses: Guilty toward them — and it lasts until {pc} does something for them.", fx: [{ emotion: "guilty" }] },
+        { id: "no", by: "pc", label: "Refuse", result: "{pc} refuses: Guilty — and it lasts until {pc} does something for them.", fx: [{ emotion: "guilty" }] },
       ] },
     { id: "need-you", when: "beyond", name: "I can't do without you",
       text: "At the worst moment — before something that matters to you — they're in trouble and call for you.",
       outcomes: [
         { id: "come", by: "pc", label: "Come", result: "{pc} comes — and misses what was to happen (the GM says what it costs).", fx: [] },
-        { id: "stay", by: "pc", label: "Don't come", result: "{pc} doesn't come: Guilty toward them — and {who}, one of theirs, becomes a Rival.", fx: [{ emotion: "guilty" }, { pick: "npc", begin: "rival" }] },
+        { id: "stay", by: "pc", label: "Don't come", result: "{pc} doesn't come: Guilty — and {who}, one of theirs, becomes a Rival.", fx: [{ emotion: "guilty" }, { pick: "npc", begin: "rival" }] },
       ] },
   ],
   exalted: [
@@ -126,12 +126,12 @@ const NPC_ABILITIES = {
       text: "When a roll of yours fails — any roll, in a fight too — they're there: you roll it again. And the String comes back to them: you owe them again.",
       outcomes: [
         { id: "yes", by: "pc", label: "Accept their help", result: "{pc} accepts: roll it again. The String stays with them.", fx: ["keep"] },
-        { id: "no", by: "pc", label: "Refuse it", result: "{pc} refuses their help: Guilty toward them.", fx: [{ emotion: "guilty" }] },
+        { id: "no", by: "pc", label: "Refuse it", result: "{pc} refuses their help: Guilty.", fx: [{ emotion: "guilty" }] },
       ] },
     { id: "jealous", when: "beyond", name: "Jealous care",
       text: "They come between you and whoever has been helping you.",
       outcomes: [
-        { id: "ok", by: "gm", label: "Between them and…", result: "They come between {pc} and {who}: that bond cools, and {pc} is Guilty toward them.", fx: [{ pick: "friend", shift: "cool" }, { emotion: "guilty" }] },
+        { id: "ok", by: "gm", label: "Between them and…", result: "They come between {pc} and {who}: that bond cools, and {pc} is Guilty.", fx: [{ pick: "friend", shift: "cool" }, { emotion: "guilty" }] },
       ] },
   ],
   dogmatic: [
@@ -288,7 +288,7 @@ class TSLAbilities {
           else if (fx === "silence") {
             await TSLAbilities.setSilence(npc, pc.id, true);
           } else if (fx.emotion) {
-            const r = await TSLEmotions.add(pc, fx.emotion, { by: npc.id, toward: fx.emotion === "guilty" ? npc.id : null });
+            const r = await TSLEmotions.add(pc, fx.emotion, { by: npc.id });
             if (r?.scar) after.push({ html: _t("{name} was already {emotion} — it leaves a scar: <b>{scar}</b>.", { name: esc(pc.name), emotion: EMOTIONS[fx.emotion].label, scar: SCARS[r.scar].label }), tone: "bad" });
           } else if ((fx.shift || fx.begin) && !fx.pick) {
             const s = fx.begin ? await TSLBondStore.begin(npc.id, pc.id, fx.begin, fx.begin === "enemy" ? 2 : 1) : await TSLBondStore.shift(npc.id, pc.id, fx.shift);

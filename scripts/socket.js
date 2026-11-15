@@ -75,7 +75,9 @@ class TSLGMActions {
       case "bondMirror":  return args?.actorId;
       case "abilityOutcome": return args?.pcId;   // the answer to an NPC's move (the card checks it's theirs)
       case "invokeSignature": return args?.actorId;
+      case "invokeBond": return args?.actorId;   // a bond's ●● ability or ●●● signature, once per long rest
       case "stringSet": return args?.pcId;   // a String marked by hand on the player's own character — either way
+      case "natureGuess": return args?.pcId;  // the party's guess at an NPC's nature, put forward by one of its characters
       default: return null;
     }
   }
@@ -114,10 +116,18 @@ class TSLGMActions {
           // A ●●● bond's signature, once per long rest.
           await TSLBondPowers.invokeSignature(args);
           break;
+        case "invokeBond":
+          // What a bond gives on call — the ●● ability or the ●●● signature — once per long rest each.
+          await TSLBondPowers.invoke({ ...args, tier: args?.tier === 2 ? 2 : 3 });
+          break;
         case "stringSet":
           // A player marks a String by hand: theirs on someone, or someone's on them — their own character only.
           if (args?.pcId !== args?.holderId && args?.pcId !== args?.targetId) { console.warn("TSL | Refused stringSet: not about their character."); break; }
           await TSLStringStore.set(args.holderId, args.targetId, args.on);
+          break;
+        case "natureGuess":
+          // The party's working guess at who an NPC is (a theory: the form follows it, the dice follow the truth).
+          await TSLTalk.setGuess(args?.npcId, args?.guess);
           break;
         case "abilityOutcome":
           // A character answers an NPC's pull on a String (or answers it with their own: Quits).

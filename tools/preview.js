@@ -86,9 +86,7 @@ async function setup() {
   await BS.add("mira", "ilse", { type: "ally", attitude: 1 });
   await SS.add("lyra", "roell", 1);
   // The faces they show: Roell his own, the duke a mask (a Schemer playing the Caretaker), Ilse a mask too.
-  await SAM.setActorData(roell, { maskId: "tyrant" });
-  await SAM.setActorData(duke, { maskId: "caretaker" });
-  await SAM.setActorData(ilse, { maskId: "martyr" });
+  // (No masks since 3.18: the party sees "Nature unread" until a nature is named.)
 }
 
 // ── page shell ───────────────────────────────────────────────────────────────
@@ -143,12 +141,12 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
       globalThis.__dialogQueue = [];
       return p;
     };
-    await r(lyra, roell, { technique: "read" }, [14], ["o2"]);                               // Read: what would open him? (the key)
+    await r(lyra, roell, { technique: "confide", questions: ["key"] }, [14, 6]);              // she opens up: what would open him? (his key — the better die)
     await r(lyra, roell, { technique: "appeal", size: "costly" }, [6, 3], ["pay"]);           // his key: yes, but — on her knee
     await r(mira, roell, { technique: "demand", size: "small" }, [16, 4]);                   // his wall, but it lands: he gives in, and remembers
-    await r(mira, roell, { technique: "bargain", size: "costly" }, [3]);                     // a no: he leaves her Frightened, the door closes
-    await r(lyra, roell, { technique: "bargain", size: "costly", witnesses: true }, [9], ["pay"]); // before his men: he hardens (−2), yet gives — everyone saw it
-    await r(mira, duke, { technique: "read" }, [17], ["o1", "o0"]);                          // a strong Read: his Fear and his Desire
+    await r(mira, roell, { technique: "argument", size: "costly" }, [3]);                     // a no: he leaves her Frightened, the door closes
+    await r(lyra, roell, { technique: "argument", size: "costly", witnesses: true }, [9], ["pay"]); // before his men: he hardens (−2), yet gives — everyone saw it
+    await r(mira, duke, { technique: "provoke", questions: ["fear", "wall"] }, [17]);          // she needles him, strongly: his Fear shown, what closes him told
     await r(lyra, duke, { technique: "blackmail", size: "against" }, [11]);                  // his Fear: an enemy, Frightened
     await r(lyra, duke, { technique: "deceive", approach: "reason", size: "costly" }, [17, 9]);                  // a lie into his wall — it holds
     await r(mira, duke, { technique: "seduce", size: "small" }, [5, 2]);                     // his Desire
@@ -167,10 +165,10 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
     page(`chat-${i / 4 + 1}`, `<section id="shot-chat" class="sidebar-tab chat-sidebar"><ol id="chat-log" class="chat-log plain">${cards.slice(i, i + 4).map(li).join("")}</ol></section>`, 340, 1700);
   }
 
-  // Sister Ilse: unread, her Desire known, Guilty toward Mira, and a lie of Lyra's on record.
+  // Sister Ilse: unread, her Desire known, Guilty (Mira's words), and a lie of Lyra's on record.
   // Lyra carries an emotion and a scar; Mira is Angry — for the windows.
   await SAM.setKnown(ilse, { desire: true });
-  await R.TSLEmotions.add(ilse, "guilty", { by: "mira", toward: "mira" });
+  await R.TSLEmotions.add(ilse, "guilty", { by: "mira" });
   await R.TSLEmotions.add(lyra, "angry", { by: "duke" });
   await R.TSLEmotions.add(lyra, "angry", { by: "duke" });
   await R.TSLEmotions.add(lyra, "hopeless", { by: "duke" });
@@ -186,11 +184,19 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
   page("chronicle-state-gm", await chron(roell, "profile", { _stateOpen: true }), 560, 700);
   page("chronicle-state-pc", await chron(lyra, "talk", { _stateOpen: true, _tTarget: "roell" }), 560, 900);
   page("chronicle-state-player", await chron(lyra, "talk", { _stateOpen: true, _tTarget: "roell" }, "player"), 560, 1000);
-  page("chronicle-talk-readq", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "read", _tQuestions: ["fear", "key"] }, "player"), 560, 1100);
+  page("chronicle-talk-readq", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "provoke", _tQuestions: ["fear", "wall"] }, "player"), 560, 1250);
   page("chronicle-talk-allin", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "blackmail" }, "player"), 560, 1250);   // all in with nothing on record: not locked — the form says what the record would add
   page("chronicle-talk-player", await chron(mira, "talk", { _tTarget: "ilse", _tTech: "appeal", _tSize: "costly", _tHelper: "lyra", _tLever: "desire", _tWitnesses: true }, "player"), 560, 1250);
   page("chronicle-talk-blackmail", await chron(mira, "talk", { _tTarget: "ilse", _tTech: "blackmail", _tSize: "against" }, "player"), 560, 1150);
-  page("chronicle-talk-read", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "read" }, "player"), 560, 1050);
+  page("chronicle-talk-read", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "read" }, "player"), 560, 1250);
+  // The deduction loop: two signs noticed, a guess put forward — the buttons and the odds follow it, pencilled.
+  {
+    const pool = R.ARCHETYPE_TELLS[SAM.getArchetype(ilse).id];
+    await SAM.addSign(ilse, pool[4]); await SAM.addSign(ilse, pool[16]);
+    await SAM.setGuess(ilse, "caretaker");
+    page("chronicle-talk-guess", await chron(lyra, "talk", { _tTarget: "ilse", _tMode: "ask" }, "player"), 560, 1150);
+    page("chronicle-talk-guess-roll", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "confide", _tQuestions: ["desire"] }, "player"), 560, 1400);
+  }
   page("chronicle-talk-named", await chron(lyra, "talk", { _tTarget: "duke", _tTech: "appeal", _tSize: "small" }, "player"), 560, 1150);
   page("chronicle-talk-result", await chron(lyra, "talk", { _tTarget: "duke",
     _tResult: { technique: "appeal", grade: "success", total: 18, dc: 15, rel: "key", paid: true, witnesses: true, audience: -2 } }, "player"), 560, 1000);
@@ -203,10 +209,9 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
   page("chronicle-talk-press", await chron(lyra, "talk", { _tTarget: "roell", _tTech: "demand" }, "player"), 560, 1250);
   page("chronicle-talk-lying", await chron(lyra, "talk", { _tTarget: "roell", _tMode: "lie" }, "player"), 560, 900);
   page("chronicle-talk-lie", await chron(lyra, "talk", { _tTarget: "roell", _tTech: "deceive", _tApproach: "heart" }, "player"), 560, 1250);
-  page("chronicle-talk-deal", await chron(lyra, "talk", { _tTarget: "roell", _tTech: "bargain" }, "player"), 560, 1250);
   page("chronicle-talk-asking", await chron(lyra, "talk", { _tTarget: "roell", _tMode: "ask" }, "player"), 560, 900);
   page("chronicle-talk-notarget", await chron(lyra, "talk", {}, "player"), 560, 400);
-  page("chronicle-talk-gm", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "bargain" }), 560, 1250);
+  page("chronicle-talk-gm", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "argument" }), 560, 1250);
   page("chronicle-talk-npc-gm", await chron(ilse, "talk"), 560, 2400);
   page("chronicle-talk-npc-word", await chron(roell, "talk"), 560, 2400);
   for (const cat of ["start", "roll", "people", "emo", "strings", "bonds", "gm"]) {
@@ -230,23 +235,23 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
   page("scene-selected", await board("scene", { kind: "node", id: "roell" }), 940, 760);
   page("scene-pair", await board("scene", { kind: "edge", id: ["lyra", "mira"].sort().join("|") }), 940, 760);
 
-  // ── Bonds in reach: the bond is a status on both tokens; the corner panel lists it ──
+  // ── Bonds in reach: a status of the system's on both tokens — and listed where the system lists statuses ──
   {
-    const N = R.TSLBondNear, A = R.TSLBondAuras;
+    const A = R.TSLBondAuras;
     const was = { ready: canvas.ready, grid: canvas.grid, controlled: canvas.tokens.controlled, placeables: canvas.tokens.placeables };
     canvas.ready = true;
     canvas.grid = { measurePath: (pts) => ({ distance: Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y) / 20 }) };   // a 100 px square is 5 ft
+    canvas.dimensions = { size: 100, distance: 5 };
     const at = (a, x, y) => ({ id: "t-" + a.id, actor: a, x, y, w: 100, h: 100, center: { x: x + 50, y: y + 50 }, visible: true, document: { hidden: false, texture: { src: a.img } } });
     const toks = [at(lyra, 300, 330), at(roell, 470, 250), at(mira, 170, 230), at(duke, 880, 380)];
     canvas.tokens.placeables = toks;
     canvas.tokens.controlled = [toks[0]];
-    const pairs = N.pairs();
-    // What each token carries, drawn as Foundry draws statuses: its own (emotions, conditions…) and the bonds in reach, as the GM writes them.
-    const iconsOf = (t) => [
-      ...(t.actor.effects ?? []).filter((e) => (e.statuses?.size ?? 0) > 0 && e.img).map((e) => ({ img: e.img, tint: e.tint })),
-      ...A.share(A.closeTo(t, toks)).map((w) => A.statusData(t.actor, w)).filter((d) => d.statuses.length).map((d) => ({ img: d.img, tint: d.tint })),
+    // What each token carries, as Foundry draws statuses: its own (emotions…) and the bonds in reach, as the GM writes them.
+    const statusesOf = (t) => [
+      ...(t.actor.effects ?? []).filter((e) => (e.statuses?.size ?? 0) > 0 && e.img).map((e) => ({ img: e.img, tint: e.tint, name: e.name, description: e.description ?? "" })),
+      ...A.share(A.closeTo(t, toks)).map((w) => A.statusData(t.actor, w)).filter((d) => d.statuses.length),
     ];
-    const statusIcons = (t) => iconsOf(t).map((ic, i) => {
+    const statusIcons = (t) => statusesOf(t).map((ic, i) => {
       const fill = ic.tint ? `background:${ic.tint};-webkit-mask:url('${ic.img}') center/contain no-repeat` : `background:url('${ic.img}') center/contain no-repeat`;
       return `<div style="position:absolute;left:${t.x + Math.floor(i / 5) * 21}px;top:${t.y + (i % 5) * 21}px;width:21px;height:21px;padding:1px;box-sizing:border-box;background:rgba(0,0,0,.5);border:1px solid #000;border-radius:3px"><div style="width:100%;height:100%;${fill}"></div></div>`;
     }).join("");
@@ -254,17 +259,19 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
       ${statusIcons(t)}
       <div style="position:absolute;left:${t.x - 20}px;top:${t.y + 104}px;width:140px;text-align:center;color:#fff;font:13px Signika,sans-serif;text-shadow:0 0 4px #000">${t.actor.name}</div>`).join("");
     const reachRing = `<div style="position:absolute;left:${350 - 300}px;top:${380 - 300}px;width:600px;height:600px;border-radius:50%;border:2px dashed rgba(232,85,122,0.35)"></div>`;
+    // A stand-in for the SYSTEM's own list (Level Up's effects panel, top-right, for the controlled token): its icons, and
+    // the tooltip it builds from the status — the name, then the status's own text. Nothing here is drawn by the module.
+    const mine = statusesOf(toks[0]);
+    const bondSt = mine.find((d) => d.flags) ?? mine[0];
+    const sysIcons = mine.map((d) => `<div style="width:40px;height:40px;background:rgba(0,0,0,.6);border:1px solid #7a7971;border-radius:4px;padding:3px;box-sizing:border-box${d === bondSt ? ";outline:2px solid #c9593f" : ""}"><img src="${d.img}" style="width:100%;height:100%;border:0"></div>`).join("");
+    const sysTip = bondSt ? `<div style="width:300px;background:rgba(0,0,0,.92);border:1px solid #7a7971;border-radius:4px;padding:8px 10px;color:#f0f0e0;font:13px Signika,sans-serif;line-height:1.45">
+        <div style="font-weight:700;font-size:15px;margin-bottom:4px">${bondSt.name}</div><div>${bondSt.description}</div>
+        <div style="margin-top:6px"><span style="background:#2b6747;border-radius:3px;padding:1px 6px;font-size:11px">Condition</span></div></div>` : "";
     page("near", `<div style="position:relative;width:1180px;height:720px;overflow:hidden;background:#24302a;background-image:linear-gradient(rgba(0,0,0,.25) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.25) 1px,transparent 1px);background-size:100px 100px">
       ${reachRing}${tokenImgs}
-      <div style="position:absolute;left:16px;bottom:16px;display:flex;flex-direction:column;gap:16px;width:72px">
-        <section id="tsl-bond-near">${N.panelHTML(pairs)}</section>
-        <div style="width:200px;background:rgba(11,10,19,.8);border:1px solid #4b4a54;border-radius:8px;padding:6px 8px;color:#e7d1b1;font:12px Signika,sans-serif;line-height:1.6">
-          <div><span style="color:#d0b04a">●</span> Gamemaster [GM]</div><div><span style="color:#5ac">●</span> Player [Lyra Vane]</div></div>
-      </div>
+      <div style="position:absolute;right:16px;top:16px;display:flex;gap:8px;align-items:flex-start">${sysTip}<div style="display:flex;flex-direction:column;gap:6px">${sysIcons}</div></div>
+      <div style="position:absolute;right:16px;top:330px;width:356px;text-align:right;color:#cfc9b8;font:12px Signika,sans-serif;font-style:italic">the system's own effects panel (Level Up) — not a window of this module</div>
     </div>`, 1180, 720);
-    page("near-folded", `<div style="position:relative;width:400px;height:200px;background:#24302a">
-      <div style="position:absolute;left:16px;bottom:16px;display:flex;flex-direction:column;gap:16px;width:72px">
-        <section id="tsl-bond-near">${N.panelHTML(pairs, { folded: true })}</section></div></div>`, 400, 200);
     // The first tab while they stand there: what weighs on them, then Close by — the same statuses.
     page("near-profile", await chron(lyra, "profile", {}, "player"), 560, 900);
     Object.assign(canvas, { ready: was.ready, grid: was.grid }); canvas.tokens.controlled = was.controlled; canvas.tokens.placeables = was.placeables;
