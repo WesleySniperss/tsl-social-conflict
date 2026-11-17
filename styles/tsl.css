@@ -11,16 +11,20 @@
   --tsl-border:   rgba(255, 255, 255, 0.09);
   --tsl-border2:  rgba(255, 255, 255, 0.16);
   --tsl-text:     #f0dfc8;
-  --tsl-soft:     #d9c4b2;
-  --tsl-muted:    #b58598;
-  --tsl-dim:      #8f7a6c;
+  --tsl-soft:     #dcc8b6;
+  --tsl-muted:    #c39aab;
+  --tsl-dim:      #a69284;
   --tsl-accent:   #e8557a;
   --tsl-sway:     #e0b45e;
   --tsl-agenda:   #d0574d;
   --tsl-good:     #7fd39a;
   --tsl-bad:      #e8a05a;
-  --tsl-title:    "Cinzel", "Modesto Condensed", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;   /* the rest carry Cyrillic */
-  --tsl-body:     "EB Garamond", "Signika", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+  /* One serif family for everything, Latin and Cyrillic alike: a name in English and a word in
+     Ukrainian sit in the same face. (Cinzel / EB Garamond were never loaded; Modesto and Signika
+     carry no Cyrillic, so a line used to mix three faces.) Hierarchy comes from size, weight,
+     case and colour. */
+  --tsl-title:    "Palatino Linotype", "Book Antiqua", Palatino, "URW Palladio L", Georgia, serif;
+  --tsl-body:     "Palatino Linotype", "Book Antiqua", Palatino, "URW Palladio L", Georgia, serif;
 }
 
 /* ── The Chronicle window ─────────────────────────────────────────────────── */
@@ -51,7 +55,7 @@
   display: flex; align-items: center; justify-content: center; gap: 6px;
   background: transparent; border: none; border-radius: 0; box-shadow: none;
   border-bottom: 2px solid transparent;
-  color: var(--tsl-dim); font-family: var(--tsl-title); font-size: 12px; letter-spacing: 0.05em;
+  color: var(--tsl-dim); font-family: var(--tsl-title); font-size: 13.5px; letter-spacing: 0.02em;
   cursor: pointer; white-space: nowrap; overflow: hidden;
 }
 .tsl-fencing .tsl-tab:hover { color: var(--tsl-text); background: var(--tsl-surface); }
@@ -65,15 +69,19 @@
 }
 .tsl-sec-head { display: flex; align-items: center; gap: 8px; }
 .tsl-sec-title {
-  font-family: var(--tsl-title); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+  font-family: var(--tsl-title); font-size: 11.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--tsl-muted); flex: 1;
 }
+.tsl-sec-title i { color: var(--tsl-accent); margin-right: 4px; font-size: 11px; }
 
-.tsl-note { margin: 0; color: var(--tsl-soft); font-size: 13px; }
+.tsl-note { margin: 0; color: var(--tsl-soft); font-size: 13px; line-height: 1.45; }
 .tsl-note b { color: var(--tsl-text); }
 .tsl-empty { text-align: center; color: var(--tsl-muted); padding: 10px 6px; font-style: italic; }
 
-/* controls */
+/* controls — every button in our windows and cards in the same face as the text around it
+   (Foundry's own button face carries no Cyrillic, so a Ukrainian label fell back to another font) */
+.tsl-fencing .window-content button, .tsl-dialog .window-content button, .chat-message .tsl-x-card button,
+#tsl-scene-visualizer .window-content button, #tsl-relationship-visualizer .window-content button { font-family: var(--tsl-title); }
 .tsl-fencing select, .tsl-fencing input[type="text"], .tsl-fencing textarea {
   width: 100%; min-width: 0; box-sizing: border-box;
   background: rgba(0, 0, 0, 0.3); color: var(--tsl-text);
@@ -91,7 +99,7 @@
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   background: var(--tsl-surface2); color: var(--tsl-soft);
   border: 1px solid var(--tsl-border2); border-radius: 6px; box-shadow: none;
-  font-family: var(--tsl-title); font-size: 11px; letter-spacing: 0.04em; white-space: nowrap; cursor: pointer;
+  font-family: var(--tsl-title); font-size: 12.5px; letter-spacing: 0.01em; white-space: nowrap; cursor: pointer;
 }
 .tsl-fencing .tsl-btn:hover:not(:disabled) { background: rgba(232, 85, 122, 0.16); border-color: rgba(232, 85, 122, 0.6); color: #fff; }
 .tsl-fencing .tsl-btn:disabled { opacity: 0.4; cursor: default; }
@@ -108,7 +116,7 @@
 
 .tsl-field-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .tsl-field-row > label {
-  flex: 0 0 92px; color: var(--tsl-muted); font-family: var(--tsl-title); font-size: 11px; letter-spacing: 0.04em;
+  flex: 0 0 92px; color: var(--tsl-muted); font-family: var(--tsl-title); font-size: 12px; letter-spacing: 0.02em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .tsl-field-row > label i { width: 14px; text-align: center; opacity: 0.85; }
@@ -156,8 +164,8 @@
 .tsl-arch-kw > span { font-family: var(--tsl-title); font-size: 11px; letter-spacing: 0.06em; }
 .tsl-arch-kw--key > span { color: var(--tsl-good); }
 .tsl-arch-kw--wall > span { color: var(--tsl-agenda); }
-.tsl-arch-grid { display: grid; grid-template-columns: 70px 1fr; gap: 3px 8px; font-size: 13px; }
-.tsl-arch-grid > span:nth-child(odd) { color: var(--tsl-muted); font-family: var(--tsl-title); font-size: 11px; padding-top: 2px; }
+.tsl-arch-grid { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 4px 10px; font-size: 13.5px; }
+.tsl-arch-grid > span:nth-child(odd) { color: var(--tsl-muted); font-family: var(--tsl-title); font-size: 12px; padding-top: 1px; }
 .tsl-arch-psych { font-size: 12.5px; color: var(--tsl-dim); }
 
 /* ── Bonds ────────────────────────────────────────────────────────────────── */
@@ -198,7 +206,7 @@
 .tsl-x-name { font-family: var(--tsl-title); font-size: 16px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tsl-x-nature { font-size: 12.5px; color: var(--c, var(--tsl-muted)); }
 .tsl-x-nature--unread { color: var(--tsl-dim); font-style: italic; }
-.tsl-hidden-tag { font-size: 11px; color: var(--tsl-dim); font-style: italic; }
+.tsl-hidden-tag { font-size: 11.5px; color: var(--tsl-dim); font-style: italic; }
 .tsl-x-phase { flex: 0 0 auto; font-size: 11.5px; color: var(--tsl-soft); border: 1px solid var(--tsl-border2); border-radius: 10px; padding: 1px 8px; }
 
 /* what the party knows about them */
@@ -210,7 +218,7 @@
   background: rgba(0, 0, 0, 0.22); border: 1px solid var(--tsl-border);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.tsl-fact b { font-family: var(--tsl-title); font-size: 10.5px; letter-spacing: 0.06em; color: var(--tsl-muted); font-weight: 400; }
+.tsl-fact b { font-family: var(--tsl-title); font-size: 11.5px; letter-spacing: 0.02em; color: var(--tsl-muted); font-weight: 400; }
 .tsl-fact.unknown { color: var(--tsl-dim); border-style: dashed; }
 .tsl-fact.secret { opacity: 0.6; border-style: dashed; }
 .tsl-x-card-open summary { cursor: pointer; color: var(--tsl-muted); font-family: var(--tsl-title); font-size: 11px; letter-spacing: 0.06em; }
@@ -221,7 +229,7 @@
 .tsl-x-tag i, .tsl-cx-k i, .tsl-cx-w i { font-size: 0.9em; }
 
 .tsl-x-opts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
-.tsl-x-opts > label { display: flex; flex-direction: column; gap: 3px; font-family: var(--tsl-title); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tsl-muted); min-width: 0; }
+.tsl-x-opts > label { display: flex; flex-direction: column; gap: 3px; font-family: var(--tsl-title); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--tsl-muted); min-width: 0; }
 .tsl-x-levers { display: flex; gap: 6px; flex-wrap: wrap; }
 .tsl-fencing .tsl-lever {
   width: auto; height: 26px; margin: 0; padding: 0 10px; box-shadow: none;
@@ -274,12 +282,19 @@
 /* ── Codex ────────────────────────────────────────────────────────────────── */
 
 .tsl-codex { display: flex; flex-direction: column; gap: 8px; }
-.tsl-cx-nav { display: flex; flex-wrap: wrap; gap: 5px; position: sticky; top: 38px; z-index: 4; background: var(--tsl-bg); padding: 2px 0 6px; }
-.tsl-fencing .tsl-cx-cat {
-  width: auto; height: 26px; margin: 0; padding: 0 10px; box-shadow: none;
-  background: var(--tsl-surface); color: var(--tsl-dim); border: 1px solid var(--tsl-border); border-radius: 13px;
-  font-family: var(--tsl-title); font-size: 11px; cursor: pointer; white-space: nowrap;
+/* The Codex's pages: one row of equal buttons, the icon over the word — never a lone button on a second line. */
+.tsl-cx-nav {
+  display: grid; grid-template-columns: repeat(var(--n, 7), minmax(0, 1fr)); gap: 4px;
+  position: sticky; top: 38px; z-index: 4; background: var(--tsl-bg); padding: 2px 0 6px;
 }
+.tsl-fencing .tsl-cx-cat {
+  width: 100%; min-width: 0; height: 44px; margin: 0; padding: 4px 2px; box-shadow: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  background: var(--tsl-surface); color: var(--tsl-dim); border: 1px solid var(--tsl-border); border-radius: 8px;
+  font-family: var(--tsl-title); font-size: 11.5px; line-height: 1.1; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tsl-fencing .tsl-cx-cat i { font-size: 13px; }
+.tsl-fencing .tsl-cx-cat:hover { color: var(--tsl-text); border-color: var(--tsl-border2); }
 .tsl-fencing .tsl-cx-cat.on { color: #fff; border-color: var(--tsl-accent); background: rgba(232, 85, 122, 0.16); }
 .tsl-cx-page { font-size: 14px; color: var(--tsl-soft); }
 .tsl-cx-page h3 {
@@ -341,7 +356,7 @@
   display: flex; flex-direction: column; gap: 5px; padding: 7px 9px;
   border-radius: 7px; border: 1px solid rgba(255, 255, 255, 0.07); border-left: 3px solid #806858;
   background: rgba(255, 255, 255, 0.025); color: #f0dfc8;
-  font-family: "EB Garamond", "Signika", serif; font-size: 13.5px; line-height: 1.4;
+  font-family: var(--tsl-body); font-size: 13.5px; line-height: 1.4;
 }
 .tsl-x--good { border-left-color: #e0b45e; }
 .tsl-x--success { border-left-color: #7fd39a; }
@@ -350,7 +365,7 @@
 
 .tsl-x-head { display: flex; align-items: center; gap: 6px; }
 .tsl-x-head > i { color: #e8557a; }
-.tsl-x-title { font-family: "Cinzel", serif; font-size: 13px; letter-spacing: 0.05em; color: #fff; flex: 1; }
+.tsl-x-title { font-family: var(--tsl-title); font-size: 13px; letter-spacing: 0.05em; color: #fff; flex: 1; }
 .tsl-x-tag { font-size: 11px; padding: 1px 6px; border-radius: 9px; white-space: nowrap; }
 .tsl-x-tag--key { color: #9fe0b2; border: 1px solid rgba(127, 211, 154, 0.5); background: rgba(127, 211, 154, 0.1); }
 .tsl-x-tag--wall { color: #f0a59d; border: 1px solid rgba(208, 87, 77, 0.5); background: rgba(208, 87, 77, 0.1); }
@@ -359,18 +374,18 @@
 .tsl-x-die {
   display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 4px;
   border-radius: 6px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2);
-  font-family: "Cinzel", serif; font-weight: 700; font-size: 13px; color: #fff; line-height: 1;
+  font-family: var(--tsl-title); font-weight: 700; font-size: 13px; color: #fff; line-height: 1;
 }
 .tsl-x-die--dropped { opacity: 0.35; text-decoration: line-through; }
 .tsl-x-die--key { border-color: rgba(127, 211, 154, 0.7); box-shadow: 0 0 5px rgba(127, 211, 154, 0.4); }
 .tsl-x-mod { font-size: 12.5px; color: #c9b3a2; white-space: nowrap; }
 .tsl-x-eq { color: #7a6a5e; }
-.tsl-x-total { font-family: "Cinzel", serif; font-size: 17px; font-weight: 700; color: #fff; }
+.tsl-x-total { font-family: var(--tsl-title); font-size: 17px; font-weight: 700; color: #fff; }
 .tsl-x-vs { color: #a8968a; font-size: 12.5px; margin-left: auto; }
 .tsl-x-bonuses { display: flex; flex-wrap: wrap; gap: 3px; }
 .tsl-x-bonus { font-size: 11px; line-height: 1; padding: 3px 7px; border-radius: 9px; white-space: nowrap; background: rgba(127, 211, 154, 0.07); color: #9fdcae; border: 1px solid rgba(127, 211, 154, 0.2); }
 .tsl-x-bonus--neg { background: rgba(232, 85, 85, 0.07); color: #eca1a1; border-color: rgba(232, 85, 85, 0.22); }
-.tsl-x-outcome { font-family: "Cinzel", serif; font-size: 12.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #e8d6c4; }
+.tsl-x-outcome { font-family: var(--tsl-title); font-size: 12.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #e8d6c4; }
 
 .tsl-x--success .tsl-x-outcome { color: #9fdcae; }
 .tsl-x--failure .tsl-x-outcome { color: #e8b07a; }
@@ -396,11 +411,11 @@
 #tsl-scene-visualizer, #tsl-relationship-visualizer { min-width: 420px; min-height: 360px; }
 .tsl-viz .window-content {
   background: var(--tsl-bg, #0e0a08);
-  color: #f0dfc8; font-family: var(--tsl-body, "EB Garamond", "Signika", serif); padding: 0; overflow: hidden;
+  color: #f0dfc8; font-family: var(--tsl-body); padding: 0; overflow: hidden;
 }
 .tsl-viz-root { display: flex; flex-direction: column; height: 100%; padding: 8px 10px 8px; box-sizing: border-box; overflow: hidden; gap: 6px; }
 .tsl-viz-head { display: flex; align-items: center; gap: 4px 6px; flex: 0 0 auto; flex-wrap: wrap; }   /* the buttons wrap before the counts are cut */
-.tsl-viz-title { font-family: var(--tsl-title, "Cinzel", serif); font-size: 15px; color: #f0dfc8; letter-spacing: 0.5px; white-space: nowrap; }
+.tsl-viz-title { font-family: var(--tsl-title); font-size: 15px; color: #f0dfc8; letter-spacing: 0.5px; white-space: nowrap; }
 .tsl-viz-title i { color: #e8557a; margin-right: 4px; }
 .tsl-viz-sub { font-size: 12px; color: #a89078; flex: 1 1 140px; min-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tsl-viz .tsl-viz-mode, .tsl-viz .tsl-viz-zoom-btn {
@@ -449,7 +464,7 @@
 .tsl-viz-edge-chip.sel { box-shadow: 0 0 0 2px var(--tsl-sway, #e0b45e); z-index: 3; }
 .tsl-viz-edge-chip.dim, .tsl-viz-hold-chip.dim { opacity: 0.2; }
 .tsl-viz-edge-chip--bare { border-style: dashed; }
-.tsl-viz-edge-type { font-family: var(--tsl-title, "Cinzel", serif); color: #f0dfc8; letter-spacing: 0.3px; }
+.tsl-viz-edge-type { font-family: var(--tsl-title); color: #f0dfc8; letter-spacing: 0.3px; }
 .tsl-viz-edge-dots { color: var(--edge-col, #806858); font-size: 9px; letter-spacing: 1px; }
 .tsl-viz-edge-label { font-style: italic; color: #f3d9a4; white-space: normal; text-align: center; max-width: 160px; }
 
@@ -476,7 +491,7 @@
 .tsl-viz-node.sel .tsl-viz-disc { box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85), 0 0 18px rgba(224, 180, 94, 0.7); }
 .tsl-viz-portrait { display: block; width: 100%; height: 100%; object-fit: cover; border: none; border-radius: 50%; pointer-events: none; }
 .tsl-viz-name {
-  font-family: var(--tsl-title, "Cinzel", serif); font-size: 13px; line-height: 1.15; color: #fff; text-align: center; max-width: 132px;
+  font-family: var(--tsl-title); font-size: 13px; line-height: 1.15; color: #fff; text-align: center; max-width: 132px;
   text-shadow: 0 1px 3px #000, 0 0 6px #000; overflow-wrap: anywhere;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
@@ -486,7 +501,7 @@
 .tsl-viz-note {
   position: absolute; transform: translate(-50%, -50%); z-index: 1; cursor: grab; width: max-content; max-width: 220px;
   padding: 4px 10px; border-radius: 4px; text-align: center; white-space: pre-wrap;
-  font-family: var(--tsl-title, "Cinzel", serif); font-size: 13px; letter-spacing: 0.04em; color: #f3d9a4;
+  font-family: var(--tsl-title); font-size: 13px; letter-spacing: 0.04em; color: #f3d9a4;
   background: rgba(224, 180, 94, 0.1); border: 1px dashed rgba(224, 180, 94, 0.55); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 .tsl-viz-note.sel { border-style: solid; box-shadow: 0 0 0 2px var(--tsl-sway, #e0b45e); }
@@ -506,7 +521,7 @@
 .tsl-viz .tsl-viz-panel-x:hover { color: #fff; }
 .tsl-viz-p-head { display: flex; align-items: center; gap: 8px; margin: 0 18px 6px 0; }
 .tsl-viz-p-head > img { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255, 255, 255, 0.2); flex: 0 0 auto; }
-.tsl-viz-p-head b { color: #fff; font-family: var(--tsl-title, "Cinzel", serif); font-weight: 400; font-size: 14px; }
+.tsl-viz-p-head b { color: #fff; font-family: var(--tsl-title); font-weight: 400; font-size: 14px; }
 .tsl-viz-p-head small { display: block; font-style: italic; color: #e7cfa6; font-size: 12px; }
 .tsl-viz-p-head--pair { flex-wrap: wrap; }
 .tsl-viz-p-head--pair > img { width: 34px; height: 34px; }
@@ -516,7 +531,7 @@
 .tsl-viz-p-row { margin: 3px 0; }
 .tsl-viz-p-row > i.fas { color: var(--tsl-sway, #e0b45e); margin-right: 3px; }
 .tsl-viz-p-caption { font-style: italic; color: #f3d9a4; }
-.tsl-viz-p-label { margin: 8px 0 2px; font-family: var(--tsl-title, "Cinzel", serif); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--tsl-muted, #b58598); }
+.tsl-viz-p-label { margin: 8px 0 2px; font-family: var(--tsl-title); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--tsl-muted, #b58598); }
 .tsl-viz-p-list { list-style: none; margin: 0; padding: 0; }
 .tsl-viz-p-list li { padding: 2px 4px; border-radius: 5px; }
 .tsl-viz-p-list li.tsl-viz-click { cursor: pointer; }
@@ -532,7 +547,7 @@
   width: auto; height: 26px; min-height: 0; margin: 0; padding: 0 9px; line-height: 1; flex: 0 0 auto; cursor: pointer;
   display: inline-flex; align-items: center; gap: 5px; box-shadow: none;
   background: rgba(255, 255, 255, 0.06); color: var(--tsl-soft, #d9c4b2); border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 6px;
-  font-family: var(--tsl-title, "Cinzel", serif); font-size: 11px; letter-spacing: 0.03em;
+  font-family: var(--tsl-title); font-size: 11px; letter-spacing: 0.03em;
 }
 .tsl-viz .tsl-viz-p-actions button:hover { color: #fff; border-color: rgba(224, 180, 94, 0.6); }
 
@@ -565,7 +580,7 @@
 @keyframes tsl-viz-ring { 0% { opacity: 0.95; transform: translate(-50%, -50%) scale(0.5); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(2.6); } }
 .tsl-viz-float {
   position: absolute; transform: translate(-50%, -50%); z-index: 8; pointer-events: none;
-  font-family: "Cinzel", serif; font-size: 22px; font-weight: 700; white-space: nowrap;
+  font-family: var(--tsl-title); font-size: 22px; font-weight: 700; white-space: nowrap;
   text-shadow: 0 1px 6px #000, 0 0 4px #000, 0 0 2px #000; animation: tsl-viz-float 3s ease-out forwards;
 }
 .tsl-viz-float--hit  { color: #ffd27a; }
@@ -580,7 +595,7 @@
 @keyframes tsl-viz-burst { 0% { opacity: 0.9; transform: translate(-50%, -50%) scale(0.4); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(2.7); } }
 .tsl-viz-resolveword {
   position: absolute; transform: translate(-50%, -50%); z-index: 9; pointer-events: none;
-  font-family: "Cinzel", serif; font-weight: 700; font-size: 19px; letter-spacing: 1px; white-space: nowrap;
+  font-family: var(--tsl-title); font-weight: 700; font-size: 19px; letter-spacing: 1px; white-space: nowrap;
   text-shadow: 0 1px 6px #000, 0 0 4px #000; animation: tsl-viz-rword 3s ease-out forwards;
 }
 .tsl-viz-resolveword--swayed { color: #9fdcae; }
@@ -679,8 +694,8 @@
 
 .tsl-emos { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
 .tsl-emo {
-  display: inline-flex; align-items: center; gap: 5px; padding: 1px 4px 1px 6px; border-radius: 10px;
-  font-size: 12.5px; color: #fff; background: color-mix(in srgb, var(--c) 22%, rgba(0, 0, 0, 0.4));
+  display: inline-flex; align-items: center; gap: 5px; padding: 2px 4px 2px 7px; border-radius: 12px; max-width: 100%; min-width: 0;
+  font-size: 13px; color: #fff; background: color-mix(in srgb, var(--c) 22%, rgba(0, 0, 0, 0.4)); white-space: nowrap;
   border: 1px solid color-mix(in srgb, var(--c) 80%, transparent);
 }
 .tsl-emo img, .tsl-scar img, .tsl-emo-ico { width: 16px; height: 16px; border: none; vertical-align: middle; opacity: 0.9; }
@@ -690,8 +705,8 @@
 }
 .tsl-fencing .tsl-emo-x:hover { background: rgba(255, 255, 255, 0.18); color: #fff; }
 .tsl-scar {
-  display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px 1px 6px; border-radius: 10px;
-  font-size: 12.5px; color: #f3c9c0; background: rgba(120, 20, 20, 0.35); border: 1px dashed rgba(220, 90, 80, 0.7);
+  display: inline-flex; align-items: center; gap: 5px; padding: 2px 6px 2px 7px; border-radius: 12px; white-space: nowrap;
+  font-size: 13px; color: #f3c9c0; background: rgba(120, 20, 20, 0.35); border: 1px dashed rgba(220, 90, 80, 0.7);
 }
 .tsl-you { padding-top: 7px; padding-bottom: 7px; }
 .tsl-x-card--slim .tsl-x-head { margin-bottom: 2px; }
@@ -707,7 +722,7 @@
 .tsl-fencing .tsl-tech-btn.on span { color: var(--tsl-soft); }
 .tsl-tech-read { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 5px; margin-top: 5px; align-items: stretch; }
 .tsl-cx-grid-wide { grid-column: 2 / -1; }
-.tsl-row-label { font-family: var(--tsl-title); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tsl-muted); margin-right: 2px; }
+.tsl-row-label { font-family: var(--tsl-title); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--tsl-muted); margin-right: 2px; }
 .tsl-fencing .tsl-t-pick { margin-left: auto; }
 .tsl-t-who { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 .tsl-t-who .tsl-t-pick { margin-left: 0; height: 32px; font-size: 12px; }
@@ -757,14 +772,15 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 
 /* what the party knows — in words */
 .tsl-know-wrap { display: flex; flex-direction: column; gap: 4px; }
-.tsl-know-head { font-family: var(--tsl-title); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--tsl-muted); }
+.tsl-know-head { font-family: var(--tsl-title); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--tsl-muted); }
+.tsl-know-head i { color: var(--tsl-sway); margin-right: 4px; }
 .tsl-know { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 3px 10px; font-size: 13px; line-height: 1.35; }
 .tsl-know > span:nth-child(odd) { color: var(--tsl-muted); font-size: 12px; white-space: nowrap; cursor: help; }
 .tsl-know b { color: #fff; font-weight: 600; }
 .tsl-know-secret { opacity: 0.55; }
 .tsl-know-more { font-size: 12.5px; color: var(--tsl-dim); }
 .tsl-know-more span[data-tooltip] { border-bottom: 1px dotted var(--tsl-dim); cursor: help; }
-.tsl-emo-eff { font-size: 11px; color: var(--tsl-soft); }
+.tsl-emo-eff { font-size: 11.5px; color: var(--tsl-soft); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 /* three ways to come at them */
 .tsl-how { font-size: 13px; }
@@ -802,7 +818,7 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 .tsl-pick-out > span { font-weight: 700; margin-right: 2px; }
 .tsl-pick-out--win > span { color: var(--tsl-good); }
 .tsl-pick-out--miss > span { color: #f0a59d; }
-.tsl-q { font-size: 12px; color: var(--tsl-muted); margin: 2px 0 -2px; }
+.tsl-q { font-size: 13.5px; font-weight: 700; color: var(--tsl-soft); margin: 4px 0 -2px; }
 .tsl-pick-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .tsl-helpers { display: flex; flex-wrap: wrap; gap: 6px; }
 .tsl-fencing .tsl-helper {
@@ -869,12 +885,12 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 /* the GM's live screen: how they take each approach; what the talk did */
 .tsl-takes { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
 .tsl-take {
-  display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 8px; align-items: baseline;
-  padding: 4px 8px; border-radius: 6px; border-left: 3px solid var(--c); background: rgba(0, 0, 0, 0.2); font-size: 13px; line-height: 1.35;
+  display: grid; grid-template-columns: 152px minmax(0, 1fr); gap: 10px; align-items: start;
+  padding: 6px 9px; border-radius: 6px; border-left: 3px solid var(--c); background: rgba(0, 0, 0, 0.2); font-size: 13.5px; line-height: 1.4;
 }
-.tsl-take-ap { display: flex; flex-direction: column; font-family: var(--tsl-title); color: #fff; }
+.tsl-take-ap { display: flex; flex-direction: column; gap: 1px; font-family: var(--tsl-title); font-weight: 700; color: #fff; }
 .tsl-take-ap i { color: var(--c); font-size: 0.9em; }
-.tsl-take-ap small { font-family: var(--tsl-body); font-size: 11px; color: var(--tsl-dim); }
+.tsl-take-ap small { font-family: var(--tsl-body); font-weight: 400; font-size: 12px; color: var(--tsl-dim); }
 .tsl-take-ap small i { color: inherit; }
 .tsl-take--key .tsl-take-ap small { color: var(--tsl-good); }
 .tsl-take--wall .tsl-take-ap small { color: #f0a59d; }
@@ -937,14 +953,14 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 
 /* the card: an NPC pulls a String — and waits for the answer */
 .tsl-ab-card { border-left-color: #e0786e; }
-.tsl-ab-name { font-family: "Cinzel", "Palatino Linotype", Georgia, serif; font-size: 13px; color: #fff; margin: 3px 0 1px; }
+.tsl-ab-name { font-family: var(--tsl-title); font-size: 13px; color: #fff; margin: 3px 0 1px; }
 .tsl-ab-name small { font-family: var(--tsl-body, inherit); font-size: 11.5px; font-style: italic; color: #b58598; text-transform: none; }
 .tsl-ab-text { font-size: 13px; color: #d9c4b2; line-height: 1.3; }
 .tsl-ab-btns { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
 .chat-message .tsl-ab-card .tsl-ab-btn {
   flex: 1 1 auto; width: auto; min-width: 0; height: auto; min-height: 26px; margin: 0; padding: 3px 8px; line-height: 1.15; cursor: pointer;
   background: rgba(255, 255, 255, 0.06); color: #f0dfc8; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; box-shadow: none;
-  font-family: "Cinzel", "Palatino Linotype", Georgia, serif; font-size: 11px; letter-spacing: 0.03em;
+  font-family: var(--tsl-title); font-size: 11px; letter-spacing: 0.03em;
 }
 .chat-message .tsl-ab-card .tsl-ab-btn:hover { border-color: rgba(224, 180, 94, 0.7); color: #fff; }
 .chat-message .tsl-ab-card .tsl-ab-btn--quits { color: #e0b45e; border-color: rgba(224, 180, 94, 0.5); }
@@ -987,8 +1003,10 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 /* What weighs on them — at the top of every tab; the GM's palette under + */
 .tsl-state { padding: 6px 12px; border-bottom: 1px solid var(--tsl-border); background: rgba(0, 0, 0, 0.16); display: flex; flex-direction: column; gap: 6px; }
 .tsl-state.open { background: rgba(232, 85, 122, 0.06); }
-.tsl-state-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.tsl-state-label { flex: 0 0 auto; font-family: var(--tsl-title); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tsl-muted); }
+.tsl-state-row { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 6px; min-width: 0; }
+.tsl-state-row > .tsl-state-tags { display: contents; }
+.tsl-state-row > .tsl-state-label { margin-right: 2px; }
+.tsl-state-label { flex: 0 0 auto; font-family: var(--tsl-title); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--tsl-muted); }
 .tsl-state-label i { color: var(--tsl-accent); margin-right: 3px; }
 .tsl-state-tags { flex: 1 1 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; min-width: 0; }
 .tsl-state-none { font-size: 12.5px; font-style: italic; color: var(--tsl-dim); }
@@ -1003,10 +1021,10 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 .tsl-scar .tsl-emo-x { margin-left: 2px; }
 
 /* A String either way — ticked when there is one, a dash when not */
-.tsl-x-holds { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.tsl-x-holds { display: flex; flex-wrap: wrap; gap: 5px; margin: -2px 0 0 56px; }
 .tsl-hold-chip {
   display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 10px; white-space: nowrap;
-  font-size: 11.5px; line-height: 1.1; color: var(--tsl-dim); border: 1px solid var(--tsl-border); background: rgba(0, 0, 0, 0.2);
+  font-size: 12px; line-height: 1.15; color: var(--tsl-dim); border: 1px solid var(--tsl-border); background: rgba(0, 0, 0, 0.2);
 }
 .tsl-hold-chip i { font-size: 10px; }
 .tsl-hold-chip--mine.on { color: var(--tsl-sway); border-color: rgba(224, 180, 94, 0.6); background: rgba(224, 180, 94, 0.12); font-weight: 600; }
@@ -1071,7 +1089,12 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 .tsl-cx-ap { color: var(--c); white-space: nowrap; }
 .tsl-cx-ap i { font-size: 0.9em; }
 .tsl-cx-plain .tsl-cx-ap { display: block; font-size: 11.5px; }
-.tsl-cx-plain td:first-child, .tsl-cx-moves td:first-child, .tsl-cx-adds td:first-child, .tsl-cx-sizes td:first-child { white-space: nowrap; }
+.tsl-cx-plain td:first-child, .tsl-cx-moves td:first-child, .tsl-cx-sizes td:first-child { white-space: nowrap; }
+/* a long label wraps — never a column that eats the table — but a number stays whole */
+.tsl-cx-adds td:first-child { white-space: normal; min-width: 4.5em; }
+.tsl-cx-adds td:first-child b { white-space: nowrap; }
+.tsl-cx-bonds td small { display: block; color: var(--tsl-dim); font-size: 11.5px; }
+.tsl-cx-bonds td b { color: var(--tsl-text); }
 .tsl-cx-emos { table-layout: fixed; width: 100%; }
 .tsl-cx-emos td { overflow-wrap: break-word; hyphens: auto; }
 .tsl-cx-emos tr > :first-child { width: 26%; }
@@ -1103,7 +1126,7 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 .tsl-fencing .tsl-state-edit {
   width: auto; height: 26px; flex: 0 0 auto; margin: 0 0 0 auto; padding: 0 10px; box-shadow: none; cursor: pointer; white-space: nowrap;
   display: inline-flex; align-items: center; gap: 5px; border-radius: 13px; border: 1px solid var(--tsl-border2);
-  background: var(--tsl-surface2); color: var(--tsl-soft); font-family: var(--tsl-title); font-size: 11px; letter-spacing: 0.03em;
+  background: var(--tsl-surface2); color: var(--tsl-soft); font-family: var(--tsl-title); font-size: 12px; letter-spacing: 0.01em;
 }
 .tsl-fencing .tsl-state-edit i { font-size: 10px; color: var(--tsl-accent); }
 .tsl-fencing .tsl-state-edit:hover, .tsl-fencing .tsl-state-edit.on { color: #fff; border-color: var(--tsl-accent); background: rgba(232, 85, 122, 0.16); }
@@ -1254,3 +1277,12 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 .tsl-bp-tier { display: inline-flex; align-items: baseline; gap: 4px; padding: 2px 7px; border: 1px solid rgba(240, 223, 200, 0.14); border-radius: 10px; font-size: 11.5px; color: var(--tsl-muted); white-space: nowrap; }
 .tsl-bp-tier .tsl-bp-dots { color: var(--tsl-sway, #e0b45e); letter-spacing: -1px; }
 .tsl-bp-tier.cur { border-color: rgba(224, 180, 94, 0.6); color: var(--tsl-text); background: rgba(224, 180, 94, 0.08); }
+.tsl-fencing .tsl-cx-cat span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Help: what a screen is for and how it works. Read once, then out of the way of what's on it. ── */
+.tsl-note.tsl-help {
+  font-size: 12.5px; line-height: 1.45; color: var(--tsl-dim);
+  padding: 1px 0 1px 9px; border-left: 2px solid var(--tsl-border2);
+}
+.tsl-note.tsl-help b { color: var(--tsl-soft); }
+.tsl-cx-defs td:first-child { width: 32%; }

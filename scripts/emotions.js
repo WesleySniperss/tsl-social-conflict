@@ -163,6 +163,12 @@ class TSLEmotions {
     return [TSLBondAuras.describe({ [sh.up]: n }), TSLBondAuras.describe({ [sh.down]: -n })].filter(Boolean).join(" · ");
   }
 
+  /** …short, for a chip: "damage +2 · AC −2". */
+  static sheetShort(id, n = EMOTION_SHEET) {
+    const sh = EMOTIONS[id]?.sheet;
+    return sh && typeof TSLBondAuras !== "undefined" ? TSLBondAuras.short({ [sh.up]: n, [sh.down]: -n }) : "";
+  }
+
   /** …and as the system's own Active Effect changes. */
   static sheetChanges(id, label, n = EMOTION_SHEET) {
     try { return typeof TSLBondAuras !== "undefined" && globalThis.game?.system ? TSLBondAuras.changes(TSLEmotions.sheetTally(id, n), label) : []; }

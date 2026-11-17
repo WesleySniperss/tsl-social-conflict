@@ -1468,8 +1468,8 @@ if (require.main === module) (async () => {
       && /<option value="Mira">/.test(shut) && !/<option value="Captain">/.test(shut) && !/<option value="Lyra">/.test(shut) && /drag an actor in/.test(shut));
     const everyTab = await Promise.all(["bonds", "talk", "codex"].map((t) => render(P, t, { _tTarget: "uiN" })));
     const firstTab = await render(P, "profile");
-    ok(`what weighs on them: on the first tab in full, a strip at the top of every other — the emotion, what it costs, × to let it go, and Change for its player`,
-      everyTab.every((h) => !bad(h) && /class="tsl-state "/.test(h) && /Frightened/.test(h) && /−2 Pressure/.test(h) && /data-emo-clear="uiP"/.test(h) && /data-state-open/.test(h))
+    ok(`what weighs on them: on the first tab in full, a compact strip at the top of every other — the emotion by name (what it costs in its tooltip), × to let it go, and Change for its player`,
+      everyTab.every((h) => !bad(h) && /class="tsl-state "/.test(h) && /Frightened/.test(h) && !/tsl-emo-eff/.test(h.split('class="tsl-body"')[0]) && /−2 on Pressure/.test(h) && /data-emo-clear="uiP"/.test(h) && /data-state-open/.test(h))
       && /Frightened/.test(firstTab) && /−2 Pressure/.test(firstTab) && /data-emo-clear="uiP"/.test(firstTab));
     const mineOpen = await render(P, "profile", { _stateOpen: true });
     ok(`…Change opens every emotion and scar as a switch, for the player on their own character`, !bad(mineOpen) && (mineOpen.match(/data-state-emo="/g) ?? []).length === 5 && (mineOpen.match(/data-state-scar="/g) ?? []).length === 5);

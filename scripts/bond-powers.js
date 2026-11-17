@@ -127,6 +127,13 @@ class TSLBondAuras {
     ].filter(Boolean).join(" · ");
   }
 
+  /** The same, short — for a chip: "damage +2 · AC −2". */
+  static short(tally) {
+    const s = (v) => `${v > 0 ? "+" : "−"}${Math.abs(v)}`;
+    const names = { attack: _t("attack"), damage: _t("damage"), save: _t("saves"), check: _t("checks"), ac: _t("AC"), init: _t("initiative"), spellDC: _t("spell DC"), maneuverDC: _t("maneuver DC") };
+    return Object.entries(tally).filter(([k, v]) => v && names[k] && (k !== "maneuverDC" || game.system?.id === "a5e")).map(([k, v]) => `${names[k]} ${s(v)}`).join(" · ");
+  }
+
   /** Where a token stands and how big it is, in pixels — from its document: a move is done there before the picture catches up. */
   static rect(t) {
     const d = t.document ?? t, size = canvas.dimensions?.size ?? 100;
