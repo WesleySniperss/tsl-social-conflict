@@ -218,7 +218,7 @@ const EXPORTS = ["SocialArchetypeManager", "TSLTalk", "TSLStringStore", "TSLBond
   "READ_QUESTIONS", "READ_ORDER", "ARCHETYPE_TELLS", "ARCHETYPE_REACTIONS", "BOND_TYPES", "PROFILE_POINTS",
   "SKILL_LABELS", "STRING_CAP", "migrateToV3", "TSL_I18N", "TSLi18n", "TSL_UK", "TALK_GRADES", "JOB_GRADES",
   "TSLAbilities", "TRIAD_MOVES", "NPC_ABILITIES", "TSLBondAuras", "TSLBondNear", "TSLBondMoments", "TSLBondPowers", "BOND_ABILITIES", "BOND_SIGNATURES", "tidyStringsAndLeanings", "READ_DEPTH", "READ_WAYS", "tslSystemStatus",
-  "READ_HINTS", "READ_MOMENT", "READ_HINTED", "WARY_DC", "EMOTION_FX_VERSION", "EMOTION_SHEET", "SCAR_SHEET"];
+  "READ_HINTS", "READ_MOMENT", "READ_HINTED", "WARY_DC", "EMOTION_FX_VERSION", "EMOTION_SHEET", "SCAR_SHEET", "SCAR_IMG", "TSL_ICONS"];
 let api;
 try {
   api = new Function(combined + "\nreturn { " + EXPORTS.map((e) => `${e}: typeof ${e} !== "undefined" ? ${e} : undefined`).join(", ") + " };")();
@@ -410,7 +410,7 @@ if (require.main === module) (async () => {
     await roll(q, h, { technique: "demand", size: "against", lever: "fear" }, [3, 2]);
     ok(`a threat that misses cuts both ways: a String on you`, SS.countOn("aH", "aQ") === 1);
     await SS.add("aQ", "aH", 1);
-    const r = await roll(q, h, { technique: "argument", size: "costly" }, [4, 3], ["burn", "pay"]);
+    const r = await roll(q, h, { technique: "argument", size: "costly" }, [6, 3], ["burn", "pay"]);
     ok(`a near miss: burn a String for +5 and it lands (${r.total} vs ${r.dc})`, r.stringSpent && (r.grade === "success" || r.grade === "strong") && SS.countOn("aQ", "aH") === 0);
     ok(`one at a time: at most ${R.STRING_CAP} String on one person`, R.STRING_CAP === 1 && (await SS.add("aQ", "aH", 5)) === 1);
   }
@@ -432,11 +432,24 @@ if (require.main === module) (async () => {
     const calm = T.chance(p3, t, { technique: "demand", size: "costly" });
     await TE.mark(t, "frightened", { title: "test" });
     const shaken = T.chance(p3, t, { technique: "demand", size: "costly" });
-    ok(`a state beats a habit: a Frightened Tyrant's wall against Pressure doesn't stand — a normal roll, +2 (${Math.round(calm.p * 100)}% → ${Math.round(shaken.p * 100)}%)`,
-      calm.mode === "dis" && shaken.mode === "normal" && shaken.down === "frightened" && shaken.p > calm.p + 0.25);
+    ok(`a state beats a habit: a Frightened Tyrant — their fear's advantage cancels the wall's disadvantage: a normal roll (${Math.round(calm.p * 100)}% → ${Math.round(shaken.p * 100)}%)`,
+      calm.mode === "dis" && shaken.mode === "normal" && shaken.down === "frightened" && shaken.p > calm.p + 0.15);
     const r = await roll(p3, t, { technique: "demand", size: "costly" }, [12]);
     ok(`…on the roll too: no second die, and the card says why the wall didn't stand`,
-      r.rel === "plain" && r.natureDie === null && r.wallLost === 0 && /it doesn(?:'|&#39;)t stand/.test(lastCard()));
+      r.rel === "plain" && r.natureDie === null && r.wallLost === 0 && /cancel out/.test(lastCard()));
+    // On a way that is neither key nor wall, their emotion is plain advantage — a second die, and the card names the emotion, never a key.
+    { const b = npc("cB", "broker"), pb = pc("cPb");                       // Broker: Pressure is a normal roll
+      const plainOdds = T.chance(pb, b, { technique: "demand", size: "costly" });
+      await TE.mark(b, "frightened", { title: "test" });
+      const scaredOdds = T.chance(pb, b, { technique: "demand", size: "costly" });
+      const r2 = await roll(pb, b, { technique: "demand", size: "costly" }, [5, 16]);
+      ok(`their emotion opens a normal way: advantage — the better of two dice (${Math.round(plainOdds.p * 100)}% → ${Math.round(scaredOdds.p * 100)}%); the card names the fear, not a key`,
+        plainOdds.mode !== "adv" && scaredOdds.mode === "adv" && scaredOdds.open === "frightened" && r2.open === "frightened" && r2.natureDie === 16 && r2.natural === 16
+        && /tsl-x-tag--open/.test(lastCard()) && /tsl-x-die--open/.test(lastCard()) && !/tsl-x-tag--key/.test(lastCard()) && !SAM.getKnown(b).key && /advantage, the better of two dice/.test(lastCard())); }
+    // Their key and their emotion together: advantage once — they don't add up.
+    { const k = npc("cK", "hermit"), pk = pc("cPk");                       // Hermit: key Reason; Hopeless opens Reason
+      await TE.mark(k, "hopeless", { title: "test" });
+      ok(`key and emotion together: advantage once — they don't add up`, T.relationFor(pk, k, "reason").rel === "key" && T.relationFor(pk, k, "reason").open === null); }
     const t2 = npc("cT2", "tyrant");
     await TE.mark(t2, "frightened", { title: "test" });
     const cardsAt = globalThis.__cards.length;
@@ -608,8 +621,8 @@ if (require.main === module) (async () => {
     await BS.add("gQ3", "gLb", { type: "friend", attitude: 2 });
     await R.TSLEmotions.add(lb, "frightened");
     const lieParts = (way) => T.preview(lq, lb, { technique: "deceive", approach: way }).parts.map((x) => x.label).join();
-    ok(`the bond and what they feel count for the way it was told: a friend's lie through Heart +●, a bluff at the Frightened +2`,
-      /bond/.test(lieParts("heart")) && !/bond/.test(lieParts("pressure")) && /Frightened/.test(lieParts("pressure")) && !/Frightened/.test(lieParts("heart")));
+    ok(`the bond and what they feel count for the way it was told: a friend's lie through Heart +●; a bluff at the Frightened plays on their fear`,
+      /bond/.test(lieParts("heart")) && !/bond/.test(lieParts("pressure")) && R.TSLEmotions.opening(lq, lb, "pressure") === "frightened" && !R.TSLEmotions.opening(lq, lb, "heart"));
     ok(`a lie told no particular way is a normal roll, against the same DC`, T.preview(lq, lb, { technique: "deceive" }).approach === null && T.relation(lb, null) === "plain");
     ok(`a maneuver with its own approach ignores what the form says`, T.preview(lq, lb, { technique: "demand", approach: "heart" }).approach === "pressure");
     const lt = npc("gLt", "hermit");                      // Hermit: Heart is a normal roll, and they harden before witnesses
@@ -745,16 +758,16 @@ if (require.main === module) (async () => {
     const before = T.chance(q, d, { technique: "demand" }).p;
     const marked = await TE.mark(d, "frightened");
     const after = T.chance(q, d, { technique: "demand" }).p;
-    ok(`the words landed: the GM marks them Frightened — no roll — and every Pressure ask gets +2, for anyone (Demand ${pct(before)} → ${pct(after)})`,
+    ok(`the words landed: the GM marks them Frightened — no roll — and every Pressure ask rolls with advantage, for anyone (Demand ${pct(before)} → ${pct(after)})`,
       marked === "added" && TE.has(d, "frightened") && /The words landed/.test(lastCard()) && /is <b>Frightened<\/b>/.test(lastCard())
-      && T.preview(q, d, { technique: "demand" }).parts.some((x) => /Frightened/.test(x.label) && x.value === 2) && after > before);
+      && T.chance(q, d, { technique: "demand" }).mode === "adv" && !T.preview(q, d, { technique: "demand" }).parts.some((x) => /Frightened/.test(x.label)) && after > before);
     const cards = globalThis.__cards.length;
     ok(`marking it again takes it back — quietly: a correction, no card`, (await TE.mark(d, "frightened")) === "removed" && !TE.has(d, "frightened") && globalThis.__cards.length === cards);
     const h = npc("prH", "hermit");
     await TE.mark(h, "guilty");
-    ok(`Guilty is a state, toward everyone: whoever talks to them gets +2 to Heart — and nobody is asked “toward whom”`, TE.has(h, "guilty") && !/→/.test(lastCard())
-      && T.preview(q, h, { technique: "appeal" }).parts.some((x) => /Guilty/.test(x.label) && x.value === 2) && T.preview(p, h, { technique: "appeal" }).parts.some((x) => /Guilty/.test(x.label) && x.value === 2));
-    ok(`…the card says what it does on the sheet, too`, /On the sheet:/.test(lastCard()) && /saving throws/.test(lastCard()) && /initiative/.test(lastCard()));
+    ok(`Guilty is a state, toward everyone: whoever talks to them from the heart rolls with advantage — and nobody is asked “toward whom”`, TE.has(h, "guilty") && !/→/.test(lastCard())
+      && T.chance(q, h, { technique: "appeal" }).open === "guilty" && T.chance(p, h, { technique: "appeal" }).open === "guilty");
+    ok(`…the card says what it costs on the sheet, too — one roll, no edge`, /On the sheet:/.test(lastCard()) && /initiative/.test(lastCard()) && !/saving throws/.test(lastCard()));
     ok(`…marked again, it comes off`, (await TE.mark(h, "guilty")) === "removed" && !TE.has(h, "guilty"));
     game.user.isGM = false; d.isOwner = false;
     const byPlayer = await TE.mark(d, "angry");
@@ -844,28 +857,27 @@ if (require.main === module) (async () => {
     await TE.add(q, "guilty", { by: "eM" });
     ok(`Guilty: −2 on all-ins and lies, against anyone — not on a plain ask or a read`, /Guilty -2/.test(parts(q, m, "blackmail")) && /Guilty -2/.test(parts(q, n, "deceive")) && !/Guilty/.test(parts(q, n, "read")) && !/Guilty/.test(parts(q, n, "demand")));
     await TE.add(n, "frightened", { by: "eP" });
-    ok(`a Frightened NPC: +2 to Pressure against them`, /they're Frightened 2/.test(parts(q, n, "demand")) && !/Frightened/.test(parts(q, n, "appeal")));
+    ok(`a Frightened NPC: Pressure against them rolls with advantage — no number in the sum`, !/they're/.test(parts(q, n, "demand")) && R.TSLEmotions.opening(q, n, "pressure") === "frightened" && !R.TSLEmotions.opening(q, n, "heart"));
     await TE.add(m, "guilty", { by: "eP" });
-    ok(`a Guilty NPC: +2 to Heart for whoever talks to them`, /they're Guilty 2/.test(parts(p, m, "appeal")) && /they're Guilty 2/.test(parts(q, m, "appeal")));
+    ok(`a Guilty NPC: Heart against them rolls with advantage, for whoever talks to them`, R.TSLEmotions.opening(p, m, "heart") === "guilty" && R.TSLEmotions.opening(q, m, "heart") === "guilty");
     // Beyond the talk: an edge and a burden on the sheet, by itself — the five levers, each raised by one emotion and lowered by another.
     const fxOf = (a, id) => a.effects.find((e) => e.flags?.[SCOPE]?.emotion?.id === id);
     const val = (c) => (typeof c.value === "string" && c.value.startsWith("{") ? Number(JSON.parse(c.value).formula) : Number(c.value));
     const levers = (fx) => Object.fromEntries((fx?.changes ?? []).map((c) => [/damage/.test(c.key) ? "damage" : /attacks/.test(c.key) ? "attack" : /initiative/.test(c.key) ? "init" : /\.ac\./.test(c.key) ? "ac" : /abilities/.test(c.key) ? "save" : c.key, val(c)]));
     const angry = levers(fxOf(p, "angry")), scared = levers(fxOf(n, "frightened"));
-    ok(`an emotion works beyond the talk, on the sheet, by itself: Angry — +2 damage, −2 AC; Frightened — +2 AC, −2 attack (an NPC's too)`,
-      angry.damage === 2 && angry.ac === -2 && scared.ac === 2 && scared.attack === -2 && /Everywhere:/.test(fxOf(p, "angry").description));
+    ok(`an emotion works beyond the talk, on the sheet, by itself — one roll, −2, no edge: Angry −2 AC; Frightened −2 to attack rolls (an NPC's too)`,
+      angry.ac === -2 && Object.keys(angry).length === 1 && scared.attack === -2 && Object.keys(scared).length === 1 && /Everywhere:/.test(fxOf(p, "angry").description));
     const sheets = R.EMOTION_ORDER.map((id) => R.EMOTIONS[id].sheet);
-    ok(`…five levers, each raised by one emotion and lowered by another: ${R.EMOTION_ORDER.map((id) => `${id} +${R.EMOTIONS[id].sheet.up} −${R.EMOTIONS[id].sheet.down}`).join(", ")}`,
-      new Set(sheets.map((x) => x.up)).size === 5 && new Set(sheets.map((x) => x.down)).size === 5 && sheets.every((x) => x.up !== x.down)
-      && ["damage", "ac", "attack", "save", "init"].every((k) => sheets.some((x) => x.up === k) && sheets.some((x) => x.down === k)));
+    ok(`…five rolls, one each: ${R.EMOTION_ORDER.map((id) => `${id} −${R.EMOTIONS[id].sheet}`).join(", ")} (the user's pick, 2026-11-19: «Одна вада, одна вразливість»)`,
+      new Set(sheets).size === 5 && ["damage", "ac", "attack", "save", "init"].every((k) => sheets.includes(k)) && R.EMOTION_ORDER.every((id) => R.TSLEmotions.flawShort(id).includes("−2")));
     game.system.id = "dnd5e";
     const d5 = R.TSLEmotions.sheetChanges("hopeless", "Hopeless");
     game.system.id = "a5e";
-    ok(`…on dnd5e the same, through its own keys — spells as well as weapons`, d5.some((c) => c.key === "system.bonuses.msak.attack" && c.value === "+2") && d5.some((c) => c.key === "system.bonuses.abilities.save" && c.value === "-2"));
+    ok(`…on dnd5e the same, through its own keys — spells as well as weapons`, d5.some((c) => c.key === "system.bonuses.msak.damage" && c.value === "-2") && !d5.some((c) => /attack|save/.test(c.key)));
     const sc = await TE.add(p, "angry");
-    ok(`already Angry: a scar instead — Short Fuse (+1 Pressure, −1 Heart, for good)`, sc.scar === "shortFuse" && /scar — Short Fuse 1/.test(parts(p, n, "demand")) && /scar — Short Fuse -1/.test(parts(p, n, "appeal")));
+    ok(`already Angry: a scar as well — Short Fuse: −1 on Heart, permanently, and nothing on Pressure`, sc.scar === "shortFuse" && /scar — Short Fuse -1/.test(parts(p, n, "appeal")) && !/scar/.test(parts(p, n, "demand")));
     { const scarFx = p.effects.find((e) => e.flags?.[SCOPE]?.scar === "shortFuse"), lv = levers(scarFx);
-      ok(`…and the scar keeps its emotion's edge and burden on the sheet, at 1, for good: +1 damage, −1 AC`, lv.damage === 1 && lv.ac === -1); }
+      ok(`…and on the sheet, −1 AC, permanently — no edge`, lv.ac === -1 && Object.keys(lv).length === 1 && /scar\.svg$/.test(scarFx.img)); }
     ok(`…once: the third time leaves nothing more`, (await TE.add(p, "angry")).scar === null && TE.scars(p).length === 1);
     ok(`an NPC doesn't scar`, (await TE.add(n, "frightened")).scar === null && TE.scars(n).length === 0);
     await p.createEmbeddedDocuments("ActiveEffect", [{ name: "Insecure", statuses: ["tsl-emo-insecure"] }]);
@@ -1013,9 +1025,14 @@ if (require.main === module) (async () => {
     await A._refresh();
     const [aura] = statusOf(p), [liege] = statusOf(fr);
     ok(`the bond is a status on the token like any other: "${aura?.name}" — its own icon, tinted the way it runs, the aura on the sheet (●●●: +3 on its lever): ${aura?.description?.replace(/<[^>]+>/g, "") ?? "none"}`,
-      !!aura && aura.name === "Sworn ●●● — spF" && [...aura.statuses].includes("tsl-bond-sworn") && aura.img === "icons/svg/holy-shield.svg"
-      && aura.tint === R.APPROACHES.reason.color && aura.changes.length > 0 && /Oathbound/.test(aura.description) && /\+3 to saving throws/.test(aura.description) && /\+1 AC/.test(aura.description)
+      !!aura && aura.name === "Sworn ●●● — spF" && [...aura.statuses].includes("tsl-bond-sworn") && aura.img === "modules/tsl-social-conflict/icons/status/bond-sworn.svg"
+      && !aura.tint && aura.changes.length > 0 && /Oathbound/.test(aura.description) && /\+3 to saving throws/.test(aura.description) && /\+1 AC/.test(aura.description)
       && aura.showIcon === CONST.ACTIVE_EFFECT_SHOW_ICON.ALWAYS && aura.system?.effectType === "condition" && [...aura.statuses].includes("tsl-social"));
+    { const dir = require("path").join(__dirname, "..", "icons", "status");
+      const used = [...R.BOND_TYPES.map((t) => t.statusImg), ...Object.values(R.EMOTIONS).map((e) => e.img), R.SCAR_IMG].map((p) => p.split("/").pop());
+      const lic = fs.readFileSync(require("path").join(dir, "LICENSE.md"), "utf8");
+      ok(`every status has its own badge, on disk and credited (game-icons.net, CC BY 3.0): ${used.length} badges, one picture each — no tint`,
+        used.every((n) => fs.existsSync(require("path").join(dir, n)) && lic.includes(n)) && new Set(used).size === used.length); }
     ok(`…and the other one carries it from their side: "${liege?.name}"`, !!liege && liege.name === "Liege ●●● — spP" && [...liege.statuses].includes("tsl-bond-liege") && aura.img !== liege.img);
     const fxCount = p.effects.length;
     let writes = 0;
@@ -1073,7 +1090,7 @@ if (require.main === module) (async () => {
     ok(`…and it is a status of the system's: a5e's own panel lists it (a "condition")`, fresh?.system?.effectType === "condition");
     { const redone = em.effects.find((e) => e.flags?.[SCOPE]?.emotion?.id === "frightened");
       ok(`…one made before emotions reached the sheet is written anew on the GM's load: shown on the token, a status of the system's, with its edge and burden`,
-        !!redone && redone.id !== "oldEmo" && redone.showIcon === CONST.ACTIVE_EFFECT_SHOW_ICON.ALWAYS && redone.system?.effectType === "condition" && redone.changes.length === 2 && redone.flags[SCOPE].emotion.fx === R.EMOTION_FX_VERSION); }
+        !!redone && redone.id !== "oldEmo" && redone.showIcon === CONST.ACTIVE_EFFECT_SHOW_ICON.ALWAYS && redone.system?.effectType === "condition" && redone.changes.length === 1 && redone.flags[SCOPE].emotion.fx === R.EMOTION_FX_VERSION); }
     game.combat = wasCombat;
     Object.assign(canvas, { ready: was.ready, grid: was.grid }); canvas.tokens.placeables = was.placeables;
   }
@@ -1106,7 +1123,7 @@ if (require.main === module) (async () => {
       && /String on them/.test(txt(rivalSt)) && !/String on you/.test(txt(rivalSt)));
     ok(`it is one of the system's statuses: a5e lists it in its own Effects Panel (a "condition"), drawn on the token, and that panel can take it off without a throw (two statuses)`,
       friendSt.system?.effectType === "condition" && friendSt.showIcon === CONST.ACTIVE_EFFECT_SHOW_ICON.ALWAYS
-      && friendSt.statuses.join() === "tsl-bond-friend,tsl-social" && friendSt.img === "icons/svg/tankard.svg" && rivalSt.tint === R.APPROACHES.pressure.color);
+      && friendSt.statuses.join() === "tsl-bond-friend,tsl-social" && friendSt.img === "modules/tsl-social-conflict/icons/status/bond-friend.svg" && !rivalSt.tint && rivalSt.img === "modules/tsl-social-conflict/icons/status/bond-rival.svg");
     game.system.id = "dnd5e";
     ok(`…on dnd5e nothing of a5e's is written: the token and the sheet show it as they show any effect`, st("nrF").system === undefined && st("nrF").showIcon === CONST.ACTIVE_EFFECT_SHOW_ICON.ALWAYS);
     game.system.id = "a5e";
@@ -1115,7 +1132,7 @@ if (require.main === module) (async () => {
       ["panelHTML", "rowHTML", "pairs", "update", "register", "enabled"].every((k) => N[k] === undefined) && !fs.readFileSync(path.join(ROOT, "scripts", "main.js"), "utf8").includes("bondNearShow")
       && !fs.readFileSync(path.join(ROOT, "styles", "tsl.css"), "utf8").includes("tsl-bond-near"));
     ok(`the Chronicle shows what the token carries, with the same icon: ${mineNow.map((w) => w.type.label + " — " + w.partner.name).join(", ")}`,
-      /tsl-bs-chip/.test(N.chipHTML(mineNow[0])) && /Rival/.test(N.chipHTML(mineNow[0])) && /mask-image:url\('icons\/svg\/sword\.svg'\)/.test(N.chipHTML(mineNow[0])));
+      /tsl-bs-chip/.test(N.chipHTML(mineNow[0])) && /Rival/.test(N.chipHTML(mineNow[0])) && /<img class="tsl-bs-ico" src="modules\/tsl-social-conflict\/icons\/status\/bond-rival\.svg"/.test(N.chipHTML(mineNow[0])));
     game.user = { id: "pl1", isGM: false, name: "Player" };
     tR.document.hidden = true;
     ok(`…a token the GM hid is never listed for a player`, ids(N.statusesOf(me)) === "nrF");
@@ -1468,17 +1485,18 @@ if (require.main === module) (async () => {
       && /<option value="Mira">/.test(shut) && !/<option value="Captain">/.test(shut) && !/<option value="Lyra">/.test(shut) && /drag an actor in/.test(shut));
     const everyTab = await Promise.all(["bonds", "talk", "codex"].map((t) => render(P, t, { _tTarget: "uiN" })));
     const firstTab = await render(P, "profile");
-    ok(`what weighs on them: on the first tab in full, a compact strip at the top of every other — the emotion by name (what it costs in its tooltip), × to let it go, and Change for its player`,
+    ok(`what weighs on them: on the first tab, five tiles — the lit one with what it costs; a compact strip at the top of every other — the emotion by name (what it costs in its tooltip), × to let it go, and Change for its player`,
       everyTab.every((h) => !bad(h) && /class="tsl-state "/.test(h) && /Frightened/.test(h) && !/tsl-emo-eff/.test(h.split('class="tsl-body"')[0]) && /−2 on Pressure/.test(h) && /data-emo-clear="uiP"/.test(h) && /data-state-open/.test(h))
-      && /Frightened/.test(firstTab) && /−2 Pressure/.test(firstTab) && /data-emo-clear="uiP"/.test(firstTab));
+      && /Frightened/.test(firstTab) && /Pressure −2/.test(firstTab) && /data-state-emo="frightened"[^>]*aria-pressed="true"/.test(firstTab) && /tsl-tile/.test(firstTab));
     const mineOpen = await render(P, "profile", { _stateOpen: true });
     ok(`…Change opens every emotion and scar as a switch, for the player on their own character`, !bad(mineOpen) && (mineOpen.match(/data-state-emo="/g) ?? []).length === 5 && (mineOpen.match(/data-state-scar="/g) ?? []).length === 5);
     P.isOwner = false;
     const notMine = await render(P, "profile", { _stateOpen: true });
     P.isOwner = true;
-    ok(`…and nobody else's: no Change, no switches, no ×`, !bad(notMine) && !/data-state-open/.test(notMine) && !/data-state-emo/.test(notMine) && !/data-emo-clear/.test(notMine));
+    ok(`…and nobody else's: no Change, no ×, and the same five tiles to look at, none to click`, !bad(notMine) && !/data-state-open/.test(notMine) && !/data-emo-clear/.test(notMine)
+      && (notMine.match(/data-state-emo="/g) ?? []).length === 5 && (notMine.match(/data-state-emo="\w+"[^>]*aria-pressed="(?:true|false)" disabled/g) ?? []).length === 5);
     const calm = await render(Q, "profile");
-    ok(`…and when nothing does, it says so`, !bad(calm) && /tsl-state-none/.test(calm));
+    ok(`…and when nothing does, every tile is dim`, !bad(calm) && !/class="tsl-tile[^"]*\bon"/.test(calm) && /tsl-tile/.test(calm));
     const open = await render(Q, "talk", { _tTarget: "uiN", _tTech: "demand" });
     const picked = await render(Q, "talk", { _tTarget: "uiN", _tTech: "blackmail" });
     ok(`Blackmail with nothing on record isn't locked — it can be rolled, and the form says what the record would add`, !bad(open) && !bad(picked)
@@ -1506,7 +1524,7 @@ if (require.main === module) (async () => {
         && !bad(npcFirst) && (npcFirst.match(/data-state-emo="/g) ?? []).length === 5 && npcFirst.indexOf("What weighs on them") < npcFirst.indexOf("Nature"));
       const pcOpen = await render(Q, "profile", { _stateOpen: true });
       ok(`…on a character, the five scars too — and nobody is asked “toward whom”: an emotion is toward everyone; each switch says what it does on the sheet`, !bad(pcOpen) && (pcOpen.match(/data-state-scar="/g) ?? []).length === 5 && !/tsl-state-toward/.test(pcOpen)
-        && /Everywhere:/.test(pcOpen) && /to damage/.test(pcOpen));
+        && /On them:/.test(pcOpen) && /to damage/.test(pcOpen) && /data-state-scar="\w+"/.test(pcOpen));
       const app = new R.SocialFencingApp(N);
       await app._toggleState("emo", "angry");
       const on = R.TSLEmotions.has(N, "angry");

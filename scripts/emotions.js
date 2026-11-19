@@ -5,18 +5,17 @@
  *
  * Five emotions, as in Thirsty Sword Lesbians: Angry, Frightened, Guilty,
  * Insecure, Hopeless. Anyone can carry them — a player character or an NPC —
- * as real ActiveEffects with a token status icon. Each one is a state of the
- * whole person, toward everyone (the user, 2026-11-14: «не проти лише когось
- * одного, а проти всіх»), and it works beyond the talk that left it:
- *   in a conversation — −2 on the maneuvers it spoils for whoever feels it,
- *     +2 to the approach that plays on it for whoever talks to them (and their
- *     wall against that approach doesn't stand);
- *   everywhere else — on the SHEET, by itself (`sheet`): an edge and a
- *     burden, +2 / −2, in a fight too. Anger hits harder and guards worse;
- *     fear guards better and strikes worse; and so on round the five levers
- *     (damage · AC · attack · saves · initiative), each raised by one emotion
- *     and lowered by another.
- * Each is let go by acting it out in character, or by a friend's comfort.
+ * as real ActiveEffects with a token status icon, toward everyone (the user,
+ * 2026-11-14: «не проти лише когось одного, а проти всіх»). Since 3.20 each is
+ * ONE flaw and ONE opening (the user's pick, 2026-11-19: «Одна вада, одна
+ * вразливість», after «Треба переробити емоції і їх механіку»):
+ *   on whoever feels it — −2 on one way of talking (`spoils`) and −2 on one
+ *     roll in a fight (`sheet`, on the sheet by itself); no edge;
+ *   for whoever plays on it — that approach rolls with ADVANTAGE (`opens`);
+ *     against their wall it cancels out, as advantage and disadvantage do in
+ *     D&D: a normal roll (TSLTalk.relationFor).
+ * Acted out in the scene it goes, and the character takes Inspiration; a
+ * friend's comfort lets it go with no reward.
  *
  * Where they come from:
  *   • the talk itself: when the words land, the GM marks it — no roll (mark);
@@ -26,8 +25,7 @@
  *   • gambits: Blackmail frightens them, a broken heart leaves you Hopeless,
  *     a lie brought out leaves them Angry.
  * A player character who takes an emotion they already carry takes its SCAR
- * instead — permanent, one per emotion: a +1 / −1 twist to how they reach
- * people, and the emotion's own edge and burden at ±1 on the sheet, for good.
+ * too — permanent, one per emotion: −1 on the same two things.
  */
 
 console.log("TSL | Loading emotions.js...");
@@ -65,108 +63,113 @@ function tslSystemStatus() {
  * isn't in CONFIG.statusEffects; with two it simply deletes the effect.
  */
 const TSL_STATUS_MARK = "tsl-social";
-/** What an emotion costs the one who feels it. */
+/** What an emotion costs the one who feels it, in a talk. */
 const EMOTION_PENALTY = 2;
-/** What it gives those who play on it. */
-const EMOTION_BONUS = 2;
-
-/** What the same emotion does on the sheet, everywhere: its edge, and its burden. */
+/** …and on the sheet, in a fight too. */
 const EMOTION_SHEET = 2;
-/** A scar keeps both, smaller, for good. */
+/** What a scar keeps of both, permanently. */
+const SCAR_PENALTY = 1;
 const SCAR_SHEET = 1;
 /** Bumped when what an emotion or a scar puts on a sheet changes: older effects are written anew on the GM's load. */
-const EMOTION_FX_VERSION = 2;
+const EMOTION_FX_VERSION = 3;
+/** Our status icons: one badge each, drawn for the 20 px a token gives a status. */
+const TSL_ICONS = "modules/tsl-social-conflict/icons/status";
 
 /**
  * The five emotions. `spoils` — whose maneuvers it spoils (an approach, or
- * some jobs), against anyone. `opens` — the approach that plays on it in
- * someone else, for anyone. `sheet` — the lever it raises and the one it
- * lowers on the sheet (bond-powers.js builds the system's changes).
- * `clear` — how it's let go.
+ * some jobs), −2, against anyone. `opens` — the approach that plays on it in
+ * someone else: advantage, for anyone. `sheet` — the one roll it costs on the
+ * sheet, −2 (bond-powers.js builds the system's changes). `clear` — how it's
+ * acted out.
  */
 const EMOTIONS = {
   angry: {
-    id: "angry", label: "Angry", img: "icons/svg/fire.svg", color: "#e8553d",
+    id: "angry", label: "Angry", img: `${TSL_ICONS}/emo-angry.svg`, color: "#e8553d",
     spoils: { approach: "heart" },     spoilsText: "−2 on Heart — you can't be tender",
-    opens: "pressure",                 opensText: "+2 to Pressure against them — they bite at the bait",
-    sheet: { up: "damage", down: "ac" }, sheetText: "you hit harder and guard worse",
+    opens: "pressure",                 opensText: "Pressure against them rolls with advantage — they bite at the bait",
+    sheet: "ac",                       sheetText: "you rush in and leave yourself open",
     clear: "Lash out — hurt someone, or break something that matters.", scar: "shortFuse",
   },
   frightened: {
-    id: "frightened", label: "Frightened", img: "icons/svg/terror.svg", color: "#9fb4c8",
+    id: "frightened", label: "Frightened", img: `${TSL_ICONS}/emo-frightened.svg`, color: "#9fb4c8",
     spoils: { approach: "pressure" },  spoilsText: "−2 on Pressure — you can't push",
-    opens: "pressure",                 opensText: "+2 to Pressure against them — threats land",
-    sheet: { up: "ac", down: "attack" }, sheetText: "you guard better and strike worse",
+    opens: "pressure",                 opensText: "Pressure against them rolls with advantage — threats land",
+    sheet: "attack",                   sheetText: "your hand shakes",
     clear: "Run from it — back down, or flee what scares you.", scar: "flinch",
   },
   guilty: {
-    id: "guilty", label: "Guilty", img: "icons/svg/net.svg", color: "#c9a25b",
+    id: "guilty", label: "Guilty", img: `${TSL_ICONS}/emo-guilty.svg`, color: "#c9a25b",
     spoils: { jobs: ["gambit"] },      spoilsText: "−2 on all-ins and lies — your conscience gets in the way",
-    opens: "heart",                    opensText: "+2 to Heart against them — they want to make amends",
-    sheet: { up: "save", down: "init" }, sheetText: "you bear what comes, and hesitate to act",
+    opens: "heart",                    opensText: "Heart against them rolls with advantage — they want to make amends",
+    sheet: "init",                     sheetText: "you hesitate to act",
     clear: "Make amends — confess, repay, or sacrifice something for the one you wronged.", scar: "debt",
   },
   insecure: {
-    id: "insecure", label: "Insecure", img: "icons/svg/daze.svg", color: "#b58fd6",
+    id: "insecure", label: "Insecure", img: `${TSL_ICONS}/emo-insecure.svg`, color: "#b58fd6",
     spoils: { approach: "reason" },    spoilsText: "−2 on Reason — you second-guess every argument",
-    opens: "heart",                    opensText: "+2 to Heart against them — they crave approval",
-    sheet: { up: "init", down: "damage" }, sheetText: "you rush to prove yourself, and pull your blows",
+    opens: "heart",                    opensText: "Heart against them rolls with advantage — they crave approval",
+    sheet: "save",                     sheetText: "you don't believe you can hold",
     clear: "Prove yourself — take a reckless risk to show what you're worth.", scar: "mask",
   },
   hopeless: {
-    id: "hopeless", label: "Hopeless", img: "icons/svg/downgrade.svg", color: "#7d8a99",
+    id: "hopeless", label: "Hopeless", img: `${TSL_ICONS}/emo-hopeless.svg`, color: "#7d8a99",
     spoils: { jobs: ["ask"] },         spoilsText: "−2 on plain asks — there seems no point in asking",
-    opens: "reason",                   opensText: "+2 to Reason against them — they'll take any way out",
-    sheet: { up: "attack", down: "save" }, sheetText: "nothing to lose: you strike without fear, and don't resist",
+    opens: "reason",                   opensText: "Reason against them rolls with advantage — they'll take any way out",
+    sheet: "damage",                   sheetText: "you strike without belief",
     clear: "Let go — give up on something, or let someone comfort you.", scar: "hollow",
   },
 };
 const EMOTION_ORDER = ["angry", "frightened", "guilty", "insecure", "hopeless"];
 
 /**
- * A scar — what an emotion leaves when it hits the same place twice. Permanent:
- * a twist to how they reach people, and its emotion's edge and burden on the
- * sheet at ±1 (`TSLEmotions.sheetTally`).
+ * A scar — what an emotion leaves when it hits the same place twice:
+ * permanent, one of each, −1 on the same two things as its emotion (the way
+ * of talking it spoils, and its roll on the sheet).
  */
 const SCARS = {
   shortFuse: { id: "shortFuse", label: "Short Fuse", from: "angry",
-    plus: { approach: "pressure" }, minus: { approach: "heart" },
-    text: "+1 on Pressure, −1 on Heart (you snap easily, and soften hard) — permanently." },
+    text: "−1 on Heart and −1 AC — permanently: you flare up first." },
   flinch:    { id: "flinch",    label: "Flinch",     from: "frightened",
-    plus: { job: "read" },          minus: { approach: "pressure" },
-    text: "+1 on Reads (you watch everyone), −1 on Pressure — permanently." },
+    text: "−1 on Pressure and −1 to attack rolls — permanently: you flinch before you strike." },
   debt:      { id: "debt",      label: "Debt",       from: "guilty",
-    plus: { approach: "heart" },    minus: { approach: "reason" },
-    text: "+1 on Heart, −1 on Reason (you'd rather give than argue) — permanently." },
+    text: "−1 on all-ins and lies and −1 to initiative — permanently: the old debt holds you back." },
   mask:      { id: "mask",      label: "Two Faces",  from: "insecure",
-    plus: { job: "gambit" },        minus: { job: "read" },
-    text: "+1 on all-ins and lies (you lie well), −1 on Reads (you no longer trust any face) — permanently." },
+    text: "−1 on Reason and −1 to saving throws — permanently: you never quite believe yourself." },
   hollow:    { id: "hollow",    label: "Hollow",     from: "hopeless",
-    plus: { approach: "reason" },   minus: { approach: "heart" },
-    text: "+1 on Reason, −1 on Heart (you can't warm anyone up any more) — permanently." },
+    text: "−1 on plain asks and −1 to damage — permanently: something in you stopped trying." },
 };
+const SCAR_IMG = `${TSL_ICONS}/scar.svg`;
 
 class TSLEmotions {
 
   static statusId(id) { return `tsl-emo-${id}`; }
 
-  /** What an emotion (or, at ±1, its scar) puts on a sheet: { damage: 2, ac: -2 }. */
+  /** What an emotion (or, at 1, its scar) costs on a sheet: { ac: -2 }. */
   static sheetTally(id, n = EMOTION_SHEET) {
     const sh = EMOTIONS[id]?.sheet;
-    return sh ? { [sh.up]: n, [sh.down]: -n } : {};
+    return sh ? { [sh]: -n } : {};
   }
 
-  /** …in words, the edge first: "+2 to damage · −2 AC". */
+  /** …in words: "−2 AC". */
   static sheetWords(id, n = EMOTION_SHEET) {
-    const sh = EMOTIONS[id]?.sheet;
-    if (!sh || typeof TSLBondAuras === "undefined") return "";
-    return [TSLBondAuras.describe({ [sh.up]: n }), TSLBondAuras.describe({ [sh.down]: -n })].filter(Boolean).join(" · ");
+    return typeof TSLBondAuras !== "undefined" ? TSLBondAuras.describe(TSLEmotions.sheetTally(id, n)) : "";
   }
 
-  /** …short, for a chip: "damage +2 · AC −2". */
+  /** …short, for a chip: "AC −2". */
   static sheetShort(id, n = EMOTION_SHEET) {
-    const sh = EMOTIONS[id]?.sheet;
-    return sh && typeof TSLBondAuras !== "undefined" ? TSLBondAuras.short({ [sh.up]: n, [sh.down]: -n }) : "";
+    return typeof TSLBondAuras !== "undefined" ? TSLBondAuras.short(TSLEmotions.sheetTally(id, n)) : "";
+  }
+
+  /** The talk part of it, short: "Heart −2", "all in & lies −2", "asks −2". */
+  static talkShort(id, n = EMOTION_PENALTY) {
+    const s = EMOTIONS[id]?.spoils ?? {};
+    const what = s.approach ? APPROACHES[s.approach]?.label : (s.jobs ?? []).includes("gambit") ? _t("all in & lies") : _t("asks");
+    return what ? `${what} −${n}` : "";
+  }
+
+  /** The whole flaw at once, short: "Heart −2 · AC −2" (a scar's: "Heart −1 · AC −1"). */
+  static flawShort(id, scar = false) {
+    return [TSLEmotions.talkShort(id, scar ? SCAR_PENALTY : EMOTION_PENALTY), TSLEmotions.sheetShort(id, scar ? SCAR_SHEET : EMOTION_SHEET)].filter(Boolean).join(" · ");
   }
 
   /** …and as the system's own Active Effect changes. */
@@ -187,13 +190,13 @@ class TSLEmotions {
     };
   }
 
-  /** A scar, as Active Effect data: its emotion's edge and burden at ±1, for good. */
+  /** A scar, as Active Effect data: −1 on its emotion's roll on the sheet, permanently. */
   static scarData(scarId) {
     const scar = SCARS[scarId];
     const sheet = TSLEmotions.sheetWords(scar.from, SCAR_SHEET);
     const name = _t("Scar — {scar}", { scar: scar.label });
     return {
-      name, img: "icons/svg/blood.svg",
+      name, img: SCAR_IMG,
       description: `${scar.text}${sheet ? `<br>${_t("Everywhere:")} ${sheet}.` : ""}`,
       changes: TSLEmotions.sheetChanges(scar.from, name, SCAR_SHEET),
       flags: { [EMOTION_SCOPE]: { scar: scar.id, fx: EMOTION_FX_VERSION } },
@@ -357,7 +360,7 @@ class TSLEmotions {
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor }),
       content: `<div class="tsl-x-card tsl-x--botch tsl-x-card--slim">
-        <div class="tsl-x-head"><img class="tsl-emo-ico" src="icons/svg/blood.svg" alt=""><span class="tsl-x-title">${_t("{who} carries a scar: {scar}", { who: esc(actor.name), scar: esc(scar.label) })}</span></div>
+        <div class="tsl-x-head"><img class="tsl-emo-ico" src="${SCAR_IMG}" alt=""><span class="tsl-x-title">${_t("{who} carries a scar: {scar}", { who: esc(actor.name), scar: esc(scar.label) })}</span></div>
         <div class="tsl-x-who">${esc(scar.text)}${sheet ? ` ${_t("On the sheet: {sheet}.", { sheet: esc(sheet) })}` : ""}</div>
       </div>`,
     });
@@ -384,24 +387,20 @@ class TSLEmotions {
       const spoiled = s.approach ? s.approach === approach : s.jobs ? s.jobs.includes(tech.job) : false;
       if (spoiled) parts.push({ label: _t("you're {emotion}", { emotion: EMOTIONS[e.id].label }), value: -EMOTION_PENALTY });
     }
-    const fits = (r) => r.approach ? r.approach === approach : r.job === tech.job;
+    // A scar keeps its emotion's flaw, at −1. What plays on THEIR emotion is no number: advantage (TSLTalk.relationFor).
     for (const id of TSLEmotions.scars(src)) {
-      const sc = SCARS[id];
-      if (fits(sc.plus)) parts.push({ label: _t("scar — {scar}", { scar: sc.label }), value: 1 });
-      if (fits(sc.minus)) parts.push({ label: _t("scar — {scar}", { scar: sc.label }), value: -1 });
-    }
-    for (const e of TSLEmotions.of(tgt)) {
-      if (EMOTIONS[e.id].opens !== approach) continue;
-      parts.push({ label: _t("they're {emotion}", { emotion: EMOTIONS[e.id].label }), value: EMOTION_BONUS });
+      const s = EMOTIONS[SCARS[id].from]?.spoils ?? {};
+      const spoiled = s.approach ? s.approach === approach : s.jobs ? s.jobs.includes(tech.job) : false;
+      if (spoiled) parts.push({ label: _t("scar — {scar}", { scar: SCARS[id].label }), value: -SCAR_PENALTY });
     }
     return parts;
   }
 
   /**
    * The emotion on `tgt` that opens this way of talking for `src` (its id), or
-   * null. A state beats a habit: while they carry it, their wall against that
-   * way doesn't stand (TSLTalk.relationFor) — fear lets a threat through, guilt
-   * a plea, hopelessness an argument — whoever is talking.
+   * null: that way rolls with advantage while they carry it — and against
+   * their wall it cancels out, a normal roll (TSLTalk.relationFor). Fear lets
+   * a threat through, guilt a plea, hopelessness an argument — whoever talks.
    */
   static opening(src, tgt, approach) {
     if (!approach || !tgt) return null;

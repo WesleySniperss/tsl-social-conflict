@@ -238,7 +238,7 @@ class TSLBondAuras {
     if (signature) lines.push(`●●● <b>${esc(signature.label)}</b> — ${esc(w.bond?.sigUsed ? _t("spent") : _t("ready"))}`);
     // On every pair in reach — two NPCs too (hidden there until 3.18: whoever tested with NPCs saw nothing).
     const data = {
-      name, img: type.statusImg ?? BOND_AURA_IMG, tint: TSLBondAuras.tintOf(type),
+      name, img: type.statusImg ?? BOND_AURA_IMG, tint: null,   // the badge carries its own colour
       description: lines.join("<br>"),
       changes: TSLBondAuras.changes(w.share ?? {}, name),
       statuses: [`tsl-bond-${type.id}`, TSL_STATUS_MARK], ...tslShowIcon(true),
@@ -370,9 +370,9 @@ class TSLBondNear {
 
   /** A bond's status icon, tinted the way it runs — the same as on the token. */
   static icon(type) {
-    if (type.id === "stranger" || !type.statusImg) return `<i class="fas ${type.icon ?? "fa-link"} tsl-bs-ico tsl-bs-ico--fa"></i>`;
+    if (!type.statusImg) return `<i class="fas ${type.icon ?? "fa-link"} tsl-bs-ico tsl-bs-ico--fa"></i>`;
     const img = foundry.utils.escapeHTML(type.statusImg);
-    return `<span class="tsl-bs-ico" style="background-color:${TSLBondAuras.tintOf(type)};-webkit-mask-image:url('${img}');mask-image:url('${img}')"></span>`;
+    return `<img class="tsl-bs-ico" src="${img}" alt="">`;
   }
 
   /** A bond in reach as a chip — what's on the token, for the Chronicle. */
@@ -419,7 +419,7 @@ class TSLBondMoments {
     if (!actor || !gifts) return null;
     const changes = TSLBondMoments.changes(gifts, name, actor);
     const [made] = await actor.createEmbeddedDocuments("ActiveEffect", [{
-      name, img: "icons/svg/aura.svg", origin: `module.${BOND_POWER_SCOPE}`, disabled: false, changes,
+      name, img: "modules/tsl-social-conflict/icons/status/moment.svg", origin: `module.${BOND_POWER_SCOPE}`, disabled: false, changes,
       statuses: ["tsl-bond-moment", TSL_STATUS_MARK], ...tslShowIcon(), description: TSLBondMoments.describe(gifts, actor),
       flags: { [BOND_POWER_SCOPE]: { bondMoment: { gifts } } },
     }]);

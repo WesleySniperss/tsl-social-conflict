@@ -45,7 +45,7 @@
 .tsl-body { padding: 10px 12px 14px; display: flex; flex-direction: column; gap: 10px; }
 
 .tsl-tabs {
-  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) 40px;
   border-bottom: 1px solid var(--tsl-border);
   background: rgba(0, 0, 0, 0.25);
   position: sticky; top: 0; z-index: 5;
@@ -1138,11 +1138,8 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 .tsl-pal-head span { font-size: 11.5px; color: var(--tsl-dim); }
 
 /* A bond in reach — the status its token carries: the type's icon, tinted the way it runs */
-.tsl-bs-ico {
-  display: inline-block; flex: 0 0 auto; width: 15px; height: 15px; vertical-align: -2px;
-  -webkit-mask-size: contain; mask-size: contain; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
-  -webkit-mask-position: center; mask-position: center;
-}
+/* a bond's badge — the same picture as on the token */
+.tsl-bs-ico { display: inline-block; flex: 0 0 auto; width: 18px; height: 18px; vertical-align: -4px; border: none; object-fit: contain; }
 .tsl-bs-ico--fa { width: 15px; text-align: center; color: var(--tsl-dim); }
 .tsl-state-near { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 8px; padding-top: 7px; border-top: 1px dashed var(--tsl-border); }
 .tsl-state-near-label { font-size: 12px; color: var(--tsl-dim); margin-right: 2px; white-space: nowrap; }
@@ -1286,3 +1283,41 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 }
 .tsl-note.tsl-help b { color: var(--tsl-soft); }
 .tsl-cx-defs td:first-child { width: 32%; }
+
+/* ── 3.20: less on screen ─────────────────────────────────────────────────── */
+
+/* The how-it-works notes: off until this user asks for them ("?" by the tabs). */
+.tsl-nohelp .tsl-note.tsl-help { display: none !important; }
+.tsl-fencing .tsl-tab--help { border-left: 1px solid var(--tsl-border); }
+.tsl-fencing .tsl-tab--help i { font-size: 15px; }
+
+/* What weighs on them: one tile per emotion (and per scar), lit while it's on them. */
+.tsl-tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; }
+.tsl-tiles + .tsl-tiles { margin-top: 2px; }
+.tsl-fencing .tsl-tile {
+  width: 100%; min-width: 0; height: auto; min-height: 60px; margin: 0; padding: 6px 3px 6px;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 3px;
+  background: rgba(0, 0, 0, 0.22); border: 1px solid var(--tsl-border); border-radius: 9px; box-shadow: none;
+  color: var(--tsl-dim); cursor: pointer; text-align: center; line-height: 1.15;
+}
+.tsl-fencing .tsl-tile img { width: 26px; height: 26px; flex: 0 0 26px; border: none; filter: grayscale(0.85) brightness(0.75); opacity: 0.55; }
+.tsl-fencing .tsl-tile b { font-size: 11.5px; font-weight: 700; letter-spacing: -0.01em; max-width: 100%; overflow-wrap: normal; word-break: keep-all; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tsl-fencing .tsl-tile small { font-size: 11px; color: var(--tsl-soft); max-width: 100%; }
+.tsl-fencing .tsl-tile.on { color: #fff; border-color: color-mix(in srgb, var(--c) 85%, transparent); background: color-mix(in srgb, var(--c) 22%, rgba(0, 0, 0, 0.35)); box-shadow: 0 0 8px color-mix(in srgb, var(--c) 30%, transparent); }
+.tsl-fencing .tsl-tile.on img { filter: none; opacity: 1; }
+.tsl-fencing .tsl-tile:hover:not(:disabled) { border-color: var(--c); color: var(--tsl-text); }
+.tsl-fencing .tsl-tile:hover:not(:disabled) img { opacity: 0.9; filter: none; }
+.tsl-fencing .tsl-tile:disabled { cursor: default; }
+.tsl-fencing .tsl-tiles--scars .tsl-tile { min-height: 50px; padding: 4px 3px; border-style: dashed; }
+.tsl-fencing .tsl-tiles--scars .tsl-tile.on { border-style: solid; }
+.tsl-fencing .tsl-tiles--scars .tsl-tile img { width: 20px; height: 20px; flex-basis: 20px; }
+.tsl-state .tsl-tiles { margin-top: 2px; }
+
+/* An emotion's advantage on the card: never the key's colour — that would give the key away. */
+.chat-message .tsl-x-card .tsl-x-tag--open { color: #f0d79a; border: 1px solid rgba(224, 180, 94, 0.55); background: rgba(224, 180, 94, 0.12); }
+.chat-message .tsl-x-card .tsl-x-die--open { border-color: rgba(224, 180, 94, 0.75); box-shadow: 0 0 5px rgba(224, 180, 94, 0.4); }
+
+/* Chips with the new badges */
+.tsl-emo img, .tsl-scar img, .tsl-emo-ico { width: 17px; height: 17px; }
+.tsl-bond-type-tag { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px 1px 4px; }
+.tsl-bond-type-tag .tsl-bs-ico { width: 15px; height: 15px; vertical-align: 0; }

@@ -65,7 +65,7 @@ After a miss you may burn your String on them for +5 (that roll then moves no St
 - the better of the maneuver's two skills;
 - +1 per dot of your Leaning in that way, −1 on a way with no dots while you lean elsewhere (Profile);
 - your proficiency bonus if you're trained in the other, so it grows with you;
-- +2 for an emotion they feel that plays into your approach (−2 for one of yours that spoils it);
+- −2 for an emotion of yours that spoils your approach (−1 for its scar) — and **advantage** for an emotion of theirs that your approach plays on (against their wall the two cancel out: a normal roll);
 - −2 (on the DC: +2) if your last Question against them missed — they're on their guard, for that one roll;
 - +● for a bond that runs that way, or whose skill rolls (−● for a skill it forbids, and a hostile one's −● on anything but Pressure);
 - +2 for their known Desire or Fear;
@@ -73,21 +73,21 @@ After a miss you may burn your String on them for +5 (that roll then moves no St
 
 ## Emotions and scars
 
-Five emotions, as in Thirsty Sword Lesbians. Anyone can carry them, a player character or an NPC, and each is a state of the whole person — toward everyone. They show as status icons on the token (and, in Level Up, in the system's effects panel); the GM can also toggle them from the Token HUD.
+Five emotions, as in Thirsty Sword Lesbians. Anyone can carry them, a player character or an NPC, and each is a state of the whole person — toward everyone. They show as status badges on the token (and, in Level Up, in the system's effects panel); the GM can also toggle them from the Token HUD.
 
-Each works in a talk **and beyond it**: it goes on the sheet by itself, +2 on one thing and −2 on another, in a fight too — five things (damage, AC, attack rolls, saving throws, initiative), each raised by one emotion and lowered by another. The system counts it in every roll.
+Each is **one flaw and one opening**:
+- **on whoever feels it** — −2 on one way of talking, and −2 on one roll in a fight, on the sheet by itself;
+- **for whoever plays on it** — that approach rolls with **advantage**. Against their wall the two cancel out, as advantage and disadvantage do in D&D: a normal roll. A Frightened Tyrant can be pressed; a Guilty Duelist can be asked from the heart. Say something that leaves the emotion first, then ask.
 
-**How it goes.** You get one when words land (the GM marks it, no roll) or a roll leaves it. It weighs on you until you **act it out** in the scene — do what it pushes you to (the last column) and press × on it: it goes, and your character takes D&D **Inspiration**, the way the game rewards playing a flaw. A friend's comfort lets it go too, with no reward. Get the same emotion again while you still carry it, and it leaves a **scar** (below). So the choice is yours: keep its edge and its burden with a scar waiting, or choose the moment your character breaks, for a scene and Inspiration.
+| Emotion | On whoever feels it | Whoever plays on it | Act it out |
+|---|---|---|---|
+| **Angry** | Heart −2 · AC −2 | Pressure — advantage | lash out: hurt someone, or break something |
+| **Frightened** | Pressure −2 · attack rolls −2 | Pressure — advantage | back down, or flee what scares you |
+| **Guilty** | all-ins and lies −2 · initiative −2 | Heart — advantage | make amends |
+| **Insecure** | Reason −2 · saving throws −2 | Heart — advantage | prove yourself with a reckless risk |
+| **Hopeless** | plain asks −2 · damage −2 | Reason — advantage | give something up, or accept comfort |
 
-| Emotion | In a talk — on whoever feels it | In a talk — for whoever plays on it | On the sheet, everywhere | Act it out |
-|---|---|---|---|---|
-| **Angry** | −2 on Heart | +2 to Pressure against them | +2 damage, −2 AC | lash out: hurt someone, or break something |
-| **Frightened** | −2 on Pressure | +2 to Pressure against them | +2 AC, −2 attack rolls | back down, or flee what scares you |
-| **Guilty** | −2 on all-ins and lies | +2 to Heart against them | +2 saving throws, −2 initiative | make amends |
-| **Insecure** | −2 on Reason | +2 to Heart against them | +2 initiative, −2 damage | prove yourself with a reckless risk |
-| **Hopeless** | −2 on plain asks | +2 to Reason against them | +2 attack rolls, −2 saving throws | give something up, or accept comfort |
-
-An emotion on someone also takes down their wall against the way it opens: a Frightened Tyrant can be pressed, a Guilty Duelist can be asked from the heart. Say something that leaves the emotion first, then ask.
+**How it goes.** It weighs on you until you **act it out** in the scene — do what it pushes you to (the last column), then click it: it goes, and your character takes D&D **Inspiration**, the way the game rewards playing a flaw. A friend's comfort lets it go too, with no reward. Get the same emotion again while you still carry it, and it leaves a **scar**.
 
 Where emotions come from:
 - **the talk itself**: your words land, and the GM marks it from the NPC's own Talk tab — no roll (marking it again takes it back);
@@ -97,15 +97,15 @@ Where emotions come from:
 - **someone close, used**: winning something against the interests of a friend, family or a lover leaves you Guilty, whatever the way;
 - **a no before witnesses**: you lose face, and you're Insecure.
 
-Take an emotion you already carry, and it leaves a **scar** as well. A scar is permanent, one per emotion, and a twist rather than just a wound — and it keeps its emotion's +1 and −1 on the sheet. No roll and no button in play takes it off: when the story has truly healed it, the GM (or you, on your own character) takes it off in Change.
+A **scar** is permanent, one per emotion: −1 on the same two things as its emotion. No roll takes it off — when the story has truly healed it, the GM (or you, on your own character) clicks it off.
 
-| Scar | From | In a talk, permanently | On the sheet, permanently |
-|---|---|---|---|
-| Short Fuse | Angry | +1 Pressure, −1 Heart | +1 damage, −1 AC |
-| Flinch | Frightened | +1 on Reads, −1 Pressure | +1 AC, −1 attack rolls |
-| Debt | Guilty | +1 Heart, −1 Reason | +1 saving throws, −1 initiative |
-| Two Faces | Insecure | +1 on all-ins and lies, −1 on Reads | +1 initiative, −1 damage |
-| Hollow | Hopeless | +1 Reason, −1 Heart | +1 attack rolls, −1 saving throws |
+| Scar | From | What it keeps, permanently |
+|---|---|---|
+| Short Fuse | Angry | Heart −1 · AC −1 |
+| Flinch | Frightened | Pressure −1 · attack rolls −1 |
+| Debt | Guilty | all-ins and lies −1 · initiative −1 |
+| Two Faces | Insecure | Reason −1 · saving throws −1 |
+| Hollow | Hopeless | plain asks −1 · damage −1 |
 
 ## Nine natures
 
@@ -170,7 +170,7 @@ A **String** is what you have on someone: a debt, a weakness seen, a line crosse
   - **Their guard**: their bond toward you lowers the DC when you ask them (−1 per ● for someone close), or raises it for an Enemy (+1 per ●).
   - **Per ●, against that person**, each type gives its own: +1 on the approach it runs (Heart for love and family, Pressure for rivals and enemies, Reason for allies, oaths and trust), +1 when its skill rolls (a Friend: Persuasion; Family: Insight), −1 when the skill it forbids rolls (you can't frighten a lover, or fool your teacher). A Rival or an Enemy won't hear you out: −1 per ● on anything but Pressure. Press someone close to you (a friend, family, a lover…) and you win, but you're Guilty.
   - **Close by** — in a fight or not — standing close (15 ft by default, a world setting; 0 turns it off) gives the bond's aura on both sheets by itself, and it comes off when you step apart or leave the map. Every type gives something for a fight, and it grows with the bond: +1 a ● on its own thing, and a second one from ●● — a Lover +1/+2/+3 AC (and +1 to attack rolls from ●●), Family AC and then saves, an Ally attack rolls and then AC, a Rival attack rolls and then initiative, an Enemy damage and then initiative but −1 to saves, a Mentor attack rolls and then your spell DC… No type gives attack rolls and damage both, so a number on a status is the whole of it. It all goes into the rolls by itself: dnd5e adds it, and Level Up's roll window lists it ticked. Several bonds sum, capped at ±3 on one thing. Reach is counted between the tokens' edges, so a dragon next to you is next to you.
-  - **You see it on the token.** While you stand within that reach, the bond is a status on both of you, next to the others: the type's icon, tinted the way the bond runs (Pressure, Heart or Reason), named with its dots and the other one, and the aura is in it. A token the GM hid doesn't count. It shows between any two, NPCs too. The status's own text says the rest: what the aura gives right now, their guard, the Strings both ways, and whether the ●● ability and the ●●● signature are ready. It is one of the system's own statuses, so the system lists it wherever it lists the others — in Level Up (a5e), its effects panel in the corner of the screen, for the token you control. The module opens no window of its own on the map. The first tab of the Chronicle lists the same statuses under *Close by*.
+  - **You see it on the token.** While you stand within that reach, the bond is a status on both of you, next to the others: the type's badge, in the colour of the way the bond runs (Pressure, Heart or Reason), named with its dots and the other one, and the aura is in it. A token the GM hid doesn't count. It shows between any two, NPCs too. The status's own text says the rest: what the aura gives right now, their guard, the Strings both ways, and whether the ●● ability and the ●●● signature are ready. It is one of the system's own statuses, so the system lists it wherever it lists the others — in Level Up (a5e), its effects panel in the corner of the screen, for the token you control. The module opens no window of its own on the map. The first tab of the Chronicle lists the same statuses under *Close by*.
   - **At ●●** the type's own ability opens, **once per long rest** (Bonds → *Use it*), and it does what it says by itself: In sync (+2 on your next roll and theirs), Steady me (let an emotion go — or temporary hit points), Blood answers (temporary hit points for both of you), Wordless (your lover has advantage on their next roll), Forewarned (temporary hit points against your enemy)…
   - **At ●●●**, its signature, **once per long rest** too (Bonds → *Call on it*): I've got you (a friend's failed roll, rolled again), Blood shields blood, For the oath (advantage and +5)… Those that are numbers go on the sheet until your next roll; the rest the GM plays.
   - **A long rest readies both by itself** (in dnd5e and in Level Up); the GM can ready one early.
@@ -198,10 +198,10 @@ A move is a tell: the players see its name, and an NPC moves as who they really 
 
 ## Windows
 
-- **Chronicle**: right-click a token, then the address-book button. At the top of every tab: what weighs on them right now — their emotions and scars. **×** takes one off; **Change** opens every emotion and scar as a switch — the GM on anyone, a player on their own character. No roll. The system's own conditions (Prone, Charmed…) stay with the system: the token HUD. It has four tabs:
-  - *Profile* — the first tab, where the Chronicle opens: what weighs on them now, with every emotion and scar as a switch right there (the GM on anyone, a player on their own character), and *Close by* — the bonds in reach, the same statuses as on the token; the Strings at hand (who on this map you have something on, with Remind them, Strike +5, Guard +5 AC and Invest right there); a player character's **Leanings — their archetype** (dots in Power, Emotion and Order — 4 to spread, at most 3 in one; each dot is +1 to two social skills on the sheet, on every check — Power: Intimidation and Deception, Emotion: Insight and Persuasion, Order: Deception and Persuasion; a skill two share adds both, up to +3 — and +1 on maneuvers of its way, −1 on a way with no dots while leaning elsewhere) and their maneuvers (what each one rolls for them, best first); an NPC's nature, dossier and Agenda for the GM (an empty Desire or Fear shows their nature's own, so the GM knows what a Read will show), and what the party has learned for players;
+- **Chronicle**: right-click a token, then the address-book button. At the top of every tab: what weighs on them right now — their emotions and scars, by name. **×** lets one go; **Change** opens every emotion and scar as a tile — the GM on anyone, a player on their own character. No roll. The **?** beside the tabs shows the hints — what each part of the window is for; they're off until you ask. The system's own conditions (Prone, Charmed…) stay with the system: the token HUD. It has four tabs:
+  - *Profile* — the first tab, where the Chronicle opens: what weighs on them now — every emotion (and, on a character, every scar) as a tile, lit while it's on them with what it costs; click a dim one to put it on, a lit one to let it go (the GM on anyone, a player on their own character) — and *Close by* — the bonds in reach, the same statuses as on the token; the Strings at hand (who on this map you have something on, with Remind them, Strike +5, Guard +5 AC and Invest right there); a player character's **Leanings — their archetype** (dots in Power, Emotion and Order — 4 to spread, at most 3 in one; each dot is +1 to two social skills on the sheet, on every check — Power: Intimidation and Deception, Emotion: Insight and Persuasion, Order: Deception and Persuasion; a skill two share adds both, up to +3 — and +1 on maneuvers of its way, −1 on a way with no dots while leaning elsewhere) and their maneuvers (what each one rolls for them, best first); an NPC's nature, dossier and Agenda for the GM (an empty Desire or Fear shows their nature's own, so the GM knows what a Read will show), and what the party has learned for players;
   - *Bonds*: every relationship at once — the type, the dots and the Strings both ways (ticked when they're there), with nothing to open. A String is a switch: click it to mark it or take it off by hand — a player on their own character (the NPC's side of it goes through the GM), the GM on anyone; the GM also changes the type and the dots right in the row. Everything the bond gives is in sight in its row: per ● against them, their guard, its aura, its ●● ability and its ●●● signature (*Call on it*), with Invest and Pull; only the caption for the map and your notes fold away. Add a bond with anyone — by name, by dragging an actor in from the sidebar, or from the map;
-  - **Talk**: who you're talking to (your target on the map), and right under their name the Strings between you — ticked when you have one on them (*Remind them* spends yours instead of a roll); their emotions; and, when the GM calls for a roll, *I persuade*, *I intimidate*, *I lie* or *I read them* — how your words came at them, plainly or all in, in private or before witnesses — with your odds on the roll button. On an NPC's own sheet this tab is the GM's live screen: how they take each approach (what to act out), price, how they hit back, what they want and fear; their Agenda and their Line; what the talk revealed and the emotions it left, on them and on the characters here (marked here, no roll); the word given to them (Kept or Broken); the lies they believe; their three moves, with a button to pull a String on whoever they hold one on; and buttons to ask them as any character on the scene;
+  - **Talk**: who you're talking to (your target on the map), and right under their name the Strings between you — ticked when you have one on them (*Remind them* spends yours instead of a roll); their emotions; and, when the GM calls for a roll, *I persuade*, *I intimidate*, *I lie* or *I read them* — how your words came at them, plainly or all in, in private or before witnesses — with your odds on the roll button. On an NPC's own sheet this tab is the GM's live screen: how they take each approach (what to act out), price, how they hit back, what they want and fear; their Agenda and their Line; what the talk revealed and the emotions it left, on them and on the characters here (marked here, no roll); the lies they believe; their three moves, with a button to pull a String on whoever they hold one on; and buttons to ask them as any character on the scene;
   - *Codex*: the in-game manual — how to play, the roll, people, emotions, Strings, bonds, and a page for the GM; each opens with one plain sentence, then steps and tables.
 - **Social Scene**: the **Social** button on the VTools toolbar. A relationship map for everyone:
   - portraits with their names (and a caption under the name), bonds as lines (thicker = stronger, dashed = hostile) labelled with the bond and its caption, Strings as gold arrows from who holds one to whom, emotions and named natures;
@@ -232,4 +232,4 @@ The text of this work is offered under a **CC BY-SA 4.0** license.
 
 *Thirsty Sword Lesbians™ is a trademark of April Kit Walsh.*
 
-The bond statuses on tokens use Foundry VTT's own core icons, referenced by path rather than shipped. The Crush and Confidant icons (`icons/`) were drawn for this module and are under the same license.
+The status badges (`icons/status/`) were made for this module (CC BY-SA 4.0) around glyphs from **game-icons.net** by Lorc, Delapouite and Carl Olsen, licensed under **CC BY 3.0** — each one is credited in `icons/status/LICENSE.md`.

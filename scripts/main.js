@@ -35,6 +35,9 @@ Hooks.once("init", () => {
     scope: "world", config: true, type: Boolean, default: true,
   });
 
+  // The how-it-works notes in the Chronicle: off until this user asks for them (the "?" by the tabs).
+  game.settings.register(TSL_SCOPE, "showHelp", { scope: "client", config: false, type: Boolean, default: false });
+
   game.settings.register(TSL_SCOPE, "socialDcBonus", {
     name: _t("Social difficulty"),
     hint: _t("Added to every NPC's DC on top of 10 + proficiency + the better of WIS/INT (a small ask is 4 easier, an ask against their interests 4 harder). Raise it if people are too easy to move at your table."),

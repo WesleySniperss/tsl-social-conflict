@@ -366,13 +366,15 @@ class TSLTalk {
     // Not known — but the party has a guess at who they are: the odds follow the guess, marked as one.
     const guess = known === "unknown" ? TSLTalk.guessRelation(npc, pv.approach) : null;
     const said = guess ?? known;
-    // A known wall doesn't stand while they carry an emotion that opens this way (visible to all: it's on them).
-    const down = said === "wall" ? TSLEmotions.opening(src, npc, pv.approach) : null;
+    // An emotion on them that opens this way (visible to all: it's on them) gives advantage — against a known wall, a normal roll.
+    const opened = TSLEmotions.opening(src, npc, pv.approach);
+    const down = said === "wall" ? opened : null;
     const rel = down ? "plain" : said;
-    const mode = rel === "key" ? "adv" : rel === "wall" ? "dis" : "normal";
+    const open = !down && rel !== "key" && rel !== "wall" ? opened : null;
+    const mode = rel === "key" || open ? "adv" : rel === "wall" ? "dis" : "normal";
     const audience = pv.witnesses && SocialArchetypeManager.getKnown(npc).audience ? SocialArchetypeManager.audienceOf(npc) : 0;
     const lost = rel === "wall" && pv.backed ? TSLTalk.profBonus(src) : 0;   // no backing against their wall
-    return { pv, rel, mode, down, guessed: !!guess && guess !== "plain", p: TSLTalk.hitChance(pv.mod + audience - lost, pv.dc, mode) };
+    return { pv, rel, mode, down, open, guessed: !!guess && guess !== "plain", p: TSLTalk.hitChance(pv.mod + audience - lost, pv.dc, mode) };
   }
 
   /**
@@ -426,16 +428,19 @@ class TSLTalk {
   }
 
   /**
-   * The truth for THIS speaker, right now: { rel, down }. A state beats a
-   * habit — while they carry an emotion that opens this way (Frightened: a
-   * threat; Guilty, Insecure: a plea; Hopeless: an argument), their
-   * wall against it doesn't stand: a normal roll, `down` = that emotion. The
-   * talk that left the emotion is what took the wall down — no roll for it.
+   * The truth for THIS speaker, right now: { rel, down, open }. An emotion on
+   * them that opens this way (Frightened: a threat; Guilty, Insecure: a plea;
+   * Hopeless: an argument) gives ADVANTAGE (the user's pick, 2026-11-19). Their
+   * key gives advantage too — the two don't add up. Against their wall it
+   * cancels out, as in D&D: a normal roll, `down` = that emotion. On a way
+   * that is neither, `open` = that emotion: advantage. The talk that left the
+   * emotion did it — no roll for it.
    */
   static relationFor(src, npc, approach) {
     const rel = TSLTalk.relation(npc, approach);
-    const down = rel === "wall" ? TSLEmotions.opening(src, npc, approach) : null;
-    return { rel: down ? "plain" : rel, down };
+    const opened = TSLEmotions.opening(src, npc, approach);
+    if (rel === "wall" && opened) return { rel: "plain", down: opened, open: null };
+    return { rel, down: null, open: rel === "plain" ? opened : null };
   }
 
   /**
@@ -675,14 +680,15 @@ class TSLTalk {
 
     // 2) Their nature — known only now. The key opens them (a second die,
     //    keep the better); the wall closes them (a second die, keep the worse).
-    //    A wall doesn't stand while they carry an emotion that opens this way.
-    const { rel } = TSLTalk.relationFor(src, npc, pv.approach);
+    //    An emotion on them that opens this way is advantage too; against
+    //    their wall the two cancel out — a normal roll.
+    const { rel, open } = TSLTalk.relationFor(src, npc, pv.approach);
     let natureDie = null;
-    if (rel === "key" || rel === "wall") {
+    if (rel === "key" || rel === "wall" || open) {
       const nr = new Roll("1d20");
       await nr.evaluate();
       natureDie = nr.total;
-      const better = rel === "key" ? natureDie > natural : natureDie < natural;
+      const better = rel === "wall" ? natureDie < natural : natureDie > natural;
       if (better) { total += natureDie - natural; natural = natureDie; }
     }
     // Against their wall your second skill doesn't back you — known, like the die, only now.
@@ -726,7 +732,7 @@ class TSLTalk {
     const payload = {
       srcId: src.id, npcId: npc.id, technique: pv.technique, approach: pv.approach, job: pv.job,
       size: pv.size, skill: pv.skill, helperId: pv.helperId, lever: pv.lever, parts: pv.parts, mod: pv.mod,
-      total, natural, dice, natureDie, rel, dc: pv.dc, grade, stringSpent, systemRoll, rollData,
+      total, natural, dice, natureDie, rel, open, dc: pv.dc, grade, stringSpent, systemRoll, rollData,
       questions, paid, terms, witnesses: pv.witnesses, audience, support: pv.support, wallLost,
     };
     // The GM applies it (directly when the GM rolled, through the relay for a player).
@@ -869,7 +875,8 @@ class TSLTalk {
     if (!src || !npc || !tech) return;
     const esc = foundry.utils.escapeHTML;
     const ap = approachOf(tech.id, p.approach), job = tech.job;
-    const { rel, down: wallDown } = TSLTalk.relationFor(src, npc, ap);   // the truth, not the payload's word
+    const { rel, down: wallDown, open: openedBy } = TSLTalk.relationFor(src, npc, ap);   // the truth, not the payload's word
+    p.open = openedBy;
     const arch = SocialArchetypeManager.getArchetype(npc);
     const known = SocialArchetypeManager.getKnown(npc);
     const knownPatch = {};
@@ -921,7 +928,7 @@ class TSLTalk {
       if (r?.added) note(_t("{img} {name} is <b>{emotion}</b> ({spoils}) — until it is let go.", {
         img: `<img class="tsl-emo-ico" src="${EMOTIONS[emo].img}" alt="">`, name, emotion: EMOTIONS[emo].label, spoils: esc(EMOTIONS[emo].spoilsText) }), "bad");
       else if (r?.scar) note(_t("{img} {name} was already {emotion} — it leaves a scar: <b>{scar}</b>. {text}", {
-        img: `<img class="tsl-emo-ico" src="icons/svg/blood.svg" alt="">`, name, emotion: EMOTIONS[emo].label, scar: SCARS[r.scar].label, text: esc(SCARS[r.scar].text) }), "bad");
+        img: `<img class="tsl-emo-ico" src="${SCAR_IMG}" alt="">`, name, emotion: EMOTIONS[emo].label, scar: SCARS[r.scar].label, text: esc(SCARS[r.scar].text) }), "bad");
       return r;
     };
 
@@ -934,7 +941,10 @@ class TSLTalk {
       note(_t("{icon} <b>{approach}</b> is their wall — disadvantage, the worse of two dice.", { icon: `<i class="fas fa-door-closed"></i>`, approach: APPROACHES[ap].label }), "bad");
     } else if (wallDown && known.wall) {
       // The party knows this is their wall — and sees why it didn't stand. (Unknown, the dice show nothing.)
-      note(_t("{icon} <b>{approach}</b> is their wall — but they're {emotion}: it doesn't stand. A normal roll.", { icon: `<i class="fas fa-door-open"></i>`, approach: APPROACHES[ap].label, emotion: EMOTIONS[wallDown].label }), "good");
+      note(_t("{icon} <b>{approach}</b> is their wall — but they're {emotion}: advantage and disadvantage cancel out. A normal roll.", { icon: `<i class="fas fa-door-open"></i>`, approach: APPROACHES[ap].label, emotion: EMOTIONS[wallDown].label }), "good");
+    }
+    if (openedBy) {
+      note(_t("{icon} They're <b>{emotion}</b> — {approach} lands: advantage, the better of two dice.", { icon: `<i class="fas fa-door-open"></i>`, approach: APPROACHES[ap].label, emotion: EMOTIONS[openedBy].label }), "good");
     }
     // And so did the room.
     if (witnesses && arch) {
@@ -1294,7 +1304,8 @@ class TSLTalk {
     const sized = tech.job === "ask" || tech.job === "gambit";
     const title = `${ap ? `${ap.label} · ` : ""}${tech.label}${sized ? ` · ${(tech.anyWay ? TSLTalk.lieSize(p.size) : ASK_SIZES[p.size])?.short ?? ""}` : ""}`;
     const tag = rel === "key" ? `<span class="tsl-x-tag tsl-x-tag--key"><i class="fas fa-key"></i> ${_t("Key")}</span>`
-      : rel === "wall" ? `<span class="tsl-x-tag tsl-x-tag--wall"><i class="fas fa-door-closed"></i> ${_t("Wall")}</span>` : "";
+      : rel === "wall" ? `<span class="tsl-x-tag tsl-x-tag--wall"><i class="fas fa-door-closed"></i> ${_t("Wall")}</span>`
+      : p.open && EMOTIONS[p.open] ? `<span class="tsl-x-tag tsl-x-tag--open"><i class="fas fa-door-open"></i> ${esc(EMOTIONS[p.open].label)}</span>` : "";
     let kept = false;
     const die = (d, extra = "") => {
       const k = !kept && d === p.natural;
@@ -1303,7 +1314,7 @@ class TSLTalk {
     };
     const diceHTML = [
       ...(p.dice ?? []).map(d => die(d)),
-      ...(p.natureDie != null ? [die(p.natureDie, rel === "key" ? "tsl-x-die--key" : "tsl-x-die--wall")] : []),
+      ...(p.natureDie != null ? [die(p.natureDie, rel === "key" ? "tsl-x-die--key" : rel === "wall" ? "tsl-x-die--wall" : "tsl-x-die--open")] : []),
     ].join("");
     const base = (p.parts ?? []).find(x => x.base);
     const pill = (value, label) => `<span class="tsl-x-bonus ${value < 0 ? "tsl-x-bonus--neg" : ""}">${value >= 0 ? "+" : "−"}${Math.abs(value)} ${esc(label)}</span>`;
