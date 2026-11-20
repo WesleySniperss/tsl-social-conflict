@@ -176,7 +176,7 @@
 .tsl-bond.open { border-color: var(--tsl-border2); }
 .tsl-bond-head { display: flex; align-items: center; gap: 8px; padding: 5px 8px; cursor: pointer; min-width: 0; }
 .tsl-bond-head:hover { background: var(--tsl-surface); }
-.tsl-bond-head img { width: 30px; height: 30px; flex: 0 0 30px; border-radius: 50%; object-fit: cover; border: 1px solid var(--tsl-border2); }
+.tsl-bond-head img:not(.tsl-bs-ico) { width: 30px; height: 30px; flex: 0 0 30px; border-radius: 50%; object-fit: cover; border: 1px solid var(--tsl-border2); }
 .tsl-bond-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--tsl-title); font-size: 13px; }
 .tsl-bond-type-tag { flex: 0 0 auto; font-size: 12px; color: var(--c); border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); border-radius: 10px; padding: 0 7px; }
 .tsl-bond-dots { flex: 0 0 auto; color: var(--tsl-sway); font-size: 11px; letter-spacing: 1px; }
@@ -1038,7 +1038,7 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 
 /* Bonds: every one at once — who, type, dots, the Strings both ways */
 .tsl-bond-line { display: flex; align-items: center; gap: 8px; padding: 5px 8px 3px; min-width: 0; }
-.tsl-bond-line img { width: 30px; height: 30px; flex: 0 0 30px; border-radius: 50%; object-fit: cover; border: 1px solid var(--tsl-border2); }
+.tsl-bond-line img:not(.tsl-bs-ico) { width: 30px; height: 30px; flex: 0 0 30px; border-radius: 50%; object-fit: cover; border: 1px solid var(--tsl-border2); }
 .tsl-fencing .tsl-bond-line .tsl-bond-type { flex: 0 0 auto; width: 118px; height: 26px; font-size: 12px; color: var(--c); border-color: color-mix(in srgb, var(--c) 45%, transparent); }
 .tsl-bond-line .tsl-str-track { flex: 0 0 auto; }
 .tsl-bond-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 0 8px 6px 46px; }
@@ -1192,20 +1192,8 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 .tsl-sr-theirs { color: #e0786e; }
 .tsl-sr-theirs i { margin-right: 4px; }
 
-/* The Read: what you look for, before the roll */
-.tsl-rqs { display: flex; flex-wrap: wrap; gap: 5px; }
-.tsl-fencing .tsl-rq {
-  width: auto; height: auto; min-height: 26px; margin: 0; padding: 3px 9px; box-shadow: none; cursor: pointer; text-align: left; line-height: 1.2;
-  display: inline-flex; align-items: center; gap: 6px; border-radius: 13px; font-size: 12.5px;
-  background: rgba(0, 0, 0, 0.25); color: var(--tsl-soft); border: 1px dashed rgba(217, 180, 106, 0.5);
-}
-.tsl-fencing .tsl-rq:hover { color: #fff; border-color: #d9b46a; }
-.tsl-fencing .tsl-rq.on { color: #fff; border-style: solid; border-color: #d9b46a; background: rgba(217, 180, 106, 0.18); }
-.tsl-fencing .tsl-rq b { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: #d9b46a; color: #1a1010; font-size: 11px; }
-
-/* ── A Read on what they hide: the chip says the GM will show it; the GM's whisper ── */
-.tsl-fencing .tsl-rq--deep i { color: var(--tsl-muted); font-size: 11px; margin-right: 2px; }
-.chat-message .tsl-x-card .tsl-tell-how { font-size: 12px; color: var(--tsl-soft); font-style: italic; margin: 2px 0 4px; }
+/* ── A card that waits for the GM: a player's "acted it out" ── */
+.chat-message .tsl-x-card .tsl-letgo-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .chat-message .tsl-x-card .tsl-tell-btn {
   width: auto; height: auto; margin: 2px 0 0; padding: 3px 9px; line-height: 1.2; font-size: 12px; cursor: pointer;
   border-radius: 12px; border: 1px solid rgba(127, 211, 154, 0.6); background: rgba(127, 211, 154, 0.12); color: var(--tsl-text);
@@ -1220,8 +1208,9 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 
 /* ── Four ways to read someone: a 2×2 of ways, each with what it finds, its skills, how they'd take it ── */
 .tsl-aps.tsl-reads { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.tsl-read-way .tsl-read-finds { font-size: 11.5px; color: var(--tsl-soft); text-align: center; line-height: 1.25; }
-.tsl-read-way .tsl-read-finds i { color: var(--c); font-size: 0.85em; margin-right: 3px; }
+.tsl-read-way .tsl-read-finds { display: flex; flex-direction: column; gap: 1px; font-size: 11.5px; color: var(--tsl-text); text-align: center; line-height: 1.25; }
+.tsl-read-way .tsl-read-finds small { color: var(--tsl-dim); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; }
+.tsl-read-way .tsl-read-finds .tsl-find-had { color: var(--tsl-dim); text-decoration: line-through; }
 .tsl-read-way .tsl-mv-skills { font-size: 11px; color: var(--tsl-dim); text-align: center; line-height: 1.25; }
 .tsl-read-way .tsl-mv-skills b { color: var(--tsl-soft); font-weight: 600; }
 .tsl-read-way .tsl-mv-skills i { color: var(--tsl-good); font-size: 9px; }
@@ -1302,7 +1291,11 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 }
 .tsl-fencing .tsl-tile img { width: 26px; height: 26px; flex: 0 0 26px; border: none; filter: grayscale(0.85) brightness(0.75); opacity: 0.55; }
 .tsl-fencing .tsl-tile b { font-size: 11.5px; font-weight: 700; letter-spacing: -0.01em; max-width: 100%; overflow-wrap: normal; word-break: keep-all; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tsl-fencing .tsl-tile small { font-size: 11px; color: var(--tsl-soft); max-width: 100%; }
+.tsl-fencing .tsl-tile small { font-size: 11px; color: var(--tsl-soft); max-width: 100%; line-height: 1.2; }
+.tsl-fencing .tsl-tile small i { font-size: 0.85em; margin-right: 1px; }
+.tsl-fencing .tsl-tile .tsl-tile-up { color: #9fe0b0; }
+.tsl-fencing .tsl-tile .tsl-tile-down { color: #f0a59a; }
+.tsl-fencing .tsl-tile .tsl-tile-open { color: #f0d79a; }
 .tsl-fencing .tsl-tile.on { color: #fff; border-color: color-mix(in srgb, var(--c) 85%, transparent); background: color-mix(in srgb, var(--c) 22%, rgba(0, 0, 0, 0.35)); box-shadow: 0 0 8px color-mix(in srgb, var(--c) 30%, transparent); }
 .tsl-fencing .tsl-tile.on img { filter: none; opacity: 1; }
 .tsl-fencing .tsl-tile:hover:not(:disabled) { border-color: var(--c); color: var(--tsl-text); }
@@ -1316,8 +1309,11 @@ span.tsl-viz-public { font-size: 11px; padding: 2px 8px; border-radius: 10px; bo
 /* An emotion's advantage on the card: never the key's colour — that would give the key away. */
 .chat-message .tsl-x-card .tsl-x-tag--open { color: #f0d79a; border: 1px solid rgba(224, 180, 94, 0.55); background: rgba(224, 180, 94, 0.12); }
 .chat-message .tsl-x-card .tsl-x-die--open { border-color: rgba(224, 180, 94, 0.75); box-shadow: 0 0 5px rgba(224, 180, 94, 0.4); }
+/* …and the second die the speaker's own emotion brought: advantage, disadvantage */
+.chat-message .tsl-x-card .tsl-x-die--emo-adv { border-color: rgba(127, 211, 154, 0.6); border-style: dashed; }
+.chat-message .tsl-x-card .tsl-x-die--emo-dis { border-color: rgba(208, 87, 77, 0.6); border-style: dashed; }
 
 /* Chips with the new badges */
 .tsl-emo img, .tsl-scar img, .tsl-emo-ico { width: 17px; height: 17px; }
 .tsl-bond-type-tag { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px 1px 4px; }
-.tsl-bond-type-tag .tsl-bs-ico { width: 15px; height: 15px; vertical-align: 0; }
+.tsl-bond-type-tag .tsl-bs-ico { flex: 0 0 15px; width: 15px; height: 15px; vertical-align: 0; border: none; border-radius: 0; object-fit: contain; }

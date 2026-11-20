@@ -448,7 +448,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
         ? `<div class="tsl-viz-named" style="--c:${tint(nd.named)}" data-tooltip="${esc(_t("Figured out: {nature} — {description}", { nature: nd.named.label, description: nd.named.description }))}">${esc(nd.named.label)}</div>`
         : "";
       const ring = nd.pc ? "var(--tsl-sway, #e0b45e)" : nd.named ? tint(nd.named) : "rgba(255, 255, 255, 0.28)";
-      const emos = nd.emotions.length ? `<div class="tsl-viz-emos">${nd.emotions.map(id => `<img src="${EMOTIONS[id].img}" alt="" data-tooltip="${esc(`${EMOTIONS[id].label} — ${EMOTIONS[id].spoilsText}`)}">`).join("")}</div>` : "";
+      const emos = nd.emotions.length ? `<div class="tsl-viz-emos">${nd.emotions.map(id => `<img src="${EMOTIONS[id].img}" alt="" data-tooltip="${esc(`${EMOTIONS[id].label} — ${TSLEmotions.effectLine(id)}`)}">`).join("")}</div>` : "";
       const cls = `${nd.pc ? " tsl-viz-node--pc" : ""}${this._sel?.kind === "node" && this._sel.id === nd.id ? " sel" : ""}${lit && !lit.nodes.has(nd.id) ? " dim" : ""}`;
       return `<div class="tsl-viz-node${cls}" data-node="${nd.id}" data-actor-id="${nd.id}" style="left:${p.x.toFixed(1)}px;top:${p.y.toFixed(1)}px">
         <div class="tsl-viz-disc" style="--ring:${ring}"><img class="tsl-viz-portrait" src="${esc(nd.img)}" alt="" draggable="false"></div>
@@ -596,7 +596,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
     const truth = isGM && nd.arch && !nd.named ? `<div class="tsl-viz-p-row tsl-viz-dim">${_t("Their nature (only you see it): {nature}", { nature: esc(nd.arch.label) })}</div>` : "";
     const feels = TSLEmotions.of(actor).map(e => {
       const d = EMOTIONS[e.id];
-      return `<span class="tsl-viz-emo" style="--c:${d.color}" data-tooltip="${esc(`${d.label} — ${d.spoilsText}. ${TSLEmotions.sheetWords(e.id)}`)}"><img src="${d.img}" alt=""> ${esc(d.label)}</span>`;
+      return `<span class="tsl-viz-emo" style="--c:${d.color}" data-tooltip="${esc(`${d.label} — ${TSLEmotions.effectLine(e.id)}`)}"><img src="${d.img}" alt=""> ${esc(d.label)}</span>`;
     }).join("");
     // Their bonds: to whoever is on the board (the GM: to anyone at all).
     const bonds = TSLBondStore.getList(id).map(b => {

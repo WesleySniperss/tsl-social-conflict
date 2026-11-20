@@ -141,12 +141,12 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
       globalThis.__dialogQueue = [];
       return p;
     };
-    await r(lyra, roell, { technique: "confide", questions: ["key"] }, [14, 6]);              // she opens up: what would open him? (his key — the better die)
+    await r(lyra, roell, { technique: "confide" }, [14, 6]);              // she opens up: what would open him? (his key — the better die)
     await r(lyra, roell, { technique: "appeal", size: "costly" }, [6, 3], ["pay"]);           // his key: yes, but — on her knee
     await r(mira, roell, { technique: "demand", size: "small" }, [16, 4]);                   // his wall, but it lands: he gives in, and remembers
     await r(mira, roell, { technique: "argument", size: "costly" }, [3]);                     // a no: he leaves her Frightened, the door closes
     await r(lyra, roell, { technique: "argument", size: "costly", witnesses: true }, [9], ["pay"]); // before his men: he hardens (−2), yet gives — everyone saw it
-    await r(mira, duke, { technique: "provoke", questions: ["fear", "wall"] }, [17]);          // she needles him, strongly: his Fear shown, what closes him told
+    await r(mira, duke, { technique: "provoke" }, [17]);          // she needles him, strongly: what closes him, and his Fear — told
     await r(lyra, duke, { technique: "blackmail", size: "against" }, [11]);                  // his Fear: an enemy, Frightened
     await r(lyra, duke, { technique: "deceive", approach: "reason", size: "costly" }, [17, 9]);                  // a lie into his wall — it holds
     await r(mira, duke, { technique: "seduce", size: "small" }, [5, 2]);                     // his Desire
@@ -184,7 +184,7 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
   page("chronicle-state-gm", await chron(roell, "profile", { _stateOpen: true }), 560, 700);
   page("chronicle-state-pc", await chron(lyra, "talk", { _stateOpen: true, _tTarget: "roell" }), 560, 900);
   page("chronicle-state-player", await chron(lyra, "talk", { _stateOpen: true, _tTarget: "roell" }, "player"), 560, 1000);
-  page("chronicle-talk-readq", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "provoke", _tQuestions: ["fear", "wall"] }, "player"), 560, 1250);
+  page("chronicle-talk-readq", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "provoke" }, "player"), 560, 1250);
   page("chronicle-talk-allin", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "blackmail" }, "player"), 560, 1250);   // all in with nothing on record: not locked — the form says what the record would add
   page("chronicle-talk-player", await chron(mira, "talk", { _tTarget: "ilse", _tTech: "appeal", _tSize: "costly", _tHelper: "lyra", _tLever: "desire", _tWitnesses: true }, "player"), 560, 1250);
   page("chronicle-talk-blackmail", await chron(mira, "talk", { _tTarget: "ilse", _tTech: "blackmail", _tSize: "against" }, "player"), 560, 1150);
@@ -195,13 +195,13 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
     await SAM.addSign(ilse, pool[4]); await SAM.addSign(ilse, pool[16]);
     await SAM.setGuess(ilse, "caretaker");
     page("chronicle-talk-guess", await chron(lyra, "talk", { _tTarget: "ilse", _tMode: "ask" }, "player"), 560, 1150);
-    page("chronicle-talk-guess-roll", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "confide", _tQuestions: ["desire"] }, "player"), 560, 1400);
+    page("chronicle-talk-guess-roll", await chron(lyra, "talk", { _tTarget: "ilse", _tTech: "confide" }, "player"), 560, 1400);
   }
   page("chronicle-talk-named", await chron(lyra, "talk", { _tTarget: "duke", _tTech: "appeal", _tSize: "small" }, "player"), 560, 1150);
   page("chronicle-talk-result", await chron(lyra, "talk", { _tTarget: "duke",
     _tResult: { technique: "appeal", grade: "success", total: 18, dc: 15, rel: "key", paid: true, witnesses: true, audience: -2 } }, "player"), 560, 1000);
   page("chronicle-talk-result-read", await chron(mira, "talk", { _tTarget: "duke",
-    _tResult: { technique: "read", grade: "strong", total: 21, dc: 15, rel: "plain", questions: ["fear", "desire"] } }, "player"), 560, 1000);
+    _tResult: { technique: "read", grade: "strong", total: 21, dc: 15, rel: "plain", questions: ["wall", "fear"] } }, "player"), 560, 1000);
   page("chronicle-talk-holds", await chron(lyra, "talk", { _tTarget: "roell" }, "player"), 560, 760);
   await SS.add("lyra", "roell", 1); await SS.add("roell", "lyra", 1);
   page("chronicle-talk-remind", await chron(lyra, "talk", { _tTarget: "roell", _tTech: "appeal", _tSize: "costly" }, "player"), 560, 1300);
@@ -283,7 +283,6 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
     await T.promptPrice(duke, T.priceOf(duke));
     await T.promptPrice(roell, T.priceOf(roell));
     await T.promptPrice(roell, T.priceOf(roell), { strong: true });   // a strong yes: pay and keep the String — or on my terms
-    await T.promptQuestions(ilse, 2);
     await R.TSLAbilities.promptMove(roell, lyra, R.TRIAD_MOVES.power, { total: 16, dc: 15, technique: "demand", grade: "success" });
     await T.promptStringBurn(lyra, roell, 12, 14, 1);
     await new R.SocialFencingApp(lyra)._promptPull(roell);

@@ -241,7 +241,7 @@ class TSLStringStore {
                           : TSLStringStore._changes({ attack: 5, check: 5, save: 5 }, label);
     await holder.createEmbeddedDocuments("ActiveEffect", [{
       name: guard ? _t("{label} — +5 AC", { label }) : `${label} — +5`,
-      img: "modules/tsl-social-conflict/icons/status/string.svg",
+      img: "modules/tsl-social-conflict/icons/badges/string.svg",
       origin: `module.${STRING_FLAG}`,
       disabled: false,
       changes,

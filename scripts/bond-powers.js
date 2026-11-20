@@ -5,8 +5,8 @@
  *   • ON THE TOKEN — a bond in reach is a status like any other (the user,
  *     2026-11-09: «додаватися до інших статусів і відображатися як і вони на
  *     токені»). Standing within the aura's reach of someone you have a bond
- *     with, each of you carries that bond as an effect: the type's icon,
- *     tinted the way the bond runs (Pressure, Heart, Reason), named with its
+ *     with, each of you carries that bond as an effect: the type's badge
+ *     (a white glyph, like the platform's own statuses), named with its
  *     dots and the other one. It carries the bond's AURA, in a fight or not
  *     (the user, 2026-11-06: «має працювати всюди»; 2026-11-14: «мають давати
  *     якісь автоматизовані механічні плюси що будуть корисні і для битви»):
@@ -159,11 +159,6 @@ class TSLBondAuras {
     const square = canvas.grid?.isSquare ?? (canvas.grid?.type === 1);
     const px = square ? Math.max(dx, dy) : Math.hypot(dx, dy);
     return Math.round((px / size) * unit * 100) / 100;
-  }
-
-  /** The colour a bond's status is tinted: the way it runs — Pressure, Heart or Reason. */
-  static tintOf(type) {
-    return APPROACHES[SocialArchetypeManager.bondApproach(type.id)]?.color ?? "#e0b45e";
   }
 
   /** Our bond effects on an actor — and the one aura effect of before 3.15, which goes. */
@@ -368,7 +363,7 @@ class TSLBondNear {
 
   static tone(type) { return type.id === "stranger" ? "stranger" : type.hostile ? "hostile" : "warm"; }
 
-  /** A bond's status icon, tinted the way it runs — the same as on the token. */
+  /** A bond's status badge — the same as on the token. */
   static icon(type) {
     if (!type.statusImg) return `<i class="fas ${type.icon ?? "fa-link"} tsl-bs-ico tsl-bs-ico--fa"></i>`;
     const img = foundry.utils.escapeHTML(type.statusImg);
@@ -419,7 +414,7 @@ class TSLBondMoments {
     if (!actor || !gifts) return null;
     const changes = TSLBondMoments.changes(gifts, name, actor);
     const [made] = await actor.createEmbeddedDocuments("ActiveEffect", [{
-      name, img: "modules/tsl-social-conflict/icons/status/moment.svg", origin: `module.${BOND_POWER_SCOPE}`, disabled: false, changes,
+      name, img: "modules/tsl-social-conflict/icons/badges/moment.svg", origin: `module.${BOND_POWER_SCOPE}`, disabled: false, changes,
       statuses: ["tsl-bond-moment", TSL_STATUS_MARK], ...tslShowIcon(), description: TSLBondMoments.describe(gifts, actor),
       flags: { [BOND_POWER_SCOPE]: { bondMoment: { gifts } } },
     }]);
@@ -528,7 +523,10 @@ class TSLBondPowers {
   static registerRestHooks() {
     const ready = (actor) => {
       actor = actor ? (game.actors.get(actor.id) ?? actor) : null;
-      if (actor && (game.user.isGM || actor.isOwner)) TSLBondStore.clearUsed(actor.id).catch(() => {});
+      if (!actor || !(game.user.isGM || actor.isOwner)) return;
+      TSLBondStore.clearUsed(actor.id).catch(() => {});
+      // …and an emotion not acted out calms down by itself (the user's pick, 2026-11-20: «До довгого відпочинку»).
+      if (typeof TSLEmotions !== "undefined") TSLEmotions.restCalm(actor).catch(() => {});
     };
     Hooks.on("dnd5e.restCompleted", (actor, result) => { if (result?.longRest) ready(actor); });
     Hooks.on("a5e.restCompleted", (_mgr, info) => {

@@ -65,12 +65,12 @@ Hooks.once("init", () => {
     onChange: () => { try { TSLBondAuras.refresh(); } catch { /* not ready */ } },
   });
 
-  // Cards that wait for an answer: an NPC's pull on a String; the GM's "let it show" after a Read.
+  // Cards that wait for an answer: an NPC's pull on a String; a player's "acted it out" for the GM to confirm.
   Hooks.on("renderChatMessageHTML", (message, html) => {
     try { TSLAbilities.bindCard(message, html); }
     catch (err) { console.warn("TSL | ability card:", err); }
-    try { TSLTalk.bindTellCard(message, html); }
-    catch (err) { console.warn("TSL | tell card:", err); }
+    try { TSLEmotions.bindLetGoCard(message, html); }
+    catch (err) { console.warn("TSL | let-go card:", err); }
   });
 });
 
@@ -189,14 +189,18 @@ async function tidyStringsAndLeanings() {
     try { cut += await TSLStringStore.trimToCap(actor); } catch (err) { console.warn(`TSL | String trim failed on ${actor.name}:`, err); }
     const fix = [];
     for (const e of (actor.effects ?? [])) {
-      if (!ours(e)) continue;
-      const patch = {};
+      // The badges moved to icons/badges/ (3.21: white glyphs, no colour): a status made before points anew.
+      const moved = typeof e.img === "string" && e.img.includes("tsl-social-conflict/icons/status/");
+      if (!ours(e) && !moved) continue;
+      const patch = moved ? { img: e.img.replace("/icons/status/", "/icons/badges/") } : {};
+      if (!ours(e)) { fix.push({ _id: e.id, ...patch }); continue; }
       if (ALWAYS !== undefined && e.showIcon !== ALWAYS) patch.showIcon = ALWAYS;
       if (kind && e.system?.effectType !== kind) patch["system.effectType"] = kind;
       if (Object.keys(patch).length) fix.push({ _id: e.id, ...patch });
     }
     if (fix.length) { try { await actor.updateEmbeddedDocuments("ActiveEffect", fix); shown += fix.length; } catch (err) { console.warn(`TSL | status icons failed on ${actor.name}:`, err); } }
-    // Emotions and scars made before 3.18 did nothing on the sheet: written anew, with their edge and burden.
+    // Emotions and scars made before what they do changed (EMOTION_FX_VERSION): written anew — since 3.21 a strength and
+    // a weakness as advantage and disadvantage, one emotion at a time (of several, the newest stays).
     try { sheeted += await TSLEmotions.sync(actor); } catch (err) { console.warn(`TSL | emotions on the sheet failed on ${actor.name}:`, err); }
     // The mask and the "after a no" stance are gone (3.18): drop what old worlds kept of them.
     try {
