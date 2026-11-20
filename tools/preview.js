@@ -166,11 +166,9 @@ const safe = async (fn) => { try { return await fn(); } catch (e) { return `<pre
   }
 
   // Sister Ilse: unread, her Desire known, Guilty (Mira's words), and a lie of Lyra's on record.
-  // Lyra carries an emotion and a scar; Mira is Angry — for the windows.
+  // Lyra carries an emotion; Mira is Angry — for the windows.
   await SAM.setKnown(ilse, { desire: true });
   await R.TSLEmotions.add(ilse, "guilty", { by: "mira" });
-  await R.TSLEmotions.add(lyra, "angry", { by: "duke" });
-  await R.TSLEmotions.add(lyra, "angry", { by: "duke" });
   await R.TSLEmotions.add(lyra, "hopeless", { by: "duke" });
   await R.TSLEmotions.add(mira, "angry", { by: "roell" });
   await ilse.setFlag("tsl-social-conflict", "lies", [{ id: "lie1", byId: "lyra", at: Date.now() }]);

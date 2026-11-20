@@ -5,7 +5,7 @@
  *
  *   Profile — an NPC: (GM) its hidden nature, what the party knows, the
  *             dossier, its Agenda. A player character: their maneuvers
- *             from the sheet (best first), emotions & scars, notes.
+ *             from the sheet (best first), emotions, notes.
  *   Bonds   — relationships: type + strength (one shared bond, mirrored on
  *             both sides), the String held (Invest; Pull: +5 strike or guard).
  *   Talk    — the roll, when the GM calls for it (the talk itself is played
@@ -249,8 +249,8 @@ class SocialFencingApp extends _SocialAppBase {
   }
 
   /**
-   * What weighs on this person right now — their emotions and scars, the
-   * social statuses — on every tab, so nobody has to go looking. Everyone who
+   * What weighs on this person right now — their emotion, the social
+   * status — on every tab, so nobody has to go looking. Everyone who
    * opens the Chronicle sees it. Its owner and the GM change it: × takes one
    * off; "Change" opens the palette, where every one of them is a switch. The
    * system's own conditions (D&D's) stay with the system — the token HUD — not
@@ -265,25 +265,24 @@ class SocialFencingApp extends _SocialAppBase {
     const open = can && this._stateOpen;
     return `<div class="tsl-state ${open ? "open" : ""}">
       <div class="tsl-state-row">
-        <span class="tsl-state-label" data-tooltip="${esc(_t("Emotions. One at a time: a strength and a weakness, as advantage and disadvantage, on the sheet by itself. Whoever plays on it rolls with advantage. Acted out (the GM says so), it goes — with Inspiration; a long rest calms it. The same one again, while you still carry it, leaves a scar: one skill with disadvantage, permanently."))}"><i class="fas fa-heart-pulse"></i> ${_t("Feels")}</span>
+        <span class="tsl-state-label" data-tooltip="${esc(_t("Emotions. One at a time: a strength and a weakness, as advantage and disadvantage, on the sheet by itself — and a drive, like a compulsion. Whoever plays on it rolls with advantage. Its drive done (the GM says so), it goes — with Inspiration; a long rest calms it."))}"><i class="fas fa-heart-pulse"></i> ${_t("Feels")}</span>
         <div class="tsl-state-tags">${tags || `<span class="tsl-state-none">${_t("nothing right now")}</span>`}</div>
         ${can ? `<button type="button" class="tsl-state-edit ${open ? "on" : ""}" data-state-open
-          data-tooltip="${esc(open ? _t("Close") : _t("Put on or take off an emotion or a scar — no roll"))}"><i class="fas fa-${open ? "xmark" : "pen"}"></i> ${open ? _t("Close") : _t("Change")}</button>` : ""}
+          data-tooltip="${esc(open ? _t("Close") : _t("Put on or take off an emotion — no roll"))}"><i class="fas fa-${open ? "xmark" : "pen"}"></i> ${open ? _t("Close") : _t("Change")}</button>` : ""}
       </div>
       ${open ? this._emotionGrid(a) : ""}
     </div>`;
   }
 
-  /** What's on them now, as tags: emotions (what each costs, or opens) and scars — × for whoever may change it. */
+  /** What's on them now, as tags: the emotion (what it gives and takes, or opens) — × for whoever may change it. */
   _stateTags(a, isPC = SocialArchetypeManager.isPC(a), { compact = false } = {}) {
     const can = TSLEmotions.canEdit(a);
-    return this._emotionTags(a, { canClear: can, effects: compact ? null : isPC ? "mine" : "theirs", scars: true, scarX: can, compact });
+    return this._emotionTags(a, { canClear: can, effects: compact ? null : isPC ? "mine" : "theirs", compact });
   }
 
   /**
-   * The first tab's own: what weighs on them now — every emotion (and, on a
-   * character, every scar) as one tile, lit when it's on them, with what it
-   * costs; for whoever may change it the tile is its switch. Then, while
+   * The first tab's own: what weighs on them now — every emotion as one
+   * tile, lit when it's on them, with what it gives, takes and drives to; for whoever may change it the tile is its switch. Then, while
    * they're on the map, the bonds in reach: the same statuses their token
    * carries. One block, nothing shown twice (the user, 2026-11-19: «дизайн
    * досі виглядає дуже перегруженим і не інтуїтивним»).
@@ -303,9 +302,9 @@ class SocialFencingApp extends _SocialAppBase {
   }
 
   /**
-   * Every emotion as a tile — and, on a character, every scar. Lit: it's on
-   * them, with what it gives (an arrow up) and takes (an arrow down) — one at
-   * a time; on an NPC, what it opens too. For whoever may change it (the GM; a
+   * Every emotion as a tile. Lit: it's on them, with what it gives (an arrow
+   * up), takes (an arrow down) and drives to — one at a time; on an NPC, what
+   * it opens too. For whoever may change it (the GM; a
    * player on their own character) a tile is its switch: a dim one puts it on,
    * no roll — pushing out the one before; a lit one: the GM says how it went
    * (acted out — Inspiration; it calmed; a mistake), a player asks the GM.
@@ -315,7 +314,7 @@ class SocialFencingApp extends _SocialAppBase {
     const esc = foundry.utils.escapeHTML;
     const can = TSLEmotions.canEdit(a);
     const pc = SocialArchetypeManager.isPC(a);
-    const feels = TSLEmotions.of(a), scars = TSLEmotions.scars(a);
+    const feels = TSLEmotions.of(a);
     const tile = ({ on, img, label, sub, tip, data, cls = "", color }) => `<button type="button" class="tsl-tile ${cls} ${on ? "on" : ""}" ${data} style="--c:${color}" aria-pressed="${on}" ${can ? "" : "disabled"}
         data-tooltip="${esc(tip)}"><img src="${img}" alt=""><b>${esc(label)}</b>${on && sub ? sub : ""}</button>`;
     const up = (t) => `<small class="tsl-tile-up"><i class="fas fa-arrow-up"></i> ${esc(t)}</small>`;
@@ -325,28 +324,18 @@ class SocialFencingApp extends _SocialAppBase {
       const by = f ? game.actors.get(f.by)?.name : null;
       const click = !can ? "" : !on ? _t("Click: put it on — no roll. It pushes out the one before.")
         : game.user.isGM ? _t("Click: acted out (Inspiration), calmed, or a mistake.") : _t("Click: acted it out? The GM confirms.");
-      const tip = `<b>${d.label}</b> — ${d.theme}${by ? ` (${_t("from {name}", { name: by })})` : ""}<br>${_t("Gives:")} ${d.edgeText}.<br>${_t("Takes:")} ${d.flawText}.<br>${_t("For others:")} ${d.opensText}.<br><i>${_t("It goes when it's acted out:")} ${d.clear} ${_t("Or after a long rest, by itself.")}</i>${click ? `<br>${click}` : ""}`;
+      const tip = `<b>${d.label}</b> — ${d.theme}${by ? ` (${_t("from {name}", { name: by })})` : ""}<br>${_t("Gives:")} ${d.edgeText}.<br>${_t("Takes:")} ${d.flawText}.<br>${_t("For others:")} ${d.opensText}.<br><i>${_t("Drives to:")} <b>${d.drive}</b> — ${d.clear} ${_t("Done, it goes. Or after a long rest, by itself.")}</i>${click ? `<br>${click}` : ""}`;
       return tile({ on, img: d.img, label: d.label, color: d.color, data: `data-state-emo="${id}"`, tip,
-        sub: up(d.edgeShort) + down(d.flawShort) + (pc ? "" : `<small class="tsl-tile-open"><i class="fas fa-door-open"></i> ${esc(_t("{approach} — advantage", { approach: APPROACHES[d.opens]?.label ?? "" }))}</small>`) });
+        sub: up(d.edgeShort) + down(d.flawShort) + `<small class="tsl-tile-drive"><i class="fas fa-angles-right"></i> ${esc(d.drive)}</small>`
+          + (pc ? "" : `<small class="tsl-tile-open"><i class="fas fa-door-open"></i> ${esc(_t("{approach} — advantage", { approach: APPROACHES[d.opens]?.label ?? "" }))}</small>`) });
     }).join("");
-    const sc = !pc ? "" : Object.values(SCARS).map(s => {
-      const on = scars.includes(s.id);
-      const click = !can ? "" : on ? (game.user.isGM ? _t("Click: take it off — only when the story healed it.") : "") : _t("Click: put it on.");
-      const tip = `<b>${_t("Scar — {scar}", { scar: s.label })}</b> (${EMOTIONS[s.from].label})<br>${s.text}${click ? `<br>${click}` : ""}`;
-      return tile({ on, img: SCAR_IMG, label: s.label, color: "#c0473f", cls: "tsl-tile--scar", data: `data-state-scar="${s.id}"`, tip, sub: down(SKILL_LABELS[s.skill] ?? s.skill) });
-    }).join("");
-    return `<div class="tsl-tiles">${emo}</div>${sc ? `<div class="tsl-tiles tsl-tiles--scars" data-tooltip="${esc(_t("Scars: the same emotion again, while you still carry it, leaves one — that skill with disadvantage, permanently."))}">${sc}</div>` : ""}`;
+    return `<div class="tsl-tiles">${emo}</div>`;
   }
 
-  /** The switch: an emotion or a scar on — the GM on anyone, a player on their own (theirs to undo, as long as they put it on). */
+  /** The switch: an emotion on — the GM on anyone, a player on their own (theirs to undo, as long as they put it on). */
   async _toggleState(kind, id) {
     const a = this._actor;
-    if (!TSLEmotions.canEdit(a)) return;
-    if (kind === "scar") {
-      if (TSLEmotions.scars(a).includes(id)) await TSLEmotions.removeScar(a, id);
-      else await TSLEmotions.addScar(a, id);
-      return;
-    }
+    if (!TSLEmotions.canEdit(a) || kind !== "emo") return;
     await TSLEmotions.mark(a, id, { by: game.user.isGM ? null : a.id, title: game.user.isGM ? _t("The GM marks it") : _t("Marked by its player") });
   }
 
@@ -453,7 +442,7 @@ class SocialFencingApp extends _SocialAppBase {
   /**
    * A player character: their maneuvers — what each one rolls for them, from
    * their own sheet (the better of its two skills, the other backing it) —
-   * best first; emotions & scars; notes. No stats of the module's own: the
+   * best first; emotions; notes. No stats of the module's own: the
    * character sheet is the character.
    */
   _buildPcProfile(ctx) {
@@ -966,7 +955,7 @@ class SocialFencingApp extends _SocialAppBase {
   }
 
   /**
-   * What someone feels — and the scars they carry — as tags. `effects`: "mine"
+   * What someone feels, as tags. `effects`: "mine"
    * shows what each costs the one who feels it, "theirs" what it opens for
    * others. × lets an emotion go (its owner or the GM).
    */
@@ -997,26 +986,23 @@ class SocialFencingApp extends _SocialAppBase {
       data-tooltip="${esc(`${tip}<br><i>${n ? _t("Click: take it off by hand.") : _t("Click: mark it by hand.")}</i>`)}">${inner}</button>`;
   }
 
-  /** The tags themselves: each emotion (× to let it go) and, with `scars`, each scar (× for the GM: `scarX`). */
-  _emotionTags(actor, { canClear = false, scars = false, scarX = false, effects = null, compact = false } = {}) {
+  /** The tags themselves: each emotion (× to let it go). */
+  _emotionTags(actor, { canClear = false, effects = null, compact = false } = {}) {
     const esc = foundry.utils.escapeHTML;
     const emos = TSLEmotions.of(actor);
-    const sc = scars ? TSLEmotions.scars(actor) : [];
-    if (!emos.length && !sc.length) return "";
+    if (!emos.length) return "";
     const tags = emos.map(e => {
       const d = EMOTIONS[e.id];
       const by = game.actors.get(e.by)?.name;
       // Mine: what it gives and takes. Theirs: what it opens for whoever talks to them.
       const eff = compact ? "" : effects === "mine" ? `↑ ${d.edgeShort} · ↓ ${d.flawShort}`
         : effects === "theirs" ? _t("{approach} — advantage", { approach: APPROACHES[d.opens]?.label ?? "" }) : "";
-      const tip = `<b>${d.label}</b> — ${d.theme}${by ? ` (${_t("from {name}", { name: by })})` : ""}<br>${_t("Gives:")} ${d.edgeText}.<br>${_t("Takes:")} ${d.flawText}.<br>${_t("For others:")} ${d.opensText}.<br><i>${_t("It goes when it's acted out:")} ${d.clear} ${_t("Or after a long rest, by itself.")}</i>`;
+      const tip = `<b>${d.label}</b> — ${d.theme}${by ? ` (${_t("from {name}", { name: by })})` : ""}<br>${_t("Gives:")} ${d.edgeText}.<br>${_t("Takes:")} ${d.flawText}.<br>${_t("For others:")} ${d.opensText}.<br><i>${_t("Drives to:")} <b>${d.drive}</b> — ${d.clear} ${_t("Done, it goes. Or after a long rest, by itself.")}</i>`;
       return `<span class="tsl-emo" style="--c:${d.color}" data-tooltip="${esc(tip)}"><img src="${d.img}" alt=""> ${esc(d.label)}${eff
         ? ` <small class="tsl-emo-eff">${esc(eff)}</small>` : ""}${canClear
         ? `<button type="button" class="tsl-emo-x" data-emo-clear="${actor.id}" data-emo="${e.id}" aria-label="${esc(_t("Let it go"))}" data-tooltip="${esc(game.user.isGM ? _t("Let it go — acted out (Inspiration), calmed, or a mistake") : _t("Acted it out? The GM confirms — Inspiration"))}">×</button>` : ""}</span>`;
     }).join("");
-    const scarTags = sc.map(id => `<span class="tsl-scar" data-tooltip="${esc(`<b>${_t("Scar — {scar}", { scar: SCARS[id].label })}</b><br>${SCARS[id].text}`)}"><img src="${SCAR_IMG}" alt=""> ${esc(SCARS[id].label)}${scarX
-      ? `<button type="button" class="tsl-emo-x" data-scar-clear="${id}" aria-label="${esc(_t("Take the scar off"))}" data-tooltip="${esc(_t("Take the scar off — a story turn healed it"))}">×</button>` : ""}</span>`).join("");
-    return tags + scarTags;
+    return tags;
   }
 
   /** What the speaker is doing: asking, intimidating, lying or reading — from the maneuver picked, or else the button pressed. */
@@ -1319,7 +1305,7 @@ class SocialFencingApp extends _SocialAppBase {
         data-tooltip="${esc(`${READ_QUESTIONS[q].label}<br>${known[q] ? _t("The party knows.") : _t("Hidden from the party.")} ${_t("Click to toggle.")}`)}">${esc(READ_QUESTIONS[q].short)}</button>`).join("");
     const feels = TSLEmotions.of(npc);
     // What an emotion is, for the GM's tooltip: what it gives, takes and opens — and how it goes. One at a time.
-    const about = (d, opens) => `<b>${d.label}</b> — ${d.theme}<br>${_t("Gives:")} ${d.edgeText}.<br>${_t("Takes:")} ${d.flawText}.${opens ? `<br>${d.opensText}.` : ""}<br><i>${_t("It goes when it's acted out:")} ${d.clear}</i><br>${_t("Rarely — when the words truly land. It pushes out the one before.")}`;
+    const about = (d, opens) => `<b>${d.label}</b> — ${d.theme}<br>${_t("Gives:")} ${d.edgeText}.<br>${_t("Takes:")} ${d.flawText}.${opens ? `<br>${d.opensText}.` : ""}<br><i>${_t("Drives to:")} <b>${d.drive}</b> — ${d.clear}</i><br>${_t("Rarely — when the words truly land. It pushes out the one before.")}`;
     const feelRow = EMOTION_ORDER.map(id => {
       const d = EMOTIONS[id];
       return `<button type="button" class="tsl-feel ${feels.some(x => x.id === id) ? "on" : ""}" data-gm-feel="${id}" style="--c:${d.color}"
@@ -1479,7 +1465,6 @@ class SocialFencingApp extends _SocialAppBase {
           [`<b>DC +${WARY_DC}</b>`, _t("they're on their guard: your last Question against them missed — on your next roll against them only")],
           [`<b>±●</b>`, _t("your bond with them (see Bonds)")],
           [`<b>DC ±●</b>`, _t("their bond toward you: a friend's guard is down (DC −●), an enemy is wary (DC +●)")],
-          [`<b><i class="fas fa-arrow-down"></i></b>`, _t("your scars: one skill each, with disadvantage, permanently")],
           [`<b><i class="fas fa-key"></i> / <i class="fas fa-door-closed"></i></b>`, _t("their key: advantage · their wall: disadvantage")],
           [`<b><i class="fas fa-file-lines"></i></b>`, _t("your sheet: whatever it adds to that skill — the Leanings' bonus, a bond's aura while you stand close — the system's window counts it itself")],
         ], "tsl-cx-adds")}
@@ -1549,21 +1534,19 @@ class SocialFencingApp extends _SocialAppBase {
       }
 
       case "emo": return `
-        ${lead(_t("An emotion is a character for a while — like a compulsion: it gives a <b>strength</b> and takes something, as advantage and disadvantage, until it's <b>acted out</b> (D&D Inspiration) or a long rest calms it. It comes rarely, and one at a time."))}
-        ${table([_t("Emotion"), _t("Gives — advantage"), _t("Takes — disadvantage"), _t("Act it out")], EMOTION_ORDER.map(id => {
+        ${lead(_t("An emotion is a character for a while — like a compulsion: it gives a <b>strength</b> and takes something, as advantage and disadvantage, and it <b>drives</b> you to one thing. Do it, and it goes (D&D Inspiration); or a long rest calms it. It comes rarely, and one at a time."))}
+        ${table([_t("Emotion"), _t("Gives — advantage"), _t("Takes — disadvantage"), _t("Drives to — until it's done")], EMOTION_ORDER.map(id => {
           const d = EMOTIONS[id];
-          return [`<span class="tsl-cx-emo" style="--c:${d.color}"><img src="${d.img}" alt=""> ${esc(d.label)}</span><small>${esc(d.theme)}</small>`, esc(d.edgeText), esc(d.flawText), esc(d.clear)];
+          return [`<span class="tsl-cx-emo" style="--c:${d.color}"><img src="${d.img}" alt=""> ${esc(d.label)}</span><small>${esc(d.theme)}</small>`, esc(d.edgeText), esc(d.flawText), `<b>${esc(d.drive)}</b><small>${esc(d.clear)}</small>`];
         }), "tsl-cx-emos")}
         ${steps([
           ["fa-bolt", _t("It comes rarely"), _t("Only at a big moment: a bad miss (5 under, or a 1) — the one you faced hits back with their nature's emotion; an all-in or a Provoke that misses; a no before witnesses (Insecure); a win against someone close (Guilty); an NPC's move you refuse. Or the GM marks it, when the words truly land. A plain miss leaves none.")],
           ["fa-heart", _t("One at a time"), _t("A new emotion pushes out the one before. On the sheet it works by itself — in a talk and in a fight: a talk rolls a skill, and the skill carries it.")],
           ["fa-door-open", _t("Others can play on it"), _t("Whoever comes at someone the way their emotion opens rolls with <b>advantage</b> — Pressure on Anger and Fear, Heart on Guilt and Insecurity, Reason on Hopelessness. Against their wall the two cancel out: a normal roll.")],
-          ["fa-masks-theater", _t("Act it out"), _t("Do in the scene what it pushes you to — the last column. The GM says it was: it goes, and you take <b>Inspiration</b>. A player can't just switch it off — click it, and the GM gets a card to confirm.")],
-          ["fa-bed", _t("Or a long rest calms it"), _t("Not acted out, it goes by itself after a long rest — with no reward.")],
-          ["fa-droplet", _t("The same one again — a scar"), _t("Get the same emotion while you still carry it, and it leaves a <b>scar</b>: one skill with disadvantage, permanently. No roll takes it off — the GM does, when the story has healed it.")],
+          ["fa-masks-theater", _t("Do what it drives you to"), _t("Revenge, Escape, Atonement, Recognition, Oblivion — the last column. Do it in the scene; the GM says it's done: it goes, and you take <b>Inspiration</b>. A player can't just switch it off — click it, and the GM gets a card to confirm.")],
+          ["fa-bed", _t("Or a long rest calms it"), _t("Not done, it goes by itself after a long rest — with no reward.")],
         ])}
-        ${table([_t("Scar"), _t("From"), _t("What it keeps, permanently")], Object.values(SCARS).map(s => [`<img class="tsl-emo-ico" src="${SCAR_IMG}" alt=""> <b>${esc(s.label)}</b>`, esc(EMOTIONS[s.from].label), esc(s.text)]))}
-        ${where(_t("<b>Where:</b> the first tab of the Chronicle — every emotion and scar as a tile, lit while it's on them, with what it gives and takes. The GM marks and lets go on anyone; a player puts one on their own character, and asks the GM to let one go. On the token, it shows as a status — the system lists it with its own."))}`;
+        ${where(_t("<b>Where:</b> the first tab of the Chronicle — every emotion as a tile, lit while it's on them, with what it gives, takes and drives to. The GM marks and lets go on anyone; a player puts one on their own character, and asks the GM to let one go. On the token, it shows as a status — the system lists it with its own."))}`;
 
       case "strings": return `
         ${lead(_t("A <b>String</b> is something you have on someone — a debt, a secret, a weakness seen. <b>One at a time each way</b>: you have something on them, or you don't."))}
@@ -1629,7 +1612,7 @@ class SocialFencingApp extends _SocialAppBase {
         ${lead(_t("You play the people; the module remembers them and counts the few rolls."))}
         <h3>${_t("Where to do what")}</h3>
         ${table(null, [
-          [`<b>${_t("Emotions and scars")}</b>`, _t("on anyone: the first tab of their Chronicle — every emotion and scar is a switch there. Players put one on their own character, and ask you to let one go: a card in the chat, yes (Inspiration) or not yet. D&D's own conditions stay on the token HUD.")],
+          [`<b>${_t("Emotions")}</b>`, _t("on anyone: the first tab of their Chronicle — every emotion is a switch there. Players put one on their own character, and ask you to let one go: a card in the chat, yes (Inspiration) or not yet. D&D's own conditions stay on the token HUD.")],
           [`<b>${_t("Bonds and Strings")}</b>`, _t("the Bonds tab: the type, the dots and the Strings both ways, right in the row — a String is a switch, click it; add anyone by name, or drag an actor in")],
           [`<b>${_t("Bonds in reach")}</b>`, _t("nothing to do: while two bonded tokens stand close, each carries the bond as a status with its aura. Your client writes them — stay connected. A hidden token doesn't count.")],
           [`<b>${_t("What came out")}</b>`, _t("the NPC's Talk tab or Profile: click a fact to mark it known")],
@@ -1684,7 +1667,7 @@ class SocialFencingApp extends _SocialAppBase {
           [_t("String"), _t("Something you have on someone: a debt, a secret, a weakness. One at a time each way.")],
           [_t("Leanings"), _t("Your archetype: dots in Power, Emotion and Order. Each is +1 to two social skills on your sheet — Power: Intimidation and Deception, Emotion: Insight and Persuasion, Order: Deception and Persuasion — and +1 on maneuvers of its way. On the Profile.")],
           [_t("Bond"), _t("Who you are to each other, and how deep it runs: ●, ●● or ●●●.")],
-          [_t("Emotion · Scar"), _t("What words left on someone, rarely: a strength and a weakness (advantage and disadvantage), one at a time; whoever plays on it rolls with advantage. Act it out and it goes, with Inspiration (the GM says so); a long rest calms it; the same one again while you carry it leaves a scar: one skill with disadvantage, permanently.")],
+          [_t("Emotion"), _t("What words left on someone, rarely: a strength and a weakness (advantage and disadvantage) and a drive, one at a time; whoever plays on it rolls with advantage. Do what it drives you to and it goes, with Inspiration (the GM says so); a long rest calms it.")],
         ].map(([dt, dd]) => `<dt>${dt}</dt><dd>${dd}</dd>`).join("")}</dl>`;
     }
   }
@@ -1829,7 +1812,7 @@ class SocialFencingApp extends _SocialAppBase {
       await TSLStringStore.set(n.dataset.holder, n.dataset.target, n.dataset.on === "1");
       this.render(false);
     });
-    // A tile: a dim one puts it on (no roll); a lit emotion asks how it went; a lit scar asks first.
+    // A tile: a dim one puts it on (no roll); a lit one asks how it went.
     on("[data-state-emo]", "click", async (_e, n) => {
       if (!TSLEmotions.canEdit(this._actor)) return;
       const id = n.dataset.stateEmo;
@@ -1837,19 +1820,6 @@ class SocialFencingApp extends _SocialAppBase {
       else await this._toggleState("emo", id);
       this.render(false);
     });
-    on("[data-state-scar]", "click", async (_e, n) => {
-      if (!TSLEmotions.canEdit(this._actor)) return;
-      const id = n.dataset.stateScar;
-      if (TSLEmotions.scars(this._actor).includes(id)) await this._scarOff(id);
-      else await this._toggleState("scar", id);
-      this.render(false);
-    });
-    on("[data-scar-clear]", "click", async (_e, n) => {
-      if (!TSLEmotions.canEdit(this._actor)) return;
-      await this._scarOff(n.dataset.scarClear);
-      this.render(false);
-    });
-
     if (!canEdit) return;
 
     // ── Profile ──
@@ -2023,9 +1993,9 @@ class SocialFencingApp extends _SocialAppBase {
       buttons.cancel = { label: _t("Not yet"), callback: () => resolve(null) };
       new Dialog({
         title: _t("{name} — let go of {emotion}?", { name: actor.name, emotion: d.label }),
-        content: `<div class="tsl-dlg"><p>${_t("{emotion} goes when it's acted out in the scene:", { emotion: esc(d.label) })}</p>
+        content: `<div class="tsl-dlg"><p>${_t("{emotion} drives to <b>{drive}</b> — it goes when that's done:", { emotion: esc(d.label), drive: esc(d.drive) })}</p>
           <p class="tsl-dlg-price">${esc(d.clear)}</p>
-          ${pc ? `<p>${_t("The GM says when it was: then it earns D&D <b>Inspiration</b>. Not acted out, it calms down after a long rest, with no reward; the same emotion again, while you still carry it, leaves a scar.")}</p>` : ""}</div>`,
+          ${pc ? `<p>${_t("The GM says when it's done: then it earns D&D <b>Inspiration</b>. Not done, it calms down after a long rest, with no reward.")}</p>` : ""}</div>`,
         buttons,
         default: gm ? "act" : "ask",
         close: () => resolve(null),
@@ -2041,14 +2011,6 @@ class SocialFencingApp extends _SocialAppBase {
     else if (how === "ask") await TSLEmotions.requestLetGo(actor, id);
     else if (how === "calm") await TSLEmotions.unset(actor, id);
     else if (game.user.isGM) await TSLEmotions.clear(actor, id, how);
-  }
-
-  /** A scar off — the GM's, asked first: it's permanent, and only the story heals it. */
-  async _scarOff(scarId) {
-    const scar = SCARS[scarId];
-    if (!game.user.isGM) return;
-    if (!scar || !(await this._confirm(_t("Take the scar off"), _t("Take <b>{scar}</b> off {name}? A scar is permanent — take it off only when the story healed it.", { scar: foundry.utils.escapeHTML(scar.label), name: foundry.utils.escapeHTML(this._actor.name) })))) return;
-    await TSLEmotions.removeScar(this._actor, scar.id);
   }
 
   /** Strike or guard? — the choice when a String is pulled. */

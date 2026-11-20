@@ -1,7 +1,7 @@
 /**
  * tsl-social-conflict | emotions.js
  *
- * v3 — EMOTIONS & SCARS (design: docs/v3-design.md §3).
+ * v3 — EMOTIONS (design: docs/v3-design.md §3).
  *
  * Five emotions, as in Thirsty Sword Lesbians: Angry, Frightened, Guilty,
  * Insecure, Hopeless. Anyone can carry one — a player character or an NPC —
@@ -13,12 +13,14 @@
  *   • it gives a STRENGTH and takes something — D&D's advantage and
  *     disadvantage, on the sheet by itself (`edge` / `flaw`), in a talk and in
  *     a fight alike: a talk rolls a skill, and the skill carries it. No number;
+ *   • it DRIVES to one thing, as a compulsion does (`drive`, `clear` — since
+ *     3.22, the user: «деякі з цих ідей можемо просто перенести на емоції»):
+ *     Revenge, Escape, Atonement, Recognition, Oblivion — done, it ends;
  *   • whoever plays on it rolls that way with advantage (`opens`;
  *     TSLTalk.relationFor) — against their wall it cancels out;
- *   • ONE at a time: a new one pushes the old out; the same one again, on a
- *     character, leaves its SCAR — that emotion's weakness in a talk
- *     (one skill, with disadvantage), permanently;
- *   • it goes when it is acted out — the GM says so, and the character takes
+ *   • ONE at a time: a new one pushes the old out; the same one again stays
+ *     as it is (no scars since 3.22 — the user: «шрами приберемо»);
+ *   • it goes when its drive is done — the GM says so, and the character takes
  *     D&D's Inspiration — or it calms down by itself after a long rest, with
  *     no reward. A player can't shed one: they ask the GM (a card).
  *
@@ -66,8 +68,8 @@ function tslSystemStatus() {
  * isn't in CONFIG.statusEffects; with two it simply deletes the effect.
  */
 const TSL_STATUS_MARK = "tsl-social";
-/** Bumped when what an emotion or a scar puts on a sheet changes: older effects are written anew on the GM's load. */
-const EMOTION_FX_VERSION = 4;
+/** Bumped when what an emotion puts on a sheet or says changes: older effects are written anew on the GM's load. */
+const EMOTION_FX_VERSION = 5;
 /** Our status icons: one badge each, drawn for the 20 px a token gives a status. */
 const TSL_ICONS = "modules/tsl-social-conflict/icons/badges";
 
@@ -79,7 +81,8 @@ const TSL_ICONS = "modules/tsl-social-conflict/icons/badges";
  *     the flaw; `edgeText` / `flawText` say it, `edgeShort` / `flawShort` name it
  *     on a tile.
  *   `opens` — the approach that plays on it in someone else: advantage, for anyone.
- *   `clear` — how it's acted out.
+ *   `drive` — what it pushes you to, as a compulsion does; `clear` — when it's
+ *     done (the GM says so: it goes, with Inspiration).
  */
 const EMOTIONS = {
   angry: {
@@ -89,7 +92,7 @@ const EMOTIONS = {
     flaw: ["skill:ins", "save:dex"],     flawText: "Insight and Dexterity saves with disadvantage — you're easy to fool, and you don't dodge",
     edgeShort: "melee attacks, Intimidation", flawShort: "Insight, Dexterity saves",
     opens: "pressure", opensText: "Pressure against them rolls with advantage — they bite at the bait",
-    clear: "Lash out — hurt someone, or break something that matters.", scar: "shortFuse",
+    drive: "Revenge", clear: "Hurt or humiliate the one who angered you — or break something of theirs.",
   },
   frightened: {
     id: "frightened", label: "Frightened", img: `${TSL_ICONS}/emo-frightened.svg`, color: "#9fb4c8",
@@ -98,7 +101,7 @@ const EMOTIONS = {
     flaw: ["attack", "skill:itm"],     flawText: "attack rolls and Intimidation with disadvantage — your hand shakes, your threats ring hollow",
     edgeShort: "initiative, Dexterity saves", flawShort: "attacks, Intimidation",
     opens: "pressure", opensText: "Pressure against them rolls with advantage — threats land",
-    clear: "Back down — give in, or flee what scares you.", scar: "flinch",
+    drive: "Escape", clear: "Get somewhere safe, away from what scares you — or give in to it.",
   },
   guilty: {
     id: "guilty", label: "Guilty", img: `${TSL_ICONS}/emo-guilty.svg`, color: "#c9a25b",
@@ -107,7 +110,7 @@ const EMOTIONS = {
     flaw: ["skill:dec", "init"],       flawText: "Deception and initiative with disadvantage — the lie sticks in your throat, and you hesitate",
     edgeShort: "Persuasion, Insight", flawShort: "Deception, initiative",
     opens: "heart", opensText: "Heart against them rolls with advantage — they want to make amends",
-    clear: "Make amends — confess, repay, or sacrifice something for the one you wronged.", scar: "debt",
+    drive: "Atonement", clear: "Do something real for the one you wronged: confess, repay, protect them.",
   },
   insecure: {
     id: "insecure", label: "Insecure", img: `${TSL_ICONS}/emo-insecure.svg`, color: "#b58fd6",
@@ -116,7 +119,7 @@ const EMOTIONS = {
     flaw: ["skill:prf", "save:wis"],   flawText: "Performance and Wisdom saves with disadvantage — the stage scares you, and you're easy to shake",
     edgeShort: "Perception, Investigation", flawShort: "Performance, Wisdom saves",
     opens: "heart", opensText: "Heart against them rolls with advantage — they crave approval",
-    clear: "Prove yourself — take a reckless risk, and tell no one.", scar: "mask",
+    drive: "Recognition", clear: "Make someone acknowledge, before others, what you're worth.",
   },
   hopeless: {
     id: "hopeless", label: "Hopeless", img: `${TSL_ICONS}/emo-hopeless.svg`, color: "#7d8a99",
@@ -125,29 +128,10 @@ const EMOTIONS = {
     flaw: ["skill:per", "death"],      flawText: "Persuasion and death saving throws with disadvantage — no faith in your words, no will to live",
     edgeShort: "can't be frightened", flawShort: "Persuasion, death saves",
     opens: "reason", opensText: "Reason against them rolls with advantage — they'll take any way out",
-    clear: "Let go — give up on something, or let someone comfort you.", scar: "hollow",
+    drive: "Oblivion", clear: "Find easy relief — a drink, sleep, someone's arms — or give something up.",
   },
 };
 const EMOTION_ORDER = ["angry", "frightened", "guilty", "insecure", "hopeless"];
-
-/**
- * A scar — what an emotion leaves when it hits the same place twice:
- * permanent, one of each — its emotion's weakness in a talk: one skill, with
- * disadvantage. Only the story heals it.
- */
-const SCARS = {
-  shortFuse: { id: "shortFuse", label: "Short Fuse", from: "angry",      skill: "ins",
-    text: "Insight with disadvantage — permanently: you see a slight in every look." },
-  flinch:    { id: "flinch",    label: "Flinch",     from: "frightened", skill: "itm",
-    text: "Intimidation with disadvantage — permanently: your threats ring hollow." },
-  debt:      { id: "debt",      label: "Debt",       from: "guilty",     skill: "dec",
-    text: "Deception with disadvantage — permanently: the old debt shows in your face." },
-  mask:      { id: "mask",      label: "Two Faces",  from: "insecure",   skill: "prf",
-    text: "Performance with disadvantage — permanently: you never quite believe your own act." },
-  hollow:    { id: "hollow",    label: "Hollow",     from: "hopeless",   skill: "per",
-    text: "Persuasion with disadvantage — permanently: something in you stopped believing." },
-};
-const SCAR_IMG = `${TSL_ICONS}/scar.svg`;
 
 /** The skills an emotion's spec names (the talk rolls one of them). */
 function tslSpecSkill(spec) { return spec.startsWith("skill:") ? spec.slice(6) : null; }
@@ -201,21 +185,9 @@ class TSLEmotions {
     const e = EMOTIONS[id];
     return {
       name: e.label, img: e.img, statuses: [TSLEmotions.statusId(id)], ...tslShowIcon(),
-      description: `<b>${e.theme}</b><br>${_t("Gives:")} ${e.edgeText}.<br>${_t("Takes:")} ${e.flawText}.<br>${_t("For others:")} ${e.opensText}.<br><i>${_t("It goes when it's acted out:")} ${e.clear} ${_t("Or after a long rest, by itself.")}</i>`,
+      description: `<b>${e.theme}</b><br>${_t("Gives:")} ${e.edgeText}.<br>${_t("Takes:")} ${e.flawText}.<br>${_t("For others:")} ${e.opensText}.<br><i>${_t("Drives to:")} <b>${e.drive}</b> — ${e.clear} ${_t("Done, it goes. Or after a long rest, by itself.")}</i>`,
       changes: TSLEmotions.sheetChanges(id),
       flags: { [EMOTION_SCOPE]: { emotion: { id, by, fx: EMOTION_FX_VERSION } } },
-    };
-  }
-
-  /** A scar, as Active Effect data: its skill with disadvantage, permanently. */
-  static scarData(scarId) {
-    const scar = SCARS[scarId];
-    const name = _t("Scar — {scar}", { scar: scar.label });
-    let changes = [];
-    try { if (globalThis.game?.system) changes = TSLEmotions.modeChanges(`skill:${scar.skill}`, -1); } catch { changes = []; }
-    return {
-      name, img: SCAR_IMG, description: scar.text, changes,
-      flags: { [EMOTION_SCOPE]: { scar: scar.id, fx: EMOTION_FX_VERSION } },
     };
   }
 
@@ -235,10 +207,10 @@ class TSLEmotions {
   }
 
   /**
-   * Bring an actor's emotions and scars up to date (the active GM, on load):
-   * ones made before are written anew, with what they give and take now — and
-   * since 3.21 one emotion at a time: of several, the newest stays. Returns how
-   * many were rewritten or dropped.
+   * Bring an actor's emotions up to date (the active GM, on load): ones made
+   * before are written anew, with what they give, take and drive to now — one
+   * at a time (of several, the newest stays). The scars of 3.18–3.21 go: there
+   * are none since 3.22. Returns how many were rewritten or dropped.
    */
   static async sync(actor) {
     const old = [], fresh = [];
@@ -250,11 +222,7 @@ class TSLEmotions {
       if (f.fx === EMOTION_FX_VERSION) continue;
       old.push(fx.id); fresh.push(TSLEmotions.effectData(f.id, { by: f.by ?? null }));
     }
-    for (const fx of actor?.effects ?? []) {
-      const f = fx.flags?.[EMOTION_SCOPE];
-      if (!f?.scar || !SCARS[f.scar] || f.fx === EMOTION_FX_VERSION) continue;
-      old.push(fx.id); fresh.push(TSLEmotions.scarData(f.scar));
-    }
+    for (const fx of actor?.effects ?? []) if (fx.flags?.[EMOTION_SCOPE]?.scar) old.push(fx.id);
     if (!old.length) return 0;
     await actor.deleteEmbeddedDocuments("ActiveEffect", old);
     if (fresh.length) await actor.createEmbeddedDocuments("ActiveEffect", fresh);
@@ -299,37 +267,32 @@ class TSLEmotions {
     return !!actor.isOwner && TSLEmotions.of(actor).find(e => e.id === id)?.by === actor.id;
   }
 
-  /** The scars they carry — ids, each once. */
-  static scars(actor) {
-    return [...new Set((actor?.effects ?? []).map(fx => fx.flags?.[EMOTION_SCOPE]?.scar).filter(id => SCARS[id]))];
-  }
-
   /**
    * Make them feel it. One at a time: a new emotion pushes out the one they
-   * carried. A character already carrying THIS one takes its scar instead
-   * (once — after that, nothing more). Returns { id, added, scar, replaced }.
+   * carried; the same one again stays as it is. Returns { id, added, replaced }.
    * GM client, or the actor's owner.
    */
   static async add(actor, id, { by = null } = {}) {
     const e = EMOTIONS[id];
     if (!actor || !e) return null;
-    if (TSLEmotions.has(actor, id)) {
-      const scar = SCARS[e.scar];
-      if (!SocialArchetypeManager.isPC(actor) || TSLEmotions.scars(actor).includes(scar.id)) return { id, added: false, scar: null, replaced: null };
-      await actor.createEmbeddedDocuments("ActiveEffect", [TSLEmotions.scarData(scar.id)]);
-      return { id, added: false, scar: scar.id, replaced: null };
-    }
+    if (TSLEmotions.has(actor, id)) return { id, added: false, replaced: null };
     const before = TSLEmotions.of(actor).map(x => x.id);
     const drop = before.flatMap(x => TSLEmotions._effectIds(actor, x));
     if (drop.length) await actor.deleteEmbeddedDocuments("ActiveEffect", drop);
     await actor.createEmbeddedDocuments("ActiveEffect", [TSLEmotions.effectData(id, { by })]);
-    return { id, added: true, scar: null, replaced: before[0] ?? null };
+    return { id, added: true, replaced: before[0] ?? null };
   }
 
   /** What it does, in one line for a card: "{theme}: {edge}; {flaw}." */
   static effectLine(id) {
     const e = EMOTIONS[id];
     return e ? `${e.theme}: ${e.edgeText}; ${e.flawText}.` : "";
+  }
+
+  /** What it drives you to, and when it's done: "Revenge — hurt or humiliate…". */
+  static driveLine(id) {
+    const e = EMOTIONS[id];
+    return e ? `${e.drive} — ${e.clear}` : "";
   }
 
   /**
@@ -367,7 +330,7 @@ class TSLEmotions {
 
   /**
    * A long rest: whatever they carry, not acted out, calms down by itself —
-   * no reward. One slim line. Scars stay. The client that took the rest.
+   * no reward. One slim line. The client that took the rest.
    */
   static async restCalm(actor) {
     const feels = TSLEmotions.of(actor);
@@ -411,7 +374,7 @@ class TSLEmotions {
          <button type="button" class="tsl-tell-btn" data-tsl-letgo="no">${_t("Not yet")}</button></div>`;
     return `<div class="tsl-x-card tsl-x-card--slim">
       <div class="tsl-x-head"><img class="tsl-emo-ico" src="${e.img}" alt=""><span class="tsl-x-title">${_t("{who} acts out {emotion}", { who: esc(actor.name), emotion: esc(e.label) })}</span></div>
-      <div class="tsl-x-who">${esc(e.clear)} ${_t("Did they? The GM says.")}</div>
+      <div class="tsl-x-who"><b>${esc(e.drive)}</b> — ${esc(e.clear)} ${_t("Did they? The GM says.")}</div>
       ${tail}
     </div>`;
   }
@@ -437,7 +400,7 @@ class TSLEmotions {
   /**
    * The talk itself landed: the GM marks what it left on someone — an NPC, or
    * a character their words hit. No roll. Marking what they already feel takes
-   * it back (a correction, so never a scar). One chat line when it lands, so
+   * it back (a correction). One chat line when it lands, so
    * the table sees what it gives, takes and opens. `by`: whose words left it
    * (a player marking their own character: that character — theirs to undo).
    * Returns "added" | "removed" | null.
@@ -463,31 +426,8 @@ class TSLEmotions {
     return "added";
   }
 
-  /** A scar put on by hand — the GM, or the character's owner (the story left one). Once each. One line in the chat. */
-  static async addScar(actor, scarId) {
-    const scar = SCARS[scarId];
-    if (!TSLEmotions.canEdit(actor) || !scar || TSLEmotions.scars(actor).includes(scarId)) return false;
-    await actor.createEmbeddedDocuments("ActiveEffect", [TSLEmotions.scarData(scar.id)]);
-    const esc = foundry.utils.escapeHTML;
-    await ChatMessage.create({
-      speaker: ChatMessage.getSpeaker({ actor }),
-      content: `<div class="tsl-x-card tsl-x--botch tsl-x-card--slim">
-        <div class="tsl-x-head"><img class="tsl-emo-ico" src="${SCAR_IMG}" alt=""><span class="tsl-x-title">${_t("{who} carries a scar: {scar}", { who: esc(actor.name), scar: esc(scar.label) })}</span></div>
-        <div class="tsl-x-who">${esc(scar.text)}</div>
-      </div>`,
-    });
-    return true;
-  }
-
-  /** A scar wiped (a story turn earned it) — the GM only: it's permanent. Every copy of it. */
-  static async removeScar(actor, scarId) {
-    if (!game.user.isGM) return;
-    const ids = (actor.effects ?? []).filter(f => f.flags?.[EMOTION_SCOPE]?.scar === scarId).map(f => f.id);
-    if (ids.length) await actor.deleteEmbeddedDocuments("ActiveEffect", ids);
-  }
-
   /**
-   * What the speaker's own emotion and scars do to the skill a talk rolls:
+   * What the speaker's own emotion does to the skill a talk rolls:
    * { adv: [labels], dis: [labels] } — the same advantage and disadvantage the
    * sheet carries (the module counts it itself where it rolls its own d20).
    */
@@ -499,7 +439,6 @@ class TSLEmotions {
       if (d.edge.some(s => tslSpecSkill(s) === skill)) out.adv.push(d.label);
       if (d.flaw.some(s => tslSpecSkill(s) === skill)) out.dis.push(d.label);
     }
-    for (const id of TSLEmotions.scars(actor)) if (SCARS[id].skill === skill) out.dis.push(_t("scar — {scar}", { scar: SCARS[id].label }));
     return out;
   }
 

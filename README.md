@@ -65,23 +65,23 @@ After a miss you may burn your String on them for +5 (that roll then moves no St
 - the better of the maneuver's two skills;
 - +1 per dot of your Leaning in that way, −1 on a way with no dots while you lean elsewhere (Profile);
 - your proficiency bonus if you're trained in the other, so it grows with you;
-- **advantage or disadvantage** from an emotion of yours on the skill you roll (Angry: Intimidation with advantage, Insight with disadvantage…), disadvantage from a scar — and **advantage** for an emotion of theirs that your approach plays on. Advantage and disadvantage cancel out, as in D&D;
+- **advantage or disadvantage** from an emotion of yours on the skill you roll (Angry: Intimidation with advantage, Insight with disadvantage…), — and **advantage** for an emotion of theirs that your approach plays on. Advantage and disadvantage cancel out, as in D&D;
 - −2 (on the DC: +2) if your last Question against them missed — they're on their guard, for that one roll;
 - +● for a bond that runs that way, or whose skill rolls (−● for a skill it forbids, and a hostile one's −● on anything but Pressure);
 - +2 for their known Desire or Fear;
 - +2 when another character really backed you up in this talk (they don't roll, and nothing lands on them).
 
-## Emotions and scars
+## Emotions
 
-Five emotions, as in Thirsty Sword Lesbians. Anyone can carry one, a player character or an NPC — toward everyone, one at a time. An emotion is **a character for a while**, like a compulsion in Vampire: it gives a **strength** and takes something, as D&D's advantage and disadvantage — on the sheet by itself, in a talk and in a fight alike (a talk rolls a skill, and the skill carries it). It shows as a status badge on the token (and, in Level Up, in the system's effects panel); the GM can also toggle it from the Token HUD.
+Five emotions, as in Thirsty Sword Lesbians. Anyone can carry one, a player character or an NPC — toward everyone, one at a time. An emotion is **a character for a while**, like a compulsion in Vampire: it gives a **strength** and takes something, as D&D's advantage and disadvantage — on the sheet by itself, in a talk and in a fight alike (a talk rolls a skill, and the skill carries it) — and it **drives** you to one thing. It shows as a status badge on the token (and, in Level Up, in the system's effects panel); the GM can also toggle it from the Token HUD.
 
-| Emotion | Gives — advantage | Takes — disadvantage | Act it out |
+| Emotion | Gives — advantage | Takes — disadvantage | Drives to — until it's done |
 |---|---|---|---|
-| **Angry** — strength without sight | melee attacks, Intimidation | Insight, Dexterity saves | lash out: hurt someone, or break something |
-| **Frightened** — speed without strength | initiative, Dexterity saves | attack rolls, Intimidation | back down, or flee what scares you |
-| **Guilty** — sincerity without lies | Persuasion, Insight | Deception, initiative | make amends |
-| **Insecure** — vigilance without footing | Perception, Investigation | Performance, Wisdom saves | prove yourself with a reckless risk, telling no one |
-| **Hopeless** — fearlessness without faith | can't be frightened (immune to the condition) | Persuasion, death saves | give something up, or accept comfort |
+| **Angry** — strength without sight | melee attacks, Intimidation | Insight, Dexterity saves | **Revenge**: hurt or humiliate the one who angered you, or break something of theirs |
+| **Frightened** — speed without strength | initiative, Dexterity saves | attack rolls, Intimidation | **Escape**: get somewhere safe, away from what scares you — or give in to it |
+| **Guilty** — sincerity without lies | Persuasion, Insight | Deception, initiative | **Atonement**: do something real for the one you wronged |
+| **Insecure** — vigilance without footing | Perception, Investigation | Performance, Wisdom saves | **Recognition**: make someone acknowledge, before others, what you're worth |
+| **Hopeless** — fearlessness without faith | can't be frightened (immune to the condition) | Persuasion, death saves | **Oblivion**: find easy relief — a drink, sleep, someone's arms — or give something up |
 
 **Others can play on it.** Whoever comes at someone the way their emotion opens rolls with **advantage** — Pressure on Anger and Fear, Heart on Guilt and Insecurity, Reason on Hopelessness. Against their wall the two cancel out: a normal roll. A Frightened Tyrant can be pressed; a Guilty Duelist can be asked from the heart.
 
@@ -94,19 +94,9 @@ Five emotions, as in Thirsty Sword Lesbians. Anyone can carry one, a player char
 - on an NPC: Blackmail leaves them Frightened; a lie brought out leaves them Angry;
 - **the talk itself**: when the words truly land, the GM marks it from the NPC's own Talk tab — no roll (marking it again takes it back).
 
-A new emotion pushes out the one before.
+A new emotion pushes out the one before; the same one again simply stays.
 
-**How it goes.** When you **act it out** in the scene — do what it pushes you to (the last column) — the GM says so, it goes, and your character takes D&D **Inspiration**, the way the game rewards playing a flaw. A player can't just switch one off: click it, and the GM gets a card to confirm. A friend's comfort lets it go too, with no reward. Not acted out, it calms down by itself after a **long rest**, with no reward.
-
-A **scar**: get the same emotion again while you still carry it, and it leaves one — that emotion's weakness in a talk, one skill with disadvantage, permanently. One of each at most. No roll takes it off — when the story has truly healed it, the GM clicks it off.
-
-| Scar | From | What it keeps, permanently |
-|---|---|---|
-| Short Fuse | Angry | Insight with disadvantage |
-| Flinch | Frightened | Intimidation with disadvantage |
-| Debt | Guilty | Deception with disadvantage |
-| Two Faces | Insecure | Performance with disadvantage |
-| Hollow | Hopeless | Persuasion with disadvantage |
+**How it goes.** Like a compulsion in Vampire, it goes when you **do what it drives you to** (the last column): the GM says it's done, it goes, and your character takes D&D **Inspiration**, the way the game rewards playing a flaw. A player can't just switch one off: click it, and the GM gets a card to confirm. A friend's comfort lets it go too, with no reward. Not done, it calms down by itself after a **long rest**, with no reward.
 
 ## Nine natures
 
@@ -192,8 +182,8 @@ A move is a tell: the players see its name, and an NPC moves as who they really 
 
 ## Windows
 
-- **Chronicle**: right-click a token, then the address-book button. At the top of every tab: what weighs on them right now — their emotions and scars, by name. **×** lets one go (a player's goes to the GM to confirm); **Change** opens every emotion and scar as a tile — the GM on anyone, a player on their own character. No roll. The **?** beside the tabs shows the hints — what each part of the window is for; they're off until you ask. The system's own conditions (Prone, Charmed…) stay with the system: the token HUD. It has four tabs:
-  - *Profile* — the first tab, where the Chronicle opens: what weighs on them now — every emotion (and, on a character, every scar) as a tile, lit while it's on them with what it gives and takes; click a dim one to put it on (the GM on anyone, a player on their own character), a lit one to let it go (the GM; a player asks the GM) — and *Close by* — the bonds in reach, the same statuses as on the token; the Strings at hand (who on this map you have something on, with Remind them, Strike +5, Guard +5 AC and Invest right there); a player character's **Leanings — their archetype** (dots in Power, Emotion and Order — 4 to spread, at most 3 in one; each dot is +1 to two social skills on the sheet, on every check — Power: Intimidation and Deception, Emotion: Insight and Persuasion, Order: Deception and Persuasion; a skill two share adds both, up to +3 — and +1 on maneuvers of its way, −1 on a way with no dots while leaning elsewhere) and their maneuvers (what each one rolls for them, best first); an NPC's nature, dossier and Agenda for the GM (an empty Desire or Fear shows their nature's own, so the GM knows what a Read will show), and what the party has learned for players;
+- **Chronicle**: right-click a token, then the address-book button. At the top of every tab: what weighs on them right now — their emotion, by name. **×** lets it go (a player's goes to the GM to confirm); **Change** opens every emotion as a tile — the GM on anyone, a player on their own character. No roll. The **?** beside the tabs shows the hints — what each part of the window is for; they're off until you ask. The system's own conditions (Prone, Charmed…) stay with the system: the token HUD. It has four tabs:
+  - *Profile* — the first tab, where the Chronicle opens: what weighs on them now — every emotion as a tile, lit while it's on them with what it gives, takes and drives to; click a dim one to put it on (the GM on anyone, a player on their own character), a lit one to let it go (the GM; a player asks the GM) — and *Close by* — the bonds in reach, the same statuses as on the token; the Strings at hand (who on this map you have something on, with Remind them, Strike +5, Guard +5 AC and Invest right there); a player character's **Leanings — their archetype** (dots in Power, Emotion and Order — 4 to spread, at most 3 in one; each dot is +1 to two social skills on the sheet, on every check — Power: Intimidation and Deception, Emotion: Insight and Persuasion, Order: Deception and Persuasion; a skill two share adds both, up to +3 — and +1 on maneuvers of its way, −1 on a way with no dots while leaning elsewhere) and their maneuvers (what each one rolls for them, best first); an NPC's nature, dossier and Agenda for the GM (an empty Desire or Fear shows their nature's own, so the GM knows what a Read will show), and what the party has learned for players;
   - *Bonds*: every relationship at once — the type, the dots and the Strings both ways (ticked when they're there), with nothing to open. A String is a switch: click it to mark it or take it off by hand — a player on their own character (the NPC's side of it goes through the GM), the GM on anyone; the GM also changes the type and the dots right in the row. Everything the bond gives is in sight in its row: per ● against them, their guard, its aura, its ●● ability and its ●●● signature (*Call on it*), with Invest and Pull; only the caption for the map and your notes fold away. Add a bond with anyone — by name, by dragging an actor in from the sidebar, or from the map;
   - **Talk**: who you're talking to (your target on the map), and right under their name the Strings between you — ticked when you have one on them (*Remind them* spends yours instead of a roll); their emotions; and, when the GM calls for a roll, *I persuade*, *I intimidate*, *I lie* or *I read them* — how your words came at them, plainly or all in, in private or before witnesses — with your odds on the roll button. On an NPC's own sheet this tab is the GM's live screen: how they take each approach (what to act out), price, how they hit back, what they want and fear; their Agenda and their Line; what the talk revealed and the emotions it left, on them and on the characters here (marked here, no roll); the lies they believe; their three moves, with a button to pull a String on whoever they hold one on; and buttons to ask them as any character on the scene;
   - *Codex*: the in-game manual — how to play, the roll, people, emotions, Strings, bonds, and a page for the GM; each opens with one plain sentence, then steps and tables.
@@ -214,7 +204,7 @@ A move is a tell: the players see its name, and an NPC moves as who they really 
 
 Updating to 3.3 adds two script files, and 3.9 two more (`abilities.js`, `bond-powers.js`): **restart the world** (not just F5) after updating.
 
-Upgrading from 2.x: the first world load removes the old v2 states, wounds, scars and auras from sheets; v3's emotions and scars replace them. Bonds, Strings, dossiers and natures are kept.
+Upgrading from 2.x: the first world load removes the old v2 states, wounds, scars and auras from sheets; v3's emotions replace them. Bonds, Strings, dossiers and natures are kept. Upgrading from 3.18–3.21: the GM's first load removes the scars of those versions.
 
 Requires the **vtools** module.
 

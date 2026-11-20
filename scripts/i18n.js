@@ -79,8 +79,7 @@ class TSLi18n {
     if (typeof TALK_GRADES !== "undefined") vals(TALK_GRADES).forEach(g => tr(g, ["label"]));
     if (typeof JOB_GRADES !== "undefined") vals(JOB_GRADES).forEach(trMap);
     if (typeof SKILL_LABELS !== "undefined") trMap(SKILL_LABELS);
-    if (typeof EMOTIONS !== "undefined") vals(EMOTIONS).forEach(e => tr(e, ["label", "theme", "edgeText", "flawText", "edgeShort", "flawShort", "opensText", "clear"]));
-    if (typeof SCARS !== "undefined") vals(SCARS).forEach(s => tr(s, ["label", "text"]));
+    if (typeof EMOTIONS !== "undefined") vals(EMOTIONS).forEach(e => tr(e, ["label", "theme", "edgeText", "flawText", "edgeShort", "flawShort", "opensText", "drive", "clear"]));
     if (typeof PROFILE_POINTS !== "undefined") PROFILE_POINTS.forEach(p => tr(p, ["label", "hint", "placeholder"]));
     if (typeof BOND_TYPES !== "undefined") BOND_TYPES.forEach(b => { tr(b, ["label", "hint"]); tr(b.aura, ["label"]); });
     if (typeof BOND_ABILITIES !== "undefined") vals(BOND_ABILITIES).forEach(a => tr(a, ["label", "text"]));

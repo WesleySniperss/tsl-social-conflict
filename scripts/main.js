@@ -199,8 +199,8 @@ async function tidyStringsAndLeanings() {
       if (Object.keys(patch).length) fix.push({ _id: e.id, ...patch });
     }
     if (fix.length) { try { await actor.updateEmbeddedDocuments("ActiveEffect", fix); shown += fix.length; } catch (err) { console.warn(`TSL | status icons failed on ${actor.name}:`, err); } }
-    // Emotions and scars made before what they do changed (EMOTION_FX_VERSION): written anew — since 3.21 a strength and
-    // a weakness as advantage and disadvantage, one emotion at a time (of several, the newest stays).
+    // Emotions made before what they do changed (EMOTION_FX_VERSION): written anew — a strength and a weakness as
+    // advantage and disadvantage, and a drive; one at a time (of several, the newest stays). Scars (3.18–3.21) go.
     try { sheeted += await TSLEmotions.sync(actor); } catch (err) { console.warn(`TSL | emotions on the sheet failed on ${actor.name}:`, err); }
     // The mask and the "after a no" stance are gone (3.18): drop what old worlds kept of them.
     try {
@@ -215,7 +215,7 @@ async function tidyStringsAndLeanings() {
   }
   if (cut) console.log(`TSL | one String each way: ${cut} extra String(s) cut`);
   if (shown) console.log(`TSL | ${shown} status(es) now shown on their tokens`);
-  if (sheeted) console.log(`TSL | ${sheeted} emotion(s) and scar(s) now work on their sheets`);
+  if (sheeted) console.log(`TSL | ${sheeted} emotion effect(s) written anew (and old scars dropped)`);
 }
 
 Hooks.once("ready", () => {

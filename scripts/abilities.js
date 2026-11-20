@@ -288,8 +288,7 @@ class TSLAbilities {
           else if (fx === "silence") {
             await TSLAbilities.setSilence(npc, pc.id, true);
           } else if (fx.emotion) {
-            const r = await TSLEmotions.add(pc, fx.emotion, { by: npc.id });
-            if (r?.scar) after.push({ html: _t("{name} was already {emotion} — it leaves a scar: <b>{scar}</b>.", { name: esc(pc.name), emotion: EMOTIONS[fx.emotion].label, scar: SCARS[r.scar].label }), tone: "bad" });
+            await TSLEmotions.add(pc, fx.emotion, { by: npc.id });
           } else if ((fx.shift || fx.begin) && !fx.pick) {
             const s = fx.begin ? await TSLBondStore.begin(npc.id, pc.id, fx.begin, fx.begin === "enemy" ? 2 : 1) : await TSLBondStore.shift(npc.id, pc.id, fx.shift);
             after.push({ html: s ? TSLTalk._bondLine(npc, pc, s) : _t("What they are to each other now is the GM's call (Bonds)."), tone: "bad" });

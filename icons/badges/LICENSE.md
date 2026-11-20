@@ -10,7 +10,6 @@ part of TSL: Social Conflict (CC BY-SA 4.0).
 - `emo-guilty.svg` — [weight-hanging](https://fontawesome.com/icons/weight-hanging?s=solid) (solid)
 - `emo-insecure.svg` — [shield-halved](https://fontawesome.com/icons/shield-halved?s=solid) (solid)
 - `emo-hopeless.svg` — [cloud-rain](https://fontawesome.com/icons/cloud-rain?s=solid) (solid)
-- `scar.svg` — [heart-crack](https://fontawesome.com/icons/heart-crack?s=solid) (solid)
 - `string.svg` — [link](https://fontawesome.com/icons/link?s=solid) (solid)
 - `moment.svg` — [star](https://fontawesome.com/icons/star?s=solid) (solid)
 - `bond-stranger.svg` — [circle-question](https://fontawesome.com/icons/circle-question?s=solid) (solid)

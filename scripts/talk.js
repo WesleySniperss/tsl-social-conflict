@@ -361,7 +361,7 @@ class TSLTalk {
   /**
    * Your odds with a technique, from what the party knows: the visible math,
    * advantage on their known key, disadvantage on their known wall, your own
-   * emotion and scars on the skill you roll, and the room once the party knows
+   * emotion on the skill you roll, and the room once the party knows
    * how they take witnesses. { pv, rel, mode, down, open, emo, cancel, p }.
    */
   static chance(src, npc, opts = {}) {
@@ -375,7 +375,7 @@ class TSLTalk {
     const down = said === "wall" ? opened : null;
     const rel = down ? "plain" : said;
     const open = !down && rel !== "key" && rel !== "wall" ? opened : null;
-    // …and what the speaker carries: their emotion's strength or weakness, a scar, on the skill that rolls.
+    // …and what the speaker carries: their emotion's strength or weakness, on the skill that rolls.
     const emo = pv.emo ?? { adv: [], dis: [] };
     const adv = rel === "key" || !!open || emo.adv.length > 0, dis = rel === "wall" || emo.dis.length > 0;
     const mode = TSLTalk.rollMode(adv, dis);
@@ -598,7 +598,7 @@ class TSLTalk {
     const helper = helperId ? game.actors.get(helperId) : null;
     if (helper && helper.id !== src.id) parts.push({ label: _t("help — {name}", { name: helper.name }), value: HELP_BONUS });
     const mod = parts.reduce((sum, p) => sum + p.value, 0);
-    // What the speaker carries is no number: their emotion's strength or weakness on this skill, a scar — advantage or disadvantage.
+    // What the speaker carries is no number: their emotion's strength or weakness on this skill — advantage or disadvantage.
     const emo = TSLEmotions.skillMode(src, skill);
 
     const dcInfo = TSLTalk.dcFor(npc, size);
@@ -666,7 +666,7 @@ class TSLTalk {
 
     // 1) The d20 — through the system's own skill dialog when set, else ours.
     //    The system's own roll already carries what the sheet says — the
-    //    speaker's emotion or scar on this skill among it; ours counts it below.
+    //    speaker's emotion on this skill among it; ours counts it below.
     let total, dice, natural, systemRoll = false, rollData = null, sysMode = 0;
     if (TSLTalk.usesSystemRoll(src)) {
       const extra = pv.mod - pv.parts[0].value;   // the system adds the skill itself
@@ -943,10 +943,9 @@ class TSLTalk {
     const feel = async (actor, emo, opts = {}) => {
       const r = await TSLEmotions.add(actor, emo, opts);
       const name = esc(actor.name);
-      if (r?.added) note(_t("{img} {name} is <b>{emotion}</b> — {what} Until it's acted out, or a long rest.", {
-        img: `<img class="tsl-emo-ico" src="${EMOTIONS[emo].img}" alt="">`, name, emotion: EMOTIONS[emo].label, what: esc(TSLEmotions.effectLine(emo)) }), "bad");
-      else if (r?.scar) note(_t("{img} {name} was already {emotion} — it leaves a scar: <b>{scar}</b>. {text}", {
-        img: `<img class="tsl-emo-ico" src="${SCAR_IMG}" alt="">`, name, emotion: EMOTIONS[emo].label, scar: SCARS[r.scar].label, text: esc(SCARS[r.scar].text) }), "bad");
+      if (r?.added) note(_t("{img} {name} is <b>{emotion}</b> — {what} It drives to <b>{drive}</b>: {clear} Until that's done, or a long rest.", {
+        img: `<img class="tsl-emo-ico" src="${EMOTIONS[emo].img}" alt="">`, name, emotion: EMOTIONS[emo].label, what: esc(TSLEmotions.effectLine(emo)),
+        drive: esc(EMOTIONS[emo].drive), clear: esc(EMOTIONS[emo].clear) }), "bad");
       return r;
     };
 
@@ -967,7 +966,7 @@ class TSLTalk {
       note(p.cancel ? _t("{icon} They're <b>{emotion}</b> — {approach} lands: advantage.", { icon: `<i class="fas fa-door-open"></i>`, approach: APPROACHES[ap].label, emotion: EMOTIONS[openedBy].label })
         : _t("{icon} They're <b>{emotion}</b> — {approach} lands: advantage, the better of two dice.", { icon: `<i class="fas fa-door-open"></i>`, approach: APPROACHES[ap].label, emotion: EMOTIONS[openedBy].label }), "good");
     }
-    // What the speaker carried into it: their emotion's strength or weakness on this skill, a scar.
+    // What the speaker carried into it: their emotion's strength or weakness on this skill.
     { const skill = SKILL_LABELS[p.skill] ?? p.skill;
       if ((p.emoAdv ?? []).length) note(_t("{icon} {who} carries it in: {skill} with advantage ({from}).", { icon: `<i class="fas fa-arrow-up"></i>`, who: esc(src.name), skill, from: esc(p.emoAdv.join(", ")) }), "good");
       if ((p.emoDis ?? []).length) note(_t("{icon} {who} carries it in: {skill} with disadvantage ({from}).", { icon: `<i class="fas fa-arrow-down"></i>`, who: esc(src.name), skill, from: esc(p.emoDis.join(", ")) }), "bad");

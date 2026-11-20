@@ -214,11 +214,11 @@ const EXPORTS = ["SocialArchetypeManager", "TSLTalk", "TSLStringStore", "TSLBond
   "SocialFencingDialog", "TSLGMActions", "TSLSocket", "TSLSceneVisualizer", "TSLHudButton",
   "SOCIAL_ARCHETYPES", "SOCIAL_TRIADS", "APPROACHES", "APPROACH_ORDER", "ASK_SIZES", "ASK_ORDER",
   "TECHNIQUES", "TECH_JOBS", "JOB_ORDER", "LEVER_BONUS",
-  "TSLEmotions", "EMOTIONS", "EMOTION_ORDER", "SCARS",
+  "TSLEmotions", "EMOTIONS", "EMOTION_ORDER",
   "READ_QUESTIONS", "READ_ORDER", "ARCHETYPE_TELLS", "ARCHETYPE_REACTIONS", "BOND_TYPES", "PROFILE_POINTS",
   "SKILL_LABELS", "STRING_CAP", "migrateToV3", "TSL_I18N", "TSLi18n", "TSL_UK", "TALK_GRADES", "JOB_GRADES",
-  "TSLAbilities", "TRIAD_MOVES", "NPC_ABILITIES", "TSLBondAuras", "TSLBondNear", "TSLBondMoments", "TSLBondPowers", "BOND_ABILITIES", "BOND_SIGNATURES", "tidyStringsAndLeanings", "READ_DEPTH", "READ_WAYS", "tslSystemStatus",
-  "READ_HINTS", "READ_MOMENT", "READ_HINTED", "WARY_DC", "EMOTION_FX_VERSION", "EMOTION_SHEET", "SCAR_SHEET", "SCAR_IMG", "TSL_ICONS"];
+  "TSLAbilities", "TRIAD_MOVES", "NPC_ABILITIES", "TSLBondAuras", "TSLBondNear", "TSLBondMoments", "TSLBondPowers", "BOND_ABILITIES", "BOND_SIGNATURES", "tidyStringsAndLeanings", "READ_WAYS", "tslSystemStatus",
+  "READ_HINTS", "READ_MOMENT", "READ_HINTED", "WARY_DC", "EMOTION_FX_VERSION", "TSL_ICONS"];
 let api;
 try {
   api = new Function(combined + "\nreturn { " + EXPORTS.map((e) => `${e}: typeof ${e} !== "undefined" ? ${e} : undefined`).join(", ") + " };")();
@@ -833,12 +833,13 @@ if (require.main === module) (async () => {
     ok(`warmth names nothing: a Stranger stays a Stranger until someone says who they are`, w === null && bond("sX", "sY") === "stranger1");
   }
 
-  // ═══ Emotions & scars ═══════════════════════════════════════════════════════
+  // ═══ Emotions ═══════════════════════════════════════════════════════
   {
     const E = R.EMOTIONS, TE = R.TSLEmotions;
-    ok(`five emotions: each a strength and a weakness (advantage and disadvantage), an opening, a way to act it out, and a scar`,
+    ok(`five emotions: each a strength and a weakness (advantage and disadvantage), an opening, and a drive, as a compulsion — Revenge, Escape, Atonement, Recognition, Oblivion — with when it's done; no scars (the user, 2026-11-20: «шрами приберемо»)`,
       R.EMOTION_ORDER.length === 5 && R.EMOTION_ORDER.every((id) => E[id].edge.length && E[id].flaw.length && E[id].edgeText && E[id].flawText && E[id].theme
-        && R.APPROACHES[E[id].opens] && E[id].clear && R.SCARS[E[id].scar]?.from === id && R.SCARS[E[id].scar].skill));
+        && R.APPROACHES[E[id].opens] && E[id].clear && E[id].drive && !("scar" in E[id]))
+      && R.EMOTION_ORDER.map((id) => E[id].drive).join() === "Revenge,Escape,Atonement,Recognition,Oblivion" && typeof R.TSLEmotions.scars === "undefined" && typeof R.TSLEmotions.addScar === "undefined");
     ok(`every nature hurts with an emotion of its own`, R.SOCIAL_ARCHETYPES.every((a) => E[a.hurts]) && new Set(R.SOCIAL_ARCHETYPES.map((a) => a.hurts)).size === 5);
     globalThis.CONFIG = globalThis.CONFIG ?? {};
     CONFIG.statusEffects = [{ id: "dead", name: "Dead", img: "icons/svg/skull.svg" }];
@@ -847,7 +848,7 @@ if (require.main === module) (async () => {
 
     const p = pc("eP"), q = pc("eQ"), n = npc("eN", "tyrant"), m = npc("eM", "martyr");
     const emo = (src, tgt, tech) => T.preview(src, tgt, { technique: tech }).emo;
-    const nums = (src, tgt, tech) => T.preview(src, tgt, { technique: tech }).parts.filter((x) => /Angry|Hopeless|Guilty|scar/.test(x.label));
+    const nums = (src, tgt, tech) => T.preview(src, tgt, { technique: tech }).parts.filter((x) => /Angry|Hopeless|Guilty/.test(x.label));
     await TE.add(p, "angry", { by: "eN" });
     ok(`Angry — strength without sight: Intimidation with advantage (a Demand rolls it), Insight with disadvantage (a Read rolls it); Persuasion untouched — and no number in the sum (the user: «плюси на емоції мені теж не подобаються»)`,
       emo(p, n, "demand").adv.join() === "Angry" && emo(p, n, "read").dis.join() === "Angry" && !emo(p, n, "appeal").adv.length && !emo(p, n, "appeal").dis.length
@@ -868,7 +869,7 @@ if (require.main === module) (async () => {
     const modes = (fx) => (fx?.changes ?? []).map((c) => `${c.key}=${c.value}`).sort().join(" ");
     ok(`on the sheet, by itself (a5e): Angry — melee attacks and Intimidation with advantage, Insight and Dexterity saves with disadvantage; every change ADD ±1, no number`,
       modes(fxOf(p, "angry")) === ["system.abilities.dex.save.rollMode=-1", "system.rolls.attack.meleeSpellAttack.outgoing.rollMode=1", "system.rolls.attack.meleeWeaponAttack.outgoing.rollMode=1", "system.skills.ins.rollMode=-1", "system.skills.itm.rollMode=1"].sort().join(" ")
-      && fxOf(p, "angry").changes.every((c) => c.mode === 2) && /Gives:/.test(fxOf(p, "angry").description) && /long rest/.test(fxOf(p, "angry").description));
+      && fxOf(p, "angry").changes.every((c) => c.mode === 2) && /Gives:/.test(fxOf(p, "angry").description) && /Revenge/.test(fxOf(p, "angry").description) && /long rest/.test(fxOf(p, "angry").description));
     ok(`…a Frightened NPC's too: initiative and Dexterity saves with advantage, attack rolls and Intimidation with disadvantage`,
       modes(fxOf(n, "frightened")).includes("system.attributes.initiative.rollMode=1") && modes(fxOf(n, "frightened")).includes("system.skills.itm.rollMode=-1")
       && (fxOf(n, "frightened").changes.filter((c) => /outgoing\.rollMode/.test(c.key) && c.value === -1).length === 4));
@@ -878,14 +879,9 @@ if (require.main === module) (async () => {
     ok(`…on dnd5e through its own keys: Hopeless — can't be frightened, Persuasion and death saves with disadvantage; Angry — melee weapon and spell attacks with advantage`,
       d5 === ["system.attributes.death.roll.mode=-1", "system.skills.per.roll.mode=-1", "system.traits.ci.value=frightened"].sort().join(" ")
       && d5a.includes("system.rolls.attack.mwak.mode=1") && d5a.includes("system.rolls.attack.msak.mode=1") && d5a.includes("system.abilities.dex.save.roll.mode=-1"));
-    await TE.add(p, "angry");
-    const sc = TE.scars(p);
-    ok(`already Angry: a scar as well — Short Fuse: Insight with disadvantage, permanently (the emotion stays)`,
-      sc.join() === "shortFuse" && TE.has(p, "angry") && emo(p, n, "read").dis.includes("scar — Short Fuse"));
-    { const scarFx = p.effects.find((e) => e.flags?.[SCOPE]?.scar === "shortFuse");
-      ok(`…and on the sheet: that one skill, ADD −1 — no number, no edge`, modes(scarFx) === "system.skills.ins.rollMode=-1" && /scar\.svg$/.test(scarFx.img)); }
-    ok(`…once: the third time leaves nothing more`, (await TE.add(p, "angry")).scar === null && TE.scars(p).length === 1);
-    ok(`an NPC doesn't scar`, (await TE.add(n, "frightened")).scar === null && TE.scars(n).length === 0);
+    const again = await TE.add(p, "angry");
+    ok(`already Angry, Angry again: it simply stays — one effect, nothing more (no scars)`,
+      again.added === false && TE.has(p, "angry") && p.effects.filter((e) => e.flags?.[SCOPE]?.emotion?.id === "angry").length === 1 && emo(p, n, "read").dis.join() === "Angry");
     await p.createEmbeddedDocuments("ActiveEffect", [{ name: "Insecure", statuses: ["tsl-emo-insecure"] }]);
     ok(`a status toggled by hand on the HUD counts`, TE.has(p, "insecure"));
     await TE.clear(p, "angry", "eQ");
@@ -918,29 +914,31 @@ if (require.main === module) (async () => {
       await TE.mark(w, "hopeless");
       game.user.isGM = true;
       ok(`…one a player put on their own character, they may take back (a mistake)`, mine && !TE.has(w, "hopeless")); }
-    // A long rest calms what wasn't acted out — no reward; scars stay.
+    // A long rest calms what wasn't done — no reward.
     { const z = pc("eRest"); z.system.attributes.inspiration = false;
-      await TE.add(z, "frightened"); await TE.add(z, "frightened");
+      await TE.add(z, "frightened");
       const n0 = await TE.restCalm(z);
-      ok(`a long rest: the emotion not acted out calms down by itself — no Inspiration; the scar stays`,
-        n0 === 1 && !TE.has(z, "frightened") && TE.scars(z).includes("flinch") && z.system.attributes.inspiration === false && /calms down after the rest/.test(lastCard()));
+      ok(`a long rest: the emotion not done calms down by itself — no Inspiration`,
+        n0 === 1 && !TE.has(z, "frightened") && z.system.attributes.inspiration === false && /calms down after the rest/.test(lastCard()));
       ok(`…nothing to calm, nothing said`, (await TE.restCalm(z)) === 0); }
     // Old worlds: several emotions at once are cut to the newest, and every older one is written anew.
     { const o = pc("eOld");
       o.effects.push({ id: "old1", name: "Angry", flags: { [SCOPE]: { emotion: { id: "angry", fx: 3 } } }, statuses: new Set(["tsl-emo-angry"]), changes: [] });
       o.effects.push({ id: "old2", name: "Guilty", flags: { [SCOPE]: { emotion: { id: "guilty", fx: 3 } } }, statuses: new Set(["tsl-emo-guilty"]), changes: [] });
+      o.effects.push({ id: "old3", name: "Scar — Flinch", flags: { [SCOPE]: { scar: "flinch", fx: 4 } }, changes: [] });
       const nOld = await TE.sync(o);
-      ok(`an old world's character carrying two: the newest stays, written anew with its strength and weakness`,
-        nOld === 2 && TE.of(o).map((e) => e.id).join() === "guilty" && o.effects.find((e) => e.flags?.[SCOPE]?.emotion?.id === "guilty")?.flags[SCOPE].emotion.fx === 4); }
+      ok(`an old world's character carrying two, and a scar: the newest emotion stays, written anew with its strength, weakness and drive — the scar goes`,
+        nOld === 3 && TE.of(o).map((e) => e.id).join() === "guilty" && o.effects.find((e) => e.flags?.[SCOPE]?.emotion?.id === "guilty")?.flags[SCOPE].emotion.fx === R.EMOTION_FX_VERSION
+        && !o.effects.some((e) => e.flags?.[SCOPE]?.scar)); }
 
     // Where they come from, on the real pipeline.
     const s1 = pc("eS"), t1 = npc("eT", "tyrant");                          // wall Pressure; hurts: Frightened
     await roll(s1, t1, { technique: "demand", size: "costly" }, [14, 3]);
     ok(`a missed Demand into the Tyrant's wall: their pushback leaves you Frightened`, TE.has(s1, "frightened") && /is <b>Frightened<\/b>/.test(lastCard()) && /An order in front of witnesses/.test(lastCard()));
     const plain = await roll(s1, t1, { technique: "argument", size: "small" }, [2]);
-    ok(`a plain miss while Frightened leaves nothing more`, plain.grade === "failure" && !TE.scars(s1).length);
+    ok(`a plain miss while Frightened leaves nothing more`, plain.grade === "failure" && TE.of(s1).map((e) => e.id).join() === "frightened");
     await roll(s1, t1, { technique: "argument", size: "small" }, [1]);
-    ok(`a bad miss (a 1) while still Frightened: a scar — Flinch`, TE.scars(s1).includes("flinch") && /leaves a scar/.test(lastCard()));
+    ok(`a bad miss (a 1) while still Frightened: Frightened again — it stays, and the card says what it drives to (Escape)`, TE.of(s1).map((e) => e.id).join() === "frightened" && !/scar/i.test(lastCard()));
     const s2 = pc("eU"), h = npc("eH", "hermit");
     await roll(s2, h, { technique: "read" }, [3]);
     ok(`a Read that misses costs no emotion`, TE.of(s2).length === 0);
@@ -1073,7 +1071,7 @@ if (require.main === module) (async () => {
       && !aura.tint && aura.changes.length > 0 && /Oathbound/.test(aura.description) && /\+3 to saving throws/.test(aura.description) && /\+1 AC/.test(aura.description)
       && aura.showIcon === CONST.ACTIVE_EFFECT_SHOW_ICON.ALWAYS && aura.system?.effectType === "condition" && [...aura.statuses].includes("tsl-social"));
     { const dir = require("path").join(__dirname, "..", "icons", "badges");
-      const used = [...R.BOND_TYPES.map((t) => t.statusImg), ...Object.values(R.EMOTIONS).map((e) => e.img), R.SCAR_IMG].map((p) => p.split("/").pop());
+      const used = [...R.BOND_TYPES.map((t) => t.statusImg), ...Object.values(R.EMOTIONS).map((e) => e.img)].map((p) => p.split("/").pop());
       const lic = fs.readFileSync(require("path").join(dir, "LICENSE.md"), "utf8");
       const svgs = used.filter((n) => fs.existsSync(require("path").join(dir, n))).map((n) => fs.readFileSync(require("path").join(dir, n), "utf8"));
       ok(`every status has its own badge, on disk and credited (Font Awesome Free, CC BY 4.0): ${used.length} badges, one picture each — no tint`,
@@ -1537,7 +1535,7 @@ if (require.main === module) (async () => {
       everyTab.every((h) => !bad(h) && /class="tsl-state "/.test(h) && /Frightened/.test(h) && !/tsl-emo-eff/.test(h.split('class="tsl-body"')[0]) && /attack rolls and Intimidation with disadvantage/.test(h) && /data-emo-clear="uiP"/.test(h) && /data-state-open/.test(h))
       && /Frightened/.test(firstTab) && /tsl-tile-up/.test(firstTab) && /tsl-tile-down/.test(firstTab) && /attacks, Intimidation/.test(firstTab) && !/−2/.test(firstTab.split("tsl-tiles")[1] ?? "") && /data-state-emo="frightened"[^>]*aria-pressed="true"/.test(firstTab));
     const mineOpen = await render(P, "profile", { _stateOpen: true });
-    ok(`…Change opens every emotion and scar as a switch, for the player on their own character`, !bad(mineOpen) && (mineOpen.match(/data-state-emo="/g) ?? []).length === 5 && (mineOpen.match(/data-state-scar="/g) ?? []).length === 5);
+    ok(`…Change opens every emotion as a switch, for the player on their own character — no scars`, !bad(mineOpen) && (mineOpen.match(/data-state-emo="/g) ?? []).length === 5 && !/data-state-scar=/.test(mineOpen));
     P.isOwner = false;
     const notMine = await render(P, "profile", { _stateOpen: true });
     P.isOwner = true;
@@ -1567,26 +1565,23 @@ if (require.main === module) (async () => {
       const gmStrip = await render(N, "bonds");
       const open = await render(N, "bonds", { _stateOpen: true });
       const npcFirst = await render(N, "profile");
-      ok(`the GM sees Change on the strip; it opens every emotion as a switch (scars only on characters) — and on the NPC's first tab they're all there already`, !bad(gmStrip) && /data-state-open/.test(gmStrip) && !/data-state-emo/.test(gmStrip)
+      ok(`the GM sees Change on the strip; it opens every emotion as a switch — and on the NPC's first tab they're all there already`, !bad(gmStrip) && /data-state-open/.test(gmStrip) && !/data-state-emo/.test(gmStrip)
         && !bad(open) && (open.match(/data-state-emo="/g) ?? []).length === 5 && !/data-state-scar/.test(open)
         && !bad(npcFirst) && (npcFirst.match(/data-state-emo="/g) ?? []).length === 5 && npcFirst.indexOf("What weighs on them") < npcFirst.indexOf("Nature"));
       const pcOpen = await render(Q, "profile", { _stateOpen: true });
-      ok(`…on a character, the five scars too — and nobody is asked “toward whom”: an emotion is toward everyone; each switch says what it does on the sheet`, !bad(pcOpen) && (pcOpen.match(/data-state-scar="/g) ?? []).length === 5 && !/tsl-state-toward/.test(pcOpen)
-        && /Gives:/.test(pcOpen) && /Takes:/.test(pcOpen) && /death saving throws/.test(pcOpen) && /data-state-scar="\w+"/.test(pcOpen));
+      ok(`…on a character, the same five — and nobody is asked “toward whom”: an emotion is toward everyone; each switch says what it gives, takes and drives to`, !bad(pcOpen) && !/data-state-scar=/.test(pcOpen) && !/tsl-state-toward/.test(pcOpen)
+        && /Gives:/.test(pcOpen) && /Takes:/.test(pcOpen) && /death saving throws/.test(pcOpen) && /Drives to:/.test(pcOpen) && /Oblivion/.test(pcOpen));
       const app = new R.SocialFencingApp(N);
       await app._toggleState("emo", "angry");
       const on = R.TSLEmotions.has(N, "angry");
       await app._toggleState("emo", "angry");
-      ok(`one click puts Angry on them, a second takes it off — no roll, never a scar`, on && !R.TSLEmotions.has(N, "angry") && !R.TSLEmotions.scars(N).length);
+      ok(`one click puts Angry on them, a second takes it off — no roll`, on && !R.TSLEmotions.has(N, "angry"));
       await app._toggleState("emo", "guilty");
       ok(`…Guilty goes on like any other, with one click`, R.TSLEmotions.has(N, "guilty"));
       await R.TSLEmotions.unset(N, "guilty");
       const qApp = new R.SocialFencingApp(Q);
       await qApp._toggleState("scar", "flinch");
-      const scarred = R.TSLEmotions.scars(Q).includes("flinch");
-      const scarView = await render(Q, "talk", { _tTarget: "uiN" });
-      await qApp._toggleState("scar", "flinch");
-      ok(`a scar by hand — shown at once, with × for the GM — and taken off again`, scarred && /data-scar-clear="flinch"/.test(scarView) && !R.TSLEmotions.scars(Q).includes("flinch"));
+      ok(`no scars to put on any more — the switch knows only emotions`, !Q.effects.some((e) => e.flags?.[SCOPE]?.scar));
       const rowGM = await render(P, "bonds");
       ok(`the GM changes the type right in the row, and puts a String on or off either way`, !bad(rowGM) && /<select class="tsl-bond-type"/.test(rowGM)
         && /data-hold-toggle data-holder="uiP" data-target="uiN"/.test(rowGM) && /data-hold-toggle data-holder="uiN" data-target="uiP"/.test(rowGM));
@@ -1652,8 +1647,8 @@ if (require.main === module) (async () => {
       Q.effects.push({ id: "fxProne", name: "Prone", statuses: new Set(["prone"]), flags: {} });
       const proneView = await render(Q, "talk", { _tTarget: "uiN", _stateOpen: true });
       const firstTab = await render(Q, "profile");
-      ok(`our menu holds only the social statuses — emotions and scars; D&D's conditions (Prone, Blinded…) are the system's, not listed even while one is on`,
-        !bad(proneView) && !/Prone|Blinded/.test(proneView) && !/Prone|Blinded/.test(firstTab) && /data-state-emo="angry"/.test(firstTab) && /data-state-scar=/.test(firstTab));
+      ok(`our menu holds only the social statuses — the emotions; D&D's conditions (Prone, Blinded…) are the system's, not listed even while one is on`,
+        !bad(proneView) && !/Prone|Blinded/.test(proneView) && !/Prone|Blinded/.test(firstTab) && /data-state-emo="angry"/.test(firstTab) && !/data-state-scar=/.test(firstTab));
       Q.effects.splice(Q.effects.findIndex((e) => e.id === "fxProne"), 1);
       CONFIG.statusEffects = savedFx;
     }
@@ -1675,7 +1670,7 @@ if (require.main === module) (async () => {
     const marked = await R.TSLEmotions.mark(Q, "insecure");
     ok(`…a mark lands on the character: a card says what it gives and takes, and Talk shows it`, marked === "added" && R.TSLEmotions.has(Q, "insecure") && /The words landed/.test(lastCard()) && /Insecure/.test(lastCard()) && /vigilance without footing/.test(lastCard()));
     await R.TSLEmotions.mark(Q, "insecure");
-    ok(`…and a click takes it back — no scar for a correction`, !R.TSLEmotions.has(Q, "insecure") && R.TSLEmotions.scars(Q).length === 0);
+    ok(`…and a click takes it back — a correction`, !R.TSLEmotions.has(Q, "insecure"));
     await R.TSLEmotions.mark(Q, "guilty", { by: "uiN" });
     ok(`…Guilty remembers whose words left it — and weighs against everyone`, R.TSLEmotions.of(Q).find((e) => e.id === "guilty")?.by === "uiN");
     await R.TSLEmotions.mark(Q, "guilty");

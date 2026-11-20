@@ -112,7 +112,7 @@ class TSLSceneVisualizer extends _TSLVizBase {
     on("updateActor", (actor, chg) => {
       if (foundry.utils.hasProperty(chg, `flags.${VIZ_SCOPE}`) || "name" in (chg ?? {}) || "img" in (chg ?? {})) this._rerender();
     });
-    // Emotions and scars are ActiveEffects — only ours move the map, not every
+    // Emotions are ActiveEffects — only ours move the map, not every
     // condition and concentration check of a fight.
     const effectTouch = (effect) => {
       if (effect?.parent?.documentName !== "Actor") return;
